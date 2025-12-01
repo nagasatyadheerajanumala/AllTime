@@ -1,14 +1,14 @@
 import SwiftUI
 
-// MARK: - Premium Design System
+// MARK: - Chrona Official Dark Theme Design System
 struct DesignSystem {
     
-    // MARK: - Colors
+    // MARK: - Colors - Official Chrona Dark Theme
     struct Colors {
-        // Primary Brand Colors - Professional and clean
-        static let primary = Color(hex: "007AFF") // iOS Blue - classic and professional
-        static let primaryDark = Color(hex: "0051D5")
-        static let primaryLight = Color(hex: "5AC8FA")
+        // Primary Accent - Chrona Icon Blue
+        static let primary = Color(hex: "3C82F6") // Official Chrona blue
+        static let primaryDark = Color(hex: "2563EB")
+        static let primaryLight = Color(hex: "60A5FA")
         
         // Accent Colors
         static let accent = Color(hex: "FF6B6B")
@@ -28,19 +28,27 @@ struct DesignSystem {
             Color(hex: "95E1D3"), // Aqua
         ]
         
-        // Background Colors
-        static let background = Color(UIColor.systemBackground)
-        static let secondaryBackground = Color(UIColor.secondarySystemBackground)
-        static let tertiaryBackground = Color(UIColor.tertiarySystemBackground)
+        // Background Colors - Pure Black Theme
+        static let background = Color(hex: "000000") // Pure black
+        static let backgroundLifted = Color(hex: "050505") // Slightly lifted black
+        static let backgroundLifted2 = Color(hex: "0A0A0A") // More lifted black
+        static let secondaryBackground = Color(hex: "0D0D0D") // Card background
+        static let tertiaryBackground = Color(hex: "131313") // Elevated card background
         
-        // Text Colors
-        static let primaryText = Color(UIColor.label)
-        static let secondaryText = Color(UIColor.secondaryLabel)
-        static let tertiaryText = Color(UIColor.tertiaryLabel)
+        // Text Colors - Official Dark Theme
+        static let primaryText = Color(hex: "FFFFFF") // Pure white
+        static let secondaryText = Color(hex: "B3B3B3") // Secondary gray
+        static let tertiaryText = Color(hex: "666666") // Tertiary gray (low contrast)
+        static let disabledText = Color(hex: "333333") // Disabled text
         
         // Card Colors
-        static let cardBackground = Color(UIColor.systemBackground)
-        static let cardShadow = Color.black.opacity(0.08)
+        static let cardBackground = Color(hex: "0D0D0D")
+        static let cardBackgroundElevated = Color(hex: "131313")
+        static let cardShadow = Color.black.opacity(0.3)
+        
+        // Glow Effects
+        static let glowBlue = Color(hex: "3C82F6").opacity(0.15) // Subtle blue glow
+        static let glowBlueStrong = Color(hex: "3C82F6").opacity(0.2) // Stronger glow
         
         // Gradients
         static let primaryGradient = LinearGradient(
@@ -62,15 +70,18 @@ struct DesignSystem {
         )
     }
     
-    // MARK: - Typography - Clean and Professional
+    // MARK: - Typography - Apple-Style Clean Typography
     struct Typography {
-        // Display - Using system default for cleaner, more professional look
-        static let largeTitle = Font.system(size: 34, weight: .bold, design: .default)
-        static let title1 = Font.system(size: 28, weight: .bold, design: .default)
-        static let title2 = Font.system(size: 22, weight: .semibold, design: .default)
-        static let title3 = Font.system(size: 20, weight: .semibold, design: .default)
+        // Display - Large, thin-weight SF Pro Display style
+        static let largeTitle = Font.system(size: 34, weight: .thin, design: .default)
+        static let title1 = Font.system(size: 28, weight: .thin, design: .default)
+        static let title2 = Font.system(size: 22, weight: .light, design: .default)
+        static let title3 = Font.system(size: 20, weight: .light, design: .default)
         
-        // Body - Clean system fonts
+        // Section Headers - Medium-weight SF Pro
+        static let sectionHeader = Font.system(size: 17, weight: .medium, design: .default)
+        
+        // Body - Regular-weight SF Pro
         static let body = Font.system(size: 17, weight: .regular, design: .default)
         static let bodyBold = Font.system(size: 17, weight: .semibold, design: .default)
         static let callout = Font.system(size: 16, weight: .regular, design: .default)
@@ -80,23 +91,28 @@ struct DesignSystem {
         static let caption2 = Font.system(size: 11, weight: .regular, design: .default)
     }
     
-    // MARK: - Spacing
+    // MARK: - Spacing - Generous and Elegant
     struct Spacing {
         static let xs: CGFloat = 4
         static let sm: CGFloat = 8
         static let md: CGFloat = 16
-        static let lg: CGFloat = 24
-        static let xl: CGFloat = 32
+        static let lg: CGFloat = 24 // Standard section spacing
+        static let xl: CGFloat = 32 // Large section spacing
         static let xxl: CGFloat = 48
+        
+        // Margins
+        static let screenMargin: CGFloat = 20 // Standard screen margin (20-24pt)
+        static let screenMarginLarge: CGFloat = 24
     }
     
-    // MARK: - Corner Radius - Clean and Consistent
+    // MARK: - Corner Radius - Official Chrona Theme
     struct CornerRadius {
         static let sm: CGFloat = 8
         static let md: CGFloat = 12
-        static let lg: CGFloat = 16
+        static let lg: CGFloat = 16 // Standard card radius
         static let xl: CGFloat = 20
-        static let xxl: CGFloat = 24 // Reduced from 28 for cleaner look
+        static let xxl: CGFloat = 22 // Maximum card radius
+        static let button: CGFloat = 16 // Button radius (16pt+)
         static let full: CGFloat = 999
     }
     
@@ -181,55 +197,59 @@ extension Color {
 
     // MARK: - View Extensions for Design System
 extension View {
-    // Clean Professional Card Style
-    func premiumCard(padding: CGFloat = DesignSystem.Spacing.md) -> some View {
+    // Chrona Dark Theme Card Style
+    func chronaCard(padding: CGFloat = DesignSystem.Spacing.md, elevated: Bool = false) -> some View {
         self
             .padding(padding)
             .background(
                 RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg)
-                    .fill(Color(UIColor.systemBackground))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg)
-                    .stroke(
-                        Color(UIColor.separator).opacity(0.3),
-                        lineWidth: 0.5
-                    )
+                    .fill(elevated ? DesignSystem.Colors.cardBackgroundElevated : DesignSystem.Colors.cardBackground)
             )
             .shadow(
-                color: Color.black.opacity(0.06),
-                radius: 8,
+                color: DesignSystem.Colors.cardShadow,
+                radius: elevated ? 12 : 8,
                 x: 0,
-                y: 2
-            )
-            .shadow(
-                color: Color.black.opacity(0.03),
-                radius: 4,
-                x: 0,
-                y: 1
+                y: elevated ? 6 : 4
             )
     }
     
-    func premiumButton(isEnabled: Bool = true) -> some View {
+    // Primary Button - Full-width, blue background
+    func chronaPrimaryButton(isEnabled: Bool = true) -> some View {
         self
             .font(DesignSystem.Typography.bodyBold)
-            .foregroundColor(.white)
-            .padding(.horizontal, DesignSystem.Spacing.lg)
-            .padding(.vertical, DesignSystem.Spacing.md)
+            .foregroundColor(DesignSystem.Colors.primaryText)
+            .frame(maxWidth: .infinity)
+            .frame(height: 52) // 52pt+ height
             .background(
-                isEnabled ? DesignSystem.Colors.primaryGradient : LinearGradient(
-                    colors: [Color.gray.opacity(0.5)],
-                    startPoint: .leading,
-                    endPoint: .trailing
-                )
+                isEnabled ? DesignSystem.Colors.primary : DesignSystem.Colors.disabledText
             )
-            .cornerRadius(DesignSystem.CornerRadius.md)
+            .cornerRadius(DesignSystem.CornerRadius.button)
             .shadow(
                 color: isEnabled ? DesignSystem.Colors.primary.opacity(0.3) : Color.clear,
-                radius: 8,
+                radius: 12,
                 x: 0,
-                y: 4
+                y: 6
             )
+    }
+    
+    // Secondary Button - Transparent with white border
+    func chronaSecondaryButton() -> some View {
+        self
+            .font(DesignSystem.Typography.bodyBold)
+            .foregroundColor(DesignSystem.Colors.primaryText)
+            .frame(maxWidth: .infinity)
+            .frame(height: 52)
+            .background(Color.clear)
+            .overlay(
+                RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.button)
+                    .stroke(DesignSystem.Colors.primaryText.opacity(0.25), lineWidth: 1.5)
+            )
+    }
+    
+    // Subtle glow effect for important elements
+    func chronaGlow(color: Color = DesignSystem.Colors.primary, opacity: Double = 0.15) -> some View {
+        self
+            .shadow(color: color.opacity(opacity), radius: 20, x: 0, y: 0)
     }
     
     func hapticFeedback(_ style: UIImpactFeedbackGenerator.FeedbackStyle = .light) -> some View {

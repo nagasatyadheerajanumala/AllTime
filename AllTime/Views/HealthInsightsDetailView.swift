@@ -1,27 +1,32 @@
 import SwiftUI
 import Combine
+import Charts
 
 /// Comprehensive Health Insights view with backend AI analysis
 struct HealthInsightsDetailView: View {
     @StateObject private var viewModel = HealthInsightsDetailViewModel()
     @State private var selectedRange: DateRange = .last7Days
+    @State private var showingHealthGoals = false
     @ObservedObject private var healthMetricsService = HealthMetricsService.shared
+    @ObservedObject private var healthSyncService = HealthSyncService.shared
     
     enum DateRange: String, CaseIterable {
         case last7Days = "Last 7 Days"
         case last14Days = "Last 14 Days"
         case last30Days = "Last 30 Days"
         
+        var days: Int {
+            switch self {
+            case .last7Days: return 7
+            case .last14Days: return 14
+            case .last30Days: return 30
+            }
+        }
+        
         var startDate: Date {
             let calendar = Calendar.current
-            switch self {
-            case .last7Days:
-                return calendar.date(byAdding: .day, value: -7, to: Date()) ?? Date()
-            case .last14Days:
-                return calendar.date(byAdding: .day, value: -14, to: Date()) ?? Date()
-            case .last30Days:
-                return calendar.date(byAdding: .day, value: -30, to: Date()) ?? Date()
-            }
+            let today = calendar.startOfDay(for: Date())
+            return calendar.date(byAdding: .day, value: -(days - 1), to: today) ?? today
         }
     }
     
@@ -39,8 +44,10 @@ struct HealthInsightsDetailView: View {
                     .padding(.horizontal, DesignSystem.Spacing.md)
                     .padding(.top, DesignSystem.Spacing.sm)
                     .onChange(of: selectedRange) { oldValue, newValue in
+                        print("📊 HealthInsightsView: Date range changed from '\(oldValue.rawValue)' to '\(newValue.rawValue)'")
+                        print("📊 HealthInsightsView: New range: \(newValue.days) days (from \(newValue.startDate))")
                         Task {
-                            await viewModel.loadInsights(startDate: newValue.startDate, endDate: Date())
+                            await viewModel.loadInsights(startDate: newValue.startDate, endDate: Date(), forceRefresh: false)
                         }
                     }
                     
@@ -49,19 +56,22 @@ struct HealthInsightsDetailView: View {
                         HealthInsightsPermissionRequiredView(
                             onPermissionGranted: {
                                 Task {
-                                    await viewModel.loadInsights(startDate: selectedRange.startDate, endDate: Date())
+                                    await viewModel.loadInsights(startDate: selectedRange.startDate, endDate: Date(), forceRefresh: false)
+                                    await viewModel.refreshLocalChart(rangeDays: selectedRange.days)
                                 }
                             }
                         )
                         .padding(.horizontal, DesignSystem.Spacing.md)
                         .padding(.top, 50)
-                    } else if viewModel.isLoading {
+                    } else if viewModel.isLoading && viewModel.insights == nil {
+                        // Only show loading if we don't have any data (including cached)
                         ProgressView("Loading insights...")
                             .padding(.top, 100)
                     } else if let error = viewModel.errorMessage {
                         HealthInsightsErrorView(message: error) {
                             Task {
-                                await viewModel.loadInsights(startDate: selectedRange.startDate, endDate: Date())
+                                await viewModel.loadInsights(startDate: selectedRange.startDate, endDate: Date(), forceRefresh: false)
+                                await viewModel.refreshLocalChart(rangeDays: selectedRange.days)
                             }
                         }
                     } else if let insights = viewModel.insights {
@@ -92,7 +102,7 @@ struct HealthInsightsDetailView: View {
                         }
                         
                         // Daily Metrics Chart
-                        WeeklyHealthChartsSection(metrics: insights.perDayMetrics)
+                        WeeklyHealthChartsSection(metrics: viewModel.chartMetrics)
                             .padding(.horizontal, DesignSystem.Spacing.md)
                             .padding(.bottom, 100)
                     } else {
@@ -102,18 +112,42 @@ struct HealthInsightsDetailView: View {
             }
             .navigationTitle("Health Insights")
             .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: {
+                        showingHealthGoals = true
+                    }) {
+                        Image(systemName: "target")
+                            .foregroundColor(DesignSystem.Colors.primary)
+                    }
+                }
+            }
+            .sheet(isPresented: $showingHealthGoals) {
+                HealthGoalsView()
+            }
             .refreshable {
                 await viewModel.loadInsights(startDate: selectedRange.startDate, endDate: Date())
+                await viewModel.refreshLocalChart(rangeDays: selectedRange.days)
             }
             .onAppear {
                 // Always re-check authorization when view appears (user may have enabled in Settings)
                 Task {
                     await healthMetricsService.checkAuthorizationStatus()
+                    await viewModel.refreshLocalChart(rangeDays: selectedRange.days)
                     
-                    // Load insights if authorized and not already loading
-                    if healthMetricsService.isAuthorized && viewModel.insights == nil && !viewModel.isLoading {
-                        await viewModel.loadInsights(startDate: selectedRange.startDate, endDate: Date())
+                    // ALWAYS try to load from cache first (even if insights exist in memory)
+                    // This ensures we show cached data immediately after tab switches
+                    if healthMetricsService.isAuthorized {
+                        // Load from cache first - this will populate insights if cache exists
+                        await viewModel.loadInsights(startDate: selectedRange.startDate, endDate: Date(), forceRefresh: false)
                     }
+                }
+            }
+            .refreshable {
+                // User explicitly pulled to refresh - force refresh
+                if healthMetricsService.isAuthorized {
+                    await viewModel.loadInsights(startDate: selectedRange.startDate, endDate: Date(), forceRefresh: true)
+                    await viewModel.refreshLocalChart(rangeDays: selectedRange.days)
                 }
             }
             .onChange(of: healthMetricsService.isAuthorized) { oldValue, newValue in
@@ -122,8 +156,23 @@ struct HealthInsightsDetailView: View {
                     Task {
                         // Small delay to ensure sync completes
                         try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
-                        await viewModel.loadInsights(startDate: selectedRange.startDate, endDate: Date())
+                        await viewModel.loadInsights(startDate: selectedRange.startDate, endDate: Date(), forceRefresh: false)
+                        await viewModel.refreshLocalChart(rangeDays: selectedRange.days)
                     }
+                }
+            }
+            .onChange(of: healthSyncService.lastSyncDate) { _, _ in
+                Task {
+                    await viewModel.refreshLocalChart(rangeDays: selectedRange.days)
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("HealthGoalsUpdated"))) { _ in
+                // Regenerate insights when goals are updated (invalidate cache first)
+                print("📊 HealthInsightsView: Health goals updated, invalidating cache and regenerating insights...")
+                Task {
+                    // Invalidate cache by clearing it, then reload
+                    await viewModel.invalidateCache()
+                    await viewModel.loadInsights(startDate: selectedRange.startDate, endDate: Date(), forceRefresh: false)
                 }
             }
         }
@@ -540,25 +589,310 @@ struct DetailedHealthCategoryCard: View {
 
 // MARK: - Weekly Health Charts Section
 struct WeeklyHealthChartsSection: View {
-    let metrics: [PerDayMetrics]
+    let metrics: [DailyHealthMetrics]
+    @State private var selectedMetric: MetricType = .steps
+    
+    private var availableMetrics: [MetricType] {
+        // Only show metrics that have at least one data point
+        MetricType.allCases.filter { metricType in
+            metrics.contains { entry in
+                metricType.value(from: entry) != nil
+            }
+        }
+    }
+    
+    private var chartPoints: [ChartPoint] {
+        let activeMetric = effectiveMetric
+        return metrics
+            .compactMap { entry -> ChartPoint? in
+                guard
+                    let date = MetricType.dateFormatter.date(from: entry.date),
+                    let value = activeMetric.value(from: entry)
+                else { return nil }
+                return ChartPoint(date: date, value: value)
+            }
+            .sorted(by: { $0.date < $1.date })
+    }
+    
+    private var effectiveMetric: MetricType {
+        let available = availableMetrics
+        if available.contains(selectedMetric) {
+            return selectedMetric
+        } else if let first = available.first {
+            return first
+        } else {
+            return .steps // Fallback
+        }
+    }
     
     var body: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-            Text("Daily Trends")
-                .font(DesignSystem.Typography.title3)
-                .fontWeight(.bold)
-                .foregroundColor(DesignSystem.Colors.primaryText)
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Daily Trends")
+                        .font(DesignSystem.Typography.title3)
+                        .fontWeight(.bold)
+                        .foregroundColor(DesignSystem.Colors.primaryText)
+                    
+                    Text(effectiveMetric.subtitle)
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                }
+                
+                Spacer()
+                
+                if availableMetrics.count > 1 {
+                    Picker("Metric", selection: $selectedMetric) {
+                        ForEach(availableMetrics) { metric in
+                            Text(metric.displayName).tag(metric)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                }
+            }
             
-            // Simple bar chart placeholder
-            Text("Chart showing daily steps, sleep, and activity trends")
-                .font(DesignSystem.Typography.caption)
-                .foregroundColor(DesignSystem.Colors.tertiaryText)
-                .padding(.vertical, 40)
+            if chartPoints.isEmpty {
+                VStack(spacing: DesignSystem.Spacing.sm) {
+                    Image(systemName: "chart.line.uptrend.xyaxis")
+                        .font(.title3)
+                        .foregroundColor(DesignSystem.Colors.tertiaryText)
+                    Text("Not enough data for this metric yet.")
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                }
                 .frame(maxWidth: .infinity)
+                .padding(.vertical, 32)
                 .background(
                     RoundedRectangle(cornerRadius: 12)
                         .fill(Color(UIColor.secondarySystemGroupedBackground))
                 )
+            } else {
+                Chart {
+                    ForEach(chartPoints) { point in
+                        AreaMark(
+                            x: .value("Day", point.date),
+                            y: .value(effectiveMetric.displayName, point.value)
+                        )
+                        .foregroundStyle(effectiveMetric.color.opacity(0.15))
+                        
+                        LineMark(
+                            x: .value("Day", point.date),
+                            y: .value(effectiveMetric.displayName, point.value)
+                        )
+                        .interpolationMethod(.catmullRom)
+                        .foregroundStyle(effectiveMetric.color)
+                        
+                        PointMark(
+                            x: .value("Day", point.date),
+                            y: .value(effectiveMetric.displayName, point.value)
+                        )
+                        .foregroundStyle(effectiveMetric.color)
+                        .annotation(position: .top) {
+                            Text(effectiveMetric.formattedValue(point.value))
+                                .font(.caption2)
+                                .foregroundColor(DesignSystem.Colors.secondaryText)
+                        }
+                    }
+                }
+                .chartXAxis {
+                    AxisMarks(values: .stride(by: .day)) { value in
+                        if let date = value.as(Date.self) {
+                            AxisValueLabel(MetricType.axisFormatter.string(from: date))
+                        }
+                    }
+                }
+                .chartYAxis {
+                    AxisMarks(position: .leading)
+                }
+                .frame(height: 240)
+                .padding(.vertical, DesignSystem.Spacing.sm)
+                .background(
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(Color(UIColor.secondarySystemGroupedBackground))
+                )
+                
+                MetricSummaryView(metric: effectiveMetric, points: chartPoints)
+            }
+        }
+        .onAppear {
+            // Auto-select first available metric if current selection has no data
+            let available = availableMetrics
+            if !available.contains(selectedMetric) {
+                if let first = available.first {
+                    selectedMetric = first
+                }
+            }
+        }
+        .onChange(of: metrics) { _, _ in
+            // Update selection when metrics change
+            let available = availableMetrics
+            if !available.contains(selectedMetric), let first = available.first {
+                selectedMetric = first
+            }
+        }
+    }
+    
+    // MARK: - Nested Types
+    struct ChartPoint: Identifiable {
+        let date: Date
+        let value: Double
+        var id: Date { date }
+    }
+    
+    enum MetricType: String, CaseIterable, Identifiable {
+        case steps
+        case activeMinutes
+        case sleepMinutes
+        case activeEnergy
+        case restingHeartRate
+        case hrv
+        
+        var id: String { rawValue }
+        
+        static let dateFormatter: DateFormatter = {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "yyyy-MM-dd"
+            formatter.timeZone = TimeZone(secondsFromGMT: 0)
+            return formatter
+        }()
+        
+        static let axisFormatter: DateFormatter = {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "E"
+            return formatter
+        }()
+        
+        var displayName: String {
+            switch self {
+            case .steps: return "Steps"
+            case .activeMinutes: return "Active Minutes"
+            case .sleepMinutes: return "Sleep"
+            case .activeEnergy: return "Active Energy"
+            case .restingHeartRate: return "Resting HR"
+            case .hrv: return "HRV"
+            }
+        }
+        
+        var subtitle: String {
+            switch self {
+            case .steps:
+                return "Track how many steps you took each day."
+            case .activeMinutes:
+                return "Minutes of exercise recorded each day."
+            case .sleepMinutes:
+                return "Total sleep duration (minutes)."
+            case .activeEnergy:
+                return "Active energy burned (kcal)."
+            case .restingHeartRate:
+                return "Average resting heart rate."
+            case .hrv:
+                return "Heart rate variability (ms)."
+            }
+        }
+        
+        var color: Color {
+            switch self {
+            case .steps: return .blue
+            case .activeMinutes: return .orange
+            case .sleepMinutes: return .indigo
+            case .activeEnergy: return .red
+            case .restingHeartRate: return .pink
+            case .hrv: return .green
+            }
+        }
+        
+        var unitSuffix: String {
+            switch self {
+            case .steps: return ""
+            case .activeMinutes, .sleepMinutes: return "m"
+            case .activeEnergy: return "kcal"
+            case .restingHeartRate: return "bpm"
+            case .hrv: return "ms"
+            }
+        }
+        
+        func value(from metric: DailyHealthMetrics) -> Double? {
+            switch self {
+            case .steps:
+                return metric.steps.map { Double($0) }
+            case .activeMinutes:
+                return metric.activeMinutes.map { Double($0) }
+            case .sleepMinutes:
+                return metric.sleepMinutes.map { Double($0) }
+            case .activeEnergy:
+                return metric.activeEnergyBurned
+            case .restingHeartRate:
+                return metric.restingHeartRate
+            case .hrv:
+                return metric.hrv
+            }
+        }
+        
+        func formattedValue(_ value: Double) -> String {
+            switch self {
+            case .steps:
+                return "\(Int(value))"
+            case .activeMinutes, .sleepMinutes:
+                return "\(Int(value))\(unitSuffix)"
+            case .activeEnergy:
+                return "\(Int(value.rounded())) \(unitSuffix)"
+            case .restingHeartRate, .hrv:
+                return "\(Int(value.rounded())) \(unitSuffix)"
+            }
+        }
+    }
+    
+    struct MetricSummaryView: View {
+        let metric: MetricType
+        let points: [ChartPoint]
+        
+        private var latestValue: Double? { points.last?.value }
+        private var delta: Double? {
+            guard points.count >= 2, let latest = latestValue else { return nil }
+            return latest - points[points.count - 2].value
+        }
+        
+        var body: some View {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Latest")
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                    Text(latestValue.map { metric.formattedValue($0) } ?? "--")
+                        .font(DesignSystem.Typography.title3)
+                        .fontWeight(.semibold)
+                        .foregroundColor(DesignSystem.Colors.primaryText)
+                }
+                
+                Spacer()
+                
+                VStack(alignment: .trailing, spacing: 4) {
+                    Text("Change vs prev. day")
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                    Text(deltaText)
+                        .font(DesignSystem.Typography.bodyBold)
+                        .foregroundColor(deltaColor)
+                }
+            }
+            .padding(.horizontal, DesignSystem.Spacing.md)
+        }
+        
+        private var deltaText: String {
+            guard let delta else { return "No change" }
+            let sign = delta >= 0 ? "+" : ""
+            return "\(sign)\(metric.formattedValue(delta))"
+        }
+        
+        private var deltaColor: Color {
+            guard let delta else { return DesignSystem.Colors.secondaryText }
+            if delta > 0 {
+                return .green
+            } else if delta < 0 {
+                return .red
+            } else {
+                return DesignSystem.Colors.secondaryText
+            }
         }
     }
 }
@@ -618,7 +952,7 @@ struct HealthInsightsPermissionRequiredView: View {
                 .fontWeight(.bold)
                 .foregroundColor(DesignSystem.Colors.primaryText)
             
-            Text("To view your health insights, AllTime needs access to your Health data.")
+            Text("To view your health insights, Chrona needs access to your Health data.")
                 .font(DesignSystem.Typography.body)
                 .foregroundColor(DesignSystem.Colors.secondaryText)
                 .multilineTextAlignment(.center)
@@ -633,7 +967,7 @@ struct HealthInsightsPermissionRequiredView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     InstructionStep(number: "1", text: "Open iOS Settings")
                     InstructionStep(number: "2", text: "Go to Health → Data Access & Devices")
-                    InstructionStep(number: "3", text: "Select 'AllTime'")
+                    InstructionStep(number: "3", text: "Select 'Chrona'")
                     InstructionStep(number: "4", text: "Turn ON all health data types")
                 }
             }
@@ -731,21 +1065,191 @@ struct HealthInsightsEmptyState: View {
 class HealthInsightsDetailViewModel: ObservableObject {
     @Published var insights: HealthInsightsResponse?
     @Published var isLoading = false
+    @Published var isRefreshing = false // Separate flag for background refresh
     @Published var errorMessage: String?
+    @Published var chartMetrics: [DailyHealthMetrics] = []
     
     private let apiService = APIService()
+    private let cacheService = CacheService.shared
+    private let cacheKey = "health_insights"
     
-    func loadInsights(startDate: Date, endDate: Date) async {
-        isLoading = true
+    /// Invalidate cache when goals are updated
+    func invalidateCache() async {
+        // Clear insights cache to force fresh generation with updated goals
+        insights = nil
+        print("🗑️ HealthInsightsViewModel: Invalidated cache - will reload with fresh data")
+    }
+    
+    private static let chartDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        formatter.timeZone = TimeZone.current
+        return formatter
+    }()
+    
+    /// Load insights with caching: instant from cache, then refresh in background
+    func loadInsights(startDate: Date, endDate: Date, forceRefresh: Bool = false) async {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        let startDateStr = formatter.string(from: startDate)
+        let endDateStr = formatter.string(from: endDate)
+        let cacheKeyWithRange = "\(cacheKey)_\(startDateStr)_\(endDateStr)"
+        
+        print("📊 HealthInsightsViewModel: Loading insights for range: \(startDateStr) to \(endDateStr), forceRefresh: \(forceRefresh)")
+        
+        // Step 1: Try to load from cache instantly FIRST (unless forcing refresh)
+        // This ensures UI shows data immediately
+        if !forceRefresh {
+            if let cached = await cacheService.loadJSON(HealthInsightsResponse.self, filename: cacheKeyWithRange) {
+                print("✅ HealthInsightsViewModel: Loaded from cache instantly - NOT refreshing")
+                insights = cached
+                // Refresh chart with cached data
+                let days = max(1, (Calendar.current.dateComponents([.day], from: startDate, to: endDate).day ?? 0) + 1)
+                await refreshLocalChart(rangeDays: days)
+                
+                // Don't refresh if we have valid cache - just show it
+                isLoading = false
+                isRefreshing = false
+                print("✅ HealthInsightsViewModel: Using cached data, skipping API call")
+                return // Exit early - cache is valid, no need to refresh
+            } else {
+                print("❌ HealthInsightsViewModel: No cache found for \(cacheKeyWithRange)")
+            }
+        }
+        
+        // No cache or force refresh - show loading
+        if insights == nil {
+            // No cached data and no existing insights - show loading spinner
+            isLoading = true
+            isRefreshing = false
+        } else if forceRefresh {
+            // Force refresh - show refreshing indicator but keep existing content
+            isRefreshing = true
+            isLoading = false
+        }
+        
         errorMessage = nil
         
+        // Step 2: Refresh from backend (only if no cache or force refresh)
         do {
             let response = try await apiService.fetchHealthInsights(startDate: startDate, endDate: endDate)
             insights = response
+            
+            // Cache the response for next time - IMPORTANT: Save with same key used for loading
+            print("💾 HealthInsightsViewModel: Saving to cache with key: \(cacheKeyWithRange)")
+            await cacheService.saveJSON(response, filename: cacheKeyWithRange, expiration: 60 * 60) // 1 hour cache
+            print("💾 HealthInsightsViewModel: Cache saved successfully")
+            
+            print("📊 HealthInsightsViewModel: Received fresh insights from backend:")
+            print("   - Response range: \(response.startDate) to \(response.endDate)")
+            if let days = response.days {
+                print("   - Backend days field: \(days)")
+            }
+            print("   - Per-day metrics count: \(response.perDayMetrics.count)")
+            
+            // Always refresh chart with the correct range after loading insights
+            let days = max(1, (Calendar.current.dateComponents([.day], from: startDate, to: endDate).day ?? 0) + 1)
+            await refreshLocalChart(rangeDays: days)
+            
+            print("📊 HealthInsightsViewModel: After refresh, chart metrics count: \(chartMetrics.count)")
+            if chartMetrics.count != response.perDayMetrics.count {
+                print("⚠️ HealthInsightsViewModel: Chart metrics count (\(chartMetrics.count)) differs from backend count (\(response.perDayMetrics.count))")
+            }
+            
             isLoading = false
+            isRefreshing = false
         } catch {
-            errorMessage = error.localizedDescription
+            print("❌ HealthInsightsViewModel: Failed to load insights: \(error.localizedDescription)")
+            // Only show error if we don't have cached data
+            if insights == nil {
+                errorMessage = error.localizedDescription
+            }
             isLoading = false
+            isRefreshing = false
+        }
+    }
+    
+    func refreshLocalChart(rangeDays: Int) async {
+        let history = await cacheService.loadHealthMetricsHistory() ?? []
+        var combined = convertPerDayMetrics(insights?.perDayMetrics ?? [])
+        
+        if !history.isEmpty {
+            var map = Dictionary(uniqueKeysWithValues: combined.map { ($0.date, $0) })
+            for entry in history {
+                map[entry.date] = entry
+            }
+            combined = map.values.sorted { $0.date < $1.date }
+        }
+        
+        chartMetrics = filterMetrics(combined, rangeDays: rangeDays)
+    }
+    
+    private func filterMetrics(_ metrics: [DailyHealthMetrics], rangeDays: Int) -> [DailyHealthMetrics] {
+        guard !metrics.isEmpty else { return [] }
+        let calendar = Calendar.current
+        // CRITICAL FIX: Always use "today" as the anchor point, not the latest date in data
+        let today = calendar.startOfDay(for: Date())
+        let cutoff = calendar.date(byAdding: .day, value: -(max(rangeDays, 1) - 1), to: today) ?? today
+        
+        let datedEntries = metrics.compactMap { entry -> (Date, DailyHealthMetrics)? in
+            guard let date = Self.chartDateFormatter.date(from: entry.date) else { return nil }
+            let entryDate = calendar.startOfDay(for: date)
+            // Only include entries within the range (from cutoff to today, inclusive)
+            guard entryDate >= cutoff && entryDate <= today else { return nil }
+            return (entryDate, entry)
+        }
+        
+        return datedEntries
+            .sorted { $0.0 < $1.0 }
+            .map { $0.1 }
+    }
+    
+    private func convertPerDayMetrics(_ perDay: [PerDayMetrics]) -> [DailyHealthMetrics] {
+        guard !perDay.isEmpty else { return [] }
+        return perDay.map { entry in
+            DailyHealthMetrics(
+                date: entry.date,
+                steps: entry.steps,
+                activeMinutes: entry.activeMinutes,
+                standMinutes: nil,
+                workoutsCount: entry.workoutsCount,
+                restingHeartRate: entry.restingHeartRate,
+                activeHeartRate: entry.activeHeartRate,
+                maxHeartRate: entry.maxHeartRate,
+                minHeartRate: entry.minHeartRate,
+                walkingHeartRateAvg: entry.walkingHeartRateAvg,
+                hrv: entry.hrv,
+                bloodPressureSystolic: entry.bloodPressureSystolic,
+                bloodPressureDiastolic: entry.bloodPressureDiastolic,
+                respiratoryRate: entry.respiratoryRate,
+                bloodOxygenSaturation: entry.oxygenSaturation,
+                activeEnergyBurned: entry.activeEnergyBurned,
+                basalEnergyBurned: entry.basalEnergyBurned,
+                restingEnergyBurned: entry.restingEnergyBurned,
+                walkingDistanceMeters: entry.walkingDistance,
+                runningDistanceMeters: entry.runningDistance,
+                cyclingDistanceMeters: entry.cyclingDistance,
+                swimmingDistanceMeters: entry.swimmingDistance,
+                flightsClimbed: entry.flightsClimbed,
+                sleepMinutes: entry.sleepMinutes,
+                sleepQualityScore: nil,
+                caloriesConsumed: entry.caloriesConsumed,
+                proteinGrams: entry.protein,
+                carbsGrams: entry.carbohydrates,
+                fatGrams: entry.fat,
+                fiberGrams: entry.fiber,
+                waterIntakeLiters: entry.water,
+                caffeineMg: entry.caffeine,
+                bodyWeight: entry.bodyWeight,
+                bodyFatPercentage: entry.bodyFatPercentage,
+                leanBodyMass: entry.leanBodyMass,
+                bmi: entry.bodyMassIndex,
+                bloodGlucose: nil,
+                vo2Max: entry.vo2Max,
+                mindfulMinutes: entry.mindfulnessMinutes,
+                menstrualFlow: entry.menstrualFlow,
+                isMenstrualPeriod: nil
+            )
         }
     }
 }

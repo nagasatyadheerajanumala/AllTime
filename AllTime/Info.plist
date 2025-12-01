@@ -6,5 +6,22 @@
 	<string>AllTime uses your health data to provide insights.</string>
 	<key>NSHealthRecordsUsageDescription</key>
 	<string>AllTime uses clinical records to improve insights.</string>
+	<key>NSCalendarsUsageDescription</key>
+	<string>App needs access to your calendar.</string>
+	<key>NSRemindersUsageDescription</key>
+	<string>App needs access to your reminders.</string>
+	<key>NSRemindersFullAccessUsageDescription</key>
+	<string>Chrona needs full access to your reminders to sync reminders created in the app to your iOS Reminders app.</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>alltime</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

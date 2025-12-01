@@ -7,90 +7,118 @@ struct SignInView: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                // Modern gradient background
-                LinearGradient(
-                    gradient: Gradient(colors: [
-                        Color(red: 0.95, green: 0.97, blue: 1.0),
-                        Color(red: 0.98, green: 0.96, blue: 1.0)
-                    ]),
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .ignoresSafeArea()
+                // Official Chrona Dark Theme - Pure Black Background
+                DesignSystem.Colors.background
+                    .ignoresSafeArea()
                 
-                // Subtle animated circles in background
-                Circle()
-                    .fill(Color.blue.opacity(0.05))
-                    .frame(width: 300, height: 300)
-                    .offset(x: -100, y: -200)
+                // Subtle radial gradient under icon for depth
+                VStack {
+                    Spacer()
+                    Circle()
+                        .fill(
+                            RadialGradient(
+                                gradient: Gradient(colors: [
+                                    DesignSystem.Colors.glowBlue,
+                                    Color.clear
+                                ]),
+                                center: .center,
+                                startRadius: 50,
+                                endRadius: 200
+                            )
+                        )
+                        .frame(width: 400, height: 400)
+                        .blur(radius: 80)
+                        .offset(y: -100)
+                }
                 
-                Circle()
-                    .fill(Color.purple.opacity(0.05))
-                    .frame(width: 250, height: 250)
-                    .offset(x: 150, y: 300)
+                // Subtle accent line at top
+                VStack {
+                    Rectangle()
+                        .fill(
+                            LinearGradient(
+                                gradient: Gradient(colors: [
+                                    DesignSystem.Colors.primary.opacity(0.6),
+                                    DesignSystem.Colors.primary.opacity(0.3)
+                                ]),
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .frame(height: 2)
+                        .frame(maxWidth: .infinity)
+                    Spacer()
+                }
                 
                 // Main content
                 VStack(spacing: 0) {
                     Spacer()
                     
-                    // App branding
-                    VStack(spacing: 20) {
-                        // Modern icon
+                    // App branding - Professional & Elegant
+                    VStack(spacing: 32) {
+                        // Refined icon with premium styling and subtle glow
                         ZStack {
-                            RoundedRectangle(cornerRadius: 24)
+                            RoundedRectangle(cornerRadius: 20)
                                 .fill(
                                     LinearGradient(
                                         gradient: Gradient(colors: [
-                                            Color.blue,
-                                            Color.blue.opacity(0.8)
+                                            DesignSystem.Colors.primary,
+                                            DesignSystem.Colors.primaryDark
                                         ]),
                                         startPoint: .topLeading,
                                         endPoint: .bottomTrailing
                                     )
                                 )
-                                .frame(width: 90, height: 90)
-                                .shadow(color: Color.blue.opacity(0.3), radius: 20, x: 0, y: 10)
+                                .frame(width: 100, height: 100)
+                                .shadow(color: DesignSystem.Colors.glowBlueStrong, radius: 30, x: 0, y: 0)
+                                .shadow(color: Color.black.opacity(0.3), radius: 25, x: 0, y: 12)
                             
                             Image(systemName: "calendar.badge.clock")
-                                .font(.system(size: 42, weight: .medium))
-                                .foregroundColor(.white)
+                                .font(.system(size: 44, weight: .light))
+                                .foregroundColor(DesignSystem.Colors.primaryText)
                         }
                         
-                        VStack(spacing: 12) {
-                            Text("AllTime")
-                                .font(.system(size: 44, weight: .bold, design: .rounded))
-                                .foregroundColor(.primary)
+                        VStack(spacing: 16) {
+                            Text("Chrona")
+                                .font(.system(size: 52, weight: .ultraLight, design: .default))
+                                .foregroundColor(DesignSystem.Colors.primaryText)
+                                .tracking(2)
                             
                             Text("Your unified calendar experience")
-                                .font(.system(size: 17, weight: .regular))
-                                .foregroundColor(.secondary)
+                                .font(.system(size: 16, weight: .light, design: .default))
+                                .foregroundColor(DesignSystem.Colors.secondaryText)
                                 .multilineTextAlignment(.center)
-                                .padding(.horizontal, 40)
+                                .padding(.horizontal, 50)
+                                .lineSpacing(4)
                         }
                     }
-                    .padding(.bottom, 60)
+                    .padding(.bottom, 80)
                     
                     Spacer()
                     
                     // Sign in section
                     VStack(spacing: 24) {
-                        // Error message
+                        // Error message - Refined styling
                         if let errorMessage = authService.errorMessage {
                             HStack(spacing: 12) {
-                                Image(systemName: "exclamationmark.triangle.fill")
-                                    .font(.system(size: 16))
-                                    .foregroundColor(.red)
+                                Image(systemName: "exclamationmark.circle.fill")
+                                    .font(.system(size: 15, weight: .light))
+                                    .foregroundColor(.red.opacity(0.8))
                                 
                                 Text(errorMessage)
-                                    .font(.system(size: 14, weight: .medium))
-                                    .foregroundColor(.red)
+                                    .font(.system(size: 13, weight: .light, design: .default))
+                                    .foregroundColor(.red.opacity(0.9))
                                     .multilineTextAlignment(.leading)
                                 
                                 Spacer()
                             }
-                            .padding(16)
-                            .background(Color.red.opacity(0.08))
-                            .cornerRadius(12)
+                            .padding(.horizontal, 18)
+                            .padding(.vertical, 14)
+                            .background(Color.red.opacity(0.06))
+                            .cornerRadius(10)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .stroke(Color.red.opacity(0.15), lineWidth: 1)
+                            )
                             .padding(.horizontal, 32)
                             .transition(.scale.combined(with: .opacity))
                         }
@@ -141,24 +169,25 @@ struct SignInView: View {
                                 }
                             )
                             .signInWithAppleButtonStyle(.black)
-                            .frame(height: 56)
-                            .frame(maxWidth: 340)
-                            .cornerRadius(14)
-                            .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: 4)
+                            .frame(height: 58)
+                            .frame(maxWidth: 320)
+                            .cornerRadius(12)
+                            .shadow(color: Color.black.opacity(0.12), radius: 15, x: 0, y: 6)
                             .disabled(authService.isLoading)
                             .opacity(authService.isLoading ? 0.6 : 1.0)
                             
                             // Loading indicator
                             if authService.isLoading {
-                                HStack(spacing: 12) {
+                                HStack(spacing: 10) {
                                     ProgressView()
-                                        .progressViewStyle(CircularProgressViewStyle(tint: .blue))
+                                        .progressViewStyle(CircularProgressViewStyle(tint: DesignSystem.Colors.primary))
                                     
                                     Text("Signing in...")
-                                        .font(.system(size: 15, weight: .medium))
-                                        .foregroundColor(.secondary)
+                                        .font(.system(size: 14, weight: .light, design: .default))
+                                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                                        .tracking(0.5)
                                 }
-                                .padding(.top, 4)
+                                .padding(.top, 6)
                                 .transition(.scale.combined(with: .opacity))
                             }
                         }
@@ -168,21 +197,23 @@ struct SignInView: View {
                     Spacer()
                         .frame(height: 80)
                     
-                    // Footer
-                    VStack(spacing: 8) {
+                    // Footer - Professional & Understated
+                    VStack(spacing: 10) {
                         Text("Secure authentication with Apple")
-                            .font(.system(size: 13, weight: .regular))
-                            .foregroundColor(.secondary)
+                            .font(.system(size: 12, weight: .light, design: .default))
+                            .foregroundColor(DesignSystem.Colors.tertiaryText)
+                            .tracking(0.3)
                         
-                        HStack(spacing: 4) {
+                        HStack(spacing: 5) {
                             Image(systemName: "lock.shield.fill")
-                                .font(.system(size: 11))
+                                .font(.system(size: 10, weight: .light))
                             Text("Your privacy is protected")
-                                .font(.system(size: 12, weight: .medium))
+                                .font(.system(size: 11, weight: .light, design: .default))
+                                .tracking(0.2)
                         }
-                        .foregroundColor(.blue)
+                        .foregroundColor(DesignSystem.Colors.tertiaryText)
                     }
-                    .padding(.bottom, 40)
+                    .padding(.bottom, 50)
                 }
                 .frame(width: geometry.size.width)
             }

@@ -27,7 +27,7 @@ struct ProfileSetupView: View {
             VStack(spacing: 0) {
                 // Header
                 VStack(spacing: 8) {
-                    Text("Welcome to AllTime!")
+                    Text("Welcome to Chrona!")
                         .font(.largeTitle)
                         .fontWeight(.bold)
                         .padding(.top, 40)

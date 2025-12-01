@@ -5,23 +5,15 @@ struct PremiumTabView: View {
     @Namespace private var animation
     @State private var hasRequestedHealthKit = false
     
-    // Classic tab bar height - positioned lower with minimal safe area padding
-    // Icon: 24px, Spacing: 6px, Text: ~11px, Vertical padding: 8px, Bottom padding: 2px (minimal)
-    // Total: ~51px + safe area bottom (~34px) = ~85px total
-    private let tabBarHeight: CGFloat = 85
+    // iOS Native Tab Bar Height
+    // Standard iOS tab bar: 49pt + safe area bottom (~34pt on iPhone) = ~83pt total
+    private let tabBarHeight: CGFloat = 49
     
     var body: some View {
         ZStack(alignment: .bottom) {
-            // Background gradient for iOS 18 style
-            LinearGradient(
-                colors: [
-                    Color(UIColor.systemBackground),
-                    Color(UIColor.secondarySystemBackground).opacity(0.5)
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea()
+            // Official Chrona Dark Theme - Pure Black Background
+            DesignSystem.Colors.background
+                .ignoresSafeArea()
             
             // Tab Content - Switch instead of TabView for better performance
             Group {
@@ -39,12 +31,18 @@ struct PremiumTabView: View {
                             removal: .move(edge: .trailing).combined(with: .opacity)
                         ))
                 case 2:
-                    DailySummaryView()
+                    HealthInsightsDetailView()
                         .transition(.asymmetric(
                             insertion: .move(edge: .leading).combined(with: .opacity),
                             removal: .move(edge: .trailing).combined(with: .opacity)
                         ))
                 case 3:
+                    ReminderListView()
+                        .transition(.asymmetric(
+                            insertion: .move(edge: .leading).combined(with: .opacity),
+                            removal: .move(edge: .trailing).combined(with: .opacity)
+                        ))
+                case 4:
                     SettingsView()
                         .transition(.asymmetric(
                             insertion: .move(edge: .leading).combined(with: .opacity),
@@ -91,8 +89,7 @@ struct PremiumTabView: View {
             
             hasRequestedHealthKit = true
             
-            // Use safeRequestIfNeeded which checks statuses and only requests if needed
-            // CRITICAL: This will NOT request if all types are .sharingDenied
+            // Use safeRequestIfNeeded which only checks for .notDetermined and otherwise proceeds
             // Run diagnostic first to check capability
             HealthKitManager.shared.diagnoseHealthKitSetup()
             
@@ -111,7 +108,8 @@ struct PremiumTabBar: View {
     private let tabs: [(icon: String, title: String)] = [
         ("calendar.day.timeline.left", "Today"),
         ("calendar", "Calendar"),
-        ("sparkles", "Summary"),
+        ("heart.text.square", "Health"),
+        ("bell.fill", "Reminders"),
         ("gearshape.fill", "Settings")
     ]
     
@@ -119,70 +117,70 @@ struct PremiumTabBar: View {
         HStack(spacing: 0) {
             ForEach(Array(tabs.enumerated()), id: \.offset) { index, tab in
                 Button(action: {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                    withAnimation(.spring(response: 0.25, dampingFraction: 0.7)) {
                         selectedTab = index
                     }
                 }) {
-                    VStack(spacing: 6) {
-                        ZStack {
-                            // Classic selected indicator - subtle and elegant
-                            if selectedTab == index {
-                                Circle()
-                                    .fill(DesignSystem.Colors.primary.opacity(0.12))
-                                    .frame(width: 40, height: 40)
-                                    .matchedGeometryEffect(id: "tab_\(index)", in: animation)
-                            }
-                            
-                            Image(systemName: tab.icon)
-                                .font(.system(size: 22, weight: selectedTab == index ? .semibold : .regular))
-                                .foregroundColor(selectedTab == index ? DesignSystem.Colors.primary : DesignSystem.Colors.secondaryText)
-                                .frame(width: 40, height: 40)
-                                .symbolEffect(.bounce, value: selectedTab == index)
-                        }
-                        
-                        Text(tab.title)
-                            .font(.system(size: 11, weight: selectedTab == index ? .semibold : .regular))
+                    VStack(spacing: 4) {
+                        // Icon
+                        Image(systemName: tab.icon)
+                            .font(.system(size: 23, weight: selectedTab == index ? .semibold : .regular))
                             .foregroundColor(selectedTab == index ? DesignSystem.Colors.primary : DesignSystem.Colors.secondaryText)
+                            .frame(width: 28, height: 28)
+                            .symbolEffect(.bounce, value: selectedTab == index)
+                        
+                        // Label
+                        Text(tab.title)
+                            .font(.system(size: 10, weight: selectedTab == index ? .semibold : .regular))
+                            .foregroundColor(selectedTab == index ? DesignSystem.Colors.primary : DesignSystem.Colors.secondaryText)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
                     }
                     .frame(maxWidth: .infinity)
+                    .contentShape(Rectangle())
                 }
+                .buttonStyle(PlainButtonStyle())
             }
         }
-        .padding(.horizontal, DesignSystem.Spacing.lg)
+        .padding(.horizontal, 8)
         .padding(.top, 8)
-        .padding(.bottom, 2) // Minimal bottom padding - let safe area handle it
+        .padding(.bottom, 8)
+        .frame(height: 49) // iOS standard tab bar height
         .background(
-            // Glassmorphism effect - iOS 18 style
+            // iOS Native Tab Bar Style
             ZStack {
-                // Ultra thin material with blur
+                // Ultra thin material with blur - iOS native style
                 Rectangle()
                     .fill(.ultraThinMaterial)
                     .background(
-                        // Subtle gradient overlay
-                        LinearGradient(
-                            colors: [
-                                Color(UIColor.systemBackground).opacity(0.8),
-                                Color(UIColor.systemBackground).opacity(0.6)
-                            ],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
+                        // Subtle dark background for dark theme
+                        DesignSystem.Colors.cardBackground.opacity(0.95)
                     )
                 
-                // Subtle top border for separation
+                // Top border - subtle separation
                 VStack {
                     Rectangle()
-                        .fill(Color(UIColor.separator).opacity(0.3))
+                        .fill(DesignSystem.Colors.tertiaryText.opacity(0.2))
                         .frame(height: 0.5)
                     Spacer()
                 }
             }
         )
-        .shadow(
-            color: Color.black.opacity(0.08),
-            radius: 12,
-            x: 0,
-            y: -3
+        .overlay(
+            // Subtle shadow for depth
+            Rectangle()
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color.black.opacity(0.1),
+                            Color.clear
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .frame(height: 1)
+                .allowsHitTesting(false)
         )
     }
 }

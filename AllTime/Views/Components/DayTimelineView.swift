@@ -110,21 +110,21 @@ struct DayTimelineView: View {
                     DesignSystem.Colors.background
                         .frame(minHeight: hourHeight * 24)
                     
-                    // Hour labels and grid lines
+                    // Hour labels and grid lines - iOS Calendar style
                     VStack(spacing: 0) {
                         ForEach(hours, id: \.self) { hour in
                             HStack(alignment: .top, spacing: 0) {
-                                // Hour label
+                                // Hour label - iOS Calendar style
                                 Text(hourLabel(for: hour))
-                                    .font(DesignSystem.Typography.caption)
-                                    .foregroundColor(DesignSystem.Colors.primaryText.opacity(0.6))
-                                    .frame(width: 60, alignment: .trailing)
-                                    .padding(.trailing, DesignSystem.Spacing.sm)
+                                    .font(.system(size: 12, weight: .regular, design: .default))
+                                    .foregroundColor(DesignSystem.Colors.secondaryText.opacity(0.7))
+                                    .frame(width: 50, alignment: .trailing)
+                                    .padding(.trailing, 12)
                                     .offset(y: -8)
                                 
-                                // Grid line
+                                // Grid line - subtle
                                 Rectangle()
-                                    .fill(DesignSystem.Colors.tertiaryText.opacity(0.2))
+                                    .fill(DesignSystem.Colors.tertiaryText.opacity(0.15))
                                     .frame(height: 0.5)
                                     .frame(maxWidth: .infinity)
                             }
@@ -133,35 +133,41 @@ struct DayTimelineView: View {
                         }
                     }
                     
-                    // Events overlay with proper positioning for overlaps
+                    // Events overlay with proper positioning for overlaps - iOS Calendar style
                     GeometryReader { geometry in
                         ForEach(Array(timelineEvents.enumerated()), id: \.element.event.id) { index, positionedEvent in
-                            let availableWidth = geometry.size.width - 70 - DesignSystem.Spacing.md
-                            let gapSize: CGFloat = 4 // Gap between events
+                            let availableWidth = geometry.size.width - 62 - DesignSystem.Spacing.md
+                            let gapSize: CGFloat = 3 // Smaller gap for cleaner look
                             let totalGaps = CGFloat(max(positionedEvent.totalColumns - 1, 0)) * gapSize
                             let eventWidth = (availableWidth - totalGaps) / CGFloat(positionedEvent.totalColumns)
-                            let xOffset = 70 + (eventWidth * CGFloat(positionedEvent.column)) + (gapSize * CGFloat(positionedEvent.column))
+                            let xOffset = 62 + (eventWidth * CGFloat(positionedEvent.column)) + (gapSize * CGFloat(positionedEvent.column))
                             
                             EventBlock(
                                 event: positionedEvent.event,
                                 onTap: { onEventTap(positionedEvent.event) }
                             )
-                            .frame(width: eventWidth, height: positionedEvent.duration * hourHeight)
+                            .frame(width: eventWidth, height: max(positionedEvent.duration * hourHeight, 20)) // Minimum height
                             .offset(x: xOffset, y: positionedEvent.startOffset * hourHeight)
                         }
                     }
                     
-                    // Current time indicator
+                    // Current time indicator - iOS Calendar style
                     if let currentOffset = currentTimeOffset {
                         HStack(spacing: 0) {
+                            // Red dot indicator
                             Circle()
-                                .fill(DesignSystem.Colors.primary)
-                                .frame(width: 10, height: 10)
-                                .padding(.leading, 55)
+                                .fill(Color.red)
+                                .frame(width: 8, height: 8)
+                                .overlay(
+                                    Circle()
+                                        .stroke(DesignSystem.Colors.background, lineWidth: 2)
+                                )
+                                .padding(.leading, 46)
                             
+                            // Red line
                             Rectangle()
-                                .fill(DesignSystem.Colors.primary)
-                                .frame(height: 2)
+                                .fill(Color.red)
+                                .frame(height: 1.5)
                         }
                         .offset(y: currentOffset * hourHeight)
                         .transition(.opacity)
@@ -220,7 +226,7 @@ struct PositionedTimelineEvent {
     let totalColumns: Int // Total columns needed at this time
 }
 
-// MARK: - Event Block
+// MARK: - Event Block - iOS Calendar Style
 struct EventBlock: View {
     let event: Event
     let onTap: () -> Void
@@ -231,62 +237,74 @@ struct EventBlock: View {
         return formatter
     }()
     
-    // Generate distinct colors for different events
+    // Generate subtle colors for events - iOS Calendar style
     private var eventColor: Color {
-        // Use event source color if available
+        // Use event source color (already has fallback logic)
         return event.sourceColorAsColor
     }
     
-    // Lighter shade for background
+    // Subtle background color - iOS Calendar style (more muted for dark theme)
     private var backgroundColor: Color {
-        eventColor.opacity(0.85)
+        let baseColor = eventColor
+        // For dark theme, use very subtle opacity - iOS Calendar style
+        // Make colors more muted by reducing saturation
+        return baseColor.opacity(0.2)
     }
     
-    // Darker shade for border
+    // Left border accent - iOS Calendar style (slightly more visible)
     private var borderColor: Color {
-        eventColor.opacity(0.6)
+        eventColor.opacity(0.7)
     }
     
     var body: some View {
         Button(action: onTap) {
-            VStack(alignment: .leading, spacing: 2) {
-                // Event title
-                Text(event.title)
-                    .font(DesignSystem.Typography.subheadline.weight(.semibold))
-                    .foregroundColor(.white)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
+            HStack(spacing: 0) {
+                // Left accent border - iOS Calendar style
+                Rectangle()
+                    .fill(borderColor)
+                    .frame(width: 3)
                 
-                // Time range
-                if let startDate = event.startDate, let endDate = event.endDate {
-                    Text("\(timeFormatter.string(from: startDate)) - \(timeFormatter.string(from: endDate))")
-                        .font(DesignSystem.Typography.caption2)
-                        .foregroundColor(.white.opacity(0.9))
-                        .lineLimit(1)
-                }
-                
-                // Location
-                if let location = event.locationName, !location.isEmpty {
-                    HStack(spacing: 2) {
-                        Image(systemName: "location.fill")
-                            .font(.system(size: 8))
-                        Text(location)
-                            .font(DesignSystem.Typography.caption2)
+                // Event content
+                VStack(alignment: .leading, spacing: 3) {
+                    // Event title
+                    Text(event.title)
+                        .font(.system(size: 13, weight: .medium, design: .default))
+                        .foregroundColor(DesignSystem.Colors.primaryText)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                    
+                    // Time range
+                    if let startDate = event.startDate, let endDate = event.endDate {
+                        Text("\(timeFormatter.string(from: startDate)) - \(timeFormatter.string(from: endDate))")
+                            .font(.system(size: 11, weight: .regular, design: .default))
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
                             .lineLimit(1)
                     }
-                    .foregroundColor(.white.opacity(0.85))
+                    
+                    // Location (if available and space permits)
+                    if let location = event.locationName, !location.isEmpty {
+                        HStack(spacing: 3) {
+                            Image(systemName: "location.fill")
+                                .font(.system(size: 9, weight: .regular))
+                            Text(location)
+                                .font(.system(size: 10, weight: .regular, design: .default))
+                                .lineLimit(1)
+                        }
+                        .foregroundColor(DesignSystem.Colors.tertiaryText)
+                    }
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 6)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 4)
             .background(
-                RoundedRectangle(cornerRadius: 6)
+                RoundedRectangle(cornerRadius: 8)
                     .fill(backgroundColor)
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 6)
-                    .strokeBorder(borderColor, lineWidth: 0.5)
+                RoundedRectangle(cornerRadius: 8)
+                    .strokeBorder(DesignSystem.Colors.tertiaryText.opacity(0.15), lineWidth: 0.5)
             )
         }
         .buttonStyle(PlainButtonStyle())

@@ -76,6 +76,9 @@ struct EventRowView: View {
                     // Provider badge
                     ProviderBadge(provider: event.source)
                     
+                    // Reminder badge
+                    ReminderBadgeView(eventId: event.id)
+                    
                     Spacer()
                     
                     // All-day indicator

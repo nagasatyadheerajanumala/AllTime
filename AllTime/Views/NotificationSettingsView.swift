@@ -89,7 +89,7 @@ struct NotificationSettingsView: View {
     
     private func sendTestNotification() {
         let content = UNMutableNotificationContent()
-        content.title = "AllTime Test"
+        content.title = "Chrona Test"
         content.body = "Your notification settings are working correctly!"
         content.sound = .default
         

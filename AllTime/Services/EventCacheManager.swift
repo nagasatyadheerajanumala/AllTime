@@ -157,6 +157,17 @@ class EventCacheManager {
         }
     }
     
+    /// Invalidate cache (mark as expired without deleting)
+    func invalidateCache() {
+        // Clear metadata to mark cache as invalid
+        if fileManager.fileExists(atPath: cacheMetadataFile.path) {
+            try? fileManager.removeItem(at: cacheMetadataFile)
+        }
+        #if DEBUG
+        print("💾 EventCacheManager: ✅ Cache invalidated")
+        #endif
+    }
+    
     /// Get cache size in bytes
     func getCacheSize() -> Int64 {
         var totalSize: Int64 = 0

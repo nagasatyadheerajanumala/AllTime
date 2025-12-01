@@ -10,7 +10,7 @@ struct AboutView: View {
                         .foregroundColor(.blue)
                     
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("AllTime")
+                        Text("Chrona")
                             .font(.title2)
                             .fontWeight(.bold)
                         
@@ -26,10 +26,10 @@ struct AboutView: View {
             
             Section {
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("About AllTime")
+                    Text("About Chrona")
                         .font(.headline)
                     
-                    Text("AllTime is your unified calendar experience that brings together events from Google, Outlook, and Apple calendars. Get AI-powered daily summaries and never miss an important event.")
+                    Text("Chrona is your unified calendar experience that brings together events from Google, Outlook, and Apple calendars. Get AI-powered daily summaries and never miss an important event.")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }
@@ -59,11 +59,11 @@ struct AboutView: View {
             
             Section {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Made with ❤️ by the AllTime Team")
+                    Text("Made with ❤️ by the Chrona Team")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                     
-                    Text("© 2024 AllTime. All rights reserved.")
+                    Text("© 2024 Chrona. All rights reserved.")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }

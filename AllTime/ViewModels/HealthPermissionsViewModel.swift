@@ -31,14 +31,6 @@ class HealthPermissionsViewModel: ObservableObject {
             }
             .store(in: &cancellables)
         
-        // Listen for "all denied" notification
-        NotificationCenter.default.publisher(for: NSNotification.Name("HealthKitAllDenied"))
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                self?.showDeniedAlert = true
-                self?.errorMessage = "Health access is turned off for AllTime.\n\nTo sync your wellness insights, enable permissions:\n\nSettings → Health → Apps → AllTime → Turn All On."
-            }
-            .store(in: &cancellables)
     }
     
     /// Update authorization state based on HealthKitManager permission state

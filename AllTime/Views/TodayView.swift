@@ -3,9 +3,11 @@ import SwiftUI
 struct TodayView: View {
     @EnvironmentObject var calendarViewModel: CalendarViewModel
     @EnvironmentObject var summaryViewModel: SummaryViewModel
+    @StateObject private var dailySummaryViewModel = DailySummaryViewModel()
     @State private var showingEventDetail = false
     @State private var selectedEventId: Int64?
     @State private var showingAddEvent = false
+    @State private var showingDatePicker = false
     @ObservedObject private var healthMetricsService = HealthMetricsService.shared
     
     private var todayEvents: [Event] {
@@ -25,64 +27,119 @@ struct TodayView: View {
     
     var body: some View {
         NavigationView {
-            ZStack {
+            ZStack(alignment: .bottomTrailing) {
                 // Clean background
-                LinearGradient(
-                    colors: [
-                        Color(UIColor.systemBackground),
-                        Color(UIColor.systemGroupedBackground)
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .ignoresSafeArea()
+                DesignSystem.Colors.background
+                    .ignoresSafeArea()
                 
-                ScrollView {
-                    VStack(spacing: DesignSystem.Spacing.lg) {
-                        // Today Header Card
-                        TodayHeaderCard(
-                            eventCount: todayEvents.count,
-                            nextEvent: upcomingEvents.first
-                        )
-                        .padding(.horizontal, DesignSystem.Spacing.md)
-                        .padding(.top, DesignSystem.Spacing.sm)
-                        
-                        // AI Summary Card
-                        if let summary = summaryViewModel.todaySummary {
-                            NavigationLink(destination: EnhancedDailySummaryView()) {
-                                TodayAISummaryCard(summary: summary)
-                            }
-                            .buttonStyle(PlainButtonStyle())
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        VStack(spacing: DesignSystem.Spacing.lg) {
+                            // Today Header Card
+                            TodayHeaderCard(
+                                eventCount: todayEvents.count,
+                                nextEvent: upcomingEvents.first
+                            )
                             .padding(.horizontal, DesignSystem.Spacing.md)
-                        }
-                        
-                        // Health Access Card (if not authorized)
-                        if !healthMetricsService.isAuthorized {
-                            TodayHealthCard()
-                                .padding(.horizontal, DesignSystem.Spacing.md)
-                        }
-                        
-                        // Today's Timeline
-                        TodayTimelineSection(
-                            events: todayEvents,
-                            onEventTap: { event in
-                                selectedEventId = Int64(event.id)
-                                showingEventDetail = true
+                            .padding(.top, DesignSystem.Spacing.sm)
+                            
+                            // Health Access Card (if not authorized)
+                            if !healthMetricsService.isAuthorized {
+                                TodayHealthCard()
+                                    .padding(.horizontal, DesignSystem.Spacing.md)
                             }
-                        )
-                        .padding(.horizontal, DesignSystem.Spacing.md)
-                        
-                        // Quick Actions
-                        QuickActionsCard(
-                            onAddEvent: { showingAddEvent = true }
-                        )
-                        .padding(.horizontal, DesignSystem.Spacing.md)
-                        .padding(.bottom, 100) // Space for tab bar
+                            
+                            // Daily AI Summary Section
+                            VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+                                // Date Selector Header
+                                HStack {
+                                    Button(action: {
+                                        showingDatePicker = true
+                                    }) {
+                                        HStack(spacing: 8) {
+                                            Image(systemName: "calendar")
+                                                .font(.system(size: 16, weight: .medium))
+                                            Text(dailySummaryViewModel.selectedDate, style: .date)
+                                                .font(DesignSystem.Typography.body)
+                                                .fontWeight(.medium)
+                                        }
+                                        .foregroundColor(DesignSystem.Colors.primary)
+                                    }
+                                    
+                                    Spacer()
+                                    
+                                    Button(action: {
+                                        Task {
+                                            await dailySummaryViewModel.refreshSummary()
+                                            try? await Task.sleep(nanoseconds: 100_000_000)
+                                            withAnimation(.easeInOut(duration: 0.3)) {
+                                                proxy.scrollTo("summary", anchor: .top)
+                                            }
+                                        }
+                                    }) {
+                                        Image(systemName: "arrow.clockwise")
+                                            .font(.system(size: 16, weight: .medium))
+                                            .foregroundColor(DesignSystem.Colors.primary)
+                                            .rotationEffect(.degrees(dailySummaryViewModel.isLoading ? 360 : 0))
+                                            .animation(dailySummaryViewModel.isLoading ? Animation.linear(duration: 1).repeatForever(autoreverses: false) : .default, value: dailySummaryViewModel.isLoading)
+                                    }
+                                    .disabled(dailySummaryViewModel.isLoading)
+                                }
+                                .padding(.horizontal, DesignSystem.Spacing.md)
+                                .padding(.vertical, DesignSystem.Spacing.sm)
+                                
+                                // Summary Content
+                                if dailySummaryViewModel.isLoading && dailySummaryViewModel.summary == nil {
+                                    LoadingView()
+                                        .padding(.vertical, 40)
+                                } else if let summary = dailySummaryViewModel.summary {
+                                    SummaryContentView(summary: summary)
+                                        .id("summary")
+                                } else if let errorMessage = dailySummaryViewModel.errorMessage {
+                                    ErrorView(message: errorMessage) {
+                                        Task {
+                                            await dailySummaryViewModel.refreshSummary()
+                                        }
+                                    }
+                                    .padding(.vertical, 40)
+                                } else {
+                                    EmptyStateView()
+                                        .padding(.vertical, 40)
+                                }
+                            }
+                            .padding(.top, DesignSystem.Spacing.lg)
+                            
+                            .padding(.bottom, 120) // Space for tab bar and FAB
+                        }
+                    }
+                    .refreshable {
+                        await calendarViewModel.refreshEvents()
                     }
                 }
-                .refreshable {
-                    await calendarViewModel.refreshEvents()
+                
+                // Floating Action Button for Add Event
+                Button(action: { showingAddEvent = true }) {
+                    Image(systemName: "plus")
+                        .font(.system(size: 24, weight: .semibold))
+                        .foregroundColor(.white)
+                        .frame(width: 56, height: 56)
+                        .background(
+                            Circle()
+                                .fill(
+                                    LinearGradient(
+                                        colors: [
+                                            DesignSystem.Colors.primary,
+                                            DesignSystem.Colors.primaryDark
+                                        ],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                                .shadow(color: DesignSystem.Colors.primary.opacity(0.4), radius: 12, y: 6)
+                        )
                 }
+                .padding(.trailing, DesignSystem.Spacing.lg)
+                .padding(.bottom, 100) // Above tab bar
             }
             .navigationTitle("Today")
             .navigationBarTitleDisplayMode(.large)
@@ -94,10 +151,35 @@ struct TodayView: View {
             .sheet(isPresented: $showingAddEvent) {
                 AddEventView(initialDate: Date())
             }
+            .sheet(isPresented: $showingDatePicker) {
+                DatePickerSheet(selectedDate: $dailySummaryViewModel.selectedDate)
+            }
             .onAppear {
+                // Cache is already loaded synchronously in init - no need to reload
+                // Just trigger background refresh if cache is old
                 Task {
                     // Always re-check authorization when view appears (user may have enabled in Settings)
                     await healthMetricsService.checkAuthorizationStatus()
+                    
+                    // Background refresh if cache is old (non-blocking)
+                    // Cache is already loaded synchronously in init, so UI shows instantly
+                    await dailySummaryViewModel.loadSummary(
+                        for: dailySummaryViewModel.selectedDate,
+                        forceRefresh: false
+                    )
+                }
+            }
+            .refreshable {
+                // User explicitly pulled to refresh - force refresh
+                await dailySummaryViewModel.loadSummary(
+                    for: dailySummaryViewModel.selectedDate,
+                    forceRefresh: true
+                )
+            }
+            .onChange(of: dailySummaryViewModel.selectedDate) { oldDate, newDate in
+                // Reload summary when date changes
+                Task {
+                    await dailySummaryViewModel.loadSummary(for: newDate)
                 }
             }
             .onChange(of: healthMetricsService.isAuthorized) { oldValue, newValue in
@@ -241,7 +323,7 @@ struct TodayHealthCard: View {
             }
             
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                Text("AllTime needs access to your Health data to provide personalized insights and AI-powered recommendations.")
+                Text("Chrona needs access to your Health data to provide personalized insights and AI-powered recommendations.")
                     .font(.subheadline)
                     .foregroundColor(.white.opacity(0.9))
                 
@@ -254,7 +336,7 @@ struct TodayHealthCard: View {
                 VStack(alignment: .leading, spacing: 6) {
                     InstructionStep(number: "1", text: "Tap 'Open Settings' below")
                     InstructionStep(number: "2", text: "Go to Health → Data Access & Devices")
-                    InstructionStep(number: "3", text: "Select 'AllTime'")
+                    InstructionStep(number: "3", text: "Select 'Chrona'")
                     InstructionStep(number: "4", text: "Turn ON all health data types")
                 }
                 .padding(.top, DesignSystem.Spacing.xs)
@@ -475,90 +557,4 @@ struct TodayEventCard: View {
     }
 }
 
-// MARK: - Quick Actions Card
-struct QuickActionsCard: View {
-    let onAddEvent: () -> Void
-    
-    var body: some View {
-        VStack(spacing: DesignSystem.Spacing.md) {
-            Button(action: onAddEvent) {
-                HStack {
-                    Image(systemName: "plus.circle.fill")
-                        .font(.title2)
-                        .foregroundColor(DesignSystem.Colors.primary)
-                    
-                    Text("Add Event")
-                        .font(.body.weight(.semibold))
-                        .foregroundColor(DesignSystem.Colors.primaryText)
-                    
-                    Spacer()
-                    
-                    Image(systemName: "chevron.right")
-                        .font(.caption)
-                        .foregroundColor(DesignSystem.Colors.tertiaryText)
-                }
-                .padding(DesignSystem.Spacing.md)
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color(UIColor.tertiarySystemGroupedBackground))
-                )
-            }
-            .buttonStyle(PlainButtonStyle())
-            
-            NavigationLink(destination: TimelineDayView(date: Date())) {
-                HStack {
-                    Image(systemName: "clock.fill")
-                        .font(.title2)
-                        .foregroundColor(DesignSystem.Colors.accent)
-                    
-                    Text("View Full Timeline")
-                        .font(.body.weight(.semibold))
-                        .foregroundColor(DesignSystem.Colors.primaryText)
-                    
-                    Spacer()
-                    
-                    Image(systemName: "chevron.right")
-                        .font(.caption)
-                        .foregroundColor(DesignSystem.Colors.tertiaryText)
-                }
-                .padding(DesignSystem.Spacing.md)
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color(UIColor.tertiarySystemGroupedBackground))
-                )
-            }
-            .buttonStyle(PlainButtonStyle())
-            
-            // Health Insights Link
-            NavigationLink(destination: HealthInsightsDetailView()) {
-                HStack {
-                    Image(systemName: "heart.text.square.fill")
-                        .font(.title2)
-                        .foregroundColor(.green)
-                    
-                    Text("View Health Insights")
-                        .font(.body.weight(.semibold))
-                        .foregroundColor(DesignSystem.Colors.primaryText)
-                    
-                    Spacer()
-                    
-                    Image(systemName: "chevron.right")
-                        .font(.caption)
-                        .foregroundColor(DesignSystem.Colors.tertiaryText)
-                }
-                .padding(DesignSystem.Spacing.md)
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color(UIColor.tertiarySystemGroupedBackground))
-                )
-            }
-            .buttonStyle(PlainButtonStyle())
-        }
-        .padding(DesignSystem.Spacing.md)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color(UIColor.secondarySystemGroupedBackground))
-                .shadow(color: .black.opacity(0.05), radius: 8, y: 2)
-        )
-    }
-}
+// Quick Actions Card removed - Add Event is now a FAB

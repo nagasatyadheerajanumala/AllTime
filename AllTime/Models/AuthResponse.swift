@@ -81,9 +81,23 @@ struct APIError: Codable, Error {
     let message: String
     let code: String?
     let details: String?
+    var userInfo: [String: Any]? = nil // For transient failures and additional metadata
     
     var localizedDescription: String {
         return message
+    }
+    
+    // Custom initializer to support userInfo
+    init(message: String, code: String? = nil, details: String? = nil, userInfo: [String: Any]? = nil) {
+        self.message = message
+        self.code = code
+        self.details = details
+        self.userInfo = userInfo
+    }
+    
+    // Codable conformance - userInfo is not encoded/decoded (runtime only)
+    enum CodingKeys: String, CodingKey {
+        case message, code, details
     }
 }
 

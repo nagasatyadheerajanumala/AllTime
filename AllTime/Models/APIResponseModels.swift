@@ -107,3 +107,10 @@ struct SummaryHistoryResponse: Codable {
     }
 }
 
+// MARK: - API Error Response
+
+struct APIErrorResponse: Codable {
+    let error: String
+    let message: String
+}
+

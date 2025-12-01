@@ -50,7 +50,8 @@ struct DailySummaryView: View {
                         .id("top")
                         
                         // Content
-                        if summaryViewModel.isLoading {
+                        if summaryViewModel.isLoading && summaryViewModel.summary == nil {
+                            // Only show loading if we don't have any data (including cached)
                             LoadingView()
                                 .padding(.top, 60)
                         } else if let summary = summaryViewModel.summary {
@@ -77,12 +78,15 @@ struct DailySummaryView: View {
                 DatePickerSheet(selectedDate: $summaryViewModel.selectedDate)
             }
             .onAppear {
-                // Load summary when view appears (if not already loaded)
-                if summaryViewModel.summary == nil && !summaryViewModel.isLoading {
+                // Load summary when view appears
+                // If we already have summary, don't reload to avoid showing loading spinner
+                if summaryViewModel.summary == nil {
+                    // No data - load (will check cache first, show instantly)
                     Task {
                         await summaryViewModel.loadSummary(for: summaryViewModel.selectedDate)
                     }
                 }
+                // If we have data, don't reload - user can pull to refresh if needed
             }
             .onChange(of: summaryViewModel.selectedDate) { oldDate, newDate in
                 // Reload summary when date changes
@@ -122,7 +126,7 @@ struct SummaryContentView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             .padding(DesignSystem.Spacing.lg)
-            .background(Color(.systemGroupedBackground))
+            .background(DesignSystem.Colors.cardBackground)
             .cornerRadius(DesignSystem.CornerRadius.md)
             .padding(.horizontal, DesignSystem.Spacing.md)
             .padding(.bottom, DesignSystem.Spacing.lg)
@@ -178,12 +182,35 @@ struct SummaryContentView: View {
                     .animation(.easeOut(duration: 0.4).delay(0.4), value: hasAppeared)
             }
             
-            // Metadata Footer
-            MetadataFooter(summary: summary)
-                .padding(.top, DesignSystem.Spacing.md)
-                .padding(.horizontal, DesignSystem.Spacing.md)
-                .opacity(hasAppeared ? 1 : 0)
-                .animation(.easeOut(duration: 0.4).delay(0.5), value: hasAppeared)
+            // Health-Based Suggestions (NEW)
+            if let healthSuggestions = summary.healthBasedSuggestions, !healthSuggestions.isEmpty {
+                // Section Divider
+                Divider()
+                    .padding(.horizontal, DesignSystem.Spacing.md)
+                    .padding(.bottom, DesignSystem.Spacing.lg)
+                
+                HealthBasedSuggestionsSection(suggestions: healthSuggestions)
+                    .padding(.bottom, DesignSystem.Spacing.lg)
+                    .opacity(hasAppeared ? 1 : 0)
+                    .offset(y: hasAppeared ? 0 : 20)
+                    .animation(.easeOut(duration: 0.4).delay(0.5), value: hasAppeared)
+            }
+            
+            // Health Impact Insights (NEW)
+            if let healthInsights = summary.healthImpactInsights {
+                // Section Divider
+                Divider()
+                    .padding(.horizontal, DesignSystem.Spacing.md)
+                    .padding(.bottom, DesignSystem.Spacing.lg)
+                
+                HealthImpactInsightsSection(insights: healthInsights)
+                    .padding(.bottom, DesignSystem.Spacing.lg)
+                    .opacity(hasAppeared ? 1 : 0)
+                    .offset(y: hasAppeared ? 0 : 20)
+                    .animation(.easeOut(duration: 0.4).delay(0.6), value: hasAppeared)
+            }
+            
+            // Metadata Footer removed - no longer showing event count or model info
         }
         .onAppear {
             hasAppeared = true
@@ -227,7 +254,7 @@ struct HighlightSection: View {
             .padding(DesignSystem.Spacing.lg)
             .background(
                 RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.md)
-                    .fill(Color.blue.opacity(0.08))
+                    .fill(DesignSystem.Colors.cardBackground)
             )
             .padding(.horizontal, DesignSystem.Spacing.md)
         }
@@ -270,7 +297,7 @@ struct RisksSection: View {
             .padding(DesignSystem.Spacing.lg)
             .background(
                 RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.md)
-                    .fill(Color.orange.opacity(0.08))
+                    .fill(DesignSystem.Colors.cardBackground)
             )
             .padding(.horizontal, DesignSystem.Spacing.md)
         }
@@ -295,9 +322,10 @@ struct SuggestionsSection: View {
             .padding(.horizontal, DesignSystem.Spacing.md)
             .padding(.bottom, 4)
             
-            VStack(spacing: 12) {
+            LazyVStack(spacing: 12) {
                 ForEach(suggestions) { suggestion in
                     SuggestionCard(suggestion: suggestion)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
             .padding(.horizontal, DesignSystem.Spacing.md)
@@ -305,32 +333,7 @@ struct SuggestionsSection: View {
     }
 }
 
-// MARK: - Metadata Footer
-struct MetadataFooter: View {
-    let summary: DailyAISummaryResponse
-    
-    var body: some View {
-        HStack {
-            HStack(spacing: 6) {
-                Image(systemName: "calendar.badge.clock")
-                    .font(.system(size: 12))
-                Text("\(summary.totalEvents) event\(summary.totalEvents == 1 ? "" : "s")")
-                    .font(DesignSystem.Typography.caption)
-            }
-            .foregroundColor(DesignSystem.Colors.secondaryText)
-            
-            Spacer()
-            
-            HStack(spacing: 6) {
-                Image(systemName: "sparkles")
-                    .font(.system(size: 12))
-                Text(summary.model)
-                    .font(DesignSystem.Typography.caption)
-            }
-            .foregroundColor(DesignSystem.Colors.secondaryText)
-        }
-    }
-}
+// MARK: - Metadata Footer (Removed - no longer displaying event count or model info)
 
 // MARK: - Loading View
 struct LoadingView: View {
@@ -448,18 +451,323 @@ struct SuggestionCard: View {
                 .fontWeight(.medium)
                 .foregroundColor(DesignSystem.Colors.primaryText)
                 .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
             
             if let reason = suggestion.reason, !reason.isEmpty {
                 Text(reason)
                     .font(DesignSystem.Typography.caption)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
                     .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
         .padding(DesignSystem.Spacing.lg)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.md)
-                .fill(Color.green.opacity(0.08))
+                .fill(DesignSystem.Colors.cardBackground)
+        )
+    }
+}
+
+// MARK: - Health-Based Suggestions Section (NEW)
+struct HealthBasedSuggestionsSection: View {
+    let suggestions: [HealthBasedSuggestion]
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: "heart.text.square.fill")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(DesignSystem.Colors.primary)
+                Text("Health-Based Suggestions")
+                    .font(DesignSystem.Typography.title3)
+                    .fontWeight(.semibold)
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+            }
+            .padding(.horizontal, DesignSystem.Spacing.md)
+            .padding(.bottom, 4)
+            
+            LazyVStack(spacing: 12) {
+                ForEach(suggestions) { suggestion in
+                    HealthSuggestionCard(suggestion: suggestion)
+                }
+            }
+            .padding(.horizontal, DesignSystem.Spacing.md)
+        }
+    }
+}
+
+// MARK: - Health Suggestion Card
+struct HealthSuggestionCard: View {
+    let suggestion: HealthBasedSuggestion
+    
+    private var categoryColor: Color {
+        switch suggestion.category.lowercased() {
+        case "exercise": return .orange
+        case "sleep": return .indigo
+        case "nutrition": return .green
+        case "stress": return .red
+        case "time_management": return .blue
+        default: return DesignSystem.Colors.primary
+        }
+    }
+    
+    private var priorityColor: Color {
+        switch suggestion.priority.lowercased() {
+        case "high": return .red
+        case "medium": return .orange
+        case "low": return .green
+        default: return DesignSystem.Colors.secondaryText
+        }
+    }
+    
+    private var categoryIcon: String {
+        switch suggestion.category.lowercased() {
+        case "exercise": return "figure.walk"
+        case "sleep": return "moon.fill"
+        case "nutrition": return "fork.knife"
+        case "stress": return "heart.circle.fill"
+        case "time_management": return "clock.fill"
+        default: return "heart.text.square"
+        }
+    }
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            // Header with category and priority
+            HStack {
+                HStack(spacing: 6) {
+                    Image(systemName: categoryIcon)
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(categoryColor)
+                    Text(suggestion.category.replacingOccurrences(of: "_", with: " ").capitalized)
+                        .font(DesignSystem.Typography.caption)
+                        .fontWeight(.medium)
+                        .foregroundColor(categoryColor)
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(categoryColor.opacity(0.15))
+                .cornerRadius(6)
+                
+                Spacer()
+                
+                if let suggestedTime = suggestion.suggestedTime, !suggestedTime.isEmpty {
+                    HStack(spacing: 4) {
+                        Image(systemName: "clock.fill")
+                            .font(.system(size: 11))
+                        Text(suggestedTime)
+                            .font(DesignSystem.Typography.caption2)
+                    }
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                }
+                
+                // Priority badge
+                Text(suggestion.priority.capitalized)
+                    .font(DesignSystem.Typography.caption2)
+                    .fontWeight(.semibold)
+                    .foregroundColor(priorityColor)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 3)
+                    .background(priorityColor.opacity(0.15))
+                    .cornerRadius(4)
+            }
+            
+            // Title
+            Text(suggestion.title)
+                .font(DesignSystem.Typography.body)
+                .fontWeight(.semibold)
+                .foregroundColor(DesignSystem.Colors.primaryText)
+            
+            // Description
+            Text(suggestion.description)
+                .font(DesignSystem.Typography.subheadline)
+                .foregroundColor(DesignSystem.Colors.secondaryText)
+                .fixedSize(horizontal: false, vertical: true)
+            
+            // Related event (if available)
+            if let relatedEvent = suggestion.relatedEvent, !relatedEvent.isEmpty {
+                HStack(spacing: 6) {
+                    Image(systemName: "calendar")
+                        .font(.system(size: 11))
+                    Text("Related: \(relatedEvent)")
+                        .font(DesignSystem.Typography.caption)
+                }
+                .foregroundColor(DesignSystem.Colors.tertiaryText)
+                .padding(.top, 2)
+            }
+        }
+        .padding(DesignSystem.Spacing.md)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.md)
+                .fill(DesignSystem.Colors.cardBackground)
+                .overlay(
+                    RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.md)
+                        .strokeBorder(categoryColor.opacity(0.2), lineWidth: 1)
+                )
+        )
+    }
+}
+
+// MARK: - Health Impact Insights Section (NEW)
+struct HealthImpactInsightsSection: View {
+    let insights: HealthImpactInsights
+    
+    // Helper function to clean JSON formatting from summary text
+    private static func cleanSummaryText(_ text: String) -> String {
+        var cleaned = text
+            .replacingOccurrences(of: "{\"summary\": \"", with: "")
+            .replacingOccurrences(of: "\"}", with: "")
+            .replacingOccurrences(of: "\\n", with: "\n")
+            .replacingOccurrences(of: "\"", with: "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        // Remove any remaining JSON structure
+        if cleaned.hasPrefix("{") {
+            cleaned = String(cleaned.dropFirst())
+        }
+        if cleaned.hasSuffix("}") {
+            cleaned = String(cleaned.dropLast())
+        }
+        return cleaned.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: "chart.line.uptrend.xyaxis")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(DesignSystem.Colors.info)
+                Text("Health Impact Insights")
+                    .font(DesignSystem.Typography.title3)
+                    .fontWeight(.semibold)
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+            }
+            .padding(.horizontal, DesignSystem.Spacing.md)
+            .padding(.bottom, 4)
+            
+            VStack(alignment: .leading, spacing: 16) {
+                // Summary - clean up any JSON-like formatting
+                if let summary = insights.summary, !summary.isEmpty {
+                    let cleanedSummary = Self.cleanSummaryText(summary)
+                    
+                    Text(cleanedSummary)
+                        .font(DesignSystem.Typography.body)
+                        .foregroundColor(DesignSystem.Colors.primaryText)
+                        .lineSpacing(6)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                
+                // Key Correlations
+                if let correlations = insights.keyCorrelations, !correlations.isEmpty {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Key Correlations")
+                            .font(DesignSystem.Typography.subheadline)
+                            .fontWeight(.semibold)
+                            .foregroundColor(DesignSystem.Colors.primaryText)
+                        
+                        ForEach(correlations, id: \.self) { correlation in
+                            HStack(alignment: .top, spacing: 10) {
+                                Image(systemName: "link")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(DesignSystem.Colors.info)
+                                    .padding(.top, 2)
+                                
+                                Text(correlation)
+                                    .font(DesignSystem.Typography.subheadline)
+                                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                            }
+                        }
+                    }
+                }
+                
+                // Health Trends
+                if let trends = insights.healthTrends {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Health Trends")
+                            .font(DesignSystem.Typography.subheadline)
+                            .fontWeight(.semibold)
+                            .foregroundColor(DesignSystem.Colors.primaryText)
+                        
+                        LazyVGrid(columns: [
+                            GridItem(.flexible()),
+                            GridItem(.flexible())
+                        ], spacing: 12) {
+                            if let sleep = trends.sleep {
+                                TrendItemView(metric: "Sleep", trend: sleep)
+                            }
+                            if let steps = trends.steps {
+                                TrendItemView(metric: "Steps", trend: steps)
+                            }
+                            if let activeMinutes = trends.activeMinutes {
+                                TrendItemView(metric: "Active Minutes", trend: activeMinutes)
+                            }
+                            if let rhr = trends.restingHeartRate {
+                                TrendItemView(metric: "Resting HR", trend: rhr)
+                            }
+                            if let hrv = trends.hrv {
+                                TrendItemView(metric: "HRV", trend: hrv)
+                            }
+                        }
+                    }
+                }
+            }
+            .padding(DesignSystem.Spacing.md)
+            .background(
+                RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.md)
+                    .fill(DesignSystem.Colors.cardBackground)
+            )
+            .padding(.horizontal, DesignSystem.Spacing.md)
+        }
+    }
+}
+
+// MARK: - Trend Item View
+struct TrendItemView: View {
+    let metric: String
+    let trend: String
+    
+    private var trendColor: Color {
+        switch trend.lowercased() {
+        case "improving": return .green
+        case "declining": return .red
+        case "stable": return .orange
+        default: return DesignSystem.Colors.secondaryText
+        }
+    }
+    
+    private var trendIcon: String {
+        switch trend.lowercased() {
+        case "improving": return "arrow.up.right"
+        case "declining": return "arrow.down.right"
+        case "stable": return "arrow.right"
+        default: return "minus"
+        }
+    }
+    
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: trendIcon)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(trendColor)
+            
+            VStack(alignment: .leading, spacing: 2) {
+                Text(metric)
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                Text(trend.capitalized)
+                    .font(DesignSystem.Typography.caption)
+                    .fontWeight(.semibold)
+                    .foregroundColor(trendColor)
+            }
+        }
+        .padding(DesignSystem.Spacing.sm)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(trendColor.opacity(0.1))
         )
     }
 }

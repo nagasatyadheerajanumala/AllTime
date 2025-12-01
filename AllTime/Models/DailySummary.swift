@@ -13,6 +13,10 @@ struct DailyAISummaryResponse: Codable, Identifiable {
     let promptTokens: Int?
     let completionTokens: Int?
     
+    // Health Integration Fields (NEW)
+    let healthBasedSuggestions: [HealthBasedSuggestion]?
+    let healthImpactInsights: HealthImpactInsights?
+    
     enum CodingKeys: String, CodingKey {
         case date
         case timezone
@@ -24,6 +28,8 @@ struct DailyAISummaryResponse: Codable, Identifiable {
         case model
         case promptTokens = "prompt_tokens"
         case completionTokens = "completion_tokens"
+        case healthBasedSuggestions = "health_based_suggestions"
+        case healthImpactInsights = "health_impact_insights"
     }
     
     // Use date as ID for Identifiable
@@ -50,6 +56,57 @@ struct FreeTimeSuggestion: Codable, Identifiable {
             return startTime
         }
         return suggestion
+    }
+}
+
+// MARK: - Health-Based Suggestion (NEW)
+struct HealthBasedSuggestion: Codable, Identifiable {
+    let title: String
+    let description: String
+    let category: String // exercise, sleep, nutrition, stress, time_management
+    let priority: String // high, medium, low
+    let relatedEvent: String? // Related calendar event
+    let suggestedTime: String? // Suggested time for the action
+    
+    enum CodingKeys: String, CodingKey {
+        case title
+        case description
+        case category
+        case priority
+        case relatedEvent = "related_event"
+        case suggestedTime = "suggested_time"
+    }
+    
+    var id: String { title + (relatedEvent ?? "") }
+}
+
+// MARK: - Health Impact Insights (NEW)
+struct HealthImpactInsights: Codable {
+    let summary: String?
+    let keyCorrelations: [String]?
+    let healthTrends: HealthTrends?
+    
+    enum CodingKeys: String, CodingKey {
+        case summary
+        case keyCorrelations = "key_correlations"
+        case healthTrends = "health_trends"
+    }
+}
+
+// MARK: - Health Trends
+struct HealthTrends: Codable {
+    let sleep: String? // improving, declining, stable
+    let steps: String?
+    let activeMinutes: String?
+    let restingHeartRate: String?
+    let hrv: String?
+    
+    enum CodingKeys: String, CodingKey {
+        case sleep
+        case steps
+        case activeMinutes = "active_minutes"
+        case restingHeartRate = "resting_heart_rate"
+        case hrv
     }
 }
 

@@ -224,9 +224,16 @@ class AuthenticationService: NSObject, ObservableObject {
                 print("🔐 AuthenticationService: Profile completed: \(profileCompleted)")
             }
         } catch {
-            // If user profile fetch fails, don't sign out - just log the error
-            print("🔐 AuthenticationService: Failed to fetch user profile: \(error.localizedDescription)")
-            print("🔐 AuthenticationService: Keeping authentication state - user profile fetch is optional")
+            // If user profile fetch fails with 401, tokens are invalid - sign out
+            if let nsError = error as NSError?, nsError.code == 401 {
+                print("🔐 AuthenticationService: User profile fetch failed with 401 - tokens are invalid")
+                print("🔐 AuthenticationService: Signing out...")
+                signOut()
+            } else {
+                // For other errors, don't sign out - just log the error
+                print("🔐 AuthenticationService: Failed to fetch user profile: \(error.localizedDescription)")
+                print("🔐 AuthenticationService: Keeping authentication state - user profile fetch is optional")
+            }
         }
     }
     

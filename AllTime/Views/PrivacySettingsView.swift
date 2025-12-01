@@ -20,7 +20,7 @@ struct PrivacySettingsView: View {
             } header: {
                 Text("Analytics")
             } footer: {
-                Text("Help us understand how you use AllTime to improve features")
+                Text("Help us understand how you use Chrona to improve features")
             }
             
             Section {

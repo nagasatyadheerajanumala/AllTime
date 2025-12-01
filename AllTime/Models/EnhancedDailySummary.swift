@@ -9,6 +9,10 @@ struct EnhancedDailySummaryResponse: Codable, Identifiable {
     let suggestions: [SuggestionItem]
     let dayIntel: DayIntel
     
+    // Health Integration Fields (NEW)
+    let healthBasedSuggestions: [HealthBasedSuggestion]?
+    let healthImpactInsights: HealthImpactInsights?
+    
     enum CodingKeys: String, CodingKey {
         case date
         case overview
@@ -16,6 +20,8 @@ struct EnhancedDailySummaryResponse: Codable, Identifiable {
         case potentialIssues = "potential_issues"
         case suggestions
         case dayIntel = "day_intel"
+        case healthBasedSuggestions = "health_based_suggestions"
+        case healthImpactInsights = "health_impact_insights"
     }
     
     var id: String { date }

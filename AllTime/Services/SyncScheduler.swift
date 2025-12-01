@@ -104,12 +104,21 @@ class SyncScheduler: ObservableObject {
             
             // Sync Google Calendar
             do {
+                print("🔄 SyncScheduler: Starting Google Calendar sync...")
                 let googleSyncResponse = try await apiService.syncGoogleCalendar()
                 totalEventsSynced += googleSyncResponse.eventsSynced
                 syncResponse = googleSyncResponse
-                print("✅ SyncScheduler: Google Calendar synced - \(googleSyncResponse.eventsSynced) events")
+                print("✅ SyncScheduler: Google Calendar sync completed - \(googleSyncResponse.eventsSynced) events synced")
+                print("✅ SyncScheduler: Sync status: \(googleSyncResponse.status)")
+                
+                // Check if sync failed
+                if googleSyncResponse.status.lowercased() == "failed" {
+                    print("❌ SyncScheduler: Google Calendar sync failed with status: \(googleSyncResponse.status)")
+                    print("❌ SyncScheduler: Error message: \(googleSyncResponse.message)")
+                }
             } catch {
-                print("⚠️ SyncScheduler: Google Calendar sync failed: \(error.localizedDescription)")
+                print("❌ SyncScheduler: Google Calendar sync failed: \(error.localizedDescription)")
+                print("❌ SyncScheduler: Error type: \(type(of: error))")
             }
             
             // Sync Microsoft Calendar
@@ -149,19 +158,46 @@ class SyncScheduler: ObservableObject {
             
             saveLastSyncTime()
             
-            // Post notification for UI to refresh
-            NotificationCenter.default.post(name: NSNotification.Name("CalendarSynced"), object: nil)
+            // Post notification for UI to refresh (with sync status)
+            NotificationCenter.default.post(
+                name: NSNotification.Name("CalendarSynced"),
+                object: nil,
+                userInfo: [
+                    "status": finalSyncResponse.status,
+                    "eventsSynced": finalSyncResponse.eventsSynced
+                ]
+            )
             
         } catch {
             let errorMsg = error.localizedDescription
             syncError = errorMsg
-            print("❌ SyncScheduler: ===== SYNC FAILED =====")
-            print("❌ SyncScheduler: Error: \(errorMsg)")
-            print("❌ SyncScheduler: Error type: \(type(of: error))")
-            if let nsError = error as NSError? {
-                print("❌ SyncScheduler: Error domain: \(nsError.domain), code: \(nsError.code)")
-                if let userInfo = nsError.userInfo as? [String: Any] {
-                    print("❌ SyncScheduler: Error userInfo: \(userInfo)")
+            
+            // UPDATED: Check for transient failure (new error format)
+            if let nsError = error as NSError?,
+               let errorType = nsError.userInfo["error_type"] as? String,
+               errorType == "transient_failure" {
+                let retryable = nsError.userInfo["retryable"] as? Bool ?? true
+                let provider = nsError.userInfo["provider"] as? String ?? "calendar"
+                
+                print("⚠️ SyncScheduler: ===== TRANSIENT FAILURE DETECTED =====")
+                print("⚠️ SyncScheduler: Transient failure - retryable: \(retryable)")
+                print("⚠️ SyncScheduler: Provider: \(provider)")
+                print("⚠️ SyncScheduler: Error: \(errorMsg)")
+                
+                if retryable {
+                    syncError = "\(provider.capitalized) Calendar sync failed temporarily. Please try again."
+                } else {
+                    syncError = errorMsg
+                }
+            } else {
+                print("❌ SyncScheduler: ===== SYNC FAILED =====")
+                print("❌ SyncScheduler: Error: \(errorMsg)")
+                print("❌ SyncScheduler: Error type: \(type(of: error))")
+                if let nsError = error as NSError? {
+                    print("❌ SyncScheduler: Error domain: \(nsError.domain), code: \(nsError.code)")
+                    if let userInfo = nsError.userInfo as? [String: Any] {
+                        print("❌ SyncScheduler: Error userInfo: \(userInfo)")
+                    }
                 }
             }
             

@@ -148,6 +148,15 @@ struct EventDetailView: View {
                         attendeesSection(attendees)
                     }
                     
+                    // Reminders Section
+                    if let startDate = event.startDate {
+                        EventRemindersSection(
+                            eventId: event.id,
+                            eventStartDate: startDate
+                        )
+                        .padding(.horizontal, 20)
+                    }
+                    
                     calendarSourceSection(event)
                 }
                 .padding(.horizontal, 16)

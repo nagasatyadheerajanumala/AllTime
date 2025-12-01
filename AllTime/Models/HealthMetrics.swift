@@ -1,7 +1,7 @@
 import Foundation
 
 // MARK: - Daily Health Metrics (for POST /api/v1/health/daily)
-struct DailyHealthMetrics: Codable {
+struct DailyHealthMetrics: Codable, Equatable {
     let date: String
     
     // Basic Metrics
@@ -146,6 +146,7 @@ struct SubmitHealthMetricsResponse: Codable {
 struct HealthInsightsResponse: Codable {
     let startDate: String
     let endDate: String
+    let days: Int?
     let perDayMetrics: [PerDayMetrics]
     let summaryStats: SummaryStats
     let insights: [InsightItem]
@@ -156,6 +157,7 @@ struct HealthInsightsResponse: Codable {
     enum CodingKeys: String, CodingKey {
         case startDate = "start_date"
         case endDate = "end_date"
+        case days
         case perDayMetrics = "per_day_metrics"
         case summaryStats = "summary_stats"
         case insights

@@ -21,7 +21,12 @@ struct SettingsView: View {
     
     var body: some View {
         NavigationView {
-            List {
+            ZStack {
+                // Official Chrona Dark Theme Background
+                DesignSystem.Colors.background
+                    .ignoresSafeArea()
+                
+                List {
                 // Profile Section - Apple-style header
                 Section {
                     NavigationLink(destination: ProfileDetailView()
@@ -53,7 +58,7 @@ struct SettingsView: View {
                                             .foregroundColor(.secondary)
                                     }
                                 } else {
-                                    Text("AllTime User")
+                                    Text("Chrona User")
                                         .font(.system(size: 17, weight: .regular))
                                         .foregroundColor(.secondary)
                                 }
@@ -152,25 +157,26 @@ struct SettingsView: View {
                         }
                     }
                 }
-            }
-            .safeAreaPadding(.bottom, 110) // Reserve space for tab bar
-            .navigationTitle("Settings")
-            .navigationBarTitleDisplayMode(.large)
-            .refreshable {
-                await settingsViewModel.refreshProviders()
-                // Also refresh from authService
-                if let user = authService.currentUser {
-                    settingsViewModel.user = user
                 }
-            }
-            .onAppear {
-                // Sync user data from authService to settingsViewModel
-                if let user = authService.currentUser {
-                    settingsViewModel.user = user
-                } else if settingsViewModel.user == nil {
-                    // Only load if we don't have user data
-                    Task {
-                        await settingsViewModel.loadUserProfile()
+                .safeAreaPadding(.bottom, 110) // Reserve space for tab bar
+                .navigationTitle("Settings")
+                .navigationBarTitleDisplayMode(.large)
+                .refreshable {
+                    await settingsViewModel.refreshProviders()
+                    // Also refresh from authService
+                    if let user = authService.currentUser {
+                        settingsViewModel.user = user
+                    }
+                }
+                .onAppear {
+                    // Sync user data from authService to settingsViewModel
+                    if let user = authService.currentUser {
+                        settingsViewModel.user = user
+                    } else if settingsViewModel.user == nil {
+                        // Only load if we don't have user data
+                        Task {
+                            await settingsViewModel.loadUserProfile()
+                        }
                     }
                 }
             }

@@ -13,6 +13,7 @@ class HealthSyncService: ObservableObject {
     
     private let apiService = APIService()
     private let healthMetricsService = HealthMetricsService.shared
+    private let cacheService = CacheService.shared
     private let userDefaults = UserDefaults.standard
     private let lastSyncKey = "health_last_sync_date"
     private static let logger = OSLog(subsystem: "com.storillc.AllTime", category: "HealthSyncService")
@@ -61,14 +62,11 @@ class HealthSyncService: ObservableObject {
             // Check authorization state using HealthMetricsService
             await healthMetricsService.checkAuthorizationStatus()
             
-            // Check if we have any authorization
-            guard healthMetricsService.isAuthorized else {
-                os_log("HealthKit not authorized, skipping sync", log: Self.logger, type: .info)
-                isSyncing = false
-                return
+            if !healthMetricsService.isAuthorized {
+                os_log("HealthKit readiness uncertain, attempting sync anyway", log: Self.logger, type: .info)
+            } else {
+                os_log("HealthKit ready, proceeding with sync", log: Self.logger, type: .info)
             }
-            
-            os_log("HealthKit authorized, proceeding with sync", log: Self.logger, type: .info)
             
             // Determine date range to sync
             let calendar = Calendar.current
@@ -99,6 +97,8 @@ class HealthSyncService: ObservableObject {
                 userDefaults.set(Self.dateFormatter.string(from: endDate), forKey: lastSyncKey)
                 return
             }
+            
+            await cacheService.mergeHealthMetricsHistory(metrics)
             
             // HealthMetricsService already returns DailyHealthMetrics, so use directly
             // Submit to backend
@@ -131,14 +131,11 @@ class HealthSyncService: ObservableObject {
             // Check authorization state using HealthMetricsService
             await healthMetricsService.checkAuthorizationStatus()
             
-            // Check if we have any authorization
-            guard healthMetricsService.isAuthorized else {
-                os_log("HealthKit not authorized, skipping sync", log: Self.logger, type: .info)
-                isSyncing = false
-                return
+            if !healthMetricsService.isAuthorized {
+                os_log("HealthKit readiness uncertain, attempting sync anyway", log: Self.logger, type: .info)
+            } else {
+                os_log("HealthKit ready, proceeding with sync", log: Self.logger, type: .info)
             }
-            
-            os_log("HealthKit authorized, proceeding with sync", log: Self.logger, type: .info)
             
             os_log("Syncing last %d days to backend", log: Self.logger, type: .info, n)
             
@@ -157,6 +154,8 @@ class HealthSyncService: ObservableObject {
                 isSyncing = false
                 return
             }
+            
+            await cacheService.mergeHealthMetricsHistory(metrics)
             
             // HealthMetricsService already returns DailyHealthMetrics, so use directly
             // Submit to backend

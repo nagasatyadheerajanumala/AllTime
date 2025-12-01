@@ -31,6 +31,129 @@ class GoogleAuthManager: NSObject, ObservableObject, ASWebAuthenticationPresenta
     
     private override init() {
         super.init()
+        setupNotificationObservers()
+    }
+    
+    private func setupNotificationObservers() {
+        // Listen for deep link notifications (in case backend redirects after processing)
+        NotificationCenter.default.addObserver(
+            forName: NSNotification.Name("GoogleOAuthDeepLink"),
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            print("🔵 GoogleAuthManager: Received deep link notification")
+            if let userInfo = notification.userInfo,
+               let url = userInfo["url"] as? URL {
+                self?.handleDeepLink(url: url)
+            }
+        }
+        
+        // Listen for OAuth success notification
+        NotificationCenter.default.addObserver(
+            forName: NSNotification.Name("OAuthSuccess"),
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            print("🔵 GoogleAuthManager: Received OAuth success notification")
+            if let userInfo = notification.userInfo,
+               let provider = userInfo["provider"] as? String,
+               (provider == "google" || provider == "unknown") {
+                self?.handleOAuthSuccess()
+            }
+        }
+        
+        // Listen for OAuth error notification
+        NotificationCenter.default.addObserver(
+            forName: NSNotification.Name("OAuthError"),
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            print("🔵 GoogleAuthManager: Received OAuth error notification")
+            if let userInfo = notification.userInfo,
+               let provider = userInfo["provider"] as? String,
+               (provider == "google" || provider == "unknown"),
+               let error = userInfo["error"] as? String {
+                self?.handleOAuthError(error: error)
+            }
+        }
+        
+        // Listen for Google Calendar token expiry
+        NotificationCenter.default.addObserver(
+            forName: NSNotification.Name("GoogleCalendarTokenExpired"),
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            Task { @MainActor [weak self] in
+                print("🔗 GoogleAuthManager: Received Google Calendar token expiry notification")
+                if let userInfo = notification.userInfo,
+                   let errorMessage = userInfo["error"] as? String {
+                    print("🔗 GoogleAuthManager: Token expiry error: \(errorMessage)")
+                    self?.errorMessage = errorMessage
+                }
+                self?.isConnected = false
+            }
+        }
+    }
+    
+    private func handleDeepLink(url: URL) {
+        print("🔵 GoogleAuthManager: Handling deep link: \(url.absoluteString)")
+        
+        // If this is a success callback, verify connection
+        if url.path.contains("success") || url.path == "/success" {
+            print("✅ GoogleAuthManager: Deep link indicates success - verifying connection")
+            handleOAuthSuccess()
+        } else if url.path.contains("error") || url.path == "/error" {
+            let components = URLComponents(url: url, resolvingAgainstBaseURL: false)
+            let errorMessage = components?.queryItems?.first(where: { $0.name == "message" })?.value ?? 
+                              components?.queryItems?.first(where: { $0.name == "error" })?.value ?? 
+                              "Unknown error"
+            print("❌ GoogleAuthManager: Deep link indicates error: \(errorMessage)")
+            handleOAuthError(error: errorMessage)
+        }
+    }
+    
+    private func handleOAuthSuccess() {
+        print("✅ GoogleAuthManager: Handling OAuth success from deep link")
+        isAuthenticating = false
+        
+        // Verify connection by checking connection status
+        Task {
+            do {
+                // Try to sync to verify connection works
+                let apiService = APIService()
+                _ = try await apiService.syncGoogleCalendar()
+                
+                await MainActor.run {
+                    self.isConnected = true
+                    self.errorMessage = "✅ Google Calendar connected successfully!"
+                    
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+                        self.errorMessage = nil
+                    }
+                    
+                    // Post notification to trigger sync
+                    NotificationCenter.default.post(
+                        name: NSNotification.Name("GoogleCalendarConnected"),
+                        object: nil
+                    )
+                }
+                
+                print("✅ GoogleAuthManager: Connection verified and sync successful")
+            } catch {
+                print("⚠️ GoogleAuthManager: Failed to verify connection: \(error.localizedDescription)")
+                await MainActor.run {
+                    self.isConnected = false
+                    self.errorMessage = "Connection may have failed. Please try again."
+                }
+            }
+        }
+    }
+    
+    private func handleOAuthError(error: String) {
+        print("❌ GoogleAuthManager: Handling OAuth error from deep link: \(error)")
+        isAuthenticating = false
+        isConnected = false
+        errorMessage = "OAuth failed: \(error)"
     }
     
     func startGoogleOAuth() {
@@ -122,16 +245,74 @@ class GoogleAuthManager: NSObject, ObservableObject, ASWebAuthenticationPresenta
                         
                         // Parse callback URL to check for success or error
                         if let components = URLComponents(url: callbackURL, resolvingAgainstBaseURL: false) {
+                            // Extract authorization code from callback URL
+                            let authCode = components.queryItems?.first(where: { $0.name == "code" })?.value
+                            
                             // Check for success
                             if callbackURL.path.contains("success") || callbackURL.host == "oauth" && callbackURL.path == "/success" {
-                                print("✅ GoogleAuthManager: Google Calendar linked successfully!")
-                                print("✅ GoogleAuthManager: Success callback URL: \(callbackURL)")
-                                self?.isConnected = true
-                                self?.errorMessage = "✅ Google Calendar connected successfully!"
+                                print("✅ GoogleAuthManager: Success callback URL received: \(callbackURL)")
                                 
-                                // Clear success message after 3 seconds
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
-                                    self?.errorMessage = nil
+                                // CRITICAL: Complete OAuth flow by calling backend with authorization code
+                                if let code = authCode {
+                                    print("🔗 GoogleAuthManager: Extracted authorization code: \(code.prefix(10))...")
+                                    print("🔗 GoogleAuthManager: Calling backend to complete OAuth flow...")
+                                    
+                                    Task {
+                                        do {
+                                            let apiService = APIService()
+                                            try await apiService.completeGoogleOAuth(code: code)
+                                            print("✅ GoogleAuthManager: Backend OAuth completion successful!")
+                                            
+                                            await MainActor.run {
+                                                self?.isConnected = true
+                                                self?.errorMessage = "✅ Google Calendar connected successfully!"
+                                                
+                                                // Clear success message after 3 seconds
+                                                DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+                                                    self?.errorMessage = nil
+                                                }
+                                                
+                                                // Post notification to trigger sync
+                                                NotificationCenter.default.post(
+                                                    name: NSNotification.Name("GoogleCalendarConnected"),
+                                                    object: nil
+                                                )
+                                                
+                                                // Trigger sync to fetch events
+                                                Task {
+                                                    do {
+                                                        _ = try await apiService.syncGoogleCalendar()
+                                                        print("✅ GoogleAuthManager: Events synced after connection")
+                                                    } catch {
+                                                        print("⚠️ GoogleAuthManager: Failed to sync events: \(error)")
+                                                        // Don't show error to user - sync will happen on next refresh
+                                                    }
+                                                }
+                                            }
+                                        } catch {
+                                            print("❌ GoogleAuthManager: Failed to complete OAuth with backend: \(error.localizedDescription)")
+                                            await MainActor.run {
+                                                self?.isConnected = false
+                                                self?.errorMessage = "Failed to complete connection: \(error.localizedDescription)"
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    print("⚠️ GoogleAuthManager: Success callback but no authorization code found")
+                                    // Backend may have handled the callback directly (redirect-based flow)
+                                    // Still mark as connected if backend says success
+                                    self?.isConnected = true
+                                    self?.errorMessage = "✅ Google Calendar connected successfully!"
+                                    
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+                                        self?.errorMessage = nil
+                                    }
+                                    
+                                    // Post notification to trigger sync
+                                    NotificationCenter.default.post(
+                                        name: NSNotification.Name("GoogleCalendarConnected"),
+                                        object: nil
+                                    )
                                 }
                             }
                             // Check for error
@@ -144,12 +325,60 @@ class GoogleAuthManager: NSObject, ObservableObject, ASWebAuthenticationPresenta
                             // Fallback: check query parameters
                             else if let status = components.queryItems?.first(where: { $0.name == "status" })?.value {
                                 if status == "success" {
-                                    print("✅ GoogleAuthManager: Google Calendar linked successfully!")
-                                    self?.isConnected = true
-                                    self?.errorMessage = "✅ Google Calendar connected successfully!"
+                                    print("✅ GoogleAuthManager: Success status in query parameters")
                                     
-                                    DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
-                                        self?.errorMessage = nil
+                                    // Try to extract authorization code
+                                    if let code = authCode {
+                                        print("🔗 GoogleAuthManager: Extracted authorization code: \(code.prefix(10))...")
+                                        print("🔗 GoogleAuthManager: Calling backend to complete OAuth flow...")
+                                        
+                                        Task {
+                                            do {
+                                                let apiService = APIService()
+                                                try await apiService.completeGoogleOAuth(code: code)
+                                                print("✅ GoogleAuthManager: Backend OAuth completion successful!")
+                                                
+                                                await MainActor.run {
+                                                    self?.isConnected = true
+                                                    self?.errorMessage = "✅ Google Calendar connected successfully!"
+                                                    
+                                                    DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+                                                        self?.errorMessage = nil
+                                                    }
+                                                    
+                                                    // Post notification to trigger sync
+                                                    NotificationCenter.default.post(
+                                                        name: NSNotification.Name("GoogleCalendarConnected"),
+                                                        object: nil
+                                                    )
+                                                    
+                                                    // Trigger sync to fetch events
+                                                    Task {
+                                                        do {
+                                                            _ = try await apiService.syncGoogleCalendar()
+                                                            print("✅ GoogleAuthManager: Events synced after connection")
+                                                        } catch {
+                                                            print("⚠️ GoogleAuthManager: Failed to sync events: \(error)")
+                                                        }
+                                                    }
+                                                }
+                                            } catch {
+                                                print("❌ GoogleAuthManager: Failed to complete OAuth with backend: \(error.localizedDescription)")
+                                                await MainActor.run {
+                                                    self?.isConnected = false
+                                                    self?.errorMessage = "Failed to complete connection: \(error.localizedDescription)"
+                                                }
+                                            }
+                                        }
+                                    } else {
+                                        // No code but status is success - backend may have handled it
+                                        print("⚠️ GoogleAuthManager: Success status but no code - assuming backend handled callback")
+                                        self?.isConnected = true
+                                        self?.errorMessage = "✅ Google Calendar connected successfully!"
+                                        
+                                        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+                                            self?.errorMessage = nil
+                                        }
                                     }
                                 } else {
                                     let errorMsg = components.queryItems?.first(where: { $0.name == "message" })?.value ?? "Unknown error"

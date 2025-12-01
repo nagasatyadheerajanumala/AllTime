@@ -339,7 +339,7 @@ struct HealthPermissionCard: View {
                         .fixedSize(horizontal: false, vertical: true)
                     
                     if hasTriedAuthorization {
-                        Text("If you denied permissions, you can enable them in Settings > Privacy & Security > Health > AllTime")
+                        Text("If you denied permissions, you can enable them in Settings > Privacy & Security > Health > Chrona")
                             .font(DesignSystem.Typography.caption2)
                             .foregroundColor(DesignSystem.Colors.secondaryText)
                             .padding(.top, 4)

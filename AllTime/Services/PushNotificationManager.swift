@@ -138,7 +138,62 @@ extension PushNotificationManager: UNUserNotificationCenterDelegate {
     
     func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
         // Handle notification tap
+        let userInfo = response.notification.request.content.userInfo
         print("🔔 PushNotificationManager: Notification tapped: \(response.notification.request.identifier)")
+        print("🔔 PushNotificationManager: User info: \(userInfo)")
+        
+        // Handle reminder notifications
+        if let reminderId = userInfo["reminder_id"] as? Int64,
+           let type = userInfo["type"] as? String,
+           type == "reminder" {
+            print("🔔 PushNotificationManager: Reminder notification tapped - ID: \(reminderId)")
+            handleReminderNotification(reminderId: reminderId, actionIdentifier: response.actionIdentifier)
+        }
+        
         completionHandler()
+    }
+    
+    // MARK: - Reminder Notification Handling
+    
+    private func handleReminderNotification(reminderId: Int64, actionIdentifier: String) {
+        Task { @MainActor in
+            let apiService = APIService()
+            
+            switch actionIdentifier {
+            case UNNotificationDefaultActionIdentifier:
+                // User tapped the notification (not an action button)
+                print("🔔 PushNotificationManager: Opening reminder detail for ID: \(reminderId)")
+                // Post notification to navigate to reminder detail
+                NotificationCenter.default.post(
+                    name: NSNotification.Name("OpenReminder"),
+                    object: nil,
+                    userInfo: ["reminderId": reminderId]
+                )
+                
+            case "COMPLETE_ACTION":
+                // User tapped "Complete" action
+                print("🔔 PushNotificationManager: Completing reminder ID: \(reminderId)")
+                do {
+                    _ = try await apiService.completeReminder(id: reminderId)
+                    print("✅ PushNotificationManager: Reminder completed successfully")
+                } catch {
+                    print("❌ PushNotificationManager: Failed to complete reminder: \(error.localizedDescription)")
+                }
+                
+            case "SNOOZE_ACTION":
+                // User tapped "Snooze" action
+                print("🔔 PushNotificationManager: Snoozing reminder ID: \(reminderId)")
+                let snoozeDate = Date().addingTimeInterval(30 * 60) // 30 minutes
+                do {
+                    _ = try await apiService.snoozeReminder(id: reminderId, until: snoozeDate)
+                    print("✅ PushNotificationManager: Reminder snoozed successfully")
+                } catch {
+                    print("❌ PushNotificationManager: Failed to snooze reminder: \(error.localizedDescription)")
+                }
+                
+            default:
+                print("🔔 PushNotificationManager: Unknown action: \(actionIdentifier)")
+            }
+        }
     }
 }

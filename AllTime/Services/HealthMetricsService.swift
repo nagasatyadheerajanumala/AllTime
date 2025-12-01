@@ -32,21 +32,17 @@ class HealthMetricsService: ObservableObject {
     
     // MARK: - Authorization
     
-    // Cache for verification result to avoid repeated queries
-    private var lastVerificationResult: (result: Bool, timestamp: Date)?
-    private let verificationCacheTimeout: TimeInterval = 30 // Cache for 30 seconds
-    
-    /// Check current authorization status
+    /// Ensures we've prompted the user if needed. Apple does not expose read-level
+    /// permissions, so the result simply reflects whether HealthKit is available and
+    /// we've already shown the permission sheet at least once.
     @MainActor
     func checkAuthorizationStatus() async {
         guard HKHealthStore.isHealthDataAvailable() else {
             print("❌ HealthMetricsService: HealthKit is NOT available on this device")
             isAuthorized = false
-            lastVerificationResult = nil // Clear cache if HealthKit not available
             return
         }
         
-        // Verify that we can actually create HealthKit types (entitlements check)
         let testType = HKQuantityType.quantityType(forIdentifier: .stepCount)
         guard testType != nil else {
             print("❌ HealthMetricsService: Cannot create HealthKit types - entitlements may be missing!")
@@ -57,201 +53,8 @@ class HealthMetricsService: ObservableObject {
         
         print("✅ HealthMetricsService: HealthKit is available and types can be created")
         
-        // Check status for CORE types only (same ones we request authorization for)
-        var hasAnyAuthorization = false
-        var authorizedTypes: [String] = []
-        var deniedTypes: [String] = []
-        var notDeterminedTypes: [String] = []
-        
-        // CRITICAL: Use canonical HealthKitTypes.all - EXACT same instances as requestAuthorization
-        let coreTypes = HealthKitTypes.all
-        
-        for type in coreTypes {
-            let status = healthStore.authorizationStatus(for: type)
-            let typeName = HealthKitTypes.typeName(type)
-            
-            switch status {
-            case .sharingAuthorized:
-                hasAnyAuthorization = true
-                authorizedTypes.append(typeName)
-                print("✅ HealthMetricsService: Core type '\(typeName)' status: sharingAuthorized")
-            case .sharingDenied:
-                deniedTypes.append(typeName)
-                print("❌ HealthMetricsService: Core type '\(typeName)' status: sharingDenied")
-            case .notDetermined:
-                notDeterminedTypes.append(typeName)
-                print("⚠️ HealthMetricsService: Core type '\(typeName)' status: notDetermined")
-            @unknown default:
-                print("❓ HealthMetricsService: Core type '\(typeName)' status: unknown")
-                break
-            }
-        }
-        
-        print("💚 HealthMetricsService: Authorization check for \(coreTypes.count) CORE types:")
-        print("   - Authorized: \(authorizedTypes.count) - \(authorizedTypes)")
-        print("   - Denied: \(deniedTypes.count) - \(deniedTypes)")
-        print("   - Not determined: \(notDeterminedTypes.count) - \(notDeterminedTypes)")
-        print("   - hasAnyAuthorization: \(hasAnyAuthorization)")
-        
-        // Determine authorization based on CORE types only
-        if hasAnyAuthorization {
-            print("✅ HealthMetricsService: HealthKit access granted for \(authorizedTypes.count) core type(s)")
-            // Verify with actual query to be sure
-            let verified = await verifyAuthorizationByQuery()
-            await MainActor.run {
-                isAuthorized = verified
-                lastVerificationResult = (result: verified, timestamp: Date())
-                
-                if verified {
-                    print("✅ HealthMetricsService: Verified authorization - access granted")
-                } else {
-                    print("❌ HealthMetricsService: Verification failed - cannot read data")
-                }
-            }
-        } else if deniedTypes.count == coreTypes.count {
-            // All CORE types are denied
-            print("❌ HealthMetricsService: All CORE HealthKit types denied - no access")
-            await MainActor.run {
-                isAuthorized = false
-                lastVerificationResult = (result: false, timestamp: Date())
-            }
-        } else {
-            // All not determined
-            print("⚠️ HealthMetricsService: All core types not determined - need to request authorization")
-            await MainActor.run {
-                isAuthorized = false
-                lastVerificationResult = (result: false, timestamp: Date())
-            }
-        }
-    }
-    
-    /// Verify authorization by checking CORE types status first, then attempting to query
-    /// KEY FIX: Only checks CORE types (same ones we requested authorization for)
-    @MainActor
-    func verifyAuthorizationByQuery() async -> Bool {
-        guard HKHealthStore.isHealthDataAvailable() else {
-            print("❌ HealthMetricsService: HealthKit not available on this device")
-            return false
-        }
-        
-        // Check authorization status for CORE types only
-        var hasAnyAuthorized = false
-        var allDenied = true
-        var allNotDetermined = true
-        
-        // CRITICAL: Use canonical HealthKitTypes.all - EXACT same instances as requestAuthorization
-        let coreTypes = HealthKitTypes.all
-        
-        for type in coreTypes {
-            let status = healthStore.authorizationStatus(for: type)
-            switch status {
-            case .sharingAuthorized:
-                hasAnyAuthorized = true
-                allDenied = false
-                allNotDetermined = false
-            case .sharingDenied:
-                allNotDetermined = false
-                // Keep allDenied as true if we haven't found any authorized
-            case .notDetermined:
-                allDenied = false
-                // Keep allNotDetermined as true if we haven't found any determined
-            @unknown default:
-                break
-            }
-        }
-        
-        // KEY FIX: Only return true if we have authorization for at least one CORE type
-        // Don't rely on query success alone - verify with actual query
-        if hasAnyAuthorized {
-            print("✅ HealthMetricsService: Found authorized CORE types - verifying with query...")
-            return await verifyWithActualQuery()
-        }
-        
-        // If all CORE types are denied, we definitely don't have access
-        if allDenied {
-            print("❌ HealthMetricsService: All CORE types denied - no access. User must enable in Health app.")
-            return false
-        }
-        
-        // If all are not determined, we're not authorized yet
-        if allNotDetermined {
-            print("⚠️ HealthMetricsService: All CORE types not determined - not authorized yet")
-            return false
-        }
-        
-        // Mixed status (some denied, some not determined) - check with query
-        print("⚠️ HealthMetricsService: Mixed authorization status for CORE types - verifying with query...")
-        return await verifyWithActualQuery()
-    }
-    
-    /// Verify authorization by attempting to read actual data
-    /// Only returns true if we can successfully query data (not just "no data available")
-    @MainActor
-    private func verifyWithActualQuery() async -> Bool {
-        // Try to query step count for today as verification
-        guard let stepType = HKQuantityType.quantityType(forIdentifier: .stepCount) else {
-            return false
-        }
-        
-        // First check if step count is in our core types and if it's authorized
-        let stepStatus = healthStore.authorizationStatus(for: stepType)
-        guard stepStatus == .sharingAuthorized else {
-            print("❌ HealthMetricsService: Step count not authorized (status: \(stepStatus.rawValue))")
-            return false
-        }
-        
-        let calendar = Calendar.current
-        let today = Date()
-        let startOfDay = calendar.startOfDay(for: today)
-        guard let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay) else {
-            return false
-        }
-        
-        let predicate = HKQuery.predicateForSamples(withStart: startOfDay, end: endOfDay, options: .strictStartDate)
-        
-        return await withCheckedContinuation { continuation in
-            let query = HKStatisticsQuery(quantityType: stepType, quantitySamplePredicate: predicate, options: .cumulativeSum) { _, result, error in
-                if let error = error {
-                    let nsError = error as NSError
-                    if nsError.domain == "com.apple.healthkit" && nsError.code == 4 {
-                        // Error code 4 = authorization denied
-                        print("❌ HealthMetricsService: Query failed - authorization denied (code 4)")
-                        continuation.resume(returning: false)
-                    } else if nsError.domain == "com.apple.healthkit" && nsError.code == 11 {
-                        // Error code 11 = no data available
-                        // This means we HAVE access but there's no data - this is OK for authorization
-                        print("✅ HealthMetricsService: Query succeeded - we have access (no data available)")
-                        continuation.resume(returning: true)
-                    } else {
-                        // Other error - treat as failure
-                        print("❌ HealthMetricsService: Query error: \(error.localizedDescription)")
-                        continuation.resume(returning: false)
-                    }
-                } else {
-                    // Query succeeded - we have access
-                    let count = result?.sumQuantity()?.doubleValue(for: HKUnit.count()) ?? 0
-                    print("✅ HealthMetricsService: Query succeeded - we have access! (steps: \(Int(count)))")
-                    continuation.resume(returning: true)
-                }
-            }
-            healthStore.execute(query)
-        }
-    }
-    
-    /// Request HealthKit authorization
-    /// DEPRECATED: Authorization is requested automatically in HealthKitManager.init() on app launch
-    /// This method should NOT be called - it only opens Health app settings
-    @MainActor
-    func requestAuthorization() async throws {
-        print("⚠️ HealthMetricsService.requestAuthorization called - but authorization is requested on app start")
-        print("⚠️ Opening Health app settings instead")
-        
-        // Just open Health app settings - authorization is already requested on app start
-        HealthAppHelper.openHealthAppSettings()
-        
-        // Re-check status after a delay (user may have enabled permissions)
-        try? await Task.sleep(nanoseconds: 2_000_000_000)
-        await checkAuthorizationStatus()
+        let ready = await HealthKitManager.shared.ensureHealthKitReady()
+        isAuthorized = ready
     }
     
     // MARK: - Query Daily Metrics
@@ -306,41 +109,56 @@ class HealthMetricsService: ObservableObject {
         
         let dateString = dateFormatter.string(from: date)
         
-        // Query all metrics in parallel
-        async let steps = querySteps(healthStore: healthStore, start: startOfDay, end: endOfDay)
-        async let activeEnergy = queryActiveEnergy(healthStore: healthStore, start: startOfDay, end: endOfDay)
-        async let activeMinutes = queryActiveMinutes(healthStore: healthStore, start: startOfDay, end: endOfDay)
-        async let standMinutes = queryStandMinutes(healthStore: healthStore, start: startOfDay, end: endOfDay)
-        async let basalEnergy = queryBasalEnergy(healthStore: healthStore, start: startOfDay, end: endOfDay)
-        async let restingHR = queryRestingHeartRate(healthStore: healthStore, start: startOfDay, end: endOfDay)
-        async let heartRate = queryHeartRate(healthStore: healthStore, start: startOfDay, end: endOfDay)
-        async let hrv = queryHRV(healthStore: healthStore, start: startOfDay, end: endOfDay)
-        async let bloodPressure = queryBloodPressure(healthStore: healthStore, start: startOfDay, end: endOfDay)
-        async let respiratoryRate = queryRespiratoryRate(healthStore: healthStore, start: startOfDay, end: endOfDay)
-        async let oxygenSaturation = queryOxygenSaturation(healthStore: healthStore, start: startOfDay, end: endOfDay)
-        async let walkingDistance = queryWalkingDistance(healthStore: healthStore, start: startOfDay, end: endOfDay)
-        async let runningDistance = queryRunningDistance(healthStore: healthStore, start: startOfDay, end: endOfDay)
-        async let cyclingDistance = queryCyclingDistance(healthStore: healthStore, start: startOfDay, end: endOfDay)
-        async let swimmingDistance = querySwimmingDistance(healthStore: healthStore, start: startOfDay, end: endOfDay)
-        async let flightsClimbed = queryFlightsClimbed(healthStore: healthStore, start: startOfDay, end: endOfDay)
-        async let sleep = querySleep(healthStore: healthStore, start: startOfDay, end: endOfDay)
-        async let bodyWeight = queryBodyWeight(healthStore: healthStore, start: startOfDay, end: endOfDay)
-        async let bodyFat = queryBodyFat(healthStore: healthStore, start: startOfDay, end: endOfDay)
-        async let leanBodyMass = queryLeanBodyMass(healthStore: healthStore, start: startOfDay, end: endOfDay)
-        async let bloodGlucose = queryBloodGlucose(healthStore: healthStore, start: startOfDay, end: endOfDay)
-        async let vo2Max = queryVO2Max(healthStore: healthStore, start: startOfDay, end: endOfDay)
-        async let mindfulMinutes = queryMindfulMinutes(healthStore: healthStore, start: startOfDay, end: endOfDay)
-        async let workouts = queryWorkouts(healthStore: healthStore, start: startOfDay, end: endOfDay)
+        // Query all metrics in parallel (authorization errors are swallowed per metric)
+        async let stepsTask = safeQuery("steps", defaultValue: nil as Int?) { try await querySteps(healthStore: healthStore, start: startOfDay, end: endOfDay) }
+        async let activeEnergyTask = safeQuery("activeEnergy", defaultValue: nil as Double?) { try await queryActiveEnergy(healthStore: healthStore, start: startOfDay, end: endOfDay) }
+        async let activeMinutesTask = safeQuery("activeMinutes", defaultValue: nil as Int?) { try await queryActiveMinutes(healthStore: healthStore, start: startOfDay, end: endOfDay) }
+        async let standMinutesTask = safeQuery("standMinutes", defaultValue: nil as Int?) { try await queryStandMinutes(healthStore: healthStore, start: startOfDay, end: endOfDay) }
+        async let basalEnergyTask = safeQuery("basalEnergy", defaultValue: nil as Double?) { try await queryBasalEnergy(healthStore: healthStore, start: startOfDay, end: endOfDay) }
+        async let restingHRTask = safeQuery("restingHeartRate", defaultValue: nil as Double?) { try await queryRestingHeartRate(healthStore: healthStore, start: startOfDay, end: endOfDay) }
+        async let heartRateTask = safeQuery("heartRate", defaultValue: nil as (avg: Double?, max: Double?, min: Double?, walkingAvg: Double?)?) { try await queryHeartRate(healthStore: healthStore, start: startOfDay, end: endOfDay) }
+        async let hrvTask = safeQuery("hrv", defaultValue: nil as Double?) { try await queryHRV(healthStore: healthStore, start: startOfDay, end: endOfDay) }
+        async let bloodPressureTask = safeQuery("bloodPressure", defaultValue: nil as (systolic: Int?, diastolic: Int?)?) { try await queryBloodPressure(healthStore: healthStore, start: startOfDay, end: endOfDay) }
+        async let respiratoryRateTask = safeQuery("respiratoryRate", defaultValue: nil as Double?) { try await queryRespiratoryRate(healthStore: healthStore, start: startOfDay, end: endOfDay) }
+        async let oxygenSaturationTask = safeQuery("oxygenSaturation", defaultValue: nil as Double?) { try await queryOxygenSaturation(healthStore: healthStore, start: startOfDay, end: endOfDay) }
+        async let walkingDistanceTask = safeQuery("walkingDistance", defaultValue: nil as Double?) { try await queryWalkingDistance(healthStore: healthStore, start: startOfDay, end: endOfDay) }
+        async let runningDistanceTask = safeQuery("runningDistance", defaultValue: nil as Double?) { try await queryRunningDistance(healthStore: healthStore, start: startOfDay, end: endOfDay) }
+        async let cyclingDistanceTask = safeQuery("cyclingDistance", defaultValue: nil as Double?) { try await queryCyclingDistance(healthStore: healthStore, start: startOfDay, end: endOfDay) }
+        async let swimmingDistanceTask = safeQuery("swimmingDistance", defaultValue: nil as Double?) { try await querySwimmingDistance(healthStore: healthStore, start: startOfDay, end: endOfDay) }
+        async let flightsClimbedTask = safeQuery("flightsClimbed", defaultValue: nil as Int?) { try await queryFlightsClimbed(healthStore: healthStore, start: startOfDay, end: endOfDay) }
+        async let sleepTask = safeQuery("sleep", defaultValue: nil as (minutes: Int?, qualityScore: Double?)?) { try await querySleep(healthStore: healthStore, start: startOfDay, end: endOfDay) }
+        async let bodyWeightTask = safeQuery("bodyWeight", defaultValue: nil as Double?) { try await queryBodyWeight(healthStore: healthStore, start: startOfDay, end: endOfDay) }
+        async let bodyFatTask = safeQuery("bodyFat", defaultValue: nil as Double?) { try await queryBodyFat(healthStore: healthStore, start: startOfDay, end: endOfDay) }
+        async let leanBodyMassTask = safeQuery("leanBodyMass", defaultValue: nil as Double?) { try await queryLeanBodyMass(healthStore: healthStore, start: startOfDay, end: endOfDay) }
+        async let bloodGlucoseTask = safeQuery("bloodGlucose", defaultValue: nil as Double?) { try await queryBloodGlucose(healthStore: healthStore, start: startOfDay, end: endOfDay) }
+        async let vo2MaxTask = safeQuery("vo2Max", defaultValue: nil as Double?) { try await queryVO2Max(healthStore: healthStore, start: startOfDay, end: endOfDay) }
+        async let mindfulMinutesTask = safeQuery("mindfulMinutes", defaultValue: nil as Int?) { try await queryMindfulMinutes(healthStore: healthStore, start: startOfDay, end: endOfDay) }
+        async let workoutsTask = safeQuery("workouts", defaultValue: nil as Int?) { try await queryWorkouts(healthStore: healthStore, start: startOfDay, end: endOfDay) }
         
-        let (stepsValue, activeEnergyValue, activeMinutesValue, standMinutesValue, basalEnergyValue,
-             restingHRValue, heartRateValue, hrvValue, bloodPressureValue, respiratoryRateValue, oxygenSaturationValue,
-             walkingDistanceValue, runningDistanceValue, cyclingDistanceValue, swimmingDistanceValue, flightsClimbedValue,
-             sleepValue, bodyWeightValue, bodyFatValue, leanBodyMassValue, bloodGlucoseValue, vo2MaxValue, mindfulMinutesValue, workoutsValue) = try await (
-            steps, activeEnergy, activeMinutes, standMinutes, basalEnergy,
-            restingHR, heartRate, hrv, bloodPressure, respiratoryRate, oxygenSaturation,
-            walkingDistance, runningDistance, cyclingDistance, swimmingDistance, flightsClimbed,
-            sleep, bodyWeight, bodyFat, leanBodyMass, bloodGlucose, vo2Max, mindfulMinutes, workouts
-        )
+        let stepsValue = await stepsTask
+        let activeEnergyValue = await activeEnergyTask
+        let activeMinutesValue = await activeMinutesTask
+        let standMinutesValue = await standMinutesTask
+        let basalEnergyValue = await basalEnergyTask
+        let restingHRValue = await restingHRTask
+        let heartRateValue = (await heartRateTask) ?? nil
+        let hrvValue = await hrvTask
+        let bloodPressureValue = (await bloodPressureTask) ?? nil
+        let respiratoryRateValue = await respiratoryRateTask
+        let oxygenSaturationValue = await oxygenSaturationTask
+        let walkingDistanceValue = await walkingDistanceTask
+        let runningDistanceValue = await runningDistanceTask
+        let cyclingDistanceValue = await cyclingDistanceTask
+        let swimmingDistanceValue = await swimmingDistanceTask
+        let flightsClimbedValue = await flightsClimbedTask
+        let sleepValue = (await sleepTask) ?? nil
+        let bodyWeightValue = await bodyWeightTask
+        let bodyFatValue = await bodyFatTask
+        let leanBodyMassValue = await leanBodyMassTask
+        let bloodGlucoseValue = await bloodGlucoseTask
+        let vo2MaxValue = await vo2MaxTask
+        let mindfulMinutesValue = await mindfulMinutesTask
+        let workoutsValue = await workoutsTask
         
         // Calculate BMI if we have weight
         let bmi: Double? = {
@@ -374,8 +192,8 @@ class HealthMetricsService: ObservableObject {
             cyclingDistanceMeters: cyclingDistanceValue,
             swimmingDistanceMeters: swimmingDistanceValue,
             flightsClimbed: flightsClimbedValue,
-            sleepMinutes: sleepValue.minutes,
-            sleepQualityScore: sleepValue.qualityScore,
+            sleepMinutes: sleepValue?.minutes,
+            sleepQualityScore: sleepValue?.qualityScore,
             caloriesConsumed: nil, // Nutrition data not in HealthKit by default
             proteinGrams: nil,
             carbsGrams: nil,
@@ -588,6 +406,18 @@ class HealthMetricsService: ObservableObject {
     }
     
     // MARK: - Additional Query Methods
+    
+    private static func safeQuery<T>(_ metricName: String, defaultValue: T, block: @escaping () async throws -> T) async -> T {
+        do {
+            return try await block()
+        } catch let error as HKError where error.code == .errorAuthorizationNotDetermined || error.code == .errorAuthorizationDenied {
+            print("⚠️ HealthMetricsService: Authorization missing for \(metricName) (\(error.errorCode))")
+            return defaultValue
+        } catch {
+            print("❌ HealthMetricsService: Query \(metricName) failed: \(error.localizedDescription)")
+            return defaultValue
+        }
+    }
     
     private static func queryBasalEnergy(healthStore: HKHealthStore, start: Date, end: Date) async throws -> Double? {
         guard let type = HKQuantityType.quantityType(forIdentifier: .basalEnergyBurned) else { return nil }

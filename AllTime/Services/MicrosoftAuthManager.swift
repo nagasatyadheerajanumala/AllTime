@@ -15,6 +15,129 @@ class MicrosoftAuthManager: NSObject, ObservableObject, ASWebAuthenticationPrese
     
     private override init() {
         super.init()
+        setupNotificationObservers()
+    }
+    
+    private func setupNotificationObservers() {
+        // Listen for deep link notifications (in case backend redirects after processing)
+        NotificationCenter.default.addObserver(
+            forName: NSNotification.Name("MicrosoftOAuthDeepLink"),
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            print("🔵 MicrosoftAuthManager: Received deep link notification")
+            if let userInfo = notification.userInfo,
+               let url = userInfo["url"] as? URL {
+                self?.handleDeepLink(url: url)
+            }
+        }
+        
+        // Listen for OAuth success notification
+        NotificationCenter.default.addObserver(
+            forName: NSNotification.Name("OAuthSuccess"),
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            print("🔵 MicrosoftAuthManager: Received OAuth success notification")
+            if let userInfo = notification.userInfo,
+               let provider = userInfo["provider"] as? String,
+               (provider == "microsoft" || provider == "unknown") {
+                self?.handleOAuthSuccess()
+            }
+        }
+        
+        // Listen for OAuth error notification
+        NotificationCenter.default.addObserver(
+            forName: NSNotification.Name("OAuthError"),
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            print("🔵 MicrosoftAuthManager: Received OAuth error notification")
+            if let userInfo = notification.userInfo,
+               let provider = userInfo["provider"] as? String,
+               (provider == "microsoft" || provider == "unknown"),
+               let error = userInfo["error"] as? String {
+                self?.handleOAuthError(error: error)
+            }
+        }
+        
+        // Listen for Microsoft Calendar token expiry
+        NotificationCenter.default.addObserver(
+            forName: NSNotification.Name("MicrosoftCalendarTokenExpired"),
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            Task { @MainActor [weak self] in
+                print("🔗 MicrosoftAuthManager: Received Microsoft Calendar token expiry notification")
+                if let userInfo = notification.userInfo,
+                   let errorMessage = userInfo["error"] as? String {
+                    print("🔗 MicrosoftAuthManager: Token expiry error: \(errorMessage)")
+                    self?.errorMessage = errorMessage
+                }
+                self?.isConnected = false
+            }
+        }
+    }
+    
+    private func handleDeepLink(url: URL) {
+        print("🔵 MicrosoftAuthManager: Handling deep link: \(url.absoluteString)")
+        
+        // If this is a success callback, verify connection
+        if url.path.contains("success") || url.path == "/success" {
+            print("✅ MicrosoftAuthManager: Deep link indicates success - verifying connection")
+            handleOAuthSuccess()
+        } else if url.path.contains("error") || url.path == "/error" {
+            let components = URLComponents(url: url, resolvingAgainstBaseURL: false)
+            let errorMessage = components?.queryItems?.first(where: { $0.name == "message" })?.value ?? 
+                              components?.queryItems?.first(where: { $0.name == "error" })?.value ?? 
+                              "Unknown error"
+            print("❌ MicrosoftAuthManager: Deep link indicates error: \(errorMessage)")
+            handleOAuthError(error: errorMessage)
+        }
+    }
+    
+    private func handleOAuthSuccess() {
+        print("✅ MicrosoftAuthManager: Handling OAuth success from deep link")
+        isAuthenticating = false
+        
+        // Verify connection by checking connection status
+        Task {
+            do {
+                // Try to sync to verify connection works
+                let apiService = APIService()
+                _ = try await apiService.syncMicrosoftCalendar()
+                
+                await MainActor.run {
+                    self.isConnected = true
+                    self.errorMessage = "✅ Microsoft Calendar connected successfully!"
+                    
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+                        self.errorMessage = nil
+                    }
+                    
+                    // Post notification to trigger sync
+                    NotificationCenter.default.post(
+                        name: NSNotification.Name("MicrosoftCalendarConnected"),
+                        object: nil
+                    )
+                }
+                
+                print("✅ MicrosoftAuthManager: Connection verified and sync successful")
+            } catch {
+                print("⚠️ MicrosoftAuthManager: Failed to verify connection: \(error.localizedDescription)")
+                await MainActor.run {
+                    self.isConnected = false
+                    self.errorMessage = "Connection may have failed. Please try again."
+                }
+            }
+        }
+    }
+    
+    private func handleOAuthError(error: String) {
+        print("❌ MicrosoftAuthManager: Handling OAuth error from deep link: \(error)")
+        isAuthenticating = false
+        isConnected = false
+        errorMessage = "OAuth failed: \(error)"
     }
     
     func startMicrosoftOAuth() {

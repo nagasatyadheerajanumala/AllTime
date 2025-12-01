@@ -58,32 +58,120 @@ struct AllTimeApp: App {
                 .environmentObject(settingsViewModel)
                 .environmentObject(syncScheduler)
                 .environmentObject(themeManager)
-                .preferredColorScheme(themeManager.colorScheme)
+                .preferredColorScheme(.dark) // Force dark theme - Chrona only uses dark mode
                 .onOpenURL { url in
-                    print("🔗 AllTimeApp: Received URL: \(url)")
+                    print("🔵 AllTimeApp: ===== DEEP LINK RECEIVED =====")
+                    print("🔵 AllTimeApp: Full URL: \(url.absoluteString)")
+                    print("🔵 AllTimeApp: Scheme: \(url.scheme ?? "nil")")
+                    print("🔵 AllTimeApp: Host: \(url.host ?? "nil")")
+                    print("🔵 AllTimeApp: Path: \(url.path)")
+                    print("🔵 AllTimeApp: Query: \(url.query ?? "nil")")
+                    
                     // Handle deep links for OAuth callbacks
                     if url.scheme == Constants.OAuth.callbackScheme {
-                        // Route to appropriate OAuth manager based on callback URL
-                        // Both Google and Microsoft use the same callback scheme
-                        // The backend will handle routing internally
+                        print("🔵 AllTimeApp: OAuth callback scheme matched: \(Constants.OAuth.callbackScheme)")
+                        
                         if url.host == "oauth" {
+                            print("🔵 AllTimeApp: OAuth callback host matched: oauth")
+                            
+                            // Parse query parameters
+                            let components = URLComponents(url: url, resolvingAgainstBaseURL: false)
+                            let queryItems = components?.queryItems ?? []
+                            
                             // Check if it's a success or error callback
-                            if url.path.contains("success") {
-                                print("✅ AllTimeApp: OAuth success callback received")
-                                // Both managers will handle their own callbacks via ASWebAuthenticationSession
-                                // This is just a fallback for deep links
-                            } else if url.path.contains("error") {
-                                print("❌ AllTimeApp: OAuth error callback received")
-                                // Parse error message
-                                if let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
-                                   let message = components.queryItems?.first(where: { $0.name == "message" })?.value {
-                                    print("❌ AllTimeApp: Error message: \(message)")
+                            if url.path.contains("success") || url.path == "/success" {
+                                print("✅ AllTimeApp: ===== OAUTH SUCCESS CALLBACK =====")
+                                
+                                // Extract authorization code if present
+                                if let code = queryItems.first(where: { $0.name == "code" })?.value {
+                                    print("🔵 AllTimeApp: Authorization code found: \(code.prefix(10))...")
                                 }
+                                
+                                // Extract provider if specified
+                                let provider = queryItems.first(where: { $0.name == "provider" })?.value ?? "unknown"
+                                print("🔵 AllTimeApp: Provider: \(provider)")
+                                
+                                // Post notification for OAuth managers to handle
+                                NotificationCenter.default.post(
+                                    name: NSNotification.Name("OAuthSuccess"),
+                                    object: nil,
+                                    userInfo: [
+                                        "url": url,
+                                        "provider": provider,
+                                        "code": queryItems.first(where: { $0.name == "code" })?.value as Any
+                                    ]
+                                )
+                                
+                                // Also notify GoogleAuthManager and MicrosoftAuthManager directly
+                                if provider == "google" || provider == "unknown" {
+                                    print("🔵 AllTimeApp: Notifying GoogleAuthManager")
+                                    NotificationCenter.default.post(
+                                        name: NSNotification.Name("GoogleOAuthDeepLink"),
+                                        object: nil,
+                                        userInfo: ["url": url]
+                                    )
+                                }
+                                
+                                if provider == "microsoft" || provider == "unknown" {
+                                    print("🔵 AllTimeApp: Notifying MicrosoftAuthManager")
+                                    NotificationCenter.default.post(
+                                        name: NSNotification.Name("MicrosoftOAuthDeepLink"),
+                                        object: nil,
+                                        userInfo: ["url": url]
+                                    )
+                                }
+                                
+                            } else if url.path.contains("error") || url.path == "/error" {
+                                print("❌ AllTimeApp: ===== OAUTH ERROR CALLBACK =====")
+                                
+                                // Parse error message
+                                let errorMessage = queryItems.first(where: { $0.name == "message" })?.value ?? 
+                                                 queryItems.first(where: { $0.name == "error" })?.value ?? 
+                                                 "Unknown error"
+                                
+                                print("❌ AllTimeApp: Error message: \(errorMessage)")
+                                
+                                // Extract provider if specified
+                                let provider = queryItems.first(where: { $0.name == "provider" })?.value ?? "unknown"
+                                
+                                // Post notification for OAuth managers to handle
+                                NotificationCenter.default.post(
+                                    name: NSNotification.Name("OAuthError"),
+                                    object: nil,
+                                    userInfo: [
+                                        "url": url,
+                                        "error": errorMessage,
+                                        "provider": provider
+                                    ]
+                                )
+                                
+                                // Also notify specific managers
+                                if provider == "google" || provider == "unknown" {
+                                    NotificationCenter.default.post(
+                                        name: NSNotification.Name("GoogleOAuthDeepLinkError"),
+                                        object: nil,
+                                        userInfo: ["error": errorMessage]
+                                    )
+                                }
+                                
+                                if provider == "microsoft" || provider == "unknown" {
+                                    NotificationCenter.default.post(
+                                        name: NSNotification.Name("MicrosoftOAuthDeepLinkError"),
+                                        object: nil,
+                                        userInfo: ["error": errorMessage]
+                                    )
+                                }
+                            } else {
+                                print("⚠️ AllTimeApp: Unknown OAuth callback path: \(url.path)")
                             }
+                        } else {
+                            print("⚠️ AllTimeApp: OAuth callback but host is not 'oauth': \(url.host ?? "nil")")
                         }
+                        
                         // Also route to OAuthManager for backward compatibility
                         oauthManager.handleOAuthCallback(url: url)
                     } else {
+                        print("⚠️ AllTimeApp: Deep link with unknown scheme: \(url.scheme ?? "nil")")
                         // Handle other deep links
                         oauthManager.handleOAuthCallback(url: url)
                     }

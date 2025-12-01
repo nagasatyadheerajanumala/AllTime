@@ -97,6 +97,7 @@ class CacheService {
                 formatter.countStyle = .file
                 let sizeStr = formatter.string(fromByteCount: Int64(data.count))
                 print("💾 CacheService: ✅ Saved \(filename) (\(sizeStr)) in \(String(format: "%.2f", duration * 1000))ms")
+                print("💾 CacheService: Cache file path: \(fileURL.path)")
                 #endif
             } catch {
                 #if DEBUG
@@ -118,6 +119,7 @@ class CacheService {
             guard fileManager.fileExists(atPath: fileURL.path) else {
                 #if DEBUG
                 print("💾 CacheService: ❌ Cache miss: \(filename)")
+                print("💾 CacheService: File path checked: \(fileURL.path)")
                 #endif
                 return nil
             }
@@ -190,6 +192,65 @@ class CacheService {
             // Delete corrupted cache
             try? fileManager.removeItem(at: fileURL)
             return nil
+        }
+    }
+    
+    /// Get cache metadata SYNCHRONOUSLY (for checking cache age)
+    func getCacheMetadataSync(filename: String) -> CacheMetadata? {
+        let metadataURL = cacheDirectory.appendingPathComponent("\(filename).meta.json")
+        
+        guard fileManager.fileExists(atPath: metadataURL.path) else {
+            return nil
+        }
+        
+        do {
+            let data = try Data(contentsOf: metadataURL)
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .iso8601
+            decoder.keyDecodingStrategy = .convertFromSnakeCase
+            return try decoder.decode(CacheMetadata.self, from: data)
+        } catch {
+            return nil
+        }
+    }
+    
+    /// Save JSON data to cache SYNCHRONOUSLY (for critical data that must be saved immediately)
+    /// WARNING: Only use for critical data. All other saves should use async version.
+    func saveJSONSync<T: Codable>(_ object: T, filename: String, expiration: TimeInterval? = nil) {
+        let startTime = Date()
+        let fileURL = cacheDirectory.appendingPathComponent("\(filename).json")
+        let metadataURL = cacheDirectory.appendingPathComponent("\(filename).meta.json")
+        
+        do {
+            // Encode data
+            let data = try encoder.encode(object)
+            
+            // Calculate hash for change detection
+            let hash = data.sha256()
+            
+            // Save data synchronously
+            try data.write(to: fileURL, options: .atomic)
+            
+            // Save metadata
+            let metadata = CacheMetadata(
+                lastUpdated: Date(),
+                dataHash: hash
+            )
+            let metadataData = try encoder.encode(metadata)
+            try metadataData.write(to: metadataURL, options: .atomic)
+            
+            let duration = Date().timeIntervalSince(startTime)
+            #if DEBUG
+            let formatter = ByteCountFormatter()
+            formatter.allowedUnits = [.useKB, .useMB]
+            formatter.countStyle = .file
+            let sizeStr = formatter.string(fromByteCount: Int64(data.count))
+            print("💾 CacheService: ✅ Saved (sync): \(filename) (\(sizeStr)) in \(String(format: "%.2f", duration * 1000))ms")
+            #endif
+        } catch {
+            #if DEBUG
+            print("❌ CacheService: Failed to save \(filename) (sync): \(error.localizedDescription)")
+            #endif
         }
     }
     
@@ -338,6 +399,30 @@ class CacheService {
         formatter.dateFormat = "yyyy-MM-dd"
         let key = "life_wheel_\(formatter.string(from: startDate))_\(formatter.string(from: endDate))"
         return await loadJSON(LifeWheelResponse.self, filename: key)
+    }
+
+    // MARK: - Health Metrics History Cache
+
+    private let healthMetricsHistoryKey = "health_metrics_history"
+
+    func loadHealthMetricsHistory() async -> [DailyHealthMetrics]? {
+        await loadJSON([DailyHealthMetrics].self, filename: healthMetricsHistoryKey)
+    }
+
+    func mergeHealthMetricsHistory(_ newEntries: [DailyHealthMetrics]) async {
+        guard !newEntries.isEmpty else { return }
+        await Task.detached(priority: .utility) { [weak self] in
+            guard let self = self else { return }
+
+            let existing = await self.loadJSON([DailyHealthMetrics].self, filename: self.healthMetricsHistoryKey) ?? []
+            var map = Dictionary(uniqueKeysWithValues: existing.map { ($0.date, $0) })
+            for entry in newEntries {
+                map[entry.date] = entry
+            }
+
+            let merged = map.values.sorted { $0.date < $1.date }
+            await self.saveJSON(merged, filename: self.healthMetricsHistoryKey)
+        }.value
     }
     
     // MARK: - Timeline Cache

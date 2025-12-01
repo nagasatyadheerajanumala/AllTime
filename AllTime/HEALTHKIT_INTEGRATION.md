@@ -9,10 +9,10 @@ The AllTime app integrates with Apple HealthKit to read health metrics (steps, s
 ### Core Components
 
 1. **HealthKitManager** (`AllTime/Services/HealthKitManager.swift`)
-   - Manages HealthKit authorization state
-   - Provides async APIs for requesting authorization and fetching health data
-   - Handles per-type authorization status checking
-   - **Key Fix**: Only treats integration as "denied" if ALL types are denied. If ANY type is authorized, we have access (even if partial).
+   - Ensures HealthKit is available and only requests permissions when any type is `.notDetermined`
+   - Provides async/closure-based `ensureHealthKitReady` helpers used across the app
+   - Logs diagnostics but never assumes `.sharingDenied` means read access is blocked
+   - Always attempts to read once the user has been prompted (Apple does not expose read status)
 
 2. **HealthSyncService** (`AllTime/Services/HealthSyncService.swift`)
    - Syncs health metrics to backend `POST /api/v1/health/daily`
@@ -31,62 +31,36 @@ The AllTime app integrates with Apple HealthKit to read health metrics (steps, s
 
 ## Authorization Flow
 
-### 1. Initial State Check
+Apple does **not** expose read-access status. The updated flow therefore only checks
+for `.notDetermined` to decide whether we need to present the HealthKit sheet and
+otherwise always proceeds with reads.
 
-When the app launches or the Today/Insights screen appears:
-
-```swift
-await healthKitManager.currentAuthorizationState()
-```
-
-This calls `refreshAuthorizationState()` which:
-- Checks `HKHealthStore.isHealthDataAvailable()`
-- For each required type, checks `healthStore.authorizationStatus(for: type)`
-- Logs per-type status (`.sharingAuthorized`, `.sharingDenied`, `.notDetermined`)
-- Determines overall state:
-  - **If ANY type is authorized** → `.authorized` or `.partiallyAuthorized` (we have access)
-  - **If ALL types are denied** → `.denied` (no access)
-  - **If any type is not determined** → `.notDetermined` (need to request)
-
-### 2. Requesting Authorization
-
-When user taps "Enable Health Data":
-
-```swift
-try await healthKitManager.requestAuthorization()
-```
-
-This:
-- Checks current state first
-- If already authorized → returns immediately and triggers sync
-- If denied → throws `HealthKitError.authorizationDenied` (user must go to Health app)
-- If not determined → calls `HKHealthStore.requestAuthorization(toShare:read:)`
-- After authorization completes:
-  - Waits 1 second for HealthKit to update internal state
-  - Refreshes authorization state
-  - If authorized → triggers background sync
-
-### 3. Authorization State Logic (KEY FIX)
-
-**Previous Bug**: The app was treating "any denial" as "all denied", even when some types were authorized.
-
-**Fixed Logic**:
-```swift
-if authorizedCount > 0 {
-    // We have at least one authorized type - this means we have access
-    if authorizedCount == requiredTypes.count {
-        authorizationState = .authorized
-    } else {
-        authorizationState = .partiallyAuthorized(requiredMissing: missingTypes)
-    }
-} else if deniedCount == requiredTypes.count {
-    // ALL types are denied - this is the only case where we're truly denied
-    authorizationState = .denied
-} else if notDeterminedCount > 0 {
-    authorizationState = .notDetermined
-}
-```
-
+1. `HealthKitManager.ensureHealthKitReady(completion:)`
+   ```swift
+   func ensureHealthKitReady(completion: @escaping (Bool) -> Void) {
+       guard HKHealthStore.isHealthDataAvailable() else {
+           completion(false)
+           return
+       }
+       let needsRequest = HealthKitTypes.all.contains {
+           healthStore.authorizationStatus(for: $0) == .notDetermined
+       }
+       if needsRequest {
+           requestAuthorization(completion: completion)
+       } else {
+           completion(true)
+       }
+   }
+   ```
+2. `requestAuthorization` simply calls `HKHealthStore.requestAuthorization(toShare: [], read: HealthKitTypes.all)`.
+   Regardless of the callback result, we assume the user has been prompted and proceed
+   with reads (since read-level status is unknown).
+3. `permissionState` is now just a UI hint:
+   - `.notDetermined` / `.requesting` → waiting to show sheet
+   - `.authorized` → sheet already shown (or HealthKit unavailable case handled separately)
+   - `.denied` → only set when `isHealthDataAvailable` is false or the request returns an error
+4. `HealthPermissionsViewModel` simply checks `permissionState` to decide whether to show the
+   “Enable Health Data” CTA or open the Health app. It no longer inspects individual type statuses.
 ## Data Sync Flow
 
 ### 1. When Sync Triggers
@@ -98,21 +72,17 @@ if authorizedCount > 0 {
 
 ### 2. Sync Process
 
-1. Check authorization state (must have at least one authorized type)
+1. Call `HealthKitManager.ensureHealthKitReady` (or `HealthMetricsService.checkAuthorizationStatus`) to ensure
+   the user has been prompted. Even if the callback indicates `false`, the sync continues because read
+   permissions cannot be queried.
 2. Determine date range:
    - First sync: Last 14 days
    - Subsequent syncs: From last sync date to today
 3. Fetch metrics from HealthKit:
-   - `healthKitManager.fetchDailyMetricsForLastNDays(n)`
-   - Queries run off main thread
+   - `HealthMetricsService.fetchDailyMetrics` handles all HK queries off the main thread
    - Aggregates per day (midnight to midnight local time)
-4. Convert DTOs to backend format:
-   - Uses JSON encoding/decoding to convert `DailyHealthMetricsDTO` → `DailyHealthMetrics`
-5. POST to backend:
-   - `POST /api/v1/health/daily`
-   - Single object or array of objects
-   - Includes `Authorization: Bearer <token>` header
-6. Update last sync date
+4. Convert DTOs to backend format and POST via `APIService.submitDailyHealthMetrics`
+5. Update `lastSyncDate` in `UserDefaults`
 
 ### 3. Logging
 
