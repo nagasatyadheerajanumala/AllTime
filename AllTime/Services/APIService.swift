@@ -757,19 +757,25 @@ class APIService: ObservableObject {
     // MARK: - OAuth Flows
     func getGoogleOAuthStartURL() async throws -> String {
         let url = URL(string: "\(baseURL)/connections/google/start")!
+        print("🔗 APIService: Requesting Google OAuth URL from: \(url)")
+
         var request = URLRequest(url: url)
         request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
-        
+        request.timeoutInterval = Constants.API.timeout
+
         let (data, response) = try await session.data(for: request)
+
+        let statusCode = (response as? HTTPURLResponse)?.statusCode ?? -1
+        print("🔗 APIService: Response status: \(statusCode)")
+
         try await validateResponse(response, data: data)
-        
-        // Parse the response to get the OAuth URL
-        if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-           let oauthURL = json["oauth_url"] as? String {
-            return oauthURL
-        } else {
-            throw OAuthError.networkError("Invalid response format")
-        }
+
+        // Decode using OAuthStartResponse model
+        let decoder = JSONDecoder()
+        let oauthResponse = try decoder.decode(OAuthStartResponse.self, from: data)
+
+        print("✅ APIService: OAuth URL received: \(oauthResponse.authorizationUrl)")
+        return oauthResponse.authorizationUrl
     }
     
     func completeGoogleOAuth(code: String) async throws {
@@ -788,19 +794,25 @@ class APIService: ObservableObject {
     
     func getMicrosoftOAuthStartURL() async throws -> String {
         let url = URL(string: "\(baseURL)/connections/microsoft/start")!
+        print("🔗 APIService: Requesting Microsoft OAuth URL from: \(url)")
+
         var request = URLRequest(url: url)
         request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
-        
+        request.timeoutInterval = Constants.API.timeout
+
         let (data, response) = try await session.data(for: request)
+
+        let statusCode = (response as? HTTPURLResponse)?.statusCode ?? -1
+        print("🔗 APIService: Response status: \(statusCode)")
+
         try await validateResponse(response, data: data)
-        
-        // Parse the response to get the OAuth URL
-        if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-           let oauthURL = json["oauth_url"] as? String {
-            return oauthURL
-        } else {
-            throw OAuthError.networkError("Invalid response format")
-        }
+
+        // Decode using OAuthStartResponse model
+        let decoder = JSONDecoder()
+        let oauthResponse = try decoder.decode(OAuthStartResponse.self, from: data)
+
+        print("✅ APIService: OAuth URL received: \(oauthResponse.authorizationUrl)")
+        return oauthResponse.authorizationUrl
     }
     
     func completeMicrosoftOAuth(code: String) async throws {

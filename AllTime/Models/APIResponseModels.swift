@@ -114,3 +114,13 @@ struct APIErrorResponse: Codable {
     let message: String
 }
 
+// MARK: - OAuth Start Response
+
+struct OAuthStartResponse: Codable {
+    let authorizationUrl: String
+
+    enum CodingKeys: String, CodingKey {
+        case authorizationUrl = "authorization_url"
+    }
+}
+

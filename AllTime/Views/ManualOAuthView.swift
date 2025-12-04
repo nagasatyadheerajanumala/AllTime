@@ -57,7 +57,9 @@ struct ManualOAuthView: View {
                         
                         if googleAuthManager.isConnected {
                             Button(action: {
-                                googleAuthManager.disconnectGoogle()
+                                Task {
+                                    await googleAuthManager.disconnectGoogle()
+                                }
                             }) {
                                 HStack {
                                     Image(systemName: "xmark.circle.fill")
