@@ -21,6 +21,12 @@ class DailySummaryViewModel: ObservableObject {
     @Published var waterGoal: Double? = 2.5
     @Published var stepsGoal: Int? = 10000
     @Published var activeMinutesGoal: Int? = 30
+    
+    // Debug mode - set to true to use mock data
+    var useMockData: Bool {
+        get { UserDefaults.standard.bool(forKey: "use_mock_daily_summary") }
+        set { UserDefaults.standard.set(newValue, forKey: "use_mock_daily_summary") }
+    }
 
     private let apiService = APIService()
     private let cacheService = CacheService.shared
@@ -59,6 +65,18 @@ class DailySummaryViewModel: ObservableObject {
         let cacheKey = "enhanced_daily_summary_\(dateStr)"
 
         print("📝 DailySummaryViewModel: Loading summary for date: \(dateStr), forceRefresh: \(forceRefresh)")
+        
+        // DEBUG MODE: Use mock data if enabled
+        if useMockData {
+            print("🧪 DailySummaryViewModel: MOCK DATA MODE ENABLED")
+            let mockSummary = MockDailySummaryData.generateMockSummary()
+            summary = mockSummary
+            parsedSummary = parser.parse(mockSummary)
+            isLoading = false
+            errorMessage = nil
+            print("✅ DailySummaryViewModel: Loaded MOCK data successfully")
+            return
+        }
 
         // Step 1: Try to load from cache SYNCHRONOUSLY FIRST (instant UI)
         if !forceRefresh {

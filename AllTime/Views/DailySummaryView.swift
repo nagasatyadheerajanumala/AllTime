@@ -95,62 +95,11 @@ struct NewEnhancedSummaryContentView: View {
     let waterGoal: Double?
 
     var body: some View {
-        VStack(spacing: 20) {
-            // Critical Alerts (if any)
-            if !parsed.criticalAlerts.isEmpty {
-                AlertsBanner(alerts: parsed.criticalAlerts)
-            }
-
-            // Health Metrics Card
-            if parsed.waterIntake != nil || parsed.steps != nil || parsed.sleepHours != nil {
-                SummaryMetricsCard(
-                    waterIntake: parsed.waterIntake,
-                    waterGoal: waterGoal ?? parsed.waterGoal,
-                    steps: parsed.steps,
-                    stepsGoal: parsed.stepsGoal,
-                    sleepHours: parsed.sleepHours
-                )
-            }
-
-            // Water Intake Widget
-            if let water = parsed.waterIntake, let goal = waterGoal ?? parsed.waterGoal {
-                WaterIntakeWidget(current: water, goal: goal)
-            }
-
-            // Break Recommendations
-            if !parsed.suggestedBreaks.isEmpty || parsed.breakStrategy != nil {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("🎯 Breaks & Focus")
-                        .font(.headline)
-                        .padding(.horizontal)
-
-                    BreakRecommendationsView(
-                        breaks: parsed.suggestedBreaks,
-                        strategy: parsed.breakStrategy
-                    )
-                }
-            }
-
-            // Day Summary Section
-            if !summary.daySummary.isEmpty {
-                SectionCard(title: "📅 Your Day", items: summary.daySummary)
-            }
-
-            // Health Summary Section
-            if !summary.healthSummary.isEmpty {
-                SectionCard(title: "💪 Health", items: summary.healthSummary)
-            }
-
-            // Focus Recommendations Section
-            if !summary.focusRecommendations.isEmpty {
-                SectionCard(title: "🎯 Focus & Productivity", items: summary.focusRecommendations)
-            }
-
-            // Warnings (non-critical alerts)
-            if !parsed.warnings.isEmpty {
-                AlertsBanner(alerts: parsed.warnings)
-            }
-        }
+        PremiumSummaryContentView(
+            summary: summary,
+            parsed: parsed,
+            waterGoal: waterGoal
+        )
     }
 }
 
