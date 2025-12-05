@@ -2666,20 +2666,32 @@ class APIService: ObservableObject {
 
         case 500:
             // Try to parse error message
-            if let errorData = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-               let message = errorData["message"] as? String {
-                print("❌ APIService: Server error: \(message)")
-                throw NSError(
-                    domain: "AllTime",
-                    code: 500,
-                    userInfo: [NSLocalizedDescriptionKey: "Server error: \(message)"]
-                )
+            print("❌ APIService: ===== SERVER ERROR (500) =====")
+            print("❌ APIService: Full response body: \(responseString)")
+
+            if let errorData = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                print("❌ APIService: Parsed error data: \(errorData)")
+                if let message = errorData["message"] as? String {
+                    print("❌ APIService: Error message: \(message)")
+                    if let details = errorData["details"] as? String {
+                        print("❌ APIService: Error details: \(details)")
+                    }
+                    if let error = errorData["error"] as? String {
+                        print("❌ APIService: Error type: \(error)")
+                    }
+                    throw NSError(
+                        domain: "AllTime",
+                        code: 500,
+                        userInfo: [NSLocalizedDescriptionKey: "Server error: \(message)"]
+                    )
+                }
             }
             print("❌ APIService: Server error (500) - failed to generate summary")
+            print("❌ APIService: This may indicate the backend endpoint is not implemented or has an error")
             throw NSError(
                 domain: "AllTime",
                 code: 500,
-                userInfo: [NSLocalizedDescriptionKey: "Failed to generate summary"]
+                userInfo: [NSLocalizedDescriptionKey: "Failed to generate summary. Check backend logs for details."]
             )
 
         default:
