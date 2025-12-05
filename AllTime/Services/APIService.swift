@@ -2566,7 +2566,132 @@ class APIService: ObservableObject {
             throw error
         }
     }
-    
+
+    // MARK: - Enhanced Daily Summary (New Format with Health Tracking)
+
+    /// Fetch enhanced daily summary with water tracking, break recommendations, and health alerts
+    /// - Parameter date: Optional date. If nil, backend defaults to today.
+    /// - Returns: DailySummary with string arrays
+    func getEnhancedDailySummary(date: Date? = nil) async throws -> DailySummary {
+        guard let token = accessToken else {
+            throw NSError(
+                domain: "AllTime",
+                code: 401,
+                userInfo: [NSLocalizedDescriptionKey: "Authentication required. Please sign in again."]
+            )
+        }
+
+        var urlComponents = URLComponents(string: "\(baseURL)/api/v1/daily-summary")!
+
+        // Add date parameter if provided
+        if let date = date {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "yyyy-MM-dd"
+            urlComponents.queryItems = [
+                URLQueryItem(name: "date", value: formatter.string(from: date))
+            ]
+        }
+
+        guard let url = urlComponents.url else {
+            throw NSError(
+                domain: "AllTime",
+                code: 400,
+                userInfo: [NSLocalizedDescriptionKey: "Invalid URL"]
+            )
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = Constants.API.timeout
+
+        print("💧 APIService: ===== FETCHING ENHANCED DAILY SUMMARY =====")
+        print("💧 APIService: URL: \(url)")
+        if let date = date {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "yyyy-MM-dd"
+            print("💧 APIService: Date: \(formatter.string(from: date))")
+        } else {
+            print("💧 APIService: Date: Today (default)")
+        }
+
+        let (data, response) = try await session.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw NSError(
+                domain: "AllTime",
+                code: 500,
+                userInfo: [NSLocalizedDescriptionKey: "Invalid response from server"]
+            )
+        }
+
+        let responseString = String(data: data, encoding: .utf8) ?? "Unable to decode response"
+        print("💧 APIService: Response status: \(httpResponse.statusCode)")
+
+        switch httpResponse.statusCode {
+        case 200:
+            let decoder = JSONDecoder()
+
+            do {
+                let summary = try decoder.decode(DailySummary.self, from: data)
+                print("✅ APIService: Successfully decoded enhanced daily summary")
+                print("✅ APIService: Day summary items: \(summary.daySummary.count)")
+                print("✅ APIService: Health summary items: \(summary.healthSummary.count)")
+                print("✅ APIService: Focus recommendations: \(summary.focusRecommendations.count)")
+                print("✅ APIService: Alerts: \(summary.alerts.count)")
+                return summary
+            } catch let decodingError as DecodingError {
+                print("❌ APIService: ===== DECODING ERROR =====")
+                print("❌ APIService: Failed to decode DailySummary: \(decodingError)")
+                print("❌ APIService: Response was: \(responseString)")
+                throw NSError(
+                    domain: "AllTime",
+                    code: 1002,
+                    userInfo: [
+                        NSLocalizedDescriptionKey: "Failed to decode daily summary response: \(decodingError.localizedDescription)",
+                        "rawResponse": responseString,
+                        "underlyingError": decodingError
+                    ]
+                )
+            }
+
+        case 401:
+            print("❌ APIService: Unauthorized - invalid or expired token")
+            throw NSError(
+                domain: "AllTime",
+                code: 401,
+                userInfo: [NSLocalizedDescriptionKey: "Authentication failed. Please sign in again."]
+            )
+
+        case 500:
+            // Try to parse error message
+            if let errorData = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let message = errorData["message"] as? String {
+                print("❌ APIService: Server error: \(message)")
+                throw NSError(
+                    domain: "AllTime",
+                    code: 500,
+                    userInfo: [NSLocalizedDescriptionKey: "Server error: \(message)"]
+                )
+            }
+            print("❌ APIService: Server error (500) - failed to generate summary")
+            throw NSError(
+                domain: "AllTime",
+                code: 500,
+                userInfo: [NSLocalizedDescriptionKey: "Failed to generate summary"]
+            )
+
+        default:
+            print("❌ APIService: Unexpected status code: \(httpResponse.statusCode)")
+            throw NSError(
+                domain: "AllTime",
+                code: httpResponse.statusCode,
+                userInfo: [NSLocalizedDescriptionKey: "Unknown error (code: \(httpResponse.statusCode))"]
+            )
+        }
+    }
+
     // MARK: - Enhanced Daily Intelligence (v1 API)
     
     /// Fetch enhanced daily summary for a specific date

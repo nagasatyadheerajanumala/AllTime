@@ -93,8 +93,12 @@ struct TodayView: View {
                                     LoadingView()
                                         .padding(.vertical, 40)
                                 } else if let summary = dailySummaryViewModel.summary {
-                                    SummaryContentView(summary: summary)
-                                        .id("summary")
+                                    NewEnhancedSummaryContentView(
+                                        summary: summary,
+                                        parsed: dailySummaryViewModel.parsedSummary,
+                                        waterGoal: dailySummaryViewModel.waterGoal
+                                    )
+                                    .id("summary")
                                 } else if let errorMessage = dailySummaryViewModel.errorMessage {
                                     ErrorView(message: errorMessage) {
                                         Task {
@@ -262,26 +266,32 @@ struct TodayHeaderCard: View {
 // MARK: - Today AI Summary Card
 struct TodayAISummaryCard: View {
     let summary: DailySummary
-    
+
+    var previewText: String {
+        // Show first 2 items from day summary or health summary
+        let items = !summary.daySummary.isEmpty ? summary.daySummary : summary.healthSummary
+        return items.prefix(2).joined(separator: "\n")
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
             HStack {
                 Image(systemName: "sparkles")
                     .font(.title3)
                     .foregroundColor(DesignSystem.Colors.accent)
-                
+
                 Text("AI Summary")
                     .font(.headline)
                     .foregroundColor(DesignSystem.Colors.primaryText)
-                
+
                 Spacer()
-                
+
                 Image(systemName: "chevron.right")
                     .font(.caption)
                     .foregroundColor(DesignSystem.Colors.tertiaryText)
             }
-            
-            Text(summary.summaryMarkdown)
+
+            Text(previewText)
                 .font(.body)
                 .foregroundColor(DesignSystem.Colors.secondaryText)
                 .lineLimit(4)
