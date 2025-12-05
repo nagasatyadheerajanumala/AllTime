@@ -766,16 +766,56 @@ class APIService: ObservableObject {
         let (data, response) = try await session.data(for: request)
 
         let statusCode = (response as? HTTPURLResponse)?.statusCode ?? -1
+        let responseURL = (response as? HTTPURLResponse)?.url?.absoluteString ?? "unknown"
         print("🔗 APIService: Response status: \(statusCode)")
+        print("🔗 APIService: Response URL: \(responseURL)")
+        
+        // Check if URLSession followed a redirect to Google
+        if responseURL.contains("accounts.google.com") {
+            print("❌ APIService: Backend redirected to Google instead of returning JSON")
+            print("❌ APIService: This means the backend is configured for browser-based OAuth, not mobile app OAuth")
+            throw APIError(
+                message: "Backend misconfiguration: The backend is redirecting to Google instead of returning a JSON response with the authorization URL. The backend should return {\"authorization_url\": \"...\"} instead of performing a redirect.",
+                code: String(statusCode),
+                details: "Backend returned redirect to: \(responseURL)"
+            )
+        }
+        
+        // Log response data for debugging
+        if let responseString = String(data: data, encoding: .utf8) {
+            print("🔗 APIService: Response data (first 500 chars): \(String(responseString.prefix(500)))")
+            
+            // Check if response is HTML instead of JSON
+            if responseString.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("<") {
+                print("❌ APIService: Backend returned HTML instead of JSON - likely an error page or redirect")
+                print("❌ APIService: Full response: \(responseString)")
+                throw APIError(
+                    message: "Backend returned invalid response (HTML instead of JSON). The backend should return {\"authorization_url\": \"...\"} but returned an HTML page instead. Please check backend logs.",
+                    code: String(statusCode),
+                    details: "Response started with: \(String(responseString.prefix(100)))"
+                )
+            }
+        }
 
         try await validateResponse(response, data: data)
 
         // Decode using OAuthStartResponse model
         let decoder = JSONDecoder()
-        let oauthResponse = try decoder.decode(OAuthStartResponse.self, from: data)
-
-        print("✅ APIService: OAuth URL received: \(oauthResponse.authorizationUrl)")
-        return oauthResponse.authorizationUrl
+        do {
+            let oauthResponse = try decoder.decode(OAuthStartResponse.self, from: data)
+            print("✅ APIService: OAuth URL received: \(oauthResponse.authorizationUrl)")
+            return oauthResponse.authorizationUrl
+        } catch {
+            print("❌ APIService: Failed to decode OAuth response: \(error)")
+            if let responseString = String(data: data, encoding: .utf8) {
+                print("❌ APIService: Response was: \(responseString)")
+            }
+            throw APIError(
+                message: "Failed to parse OAuth URL from backend. Expected JSON format: {\"authorization_url\": \"...\"}",
+                code: String(statusCode),
+                details: "Decode error: \(error.localizedDescription)"
+            )
+        }
     }
     
     func completeGoogleOAuth(code: String) async throws {
@@ -803,16 +843,56 @@ class APIService: ObservableObject {
         let (data, response) = try await session.data(for: request)
 
         let statusCode = (response as? HTTPURLResponse)?.statusCode ?? -1
+        let responseURL = (response as? HTTPURLResponse)?.url?.absoluteString ?? "unknown"
         print("🔗 APIService: Response status: \(statusCode)")
+        print("🔗 APIService: Response URL: \(responseURL)")
+        
+        // Check if URLSession followed a redirect to Microsoft
+        if responseURL.contains("login.microsoftonline.com") || responseURL.contains("microsoft.com") {
+            print("❌ APIService: Backend redirected to Microsoft instead of returning JSON")
+            print("❌ APIService: This means the backend is configured for browser-based OAuth, not mobile app OAuth")
+            throw APIError(
+                message: "Backend misconfiguration: The backend is redirecting to Microsoft instead of returning a JSON response with the authorization URL. The backend should return {\"authorization_url\": \"...\"} instead of performing a redirect.",
+                code: String(statusCode),
+                details: "Backend returned redirect to: \(responseURL)"
+            )
+        }
+        
+        // Log response data for debugging
+        if let responseString = String(data: data, encoding: .utf8) {
+            print("🔗 APIService: Response data (first 500 chars): \(String(responseString.prefix(500)))")
+            
+            // Check if response is HTML instead of JSON
+            if responseString.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("<") {
+                print("❌ APIService: Backend returned HTML instead of JSON - likely an error page or redirect")
+                print("❌ APIService: Full response: \(responseString)")
+                throw APIError(
+                    message: "Backend returned invalid response (HTML instead of JSON). The backend should return {\"authorization_url\": \"...\"} but returned an HTML page instead. Please check backend logs.",
+                    code: String(statusCode),
+                    details: "Response started with: \(String(responseString.prefix(100)))"
+                )
+            }
+        }
 
         try await validateResponse(response, data: data)
 
         // Decode using OAuthStartResponse model
         let decoder = JSONDecoder()
-        let oauthResponse = try decoder.decode(OAuthStartResponse.self, from: data)
-
-        print("✅ APIService: OAuth URL received: \(oauthResponse.authorizationUrl)")
-        return oauthResponse.authorizationUrl
+        do {
+            let oauthResponse = try decoder.decode(OAuthStartResponse.self, from: data)
+            print("✅ APIService: OAuth URL received: \(oauthResponse.authorizationUrl)")
+            return oauthResponse.authorizationUrl
+        } catch {
+            print("❌ APIService: Failed to decode OAuth response: \(error)")
+            if let responseString = String(data: data, encoding: .utf8) {
+                print("❌ APIService: Response was: \(responseString)")
+            }
+            throw APIError(
+                message: "Failed to parse OAuth URL from backend. Expected JSON format: {\"authorization_url\": \"...\"}",
+                code: String(statusCode),
+                details: "Decode error: \(error.localizedDescription)"
+            )
+        }
     }
     
     func completeMicrosoftOAuth(code: String) async throws {

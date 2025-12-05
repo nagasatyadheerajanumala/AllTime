@@ -176,7 +176,18 @@ class GoogleAuthManager: NSObject, ObservableObject, ASWebAuthenticationPresenta
             } catch {
                 print("❌ GoogleAuthManager: Failed to get OAuth URL: \(error)")
                 await MainActor.run {
-                    self.errorMessage = "Failed to start authentication: \(error.localizedDescription)"
+                    // Provide user-friendly error message
+                    if let apiError = error as? APIError {
+                        if apiError.message.contains("redirected to Google") || apiError.message.contains("Backend misconfiguration") {
+                            self.errorMessage = "Backend configuration error: The server is performing a redirect instead of returning the authorization URL. Please check the backend /connections/google/start endpoint."
+                        } else if apiError.message.contains("HTML instead of JSON") {
+                            self.errorMessage = "Backend error: Server returned an error page. Please check that the backend is running correctly."
+                        } else {
+                            self.errorMessage = "Failed to start authentication: \(apiError.message)"
+                        }
+                    } else {
+                        self.errorMessage = "Failed to start authentication: \(error.localizedDescription)"
+                    }
                     self.isAuthenticating = false
                 }
             }
