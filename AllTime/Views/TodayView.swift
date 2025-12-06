@@ -1,14 +1,18 @@
 import SwiftUI
+import CoreLocation
 
 struct TodayView: View {
     @EnvironmentObject var calendarViewModel: CalendarViewModel
-    @EnvironmentObject var summaryViewModel: SummaryViewModel
-    @StateObject private var enhancedSummaryViewModel = EnhancedDailySummaryViewModel()
+    @StateObject private var dailySummaryViewModel = DailySummaryViewModel()
+    @StateObject private var onDemandViewModel = OnDemandRecommendationsViewModel()
     @State private var showingEventDetail = false
     @State private var selectedEventId: Int64?
     @State private var showingAddEvent = false
     @State private var showingDatePicker = false
+    @State private var showingFoodSheet = false
+    @State private var showingWalkSheet = false
     @ObservedObject private var healthMetricsService = HealthMetricsService.shared
+    @ObservedObject private var locationManager = LocationManager.shared
     
     private var todayEvents: [Event] {
         calendarViewModel.eventsForToday()
@@ -35,6 +39,7 @@ struct TodayView: View {
         return total
     }
     
+    
     var body: some View {
         NavigationView {
             ZStack(alignment: .bottomTrailing) {
@@ -45,6 +50,37 @@ struct TodayView: View {
                 ScrollViewReader { proxy in
                     ScrollView {
                         VStack(spacing: DesignSystem.Spacing.lg) {
+                            // DEBUG STATUS
+                            VStack(spacing: 8) {
+                                Text("📊 Summary Status:")
+                                    .font(.caption.bold())
+                                Text("Loading: \(dailySummaryViewModel.isLoading ? "YES" : "NO")")
+                                    .font(.caption)
+                                Text("Has Data: \(dailySummaryViewModel.summary != nil ? "YES" : "NO")")
+                                    .font(.caption)
+                                
+                                if let summary = dailySummaryViewModel.summary {
+                                    Text("Day: \(summary.daySummary.count) items")
+                                        .font(.caption)
+                                    Text("Health: \(summary.healthSummary.count) items")
+                                        .font(.caption)
+                                    Text("Focus: \(summary.focusRecommendations.count) items")
+                                        .font(.caption)
+                                    Text("Suggestions: \(summary.healthBasedSuggestions.count) items")
+                                        .font(.caption)
+                                }
+                                
+                                if let error = dailySummaryViewModel.errorMessage {
+                                    Text("Error: \(error)")
+                                        .font(.caption)
+                                        .foregroundColor(.red)
+                                }
+                            }
+                            .padding()
+                            .background(Color.yellow.opacity(0.2))
+                            .cornerRadius(8)
+                            .padding(.horizontal)
+                            
                             // Today Stats Header
                             TodayStatsHeader(
                                 eventCount: todayEvents.count,
@@ -65,7 +101,7 @@ struct TodayView: View {
                                     
                                     ForEach(todayEvents) { event in
                                         TodayEventTile(event: event)
-                                            .padding(.horizontal, DesignSystem.Spacing.md)
+                                    .padding(.horizontal, DesignSystem.Spacing.md)
                                             .onTapGesture {
                                                 selectedEventId = event.id
                                                 showingEventDetail = true
@@ -74,30 +110,96 @@ struct TodayView: View {
                                 }
                             }
                             
-                            // Enhanced Daily AI Summary Section
-                            if let summary = enhancedSummaryViewModel.summary {
+                            // Daily AI Summary Section
+                            if let summary = dailySummaryViewModel.summary {
                                 VStack(alignment: .leading, spacing: DesignSystem.Spacing.xl) {
-                                    // Suggestions Section
-                                    if !summary.suggestions.isEmpty {
-                                        TodaySuggestionsSection(suggestions: summary.suggestions)
+                                    // Day Summary (guaranteed to be present)
+                                    if !summary.daySummary.isEmpty {
+                                        DailySummarySectionView(items: summary.daySummary, title: "📊 Today's Overview")
                                             .padding(.horizontal, DesignSystem.Spacing.md)
                                     }
                                     
-                                    // Health-Based Suggestions
-                                    if let healthSuggestions = summary.healthBasedSuggestions, !healthSuggestions.isEmpty {
-                                        TodayHealthSuggestionsSection(suggestions: healthSuggestions)
+                                    // Health Summary (guaranteed to be present)
+                                    if !summary.healthSummary.isEmpty {
+                                        DailySummarySectionView(items: summary.healthSummary, title: "💪 Health Summary")
                                             .padding(.horizontal, DesignSystem.Spacing.md)
                                     }
                                     
-                                    // Health Impact Insights
-                                    if let healthInsights = summary.healthImpactInsights {
-                                        TodayHealthImpactSection(insights: healthInsights)
+                                    // Focus Recommendations (guaranteed to be present)
+                                    if !summary.focusRecommendations.isEmpty {
+                                        DailySummarySectionView(items: summary.focusRecommendations, title: "🎯 Focus Tips")
+                                            .padding(.horizontal, DesignSystem.Spacing.md)
+                                    }
+                                    
+                                    // Alerts (guaranteed to be present)
+                                    if !summary.alerts.isEmpty {
+                                        AlertsSectionView(alerts: summary.alerts)
+                                            .padding(.horizontal, DesignSystem.Spacing.md)
+                                    }
+                                    
+                                    // Health-Based Suggestions (guaranteed to be present)
+                                    if !summary.healthBasedSuggestions.isEmpty {
+                                        HealthSuggestionsView(suggestions: summary.healthBasedSuggestions)
+                                            .padding(.horizontal, DesignSystem.Spacing.md)
+                                    }
+                                    
+                                    // Location-based lunch recommendations
+                                    if let location = summary.locationRecommendations,
+                                       let lunch = location.lunchRecommendation,
+                                       let spots = lunch.nearbySpots,
+                                       !spots.isEmpty {
+                                        LunchSpotsView(lunch: lunch)
+                                            .padding(.horizontal, DesignSystem.Spacing.md)
+                                    }
+                                    
+                                    // Location-based walk routes
+                                    if let location = summary.locationRecommendations,
+                                       let walks = location.walkRoutes,
+                                       !walks.isEmpty {
+                                        WalkRoutesListView(routes: walks)
                                             .padding(.horizontal, DesignSystem.Spacing.md)
                                     }
                                 }
-                            } else if enhancedSummaryViewModel.isLoading {
+                            } else if dailySummaryViewModel.isLoading {
                                 LoadingView()
                                     .padding(.vertical, 60)
+                            } else if let error = dailySummaryViewModel.errorMessage {
+                                // Show error message
+                                VStack(spacing: 16) {
+                                    Image(systemName: "exclamationmark.triangle.fill")
+                                        .font(.system(size: 48))
+                                        .foregroundColor(.orange)
+                                    
+                                    Text("Failed to Load Summary")
+                                        .font(.title2.weight(.bold))
+                                    
+                                    Text(error)
+                                        .font(.body)
+                                        .foregroundColor(.secondary)
+                                        .multilineTextAlignment(.center)
+                                        .padding(.horizontal, 32)
+                                    
+                                    Button(action: {
+                                        Task {
+                                            await dailySummaryViewModel.refreshSummary()
+                                        }
+                                    }) {
+                                        Text("Try Again")
+                                            .font(.headline)
+                                            .foregroundColor(.white)
+                                            .padding(.horizontal, 32)
+                                            .padding(.vertical, 12)
+                                            .background(Color.blue)
+                                            .cornerRadius(10)
+                                    }
+                                    
+                                    Text("Check Xcode console for detailed logs")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                        .padding(.top, 8)
+                                }
+                                .padding(.vertical, 60)
+                                .padding(.horizontal, DesignSystem.Spacing.md)
                             }
                             
                             // Bottom padding for FAB
@@ -106,7 +208,7 @@ struct TodayView: View {
                     }
                     .refreshable {
                         await calendarViewModel.refreshEvents()
-                        await enhancedSummaryViewModel.refreshSummary()
+                        await dailySummaryViewModel.refreshSummary()
                     }
                 }
                 
@@ -137,15 +239,34 @@ struct TodayView: View {
             .navigationTitle("Today")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
+                ToolbarItem(placement: .navigationBarLeading) {
                     Button(action: {
-                        enhancedSummaryViewModel.useMockData.toggle()
-                        Task {
-                            await enhancedSummaryViewModel.loadSummary(for: enhancedSummaryViewModel.selectedDate)
-                        }
+                        print("🔄 TodayView: Forcing location update...")
+                        locationManager.forceLocationUpdate()
                     }) {
-                        Image(systemName: enhancedSummaryViewModel.useMockData ? "flask.fill" : "flask")
-                            .foregroundColor(enhancedSummaryViewModel.useMockData ? .orange : DesignSystem.Colors.primary)
+                        Image(systemName: "location.fill")
+                            .foregroundColor(locationManager.location != nil ? .green : .gray)
+                    }
+                }
+                
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Menu {
+                        // Food Places Option (On-Demand)
+                        Button(action: {
+                            showingFoodSheet = true
+                        }) {
+                            Label("Food Places", systemImage: "fork.knife.circle")
+                        }
+                        
+                        // Walking Options (On-Demand)
+                        Button(action: {
+                            showingWalkSheet = true
+                        }) {
+                            Label("Walking Options", systemImage: "figure.walk.circle")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                            .foregroundColor(DesignSystem.Colors.primary)
                     }
                 }
             }
@@ -157,27 +278,50 @@ struct TodayView: View {
             .sheet(isPresented: $showingAddEvent) {
                 AddEventView(initialDate: Date())
             }
-            .sheet(isPresented: $showingDatePicker) {
-                EnhancedDatePickerSheet(selectedDate: $enhancedSummaryViewModel.selectedDate)
-            }
-            .onAppear {
-                Task {
-                    // Always re-check authorization when view appears
-                    await healthMetricsService.checkAuthorizationStatus()
-                    
-                    // Load enhanced summary
-                    await enhancedSummaryViewModel.loadSummary(for: Date())
+            .sheet(isPresented: $showingFoodSheet) {
+                NavigationView {
+                    OnDemandFoodView(viewModel: onDemandViewModel)
+                        .navigationTitle("Food Places")
+                        .navigationBarTitleDisplayMode(.inline)
+                        .toolbar {
+                            ToolbarItem(placement: .navigationBarTrailing) {
+                                Button("Done") {
+                                    showingFoodSheet = false
+                                }
+                            }
+                        }
                 }
             }
-            .refreshable {
-                // User explicitly pulled to refresh
-                await enhancedSummaryViewModel.refreshSummary()
-            }
-            .onChange(of: enhancedSummaryViewModel.selectedDate) { oldDate, newDate in
-                // Reload summary when date changes
-                Task {
-                    await enhancedSummaryViewModel.loadSummary(for: newDate)
+            .sheet(isPresented: $showingWalkSheet) {
+                NavigationView {
+                    OnDemandWalkView(viewModel: onDemandViewModel)
+                        .navigationTitle("Walking Options")
+                        .navigationBarTitleDisplayMode(.inline)
+                        .toolbar {
+                            ToolbarItem(placement: .navigationBarTrailing) {
+                                Button("Done") {
+                                    showingWalkSheet = false
+                                }
+                            }
+                        }
                 }
+            }
+            .task {
+                // Use .task instead of .onAppear to handle task cancellation properly
+                print("🔄 TodayView: View appeared, loading data...")
+                
+                // Always re-check authorization when view appears
+                await healthMetricsService.checkAuthorizationStatus()
+                
+                // Request location permission if not determined
+                if locationManager.authorizationStatus == .notDetermined {
+                    locationManager.requestLocationPermission()
+                }
+                
+                // Load daily summary (includes location recommendations)
+                await dailySummaryViewModel.loadSummary()
+                
+                print("✅ TodayView: Initial load complete")
             }
             .onChange(of: healthMetricsService.isAuthorized) { oldValue, newValue in
                 // When authorization changes from false to true, trigger sync
@@ -228,10 +372,10 @@ struct TodayStatsHeader: View {
         VStack(spacing: DesignSystem.Spacing.lg) {
             // Date and event count
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                Text(dateFormatter.string(from: Date()))
+            Text(dateFormatter.string(from: Date()))
                     .font(.system(size: 32, weight: .bold, design: .rounded))
-                    .foregroundColor(DesignSystem.Colors.primaryText)
-                
+                .foregroundColor(DesignSystem.Colors.primaryText)
+            
                 Text(eventCount == 0 ? "No events scheduled" : "\(eventCount) event\(eventCount == 1 ? "" : "s") scheduled")
                     .font(.body)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
@@ -489,7 +633,7 @@ struct TodayHealthCard: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Connect HealthKit")
                         .font(.title3.weight(.bold))
-                        .foregroundColor(.white)
+                    .foregroundColor(.white)
                     
                     Text("Get personalized insights")
                         .font(.caption)
@@ -786,23 +930,25 @@ struct TodayHealthSuggestionsSection: View {
 struct TodayHealthSuggestionCard: View {
     let suggestion: HealthBasedSuggestion
     
-    private var categoryColor: Color {
-        switch suggestion.category.lowercased() {
+    private var typeColor: Color {
+        switch suggestion.type.lowercased() {
         case "exercise": return .orange
         case "nutrition": return .green
         case "sleep": return .indigo
         case "stress": return .red
+        case "hydration": return .blue
         case "time_management": return .cyan
         default: return .blue
         }
     }
     
-    private var categoryIcon: String {
-        switch suggestion.category.lowercased() {
+    private var typeIcon: String {
+        switch suggestion.type.lowercased() {
         case "exercise": return "figure.walk"
         case "nutrition": return "fork.knife"
         case "sleep": return "moon.fill"
         case "stress": return "heart.circle.fill"
+        case "hydration": return "drop.fill"
         case "time_management": return "clock.fill"
         default: return "heart.fill"
         }
@@ -819,34 +965,36 @@ struct TodayHealthSuggestionCard: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-            // Category Badge
+            // Type Badge
             HStack(spacing: DesignSystem.Spacing.sm) {
-                Image(systemName: categoryIcon)
+                Image(systemName: typeIcon)
                     .font(.system(size: 14, weight: .semibold))
-                Text(suggestion.category.replacingOccurrences(of: "_", with: " ").capitalized)
+                Text(suggestion.type.replacingOccurrences(of: "_", with: " ").capitalized)
                     .font(.subheadline.weight(.semibold))
             }
-            .foregroundColor(categoryColor)
+            .foregroundColor(typeColor)
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
-            .background(categoryColor.opacity(0.2))
+            .background(typeColor.opacity(0.2))
             .cornerRadius(8)
             
-            // Title
-            Text(suggestion.title)
+            // Message
+            Text(suggestion.message)
                 .font(.title3.weight(.bold))
                 .foregroundColor(DesignSystem.Colors.primaryText)
             
-            // Description
-            Text(suggestion.description)
-                .font(.body)
-                .foregroundColor(DesignSystem.Colors.secondaryText)
-                .fixedSize(horizontal: false, vertical: true)
-                .lineSpacing(4)
+            // Action
+            if !suggestion.action.isEmpty {
+                Text(suggestion.action)
+                    .font(.body)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .lineSpacing(4)
+            }
             
             // Footer with time and priority
             HStack {
-                if let time = suggestion.suggestedTime {
+                if let time = suggestion.timestamp {
                     HStack(spacing: 4) {
                         Image(systemName: "clock")
                             .font(.caption)
@@ -865,18 +1013,6 @@ struct TodayHealthSuggestionCard: View {
                     .padding(.vertical, 4)
                     .background(priorityColor.opacity(0.2))
                     .cornerRadius(4)
-            }
-            
-            // Related Event
-            if let relatedEvent = suggestion.relatedEvent, !relatedEvent.isEmpty {
-                HStack(spacing: 4) {
-                    Image(systemName: "calendar")
-                        .font(.caption2)
-                    Text("Related: \(relatedEvent)")
-                        .font(.caption)
-                }
-                .foregroundColor(DesignSystem.Colors.tertiaryText)
-                .padding(.top, 2)
             }
         }
         .padding(DesignSystem.Spacing.lg)

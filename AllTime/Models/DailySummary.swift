@@ -59,26 +59,7 @@ struct FreeTimeSuggestion: Codable, Identifiable {
     }
 }
 
-// MARK: - Health-Based Suggestion (NEW)
-struct HealthBasedSuggestion: Codable, Identifiable {
-    let title: String
-    let description: String
-    let category: String // exercise, sleep, nutrition, stress, time_management
-    let priority: String // high, medium, low
-    let relatedEvent: String? // Related calendar event
-    let suggestedTime: String? // Suggested time for the action
-    
-    enum CodingKeys: String, CodingKey {
-        case title
-        case description
-        case category
-        case priority
-        case relatedEvent = "related_event"
-        case suggestedTime = "suggested_time"
-    }
-    
-    var id: String { title + (relatedEvent ?? "") }
-}
+// NOTE: HealthBasedSuggestion is now defined in LocationModels.swift for the new API
 
 // MARK: - Health Impact Insights (NEW)
 struct HealthImpactInsights: Codable {

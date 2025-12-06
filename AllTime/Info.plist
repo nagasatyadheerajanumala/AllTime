@@ -12,6 +12,10 @@
 	<string>App needs access to your reminders.</string>
 	<key>NSRemindersFullAccessUsageDescription</key>
 	<string>Chrona needs full access to your reminders to sync reminders created in the app to your iOS Reminders app.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>AllTime uses your location to suggest nearby lunch spots and walking routes during your free time.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>AllTime uses your location to provide personalized lunch and walking recommendations based on your schedule.</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>

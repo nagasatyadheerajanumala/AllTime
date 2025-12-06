@@ -51,19 +51,6 @@ class EnhancedDailySummaryViewModel: ObservableObject {
     func loadSummary(for date: Date) async {
         selectedDate = date
         
-        // DEBUG MODE: Use mock data if enabled
-        if useMockData {
-            print("🧪 EnhancedDailySummaryViewModel: MOCK DATA MODE ENABLED")
-            let mockSummary = MockEnhancedDailySummaryData.generateMockSummary()
-            summary = mockSummary
-            cachedSummary = mockSummary
-            cachedDate = date
-            isLoading = false
-            errorMessage = nil
-            print("✅ EnhancedDailySummaryViewModel: Loaded MOCK data successfully")
-            return
-        }
-        
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
         let dateStr = formatter.string(from: date)

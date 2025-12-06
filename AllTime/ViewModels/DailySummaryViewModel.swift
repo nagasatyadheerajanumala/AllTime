@@ -1,174 +1,138 @@
 import Foundation
+import SwiftUI
 import Combine
 
 @MainActor
 class DailySummaryViewModel: ObservableObject {
-    @Published var summary: DailySummary?
-    @Published var parsedSummary: ParsedSummary = ParsedSummary(
-        sleepStatus: .good,
-        dehydrationRisk: false,
-        suggestedBreaks: [],
-        totalMeetings: 0,
-        meetingDuration: 0,
-        criticalAlerts: [],
-        warnings: []
-    )
+    @Published var summary: DailySummaryResponse?
     @Published var isLoading = false
     @Published var errorMessage: String?
-    @Published var selectedDate = Date()
-
-    // Health goals (from backend or UserDefaults)
-    @Published var waterGoal: Double? = 2.5
-    @Published var stepsGoal: Int? = 10000
-    @Published var activeMinutesGoal: Int? = 30
     
-    // Debug mode - set to true to use mock data
-    var useMockData: Bool {
-        get { UserDefaults.standard.bool(forKey: "use_mock_daily_summary") }
-        set { UserDefaults.standard.set(newValue, forKey: "use_mock_daily_summary") }
-    }
-
-    private let apiService = APIService()
-    private let cacheService = CacheService.shared
-    private let parser = SummaryParser()
-    private var cancellables = Set<AnyCancellable>()
-
-    init() {
-        // Load cache synchronously for instant UI
-        loadCacheSync()
-    }
-
-    /// Load cache synchronously for instant UI (called on init)
-    private func loadCacheSync() {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        let dateStr = formatter.string(from: selectedDate)
-        let cacheKey = "enhanced_daily_summary_\(dateStr)"
-
-        // Load from cache SYNCHRONOUSLY (instant, no async delay)
-        if let cached = cacheService.loadJSONSync(DailySummary.self, filename: cacheKey) {
-            print("✅ DailySummaryViewModel: Loaded cache SYNCHRONOUSLY on init - instant UI")
-            summary = cached
-            parsedSummary = parser.parse(cached)
-            isLoading = false
-        } else {
-            print("💾 DailySummaryViewModel: No cache found on init - will load from API")
-        }
-    }
-
-    func loadSummary(for date: Date, forceRefresh: Bool = false) async {
-        selectedDate = date
-
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        let dateStr = formatter.string(from: date)
-        let cacheKey = "enhanced_daily_summary_\(dateStr)"
-
-        print("📝 DailySummaryViewModel: Loading summary for date: \(dateStr), forceRefresh: \(forceRefresh)")
+    private let baseURL = Constants.API.baseURL
+    private var loadTask: Task<Void, Never>?
+    
+    func loadSummary() async {
+        // Cancel any existing load
+        loadTask?.cancel()
         
-        // DEBUG MODE: Use mock data if enabled
-        if useMockData {
-            print("🧪 DailySummaryViewModel: MOCK DATA MODE ENABLED")
-            let mockSummary = MockDailySummaryData.generateMockSummary()
-            summary = mockSummary
-            parsedSummary = parser.parse(mockSummary)
-            isLoading = false
-            errorMessage = nil
-            print("✅ DailySummaryViewModel: Loaded MOCK data successfully")
+        loadTask = Task {
+            await performLoad()
+        }
+        
+        await loadTask?.value
+    }
+    
+    private func performLoad() async {
+        guard !isLoading else {
+            print("⚠️ DailySummaryViewModel: Already loading, skipping...")
             return
         }
-
-        // Step 1: Try to load from cache SYNCHRONOUSLY FIRST (instant UI)
-        if !forceRefresh {
-            // Load synchronously for instant UI
-            if let cached = cacheService.loadJSONSync(DailySummary.self, filename: cacheKey) {
-                print("✅ DailySummaryViewModel: Loaded from cache SYNCHRONOUSLY - instant UI")
-                summary = cached
-                parsedSummary = parser.parse(cached)
-                isLoading = false
-
-                // Refresh in background if cache is old (older than 1 hour)
-                if let metadata = cacheService.getCacheMetadataSync(filename: cacheKey),
-                   Date().timeIntervalSince(metadata.lastUpdated) > 3600 {
-                    print("🔄 DailySummaryViewModel: Cache is old (>1 hour), refreshing in background...")
-                    Task.detached(priority: .utility) { [weak self] in
-                        guard let self = await self else { return }
-                        await self.refreshInBackground(for: date)
-                    }
-                }
-
-                return // Exit early - cache loaded, UI updated instantly
-            } else {
-                print("❌ DailySummaryViewModel: No cache found for \(cacheKey)")
-            }
-        }
-
-        // No cache or force refresh - show loading only if no existing summary
-        if summary == nil {
-            isLoading = true
-        }
-
+        
+        isLoading = true
         errorMessage = nil
-
-        // Step 2: Refresh from backend
-        do {
-            let response = try await apiService.getEnhancedDailySummary(date: date)
-            summary = response
-            parsedSummary = parser.parse(response)
-
-            // Save to cache immediately
-            print("💾 DailySummaryViewModel: Saving to cache with key: \(cacheKey)")
-            cacheService.saveJSONSync(response, filename: cacheKey, expiration: 24 * 60 * 60)
-            print("💾 DailySummaryViewModel: Cache saved successfully")
-
-            isLoading = false
-        } catch {
-            print("❌ DailySummaryViewModel: Failed to load summary: \(error.localizedDescription)")
-            // Only show error if we don't have cached data
-            if summary == nil {
-                errorMessage = error.localizedDescription
-            }
-            isLoading = false
+        defer { isLoading = false }
+        
+        print("📊 DailySummaryViewModel: Loading daily summary...")
+        
+        guard let token = KeychainManager.shared.getAccessToken() else {
+            print("❌ DailySummaryViewModel: No access token")
+            errorMessage = "Not authenticated"
+            return
         }
-    }
-
-    /// Background refresh (non-blocking, updates cache silently)
-    private func refreshInBackground(for date: Date) async {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        let dateStr = formatter.string(from: date)
-        let cacheKey = "enhanced_daily_summary_\(dateStr)"
-
-        print("🔄 DailySummaryViewModel: Background refresh for \(dateStr)...")
-
+        
+        // Add timestamp to bust any caches
+        let timestamp = Int(Date().timeIntervalSince1970)
+        let urlString = "\(baseURL)/api/v1/daily-summary?t=\(timestamp)"
+        guard let url = URL(string: urlString) else {
+            print("❌ DailySummaryViewModel: Invalid URL")
+            errorMessage = "Invalid URL"
+            return
+        }
+        
+        var request = URLRequest(url: url)
+        request.addValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData  // Force fresh data
+        
+        print("📤 DailySummaryViewModel: Requesting from: \(urlString)")
+        print("📤 DailySummaryViewModel: Cache policy: reloadIgnoringCache (FORCE FRESH)")
+        
         do {
-            let response = try await apiService.getEnhancedDailySummary(date: date)
-
-            // Update summary if still on same date
-            await MainActor.run {
-                if self.selectedDate == date {
-                    self.summary = response
-                    self.parsedSummary = self.parser.parse(response)
-                    print("✅ DailySummaryViewModel: Background refresh completed - summary updated")
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            // Check if task was cancelled
+            if Task.isCancelled {
+                print("⚠️ DailySummaryViewModel: Request was cancelled")
+                return
+            }
+            
+            guard let httpResponse = response as? HTTPURLResponse else {
+                print("❌ DailySummaryViewModel: Invalid response")
+                errorMessage = "Invalid response"
+                return
+            }
+            
+            print("📥 DailySummaryViewModel: Response status: \(httpResponse.statusCode)")
+            
+            guard httpResponse.statusCode == 200 else {
+                if let responseString = String(data: data, encoding: .utf8) {
+                    print("❌ DailySummaryViewModel: Error response: \(responseString)")
+                }
+                errorMessage = "Server error: \(httpResponse.statusCode)"
+                return
+            }
+            
+            // Log raw JSON for debugging
+            if let responseString = String(data: data, encoding: .utf8) {
+                print("📥 DailySummaryViewModel: Raw JSON: \(responseString)")
+            }
+            
+            let decoder = JSONDecoder()
+            // Don't use convertFromSnakeCase - we have explicit CodingKeys
+            
+            let summaryResponse = try decoder.decode(DailySummaryResponse.self, from: data)
+            self.summary = summaryResponse
+            
+            print("✅ DailySummaryViewModel: Successfully loaded summary")
+            print("   - Day summary: \(summaryResponse.daySummary.count) items")
+            print("   - Health summary: \(summaryResponse.healthSummary.count) items")
+            print("   - Alerts: \(summaryResponse.alerts.count) items")
+            print("   - Health suggestions: \(summaryResponse.healthBasedSuggestions.count) items")
+            
+            if let location = summaryResponse.locationRecommendations {
+                print("   - Location: \(location.userCity ?? "unknown"), \(location.userCountry ?? "unknown")")
+                if let lunch = location.lunchRecommendation, let spots = lunch.nearbySpots {
+                    print("   - Lunch spots: \(spots.count)")
+                }
+                if let walks = location.walkRoutes {
+                    print("   - Walk routes: \(walks.count)")
                 }
             }
-
-            // Save to cache
-            cacheService.saveJSONSync(response, filename: cacheKey, expiration: 24 * 60 * 60)
-            print("💾 DailySummaryViewModel: Background refresh - cache updated")
+            
+        } catch let decodingError as DecodingError {
+            print("❌ DailySummaryViewModel: Decoding error: \(decodingError)")
+            switch decodingError {
+            case .keyNotFound(let key, let context):
+                print("   Missing key: \(key.stringValue)")
+                print("   Context: \(context.debugDescription)")
+            case .typeMismatch(let type, let context):
+                print("   Type mismatch: \(type)")
+                print("   Context: \(context.debugDescription)")
+            case .valueNotFound(let type, let context):
+                print("   Value not found: \(type)")
+                print("   Context: \(context.debugDescription)")
+            case .dataCorrupted(let context):
+                print("   Data corrupted: \(context.debugDescription)")
+            @unknown default:
+                print("   Unknown decoding error")
+            }
+            errorMessage = "Failed to parse summary"
         } catch {
-            print("⚠️ DailySummaryViewModel: Background refresh failed: \(error.localizedDescription)")
-            // Don't show error - user already has cached data
+            print("❌ DailySummaryViewModel: Network error: \(error.localizedDescription)")
+            errorMessage = error.localizedDescription
         }
     }
 
     func refreshSummary() async {
-        await loadSummary(for: selectedDate, forceRefresh: true)
-    }
-
-    func selectDate(_ date: Date) {
-        Task {
-            await loadSummary(for: date)
-        }
+        await loadSummary()
     }
 }
