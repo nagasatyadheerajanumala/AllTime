@@ -2776,7 +2776,8 @@ class APIService: ObservableObject {
         switch httpResponse.statusCode {
         case 200:
             let decoder = JSONDecoder()
-            decoder.keyDecodingStrategy = .convertFromSnakeCase
+            // Don't use .convertFromSnakeCase since DailySummary has explicit CodingKeys
+            // that already map to snake_case backend format
 
             do {
                 let summary = try decoder.decode(DailySummary.self, from: data)
@@ -2831,21 +2832,60 @@ class APIService: ObservableObject {
             print("❌ APIService: ===== SERVER ERROR (500) =====")
             print("❌ APIService: AI generation failed - backend may return fallback summary")
             print("❌ APIService: Full response: \(responseString)")
+            print("❌ APIService: ⚠️ Response time was \(String(format: "%.2f", duration))s - should be 3-10s for OpenAI")
+
+            if duration < 1.0 {
+                print("❌ APIService: 🔍 TOO FAST! Backend crashed before reaching OpenAI (normal is 3-10s)")
+                print("❌ APIService: 🔍 Most likely causes:")
+                print("❌ APIService:    1. Missing OPENAI_API_KEY in Cloud Run environment variables")
+                print("❌ APIService:    2. Database query error (events or health metrics)")
+                print("❌ APIService:    3. Missing npm dependencies (openai package)")
+                print("❌ APIService: 🔍 See BACKEND_500_ERROR_DEBUG.md for detailed debugging steps")
+            }
 
             if let errorData = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                print("❌ APIService: Error details from backend:")
                 if let message = errorData["message"] as? String {
+                    print("❌ APIService:    Message: \(message)")
+                }
+                if let error = errorData["error"] as? String {
+                    print("❌ APIService:    Error: \(error)")
+                }
+                if let path = errorData["path"] as? String {
+                    print("❌ APIService:    Path: \(path)")
+                }
+                if let timestamp = errorData["timestamp"] as? String {
+                    print("❌ APIService:    Timestamp: \(timestamp)")
+                }
+
+                // Return user-friendly error with debugging hint
+                if let message = errorData["message"] as? String {
+                    var errorMsg = "Backend error: \(message)"
+                    if duration < 1.0 {
+                        errorMsg += "\n\n🔍 Debug hint: Backend crashed immediately (0.07s instead of 3-10s). This usually means OPENAI_API_KEY is not set in Cloud Run environment."
+                    }
                     throw NSError(
                         domain: "AllTime",
                         code: 500,
-                        userInfo: [NSLocalizedDescriptionKey: "Server error: \(message)"]
+                        userInfo: [
+                            NSLocalizedDescriptionKey: errorMsg,
+                            "backendMessage": message,
+                            "responseTime": duration
+                        ]
                     )
                 }
+            }
+
+            // Generic error if we can't parse backend response
+            var errorMsg = "Failed to generate AI summary. The server encountered an error."
+            if duration < 1.0 {
+                errorMsg += "\n\n🔍 Backend crashed before reaching OpenAI. Check that OPENAI_API_KEY is set in Cloud Run."
             }
 
             throw NSError(
                 domain: "AllTime",
                 code: 500,
-                userInfo: [NSLocalizedDescriptionKey: "Failed to generate AI summary. Please try again."]
+                userInfo: [NSLocalizedDescriptionKey: errorMsg]
             )
 
         default:
