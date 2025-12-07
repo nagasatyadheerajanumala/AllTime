@@ -50,37 +50,6 @@ struct TodayView: View {
                 ScrollViewReader { proxy in
                     ScrollView {
                         VStack(spacing: DesignSystem.Spacing.lg) {
-                            // DEBUG STATUS
-                            VStack(spacing: 8) {
-                                Text("📊 Summary Status:")
-                                    .font(.caption.bold())
-                                Text("Loading: \(dailySummaryViewModel.isLoading ? "YES" : "NO")")
-                                    .font(.caption)
-                                Text("Has Data: \(dailySummaryViewModel.summary != nil ? "YES" : "NO")")
-                                    .font(.caption)
-                                
-                                if let summary = dailySummaryViewModel.summary {
-                                    Text("Day: \(summary.daySummary.count) items")
-                                        .font(.caption)
-                                    Text("Health: \(summary.healthSummary.count) items")
-                                        .font(.caption)
-                                    Text("Focus: \(summary.focusRecommendations.count) items")
-                                        .font(.caption)
-                                    Text("Suggestions: \(summary.healthBasedSuggestions.count) items")
-                                        .font(.caption)
-                                }
-                                
-                                if let error = dailySummaryViewModel.errorMessage {
-                                    Text("Error: \(error)")
-                                        .font(.caption)
-                                        .foregroundColor(.red)
-                                }
-                            }
-                            .padding()
-                            .background(Color.yellow.opacity(0.2))
-                            .cornerRadius(8)
-                            .padding(.horizontal)
-                            
                             // Today Stats Header
                             TodayStatsHeader(
                                 eventCount: todayEvents.count,
@@ -110,59 +79,71 @@ struct TodayView: View {
                                 }
                             }
                             
-                            // Daily AI Summary Section
+                            // Daily AI Summary Section (AI-Generated Narrative)
                             if let summary = dailySummaryViewModel.summary {
                                 VStack(alignment: .leading, spacing: DesignSystem.Spacing.xl) {
-                                    // Day Summary (guaranteed to be present)
-                                    if !summary.daySummary.isEmpty {
-                                        DailySummarySectionView(items: summary.daySummary, title: "📊 Today's Overview")
-                                            .padding(.horizontal, DesignSystem.Spacing.md)
-                                    }
-                                    
-                                    // Health Summary (guaranteed to be present)
-                                    if !summary.healthSummary.isEmpty {
-                                        DailySummarySectionView(items: summary.healthSummary, title: "💪 Health Summary")
-                                            .padding(.horizontal, DesignSystem.Spacing.md)
-                                    }
-                                    
-                                    // Focus Recommendations (guaranteed to be present)
-                                    if !summary.focusRecommendations.isEmpty {
-                                        DailySummarySectionView(items: summary.focusRecommendations, title: "🎯 Focus Tips")
-                                            .padding(.horizontal, DesignSystem.Spacing.md)
-                                    }
-                                    
-                                    // Alerts (guaranteed to be present)
+                                    // Alerts FIRST - most important (if any)
                                     if !summary.alerts.isEmpty {
                                         AlertsSectionView(alerts: summary.alerts)
                                             .padding(.horizontal, DesignSystem.Spacing.md)
                                     }
-                                    
-                                    // Health-Based Suggestions (guaranteed to be present)
-                                    if !summary.healthBasedSuggestions.isEmpty {
-                                        HealthSuggestionsView(suggestions: summary.healthBasedSuggestions)
-                                            .padding(.horizontal, DesignSystem.Spacing.md)
+
+                                    // Day Summary - AI narrative paragraphs
+                                    if !summary.daySummary.isEmpty {
+                                        AINarrativeSummarySection(
+                                            paragraphs: summary.daySummary,
+                                            title: "Your Day",
+                                            icon: "calendar",
+                                            accentColor: DesignSystem.Colors.primary
+                                        )
+                                        .padding(.horizontal, DesignSystem.Spacing.md)
+                                    }
+
+                                    // Health Summary - AI narrative paragraphs
+                                    if !summary.healthSummary.isEmpty {
+                                        AINarrativeSummarySection(
+                                            paragraphs: summary.healthSummary,
+                                            title: "Health & Recovery",
+                                            icon: "heart.fill",
+                                            accentColor: .red
+                                        )
+                                        .padding(.horizontal, DesignSystem.Spacing.md)
+                                    }
+
+                                    // Focus Recommendations - AI narrative paragraphs
+                                    if !summary.focusRecommendations.isEmpty {
+                                        AINarrativeSummarySection(
+                                            paragraphs: summary.focusRecommendations,
+                                            title: "Focus & Productivity",
+                                            icon: "brain.head.profile",
+                                            accentColor: .purple
+                                        )
+                                        .padding(.horizontal, DesignSystem.Spacing.md)
                                     }
                                     
-                                    // Location-based lunch recommendations
-                                    if let location = summary.locationRecommendations,
-                                       let lunch = location.lunchRecommendation,
-                                       let spots = lunch.nearbySpots,
-                                       !spots.isEmpty {
-                                        LunchSpotsView(lunch: lunch)
-                                            .padding(.horizontal, DesignSystem.Spacing.md)
-                                    }
-                                    
+                                    // NOTE: AI-generated summaries don't have structured health suggestions
+                                    // All recommendations are in the narrative paragraphs above
+
+                                    // Location-based recommendations not included in AI summary
+                                    // TODO: If backend adds location data to AI endpoint, uncomment below
+
+                                    // if let location = summary.locationRecommendations,
+                                    //    let spots = location.lunchSuggestions,
+                                    //    !spots.isEmpty {
+                                    //     LunchSpotsView(spots: spots)
+                                    //         .padding(.horizontal, DesignSystem.Spacing.md)
+                                    // }
+
                                     // Location-based walk routes
-                                    if let location = summary.locationRecommendations,
-                                       let walks = location.walkRoutes,
-                                       !walks.isEmpty {
-                                        WalkRoutesListView(routes: walks)
-                                            .padding(.horizontal, DesignSystem.Spacing.md)
-                                    }
+                                    // if let location = summary.locationRecommendations,
+                                    //    let walks = location.walkRoutes,
+                                    //    !walks.isEmpty {
+                                    //     WalkRoutesListView(routes: walks)
+                                    //         .padding(.horizontal, DesignSystem.Spacing.md)
+                                    // }
                                 }
                             } else if dailySummaryViewModel.isLoading {
-                                LoadingView()
-                                    .padding(.vertical, 60)
+                                AILoadingView()
                             } else if let error = dailySummaryViewModel.errorMessage {
                                 // Show error message
                                 VStack(spacing: 16) {
@@ -240,12 +221,35 @@ struct TodayView: View {
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button(action: {
-                        print("🔄 TodayView: Forcing location update...")
-                        locationManager.forceLocationUpdate()
-                    }) {
-                        Image(systemName: "location.fill")
-                            .foregroundColor(locationManager.location != nil ? .green : .gray)
+                    HStack(spacing: 12) {
+                        // Location button
+                        Button(action: {
+                            print("🔄 TodayView: Forcing location update...")
+                            locationManager.forceLocationUpdate()
+                        }) {
+                            Image(systemName: "location.fill")
+                                .foregroundColor(locationManager.location != nil ? .green : .gray)
+                        }
+                        
+                        // Refresh button
+                        Button(action: {
+                            print("🔄 TodayView: Manual refresh triggered...")
+                            Task {
+                                await calendarViewModel.refreshEvents()
+                                await dailySummaryViewModel.refreshSummary()
+                            }
+                        }) {
+                            Image(systemName: "arrow.clockwise")
+                                .foregroundColor(DesignSystem.Colors.primary)
+                                .rotationEffect(.degrees(dailySummaryViewModel.isLoading ? 360 : 0))
+                                .animation(
+                                    dailySummaryViewModel.isLoading ? 
+                                        Animation.linear(duration: 1).repeatForever(autoreverses: false) : 
+                                        .default, 
+                                    value: dailySummaryViewModel.isLoading
+                                )
+                        }
+                        .disabled(dailySummaryViewModel.isLoading)
                     }
                 }
                 
@@ -930,8 +934,8 @@ struct TodayHealthSuggestionsSection: View {
 struct TodayHealthSuggestionCard: View {
     let suggestion: HealthBasedSuggestion
     
-    private var typeColor: Color {
-        switch suggestion.type.lowercased() {
+    private var categoryColor: Color {
+        switch suggestion.category.lowercased() {
         case "exercise": return .orange
         case "nutrition": return .green
         case "sleep": return .indigo
@@ -942,16 +946,18 @@ struct TodayHealthSuggestionCard: View {
         }
     }
     
-    private var typeIcon: String {
-        switch suggestion.type.lowercased() {
-        case "exercise": return "figure.walk"
-        case "nutrition": return "fork.knife"
-        case "sleep": return "moon.fill"
-        case "stress": return "heart.circle.fill"
-        case "hydration": return "drop.fill"
-        case "time_management": return "clock.fill"
-        default: return "heart.fill"
-        }
+    private var categoryIcon: String {
+        suggestion.icon ?? {
+            switch suggestion.category.lowercased() {
+            case "exercise": return "figure.walk"
+            case "nutrition": return "fork.knife"
+            case "sleep": return "moon.fill"
+            case "stress": return "heart.circle.fill"
+            case "hydration": return "drop.fill"
+            case "time_management": return "clock.fill"
+            default: return "heart.fill"
+            }
+        }()
     }
     
     private var priorityColor: Color {
@@ -965,45 +971,38 @@ struct TodayHealthSuggestionCard: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-            // Type Badge
+            // Category Badge
             HStack(spacing: DesignSystem.Spacing.sm) {
-                Image(systemName: typeIcon)
-                    .font(.system(size: 14, weight: .semibold))
-                Text(suggestion.type.replacingOccurrences(of: "_", with: " ").capitalized)
+                if let icon = suggestion.icon {
+                    Text(icon)
+                        .font(.system(size: 14, weight: .semibold))
+                } else {
+                    Image(systemName: categoryIcon)
+                        .font(.system(size: 14, weight: .semibold))
+                }
+                Text(suggestion.category.replacingOccurrences(of: "_", with: " ").capitalized)
                     .font(.subheadline.weight(.semibold))
             }
-            .foregroundColor(typeColor)
+            .foregroundColor(categoryColor)
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
-            .background(typeColor.opacity(0.2))
+            .background(categoryColor.opacity(0.2))
             .cornerRadius(8)
             
-            // Message
-            Text(suggestion.message)
+            // Title (main heading)
+            Text(suggestion.title)
                 .font(.title3.weight(.bold))
                 .foregroundColor(DesignSystem.Colors.primaryText)
             
-            // Action
-            if !suggestion.action.isEmpty {
-                Text(suggestion.action)
-                    .font(.body)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .lineSpacing(4)
-            }
+            // Description (details)
+            Text(suggestion.description)
+                .font(.body)
+                .foregroundColor(DesignSystem.Colors.secondaryText)
+                .fixedSize(horizontal: false, vertical: true)
+                .lineSpacing(4)
             
-            // Footer with time and priority
+            // Footer with priority
             HStack {
-                if let time = suggestion.timestamp {
-                    HStack(spacing: 4) {
-                        Image(systemName: "clock")
-                            .font(.caption)
-                        Text(time)
-                            .font(.caption)
-                    }
-                    .foregroundColor(DesignSystem.Colors.tertiaryText)
-                }
-                
                 Spacer()
                 
                 Text(suggestion.priority.capitalized)

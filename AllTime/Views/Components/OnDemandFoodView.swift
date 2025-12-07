@@ -8,15 +8,37 @@ struct OnDemandFoodView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
-                // Header
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("🍽️ Food Options")
-                        .font(.title2)
-                        .bold()
+                // Header with Refresh Button
+                HStack {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("🍽️ Food Options")
+                            .font(.title2)
+                            .bold()
+                        
+                        Text("Find nearby food options anytime")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
                     
-                    Text("Find nearby food options anytime")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
+                    Spacer()
+                    
+                    Button(action: {
+                        Task {
+                            await viewModel.refreshFood(category: selectedCategory.rawValue, radius: searchRadius)
+                        }
+                    }) {
+                        Image(systemName: "arrow.clockwise")
+                            .font(.title3)
+                            .foregroundColor(.blue)
+                            .rotationEffect(.degrees(viewModel.isLoading ? 360 : 0))
+                            .animation(
+                                viewModel.isLoading ? 
+                                    Animation.linear(duration: 1).repeatForever(autoreverses: false) : 
+                                    .default,
+                                value: viewModel.isLoading
+                            )
+                    }
+                    .disabled(viewModel.isLoading)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 

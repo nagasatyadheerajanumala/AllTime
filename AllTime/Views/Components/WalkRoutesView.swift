@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct WalkRoutesView: View {
-    let walkRoutes: WalkRoutes
+    let walkRoutes: [WalkRoute]
     
     var body: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
@@ -17,31 +17,16 @@ struct WalkRoutesView: View {
                         )
                     )
                 
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Walk Recommendations")
-                        .font(.title3.weight(.bold))
-                        .foregroundColor(DesignSystem.Colors.primaryText)
-                    
-                    Text(walkRoutes.healthBenefit)
-                        .font(.caption)
-                        .foregroundColor(DesignSystem.Colors.secondaryText)
-                }
+                Text("Walk Recommendations")
+                    .font(.title3.weight(.bold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
                 
                 Spacer()
             }
             
-            // Stats
-            HStack(spacing: DesignSystem.Spacing.md) {
-                WalkStatBadge(icon: "clock", value: "\(walkRoutes.durationMinutes) min")
-                WalkStatBadge(icon: "map", value: String(format: "%.1f km", walkRoutes.distanceKm))
-                if let suggestedTime = walkRoutes.suggestedTime {
-                    WalkStatBadge(icon: "calendar.badge.clock", value: suggestedTime)
-                }
-            }
-            
             // Routes
             VStack(spacing: DesignSystem.Spacing.md) {
-                ForEach(walkRoutes.routes) { route in
+                ForEach(walkRoutes) { route in
                     WalkRouteCard(route: route)
                 }
             }
@@ -50,25 +35,6 @@ struct WalkRoutesView: View {
         .background(Color(.systemBackground))
         .cornerRadius(DesignSystem.CornerRadius.lg)
         .shadow(color: Color.black.opacity(0.06), radius: 12, x: 0, y: 4)
-    }
-}
-
-struct WalkStatBadge: View {
-    let icon: String
-    let value: String
-    
-    var body: some View {
-        HStack(spacing: 4) {
-            Image(systemName: icon)
-                .font(.caption)
-            Text(value)
-                .font(.caption)
-        }
-        .foregroundColor(DesignSystem.Colors.secondaryText)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .background(Color.green.opacity(0.1))
-        .cornerRadius(6)
     }
 }
 
@@ -87,17 +53,15 @@ struct WalkRouteCard: View {
                 difficultyBadge
             }
             
-            if let description = route.description {
-                Text(description)
-                    .font(.subheadline)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
+            Text(route.description)
+                .font(.subheadline)
+                .foregroundColor(DesignSystem.Colors.secondaryText)
+                .fixedSize(horizontal: false, vertical: true)
             
             // Stats
             HStack(spacing: DesignSystem.Spacing.md) {
                 RouteStatItem(icon: "map", value: String(format: "%.1f km", route.distanceKm))
-                RouteStatItem(icon: "clock", value: "\(route.durationMinutes) min")
+                RouteStatItem(icon: "clock", value: "\(route.estimatedMinutes) min")
                 if let elevation = route.elevationGain, elevation > 0 {
                     RouteStatItem(icon: "arrow.up.right", value: String(format: "%.0fm", elevation))
                 }
@@ -148,7 +112,7 @@ struct WalkRouteCard: View {
     }
     
     private var difficultyBadge: some View {
-        let difficulty = route.difficulty ?? "unknown"
+        let difficulty = route.difficulty
         let color: Color = {
             switch difficulty.lowercased() {
             case "easy": return .green

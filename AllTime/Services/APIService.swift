@@ -2704,6 +2704,160 @@ class APIService: ObservableObject {
         }
     }
 
+    // MARK: - AI-Powered Daily Summary (Generate Endpoint)
+
+    /// Generate AI-powered daily summary using the new /api/daily-summary/generate endpoint
+    /// This endpoint uses OpenAI to create detailed, narrative-style summaries
+    /// - Parameters:
+    ///   - date: Target date for the summary (defaults to today)
+    ///   - timezone: User's timezone (defaults to current timezone)
+    /// - Returns: DailySummary with AI-generated narrative paragraphs
+    /// - Note: This can take 3-10 seconds due to OpenAI processing. Implement caching on client.
+    func generateAIDailySummary(date: Date = Date(), timezone: String? = nil) async throws -> DailySummary {
+        guard let token = accessToken else {
+            throw NSError(
+                domain: "AllTime",
+                code: 401,
+                userInfo: [NSLocalizedDescriptionKey: "Authentication required. Please sign in again."]
+            )
+        }
+
+        // Format date as YYYY-MM-DD
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd"
+        dateFormatter.timeZone = TimeZone.current
+        let dateString = dateFormatter.string(from: date)
+
+        // Use provided timezone or current timezone
+        let userTimezone = timezone ?? TimeZone.current.identifier
+
+        // Build URL with query parameters
+        var urlComponents = URLComponents(string: "\(baseURL)/api/daily-summary/generate")!
+        urlComponents.queryItems = [
+            URLQueryItem(name: "date", value: dateString),
+            URLQueryItem(name: "timezone", value: userTimezone)
+        ]
+
+        guard let url = urlComponents.url else {
+            throw NSError(
+                domain: "AllTime",
+                code: 400,
+                userInfo: [NSLocalizedDescriptionKey: "Invalid URL"]
+            )
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.timeoutInterval = 15.0 // Longer timeout for AI generation (3-10 seconds expected)
+
+        print("🤖 APIService: ===== GENERATING AI DAILY SUMMARY =====")
+        print("🤖 APIService: URL: \(url)")
+        print("🤖 APIService: Date: \(dateString)")
+        print("🤖 APIService: Timezone: \(userTimezone)")
+        print("🤖 APIService: Note: This may take 3-10 seconds (OpenAI processing)")
+
+        let startTime = Date()
+        let (data, response) = try await session.data(for: request)
+        let duration = Date().timeIntervalSince(startTime)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw NSError(
+                domain: "AllTime",
+                code: 500,
+                userInfo: [NSLocalizedDescriptionKey: "Invalid response from server"]
+            )
+        }
+
+        let responseString = String(data: data, encoding: .utf8) ?? "Unable to decode response"
+        print("🤖 APIService: Response status: \(httpResponse.statusCode)")
+        print("🤖 APIService: Generation took: \(String(format: "%.2f", duration))s")
+
+        switch httpResponse.statusCode {
+        case 200:
+            let decoder = JSONDecoder()
+            decoder.keyDecodingStrategy = .convertFromSnakeCase
+
+            do {
+                let summary = try decoder.decode(DailySummary.self, from: data)
+                print("✅ APIService: Successfully decoded AI daily summary")
+                print("✅ APIService: Day summary: \(summary.daySummary.count) paragraphs")
+                print("✅ APIService: Health summary: \(summary.healthSummary.count) paragraphs")
+                print("✅ APIService: Focus recommendations: \(summary.focusRecommendations.count) paragraphs")
+                print("✅ APIService: Alerts: \(summary.alerts.count) items")
+
+                // Log first paragraph of each section for verification
+                if !summary.daySummary.isEmpty {
+                    print("📝 Day summary preview: \(summary.daySummary[0].prefix(100))...")
+                }
+                if !summary.healthSummary.isEmpty {
+                    print("💪 Health summary preview: \(summary.healthSummary[0].prefix(100))...")
+                }
+
+                return summary
+            } catch let decodingError as DecodingError {
+                print("❌ APIService: ===== DECODING ERROR =====")
+                print("❌ APIService: Failed to decode AI DailySummary: \(decodingError)")
+                print("❌ APIService: Response was: \(responseString)")
+                throw NSError(
+                    domain: "AllTime",
+                    code: 1002,
+                    userInfo: [
+                        NSLocalizedDescriptionKey: "Failed to decode AI summary: \(decodingError.localizedDescription)",
+                        "rawResponse": responseString,
+                        "underlyingError": decodingError
+                    ]
+                )
+            }
+
+        case 401:
+            print("❌ APIService: Unauthorized - invalid or expired token")
+            throw NSError(
+                domain: "AllTime",
+                code: 401,
+                userInfo: [NSLocalizedDescriptionKey: "Authentication failed. Please sign in again."]
+            )
+
+        case 400:
+            print("❌ APIService: Bad Request - invalid date or timezone format")
+            print("❌ APIService: Response: \(responseString)")
+            throw NSError(
+                domain: "AllTime",
+                code: 400,
+                userInfo: [NSLocalizedDescriptionKey: "Invalid request parameters"]
+            )
+
+        case 500:
+            print("❌ APIService: ===== SERVER ERROR (500) =====")
+            print("❌ APIService: AI generation failed - backend may return fallback summary")
+            print("❌ APIService: Full response: \(responseString)")
+
+            if let errorData = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                if let message = errorData["message"] as? String {
+                    throw NSError(
+                        domain: "AllTime",
+                        code: 500,
+                        userInfo: [NSLocalizedDescriptionKey: "Server error: \(message)"]
+                    )
+                }
+            }
+
+            throw NSError(
+                domain: "AllTime",
+                code: 500,
+                userInfo: [NSLocalizedDescriptionKey: "Failed to generate AI summary. Please try again."]
+            )
+
+        default:
+            print("❌ APIService: Unexpected status code: \(httpResponse.statusCode)")
+            throw NSError(
+                domain: "AllTime",
+                code: httpResponse.statusCode,
+                userInfo: [NSLocalizedDescriptionKey: "Unknown error (code: \(httpResponse.statusCode))"]
+            )
+        }
+    }
+
     // MARK: - Enhanced Daily Intelligence (v1 API)
     
     /// Fetch enhanced daily summary for a specific date

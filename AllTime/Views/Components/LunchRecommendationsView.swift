@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct LunchRecommendationsView: View {
-    let recommendations: LunchRecommendations
+    let spots: [LunchPlace]
     
     var body: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
@@ -17,37 +17,19 @@ struct LunchRecommendationsView: View {
                         )
                     )
                 
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Lunch Recommendations")
-                        .font(.title3.weight(.bold))
-                        .foregroundColor(DesignSystem.Colors.primaryText)
-                    
-                    if let minutes = recommendations.minutesUntilLunch,
-                       let time = recommendations.recommendationTime,
-                       minutes > 0 {
-                        Text("Lunch in \(minutes) min at \(time)")
-                            .font(.subheadline)
-                            .foregroundColor(.orange)
-                    }
-                }
+                Text("Lunch Recommendations")
+                    .font(.title3.weight(.bold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
                 
                 Spacer()
             }
             
-            // Message
-            if !recommendations.message.isEmpty {
-                Text(recommendations.message)
-                    .font(.body)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineSpacing(4)
-            }
-            
             // Nearby Spots
-            if recommendations.nearbySpots.isEmpty {
+            if spots.isEmpty {
                 EmptyLunchView()
             } else {
                 VStack(spacing: DesignSystem.Spacing.md) {
-                    ForEach(recommendations.nearbySpots.prefix(5)) { spot in
+                    ForEach(spots.prefix(5)) { spot in
                         LunchSpotCard(spot: spot)
                     }
                 }
@@ -61,7 +43,7 @@ struct LunchRecommendationsView: View {
 }
 
 struct LunchSpotCard: View {
-    let spot: LunchSpot
+    let spot: LunchPlace
     
     var body: some View {
         Button {
@@ -114,14 +96,18 @@ struct LunchSpotCard: View {
                     
                     // Distance and time
                     HStack(spacing: 8) {
-                        Image(systemName: "figure.walk")
-                            .font(.caption)
-                        Text("\(spot.walkingMinutes) min")
-                            .font(.caption)
-                        Text("• \(String(format: "%.1f km", spot.distanceKm))")
-                            .font(.caption)
+                        if let minutes = spot.walkingMinutes {
+                            Image(systemName: "figure.walk")
+                                .font(.caption)
+                            Text("\(minutes) min")
+                                .font(.caption)
+                        }
+                        if let km = spot.distanceKm {
+                            Text(String(format: "• %.1f km", km))
+                                .font(.caption)
+                        }
                         
-                        if let open = spot.openNow {
+                        if let open = spot.isOpenNow {
                             Spacer()
                             Text(open ? "Open" : "Closed")
                                 .font(.caption.weight(.semibold))

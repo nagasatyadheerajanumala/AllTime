@@ -8,15 +8,37 @@ struct OnDemandWalkView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
-                // Header
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("🚶 Walk Routes")
-                        .font(.title2)
-                        .bold()
+                // Header with Refresh Button
+                HStack {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("🚶 Walk Routes")
+                            .font(.title2)
+                            .bold()
+                        
+                        Text("Get personalized walking routes anytime")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
                     
-                    Text("Get personalized walking routes anytime")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
+                    Spacer()
+                    
+                    Button(action: {
+                        Task {
+                            await viewModel.refreshWalks(distanceMiles: distanceMiles, difficulty: selectedDifficulty.rawValue)
+                        }
+                    }) {
+                        Image(systemName: "arrow.clockwise")
+                            .font(.title3)
+                            .foregroundColor(.blue)
+                            .rotationEffect(.degrees(viewModel.isLoading ? 360 : 0))
+                            .animation(
+                                viewModel.isLoading ? 
+                                    Animation.linear(duration: 1).repeatForever(autoreverses: false) : 
+                                    .default,
+                                value: viewModel.isLoading
+                            )
+                    }
+                    .disabled(viewModel.isLoading)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 
