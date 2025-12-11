@@ -334,13 +334,28 @@ class HealthGoalsViewModel: ObservableObject {
     }
     
     // MARK: - Cache Management
-    
+
     private func loadCachedGoals() async -> UserHealthGoals? {
-        return await CacheService.shared.loadJSON(UserHealthGoals.self, filename: cacheKey)
+        let cached = await CacheService.shared.loadJSON(UserHealthGoals.self, filename: cacheKey)
+        if let cached = cached {
+            print("💾 HealthGoalsViewModel: Cache loaded - file exists")
+        } else {
+            print("💾 HealthGoalsViewModel: Cache miss - no file found")
+        }
+        return cached
     }
-    
+
     private func cacheGoals(_ goals: UserHealthGoals) async {
+        print("💾 HealthGoalsViewModel: Saving to cache - sleep=\(goals.sleepHours?.description ?? "nil"), activeMin=\(goals.activeMinutes?.description ?? "nil"), steps=\(goals.steps?.description ?? "nil")")
         await CacheService.shared.saveJSON(goals, filename: cacheKey)
+    }
+
+    /// Clear the health goals cache - use this to fix corrupted cache issues
+    func clearCache() async {
+        print("🗑️ HealthGoalsViewModel: Clearing health goals cache")
+        await CacheService.shared.delete(filename: cacheKey)
+        goals = nil
+        print("🗑️ HealthGoalsViewModel: Cache cleared, goals set to nil")
     }
     
     // MARK: - Validation

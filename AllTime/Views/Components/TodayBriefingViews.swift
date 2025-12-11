@@ -1529,3 +1529,264 @@ struct SkeletonRect: View {
             .onAppear { isAnimating = true }
     }
 }
+
+// MARK: - Health Insights Card
+/// Prominent health insights card showing sleep, activity, and personalized suggestions
+struct HealthInsightsCard: View {
+    let keyMetrics: BriefingKeyMetrics?
+    let suggestions: [BriefingSuggestion]?
+    let quickStats: QuickStats?
+
+    // Filter health-related suggestions
+    private var healthSuggestions: [BriefingSuggestion] {
+        guard let suggestions = suggestions else { return [] }
+        return suggestions.filter { suggestion in
+            let category = suggestion.category?.lowercased() ?? ""
+            return category == "health_insight" ||
+                   category == "wellness" ||
+                   category == "movement" ||
+                   category == "sleep" ||
+                   category == "recovery"
+        }
+    }
+
+    // Determine energy level based on sleep and HRV
+    private var energyLevel: (label: String, color: Color, icon: String) {
+        guard let metrics = keyMetrics else {
+            return ("Unknown", DesignSystem.Colors.secondaryText, "questionmark.circle")
+        }
+
+        let sleepHours = metrics.sleepHoursLastNight ?? metrics.effectiveSleepHours ?? 0
+        let hrv = metrics.hrvLastNight
+
+        if sleepHours >= 7 && (hrv == nil || hrv! >= 40) {
+            return ("High Energy", Color(hex: "10B981"), "bolt.fill")
+        } else if sleepHours >= 6 && (hrv == nil || hrv! >= 30) {
+            return ("Moderate", Color(hex: "F59E0B"), "bolt")
+        } else {
+            return ("Low Energy", Color(hex: "EF4444"), "battery.25")
+        }
+    }
+
+    private var hasHealthData: Bool {
+        guard let metrics = keyMetrics else { return false }
+        return metrics.sleepHoursLastNight != nil ||
+               metrics.stepsYesterday != nil ||
+               metrics.activeMinutesYesterday != nil
+    }
+
+    var body: some View {
+        if hasHealthData || !healthSuggestions.isEmpty {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+                // Header
+                HStack {
+                    Image(systemName: "heart.fill")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundColor(Color(hex: "EF4444"))
+
+                    Text("Health Insights")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundColor(DesignSystem.Colors.primaryText)
+
+                    Spacer()
+
+                    // Energy badge
+                    HStack(spacing: 4) {
+                        Image(systemName: energyLevel.icon)
+                            .font(.caption2)
+                        Text(energyLevel.label)
+                            .font(.caption.weight(.medium))
+                    }
+                    .foregroundColor(energyLevel.color)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(
+                        Capsule()
+                            .fill(energyLevel.color.opacity(0.15))
+                    )
+                }
+
+                // Health Metrics Row
+                if let metrics = keyMetrics {
+                    healthMetricsRow(metrics: metrics)
+                }
+
+                // Health Suggestions
+                if !healthSuggestions.isEmpty {
+                    healthSuggestionsSection
+                }
+            }
+            .padding(DesignSystem.Spacing.md)
+            .background(
+                RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg)
+                    .fill(DesignSystem.Colors.cardBackground)
+            )
+        }
+    }
+
+    @ViewBuilder
+    private func healthMetricsRow(metrics: BriefingKeyMetrics) -> some View {
+        HStack(spacing: DesignSystem.Spacing.sm) {
+            // Sleep metric
+            if let sleepHours = metrics.sleepHoursLastNight ?? metrics.effectiveSleepHours {
+                healthMetricItem(
+                    icon: "moon.fill",
+                    value: String(format: "%.1fh", sleepHours),
+                    label: "Sleep",
+                    comparison: sleepComparison(sleepHours, average: metrics.sleepHoursAverage),
+                    color: sleepColor(sleepHours)
+                )
+            }
+
+            // Steps metric
+            if let steps = metrics.stepsYesterday ?? metrics.stepsToday {
+                healthMetricItem(
+                    icon: "figure.walk",
+                    value: formatNumber(steps),
+                    label: "Steps",
+                    comparison: stepsComparison(steps, average: metrics.stepsAverage),
+                    color: stepsColor(steps, average: metrics.stepsAverage)
+                )
+            }
+
+            // Active minutes metric
+            if let activeMin = metrics.activeMinutesYesterday ?? metrics.activeMinutes {
+                healthMetricItem(
+                    icon: "flame.fill",
+                    value: "\(activeMin)m",
+                    label: "Active",
+                    comparison: activeMinComparison(activeMin, average: metrics.activeMinutesAverage),
+                    color: activeMinColor(activeMin, average: metrics.activeMinutesAverage)
+                )
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func healthMetricItem(icon: String, value: String, label: String, comparison: String?, color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.caption)
+                    .foregroundColor(color)
+                Text(value)
+                    .font(.headline.weight(.bold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+            }
+
+            Text(label)
+                .font(.caption2)
+                .foregroundColor(DesignSystem.Colors.secondaryText)
+
+            if let comparison = comparison {
+                Text(comparison)
+                    .font(.caption2)
+                    .foregroundColor(color)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(DesignSystem.Spacing.sm)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.md)
+                .fill(DesignSystem.Colors.cardBackgroundElevated)
+        )
+    }
+
+    @ViewBuilder
+    private var healthSuggestionsSection: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+            Text("Recommendations")
+                .font(.caption.weight(.semibold))
+                .foregroundColor(DesignSystem.Colors.secondaryText)
+
+            ForEach(healthSuggestions.prefix(3), id: \.id) { suggestion in
+                HStack(spacing: DesignSystem.Spacing.sm) {
+                    Image(systemName: suggestion.displayIcon)
+                        .font(.caption)
+                        .foregroundColor(Color(hex: "10B981"))
+                        .frame(width: 20)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(suggestion.title)
+                            .font(.subheadline.weight(.medium))
+                            .foregroundColor(DesignSystem.Colors.primaryText)
+                            .lineLimit(1)
+
+                        if let desc = suggestion.description {
+                            Text(desc)
+                                .font(.caption)
+                                .foregroundColor(DesignSystem.Colors.secondaryText)
+                                .lineLimit(2)
+                        }
+                    }
+
+                    Spacer()
+
+                    if let timeLabel = suggestion.effectiveTimeLabel {
+                        Text(timeLabel)
+                            .font(.caption)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
+                    }
+                }
+                .padding(DesignSystem.Spacing.sm)
+                .background(
+                    RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.sm)
+                        .fill(Color(hex: "10B981").opacity(0.08))
+                )
+            }
+        }
+    }
+
+    // MARK: - Helper Functions
+
+    private func sleepComparison(_ hours: Double, average: Double?) -> String? {
+        guard let avg = average else { return nil }
+        let diff = hours - avg
+        if abs(diff) < 0.3 { return "On track" }
+        let sign = diff > 0 ? "+" : ""
+        return "\(sign)\(String(format: "%.1f", diff))h vs avg"
+    }
+
+    private func sleepColor(_ hours: Double) -> Color {
+        if hours >= 7 { return Color(hex: "10B981") }
+        if hours >= 6 { return Color(hex: "F59E0B") }
+        return Color(hex: "EF4444")
+    }
+
+    private func stepsComparison(_ steps: Int, average: Int?) -> String? {
+        guard let avg = average, avg > 0 else { return nil }
+        let percent = (Double(steps) / Double(avg)) * 100
+        if percent >= 90 && percent <= 110 { return "On track" }
+        return "\(Int(percent))% of avg"
+    }
+
+    private func stepsColor(_ steps: Int, average: Int?) -> Color {
+        let target = average ?? 10000
+        let percent = Double(steps) / Double(target)
+        if percent >= 0.8 { return Color(hex: "10B981") }
+        if percent >= 0.5 { return Color(hex: "F59E0B") }
+        return Color(hex: "EF4444")
+    }
+
+    private func activeMinComparison(_ minutes: Int, average: Int?) -> String? {
+        guard let avg = average, avg > 0 else { return nil }
+        let percent = (Double(minutes) / Double(avg)) * 100
+        if percent >= 90 && percent <= 110 { return "On track" }
+        return "\(Int(percent))% of avg"
+    }
+
+    private func activeMinColor(_ minutes: Int, average: Int?) -> Color {
+        let target = average ?? 30
+        let percent = Double(minutes) / Double(target)
+        if percent >= 0.8 { return Color(hex: "10B981") }
+        if percent >= 0.5 { return Color(hex: "F59E0B") }
+        return Color(hex: "EF4444")
+    }
+
+    private func formatNumber(_ num: Int) -> String {
+        if num >= 1000 {
+            return String(format: "%.1fk", Double(num) / 1000)
+        }
+        return "\(num)"
+    }
+}

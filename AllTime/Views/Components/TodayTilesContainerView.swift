@@ -145,14 +145,18 @@ struct TodaySummaryDetailView: View {
                     // Header card with mood gradient
                     headerCard
 
-                    // Key Metrics
+                    // Key Metrics (above Health Insights)
                     if let metrics = briefing?.keyMetrics {
                         keyMetricsSection(metrics: metrics)
                     }
 
-                    // Summary Line
-                    if let summary = briefing?.summaryLine {
-                        summarySection(summary: summary)
+                    // Health Insights Card
+                    if let briefing = briefing {
+                        HealthInsightsCard(
+                            keyMetrics: briefing.keyMetrics,
+                            suggestions: briefing.suggestions,
+                            quickStats: briefing.quickStats
+                        )
                     }
 
                     // Focus Windows
@@ -163,6 +167,11 @@ struct TodaySummaryDetailView: View {
                     // Energy Dips
                     if let dips = briefing?.energyDips, !dips.isEmpty {
                         energyDipsSection(dips: dips)
+                    }
+
+                    // Enhanced AI Summary Section
+                    if let briefing = briefing {
+                        aiSummarySection(briefing: briefing)
                     }
 
                     Spacer(minLength: DesignSystem.Spacing.xl)
@@ -283,6 +292,282 @@ struct TodaySummaryDetailView: View {
             }
         }
         .sectionCardStyle()
+    }
+
+    // MARK: - Enhanced AI Summary Section
+    private func aiSummarySection(briefing: DailyBriefingResponse) -> some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+            DetailSectionHeader(title: "AI Summary", icon: "sparkles")
+
+            // Day Overview Stats Grid
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: DesignSystem.Spacing.md) {
+                // Total Meeting Hours
+                let meetingHours = calculateMeetingHours(from: briefing)
+                DetailMetricCard(
+                    title: "Meeting Time",
+                    value: formatHours(meetingHours),
+                    icon: "calendar.badge.clock",
+                    color: Color(hex: "3B82F6")
+                )
+
+                // Total Free Hours
+                let freeHours = calculateFreeHours(from: briefing)
+                DetailMetricCard(
+                    title: "Free Time",
+                    value: formatHours(freeHours),
+                    icon: "clock.fill",
+                    color: Color(hex: "10B981")
+                )
+            }
+
+            // AI Summary Text
+            if !briefing.summaryLine.isEmpty {
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                    Text(briefing.summaryLine)
+                        .font(.body)
+                        .lineSpacing(4)
+                        .foregroundColor(DesignSystem.Colors.primaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(DesignSystem.Spacing.md)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(
+                    RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.md)
+                        .fill(DesignSystem.Colors.cardBackgroundElevated)
+                )
+            }
+
+            // Today's Goals Section
+            todayGoalsSection(briefing: briefing)
+        }
+        .sectionCardStyle()
+    }
+
+    // MARK: - Today's Goals Section
+    @ViewBuilder
+    private func todayGoalsSection(briefing: DailyBriefingResponse) -> some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+            HStack(spacing: DesignSystem.Spacing.xs) {
+                Image(systemName: "target")
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(Color(hex: "F59E0B"))
+                Text("Today's Goals")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+            }
+
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                // Steps Goal
+                if let metrics = briefing.keyMetrics {
+                    if let stepsAvg = metrics.stepsAverage, stepsAvg > 0 {
+                        goalRow(
+                            icon: "figure.walk",
+                            title: "Steps",
+                            target: "\(stepsAvg.formatted()) steps",
+                            current: metrics.stepsToday ?? metrics.stepsYesterday,
+                            targetValue: stepsAvg
+                        )
+                    }
+
+                    // Active Minutes Goal
+                    if let activeAvg = metrics.activeMinutesAverage, activeAvg > 0 {
+                        goalRow(
+                            icon: "flame.fill",
+                            title: "Active Time",
+                            target: "\(activeAvg) min",
+                            current: metrics.activeMinutes ?? metrics.activeMinutesYesterday,
+                            targetValue: activeAvg
+                        )
+                    }
+
+                    // Sleep Goal (for tonight)
+                    if let sleepAvg = metrics.sleepHoursAverage, sleepAvg > 0 {
+                        goalRow(
+                            icon: "moon.fill",
+                            title: "Sleep Tonight",
+                            target: String(format: "%.1fh", sleepAvg),
+                            sleepCurrent: metrics.sleepHoursLastNight ?? metrics.effectiveSleepHours,
+                            sleepTarget: sleepAvg
+                        )
+                    }
+                }
+
+                // Focus Time Goal
+                if let quickStats = briefing.quickStats, let focusTime = quickStats.focusTimeAvailable {
+                    HStack(spacing: DesignSystem.Spacing.sm) {
+                        Image(systemName: "brain.head.profile")
+                            .font(.caption)
+                            .foregroundColor(DesignSystem.Colors.primary)
+                            .frame(width: 20)
+
+                        Text("Focus Time Available")
+                            .font(.subheadline)
+                            .foregroundColor(DesignSystem.Colors.primaryText)
+
+                        Spacer()
+
+                        Text(focusTime)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundColor(DesignSystem.Colors.primary)
+                    }
+                    .padding(DesignSystem.Spacing.sm)
+                    .background(
+                        RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.sm)
+                            .fill(DesignSystem.Colors.primary.opacity(0.1))
+                    )
+                }
+            }
+        }
+        .padding(DesignSystem.Spacing.md)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.md)
+                .fill(DesignSystem.Colors.cardBackgroundElevated)
+        )
+    }
+
+    // MARK: - Goal Row Helper
+    @ViewBuilder
+    private func goalRow(icon: String, title: String, target: String, current: Int?, targetValue: Int) -> some View {
+        let progress = current != nil ? min(Double(current!) / Double(targetValue), 1.0) : 0
+        let progressColor = progress >= 0.8 ? Color(hex: "10B981") : (progress >= 0.5 ? Color(hex: "F59E0B") : Color(hex: "EF4444"))
+
+        HStack(spacing: DesignSystem.Spacing.sm) {
+            Image(systemName: icon)
+                .font(.caption)
+                .foregroundColor(progressColor)
+                .frame(width: 20)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.subheadline)
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+
+                // Progress bar
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(DesignSystem.Colors.tertiaryText.opacity(0.3))
+                            .frame(height: 4)
+
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(progressColor)
+                            .frame(width: geo.size.width * progress, height: 4)
+                    }
+                }
+                .frame(height: 4)
+            }
+
+            Spacer()
+
+            VStack(alignment: .trailing, spacing: 0) {
+                if let curr = current {
+                    Text("\(curr.formatted())")
+                        .font(.caption.weight(.semibold))
+                        .foregroundColor(progressColor)
+                }
+                Text("/ \(target)")
+                    .font(.caption2)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+            }
+        }
+        .padding(DesignSystem.Spacing.sm)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.sm)
+                .fill(progressColor.opacity(0.08))
+        )
+    }
+
+    @ViewBuilder
+    private func goalRow(icon: String, title: String, target: String, sleepCurrent: Double?, sleepTarget: Double) -> some View {
+        let progress = sleepCurrent != nil ? min(sleepCurrent! / sleepTarget, 1.0) : 0
+        let progressColor = progress >= 0.9 ? Color(hex: "10B981") : (progress >= 0.7 ? Color(hex: "F59E0B") : Color(hex: "EF4444"))
+
+        HStack(spacing: DesignSystem.Spacing.sm) {
+            Image(systemName: icon)
+                .font(.caption)
+                .foregroundColor(Color(hex: "8B5CF6"))
+                .frame(width: 20)
+
+            Text(title)
+                .font(.subheadline)
+                .foregroundColor(DesignSystem.Colors.primaryText)
+
+            Spacer()
+
+            VStack(alignment: .trailing, spacing: 0) {
+                if let curr = sleepCurrent {
+                    Text(String(format: "%.1fh", curr))
+                        .font(.caption.weight(.semibold))
+                        .foregroundColor(progressColor)
+                    Text("last night")
+                        .font(.caption2)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                } else {
+                    Text("Target: \(target)")
+                        .font(.caption.weight(.medium))
+                        .foregroundColor(Color(hex: "8B5CF6"))
+                }
+            }
+        }
+        .padding(DesignSystem.Spacing.sm)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.sm)
+                .fill(Color(hex: "8B5CF6").opacity(0.08))
+        )
+    }
+
+    // MARK: - Helper Functions
+    private func calculateMeetingHours(from briefing: DailyBriefingResponse) -> Double {
+        if let metrics = briefing.keyMetrics {
+            // Use actual meeting hours if available
+            if let totalHours = metrics.totalMeetingHoursToday {
+                return totalHours
+            }
+            // Legacy fallback
+            if let meetingHours = metrics.meetingHours {
+                return meetingHours
+            }
+            // Estimate from meeting count: average meeting is ~45 minutes
+            let meetingsCount = metrics.effectiveMeetingsCount
+            return Double(meetingsCount) * 0.75
+        }
+        return 0
+    }
+
+    private func calculateFreeHours(from briefing: DailyBriefingResponse) -> Double {
+        if let metrics = briefing.keyMetrics {
+            // Use actual free hours if available
+            if let freeHours = metrics.freeHoursToday {
+                return freeHours
+            }
+            // Legacy fallback
+            if let freeTimeHours = metrics.freeTimeHours {
+                return freeTimeHours
+            }
+            // Estimate from longest free block (assume ~2-3 blocks per day)
+            let longestBlock = metrics.effectiveLongestFreeBlock
+            if longestBlock > 0 {
+                return Double(longestBlock) * 2.5 / 60.0
+            }
+        }
+        // Default: estimate based on typical 8-hour workday minus meetings
+        let meetingHours = calculateMeetingHours(from: briefing)
+        return max(0, 8 - meetingHours)
+    }
+
+    private func formatHours(_ hours: Double) -> String {
+        if hours < 1 {
+            return "\(Int(hours * 60))m"
+        } else if hours == Double(Int(hours)) {
+            return "\(Int(hours))h"
+        } else {
+            let wholeHours = Int(hours)
+            let minutes = Int((hours - Double(wholeHours)) * 60)
+            if minutes == 0 {
+                return "\(wholeHours)h"
+            }
+            return "\(wholeHours)h \(minutes)m"
+        }
     }
 }
 

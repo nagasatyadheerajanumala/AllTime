@@ -267,6 +267,7 @@ struct HealthSuggestion: Codable, Identifiable {
 }
 
 // MARK: - User Health Goals (GET /api/v1/health/goals)
+// Note: No explicit CodingKeys - uses automatic snake_case conversion from CacheService/APIService
 
 struct UserHealthGoals: Codable {
     let sleepHours: Double?
@@ -276,19 +277,10 @@ struct UserHealthGoals: Codable {
     let activeMinutes: Int?
     let steps: Int?
     let updatedAt: Date?
-    
-    enum CodingKeys: String, CodingKey {
-        case sleepHours = "sleep_hours"
-        case activeEnergyBurned = "active_energy_burned"
-        case hrv
-        case restingHeartRate = "resting_heart_rate"
-        case activeMinutes = "active_minutes"
-        case steps
-        case updatedAt = "updated_at"
-    }
 }
 
 // MARK: - Save Goals Request (POST /api/v1/health/goals)
+// Note: No explicit CodingKeys - uses automatic snake_case conversion from APIService
 
 struct SaveGoalsRequest: Codable {
     let sleepHours: Double?
@@ -297,15 +289,6 @@ struct SaveGoalsRequest: Codable {
     let restingHeartRate: Double?
     let activeMinutes: Int?
     let steps: Int?
-    
-    enum CodingKeys: String, CodingKey {
-        case sleepHours = "sleep_hours"
-        case activeEnergyBurned = "active_energy_burned"
-        case hrv
-        case restingHeartRate = "resting_heart_rate"
-        case activeMinutes = "active_minutes"
-        case steps
-    }
 }
 
 // MARK: - Save Goals Response (POST /api/v1/health/goals)

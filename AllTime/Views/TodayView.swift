@@ -134,14 +134,22 @@ struct TodayView: View {
                     .padding(.horizontal, DesignSystem.Spacing.md)
             }
 
-            // (4) Quick Stats Row
+            // (4) Health Insights Card - Prominent health data display
+            HealthInsightsCard(
+                keyMetrics: briefing.keyMetrics,
+                suggestions: briefing.suggestions,
+                quickStats: briefing.quickStats
+            )
+            .padding(.horizontal, DesignSystem.Spacing.md)
+
+            // (5) Quick Stats Row
             QuickStatsRowView(
                 quickStats: briefing.quickStats,
                 keyMetrics: briefing.keyMetrics
             )
             .padding(.horizontal, DesignSystem.Spacing.md)
 
-            // (5) Insights Section (Accordions)
+            // (6) Insights Section (Accordions)
             insightsSection(briefing: briefing)
                 .padding(.horizontal, DesignSystem.Spacing.md)
         }
