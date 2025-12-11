@@ -207,39 +207,13 @@ struct CalendarEvent: Codable, Identifiable {
         return end.timeIntervalSince(start)
     }
     
-    // TEMPORARY WORKAROUND: Detect and correct for backend storing local times as UTC
-    // This should be removed once backend fixes timezone conversion
-    // Optimized: No logging in hot path, only in DEBUG builds
+    // Timezone handling: Backend should send proper UTC times (ISO8601 with Z suffix)
+    // The Date is parsed as UTC and displayed in user's local timezone by iOS automatically
+    // No manual correction needed - iOS handles timezone conversion when displaying
     private func applyTimezoneCorrection(date: Date) -> Date {
-        let calendar = Calendar.current
-        let userTimezone = TimeZone.current
-        let secondsOffset = userTimezone.secondsFromGMT(for: date)
-        let hoursOffset = abs(secondsOffset) / 3600
-        
-        // Convert UTC date to local time to check the hour
-        let localComponents = calendar.dateComponents(in: userTimezone, from: date)
-        let localHour = localComponents.hour ?? 0
-        
-        // Get UTC hour by using a UTC timezone calendar
-        var utcCalendar = Calendar(identifier: .gregorian)
-        utcCalendar.timeZone = TimeZone(secondsFromGMT: 0)!
-        let utcComponents = utcCalendar.dateComponents([.hour, .minute], from: date)
-        let utcHour = utcComponents.hour ?? 0
-        
-        // Detect pattern: UTC hour is 9-18 (business hours) but local hour is 4-9 (very early morning)
-        // This strongly suggests backend stored local time as UTC
-        let isBusinessHoursUTC = utcHour >= 9 && utcHour <= 18
-        let isEarlyMorningLocal = localHour >= 4 && localHour < 10
-        let hasSignificantOffset = hoursOffset >= 4 // EST/EDT or similar
-        
-        // Logging removed for performance - timezone correction happens silently
-        if isBusinessHoursUTC && isEarlyMorningLocal && hasSignificantOffset {
-            // Backend stored local time as UTC - add offset to correct
-            let correctionSeconds = abs(secondsOffset)
-            let correctedDate = calendar.date(byAdding: .second, value: correctionSeconds, to: date) ?? date
-            return correctedDate
-        }
-        
+        // DISABLED: Previous heuristic-based correction was causing incorrect time displays
+        // Backend now sends correct UTC times, iOS handles conversion to local timezone
+        // If times appear wrong, the issue is on the backend side
         return date
     }
 }

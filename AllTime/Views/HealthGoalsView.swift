@@ -121,12 +121,10 @@ struct HealthGoalsView: View {
                 }
             }
             .onAppear {
-                // Only load if we don't have goals yet (to preserve user input)
-                // But if we just saved successfully, don't reload to avoid overwriting
-                if viewModel.goals == nil && !viewModel.saveSuccess {
-                    Task {
-                        await viewModel.loadGoals()
-                    }
+                // Always load goals from cache/API when the view appears
+                // This ensures saved goals are properly restored
+                Task {
+                    await viewModel.loadGoals()
                 }
             }
             .overlay {

@@ -40,33 +40,78 @@ class HealthGoalsViewModel: ObservableObject {
     }
     
     // MARK: - Load Goals
-    
+
     func loadGoals() async {
-        // Don't reload if we already have goals and user might be editing
-        // Only load if we don't have goals at all
-        guard goals == nil else {
-            print("🎯 HealthGoalsViewModel: Goals already loaded, skipping reload to preserve user input")
-            return
-        }
-        
+        // Always try to load from cache on initial load
+        // This ensures saved goals are properly restored
         isLoading = true
         errorMessage = nil
-        
+
         // Try cache first
         if let cached = await loadCachedGoals() {
             print("✅ HealthGoalsViewModel: Loaded cached goals")
+            print("   - Sleep: \(cached.sleepHours?.description ?? "nil")")
+            print("   - Steps: \(cached.steps?.description ?? "nil")")
+            print("   - Active Minutes: \(cached.activeMinutes?.description ?? "nil")")
+            print("   - Active Energy: \(cached.activeEnergyBurned?.description ?? "nil")")
+            print("   - Resting HR: \(cached.restingHeartRate?.description ?? "nil")")
+            print("   - HRV: \(cached.hrv?.description ?? "nil")")
+            print("   - Updated At: \(cached.updatedAt?.description ?? "nil")")
             goals = cached
             updateEditableValues(from: cached)
             isLoading = false
-            
-            // Refresh in background
+
+            // Refresh in background (but don't override user's cached values)
             Task {
-                await refreshGoals()
+                await refreshGoalsInBackground()
             }
             return
         }
-        
+
+        print("⚠️ HealthGoalsViewModel: No cached goals found, fetching from server")
         await refreshGoals()
+    }
+
+    /// Refresh goals from API but only update if server data is newer
+    private func refreshGoalsInBackground() async {
+        do {
+            let fetched = try await apiService.getHealthGoals()
+            print("✅ HealthGoalsViewModel: Fetched goals from API in background")
+            print("   Server data: sleep=\(fetched.sleepHours?.description ?? "nil"), steps=\(fetched.steps?.description ?? "nil"), activeMin=\(fetched.activeMinutes?.description ?? "nil"), updatedAt=\(fetched.updatedAt?.description ?? "nil")")
+
+            // Only update cache if server data is newer or we don't have local cache
+            let cachedGoals = await loadCachedGoals()
+
+            if let cached = cachedGoals, let cachedUpdated = cached.updatedAt, let fetchedUpdated = fetched.updatedAt {
+                // Compare timestamps - only update if server is newer
+                print("✅ HealthGoalsViewModel: Comparing timestamps - cached=\(cachedUpdated), server=\(fetchedUpdated)")
+                if fetchedUpdated > cachedUpdated {
+                    print("✅ HealthGoalsViewModel: Server data is newer, updating cache and editable values")
+                    goals = fetched
+                    await cacheGoals(fetched)
+                    await MainActor.run {
+                        updateEditableValues(from: fetched)
+                    }
+                } else {
+                    print("✅ HealthGoalsViewModel: Local cache is newer or same, keeping local data")
+                    // Keep using cached data
+                }
+            } else if cachedGoals == nil {
+                // No local cache, use server data
+                print("✅ HealthGoalsViewModel: No local cache, using server data")
+                goals = fetched
+                await cacheGoals(fetched)
+                await MainActor.run {
+                    updateEditableValues(from: fetched)
+                }
+            } else {
+                // Cache exists but no timestamps - preserve local cache (user's explicit saves)
+                print("✅ HealthGoalsViewModel: Timestamps missing (cached=\(cachedGoals?.updatedAt?.description ?? "nil"), server=\(fetched.updatedAt?.description ?? "nil")), preserving local cache")
+            }
+        } catch {
+            // Silently fail - we already have cached data
+            print("⚠️ HealthGoalsViewModel: Background refresh failed: \(error.localizedDescription)")
+        }
     }
     
     func refreshGoals() async {
@@ -227,40 +272,45 @@ class HealthGoalsViewModel: ObservableObject {
     }
     
     // MARK: - Helper Methods
-    
-    private var hasLoadedInitialValues = false
-    
+
+    /// Tracks if we're in the middle of user editing (to prevent background refresh from overwriting)
+    private var isUserEditing = false
+
     private func updateEditableValues(from goals: UserHealthGoals) {
-        // Only update on initial load, not when refreshing (to preserve user input)
-        guard !hasLoadedInitialValues else { return }
-        
+        // Always update editable values from loaded goals
+        print("💾 HealthGoalsViewModel: Updating editable values from goals")
+
         if let sleep = goals.sleepHours {
             sleepHours = sleep
+            print("   - Set sleepHours to \(sleep)")
         }
         if let energy = goals.activeEnergyBurned {
             activeEnergyBurned = energy
+            print("   - Set activeEnergyBurned to \(energy)")
         }
         if let hrvValue = goals.hrv {
             hrv = hrvValue
+            print("   - Set hrv to \(hrvValue)")
         }
         if let rhr = goals.restingHeartRate {
             restingHeartRate = rhr
+            print("   - Set restingHeartRate to \(rhr)")
         }
         if let minutes = goals.activeMinutes {
             activeMinutes = minutes
+            print("   - Set activeMinutes to \(minutes)")
         }
         if let stepsValue = goals.steps {
             steps = stepsValue
+            print("   - Set steps to \(stepsValue)")
         }
-        
-        hasLoadedInitialValues = true
     }
     
     /// Force update editable values (used after successful save)
     private func forceUpdateEditableValues(from goals: UserHealthGoals) {
         print("💾 HealthGoalsViewModel: forceUpdateEditableValues called")
         print("   - Before: sleepHours=\(sleepHours), activeMinutes=\(activeMinutes), steps=\(steps)")
-        
+
         if let sleep = goals.sleepHours {
             sleepHours = sleep
         }
@@ -279,11 +329,8 @@ class HealthGoalsViewModel: ObservableObject {
         if let stepsValue = goals.steps {
             steps = stepsValue
         }
-        
+
         print("   - After: sleepHours=\(sleepHours), activeMinutes=\(activeMinutes), steps=\(steps)")
-        
-        // Reset flag so next load will update
-        hasLoadedInitialValues = false
     }
     
     // MARK: - Cache Management

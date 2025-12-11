@@ -20,25 +20,34 @@ class OnDemandRecommendationsAPI {
     private let baseURL = Constants.API.baseURL
     
     // MARK: - Food Recommendations (On-Demand)
-    
+
     func getFoodRecommendations(
         category: String = "all",
-        radius: Double = 1.5,
-        maxResults: Int = 10
+        radiusMiles: Double = 1.5,
+        maxResults: Int = 10,
+        latitude: Double? = nil,
+        longitude: Double? = nil
     ) async throws -> FoodRecommendationsResponse {
         guard let token = KeychainManager.shared.getAccessToken() else {
             throw OnDemandAPIError.unauthorized
         }
-        
-        let urlString = "\(baseURL)/api/v1/recommendations/food?radius=\(radius)&category=\(category)&max_results=\(maxResults)"
+
+        // Build URL with query parameters - MUST include latitude, longitude, and radius_miles
+        var urlString = "\(baseURL)/api/v1/recommendations/food?radius_miles=\(radiusMiles)&category=\(category)&max_results=\(maxResults)"
+
+        // Add location parameters (required for results)
+        if let lat = latitude, let lon = longitude {
+            urlString += "&latitude=\(lat)&longitude=\(lon)"
+        }
+
         guard let url = URL(string: urlString) else {
             throw OnDemandAPIError.invalidURL
         }
-        
+
         var request = URLRequest(url: url)
         request.addValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        
-        print("📤 OnDemandAPI: Fetching food recommendations (category: \(category), radius: \(radius)km)")
+
+        print("📤 OnDemandAPI: Fetching food recommendations (category: \(category), radius: \(radiusMiles) miles, lat: \(latitude ?? 0), lon: \(longitude ?? 0))")
         
         let (data, response) = try await URLSession.shared.data(for: request)
         
@@ -60,7 +69,7 @@ class OnDemandRecommendationsAPI {
         let decoder = JSONDecoder()
         // Note: Food API uses camelCase, not snake_case!
         let foodResponse = try decoder.decode(FoodRecommendationsResponse.self, from: data)
-        print("✅ OnDemandAPI: Found \(foodResponse.healthyOptions.count) healthy + \(foodResponse.regularOptions.count) regular options")
+        print("✅ OnDemandAPI: Found \(foodResponse.healthyOptions?.count ?? 0) healthy + \(foodResponse.regularOptions?.count ?? 0) regular options")
         
         return foodResponse
     }
@@ -104,7 +113,7 @@ class OnDemandRecommendationsAPI {
         
         let decoder = JSONDecoder()
         let walkResponse = try decoder.decode(WalkRecommendationsResponse.self, from: data)
-        print("✅ OnDemandAPI: Found \(walkResponse.routes.count) walk routes")
+        print("✅ OnDemandAPI: Found \(walkResponse.routes?.count ?? 0) walk routes")
         
         return walkResponse
     }

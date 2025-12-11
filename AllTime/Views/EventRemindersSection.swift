@@ -41,15 +41,33 @@ struct EventRemindersSection: View {
                         reminder: reminder,
                         onComplete: {
                             Task {
-                                try? await reminderViewModel.completeReminder(id: reminder.id)
-                                await loadReminders()
+                                do {
+                                    _ = try await reminderViewModel.completeReminder(id: reminder.id)
+                                    await loadReminders()
+                                } catch {
+                                    print("Error completing reminder: \(error)")
+                                }
                             }
                         },
                         onSnooze: {
                             Task {
-                                let snoozeDate = Date().addingTimeInterval(30 * 60)
-                                try? await reminderViewModel.snoozeReminder(id: reminder.id, until: snoozeDate)
-                                await loadReminders()
+                                do {
+                                    let snoozeDate = Date().addingTimeInterval(30 * 60)
+                                    _ = try await reminderViewModel.snoozeReminder(id: reminder.id, until: snoozeDate)
+                                    await loadReminders()
+                                } catch {
+                                    print("Error snoozing reminder: \(error)")
+                                }
+                            }
+                        },
+                        onDelete: {
+                            Task {
+                                do {
+                                    try await reminderViewModel.deleteReminder(id: reminder.id)
+                                    await loadReminders()
+                                } catch {
+                                    print("Error deleting reminder: \(error)")
+                                }
                             }
                         }
                     )

@@ -4,6 +4,7 @@ struct ReminderRowView: View {
     let reminder: Reminder
     let onComplete: () -> Void
     let onSnooze: () -> Void
+    var onDelete: (() -> Void)? = nil
     
     private static let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -77,15 +78,28 @@ struct ReminderRowView: View {
             }
             
             Spacer()
-            
-            // Snooze button
-            if !reminder.isCompleted && reminder.status != .snoozed {
-                Button(action: onSnooze) {
-                    Image(systemName: "moon.zzz")
-                        .font(.caption)
-                        .foregroundColor(.blue)
+
+            // Action buttons
+            HStack(spacing: 12) {
+                // Snooze button
+                if !reminder.isCompleted && reminder.status != .snoozed {
+                    Button(action: onSnooze) {
+                        Image(systemName: "moon.zzz")
+                            .font(.caption)
+                            .foregroundColor(.blue)
+                    }
+                    .buttonStyle(PlainButtonStyle())
                 }
-                .buttonStyle(PlainButtonStyle())
+
+                // Delete button
+                if let onDelete = onDelete {
+                    Button(action: onDelete) {
+                        Image(systemName: "trash")
+                            .font(.caption)
+                            .foregroundColor(.red.opacity(0.7))
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                }
             }
         }
         .padding(.vertical, 8)

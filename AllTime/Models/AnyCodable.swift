@@ -5,9 +5,62 @@ import Foundation
 
 struct AnyCodable: Codable {
     let value: Any
-    
+
     init(_ value: Any) {
         self.value = value
+    }
+
+    // MARK: - Convenience accessors
+
+    var stringValue: String? {
+        value as? String
+    }
+
+    var doubleValue: Double? {
+        if let double = value as? Double {
+            return double
+        }
+        if let int = value as? Int {
+            return Double(int)
+        }
+        if let string = value as? String {
+            return Double(string)
+        }
+        return nil
+    }
+
+    var intValue: Int? {
+        if let int = value as? Int {
+            return int
+        }
+        if let double = value as? Double {
+            return Int(double)
+        }
+        if let string = value as? String {
+            return Int(string)
+        }
+        return nil
+    }
+
+    var boolValue: Bool? {
+        if let bool = value as? Bool {
+            return bool
+        }
+        if let int = value as? Int {
+            return int != 0
+        }
+        if let string = value as? String {
+            return string.lowercased() == "true" || string == "1"
+        }
+        return nil
+    }
+
+    var arrayValue: [Any]? {
+        value as? [Any]
+    }
+
+    var dictionaryValue: [String: Any]? {
+        value as? [String: Any]
     }
     
     init(from decoder: Decoder) throws {

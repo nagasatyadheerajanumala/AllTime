@@ -50,7 +50,7 @@ class LocationAPI {
     
     // MARK: - Get Lunch Recommendations
     
-    func getLunchRecommendations(for date: Date) async throws -> [LunchPlace] {
+    func getLunchRecommendations(for date: Date) async throws -> LunchRecommendations {
         guard let token = KeychainManager.shared.getAccessToken() else {
             throw LocationError.unauthorized
         }
@@ -92,8 +92,8 @@ class LocationAPI {
         
         let decoder = JSONDecoder()
         do {
-            let recommendations = try decoder.decode([LunchPlace].self, from: data)
-            print("✅ LocationAPI: Found \(recommendations.count) lunch spots")
+            let recommendations = try decoder.decode(LunchRecommendations.self, from: data)
+            print("✅ LocationAPI: Found \(recommendations.nearbySpots.count) lunch spots")
             return recommendations
         } catch {
             print("❌ LocationAPI: Failed to decode lunch recommendations")
@@ -108,7 +108,7 @@ class LocationAPI {
     
     // MARK: - Get Walk Routes
     
-    func getWalkRoutes(for date: Date) async throws -> [WalkRoute] {
+    func getWalkRoutes(for date: Date) async throws -> WalkRoutes {
         guard let token = KeychainManager.shared.getAccessToken() else {
             throw LocationError.unauthorized
         }
@@ -150,8 +150,8 @@ class LocationAPI {
         
         let decoder = JSONDecoder()
         do {
-            let routes = try decoder.decode([WalkRoute].self, from: data)
-            print("✅ LocationAPI: Found \(routes.count) walk routes")
+            let routes = try decoder.decode(WalkRoutes.self, from: data)
+            print("✅ LocationAPI: Found \(routes.routes.count) walk routes")
             return routes
         } catch {
             print("❌ LocationAPI: Failed to decode walk routes")

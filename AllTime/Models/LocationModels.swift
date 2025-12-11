@@ -1,154 +1,72 @@
 import Foundation
 
-// Backward compatibility aliases
-typealias HealthBasedSuggestion = DailyHealthSuggestion
+// MARK: - Complete Daily Summary Response (from /api/v1/daily-summary)
+// Note: This response type uses the DailySummary types defined in DailySummary.swift
+// to avoid duplicate type definitions.
 
-// MARK: - Complete Daily Summary Response (v2 spec, /api/v1/daily-summary)
-struct DailySummaryResponse: Codable {
-    // Arrays are always present (non-null) per backend contract
-    let daySummary: [String]
-    let healthSummary: [String]
-    let focusRecommendations: [String]
-    let alerts: [String]
-    let healthBasedSuggestions: [DailyHealthSuggestion]
-    
-    // Objects can be null
-    let locationRecommendations: LocationRecommendations?
-    let breakRecommendations: DailyBreakRecommendations?
-    
-    enum CodingKeys: String, CodingKey {
-        case daySummary = "day_summary"
-        case healthSummary = "health_summary"
-        case focusRecommendations = "focus_recommendations"
-        case alerts
-        case healthBasedSuggestions = "health_based_suggestions"
-        case locationRecommendations = "location_recommendations"
-        case breakRecommendations = "break_recommendations"
-    }
+// MARK: - API Health Based Suggestion (different from DailySummarySuggestion)
+// Used by specific location API endpoints
+struct APIHealthBasedSuggestion: Codable, Identifiable {
+    var id: String { type + (timestamp ?? "") }
+    let type: String
+    let priority: String
+    let message: String
+    let action: String
+    let timestamp: String?
 }
 
-// MARK: - Health Suggestion (v2 spec)
-struct DailyHealthSuggestion: Codable, Identifiable {
-    var id: String { title + description }
-    
-    let title: String
-    let description: String
-    let category: String   // hydration, sleep, exercise, stress
-    let priority: String   // low, medium, high, urgent
-    let icon: String?
-}
-
-// MARK: - Location Recommendations (v2 spec)
-struct LocationRecommendations: Codable {
-    let lunchSuggestions: [LunchPlace]?
-    let walkRoutes: [WalkRoute]?
-    
-    enum CodingKeys: String, CodingKey {
-        case lunchSuggestions = "lunch_suggestions"
-        case walkRoutes = "walk_routes"
-    }
-}
-
-// Backward compatibility for older screens expecting LunchRecommendation / LunchSpot
-typealias LunchSpot = LunchPlace
-
-struct LunchRecommendation: Codable {
-    let recommendationTime: String?
-    let minutesUntilLunch: Int?
-    let message: String?
-    let nearbySpots: [LunchPlace]?
-    
-    enum CodingKeys: String, CodingKey {
-        case recommendationTime = "recommendation_time"
-        case minutesUntilLunch = "minutes_until_lunch"
-        case message
-        case nearbySpots = "nearby_spots"
-    }
-}
-
-// MARK: - Lunch Place (v2 spec)
-struct LunchPlace: Codable, Identifiable {
+// MARK: - Lunch Spot (used by location API)
+struct LunchSpot: Codable, Identifiable {
     var id: String { name + (address ?? "") }
-    
     let name: String
     let address: String?
+    let distanceKm: Double
+    let walkingMinutes: Int
     let rating: Double?
     let priceLevel: String?
     let cuisine: String?
-    let distanceKm: Double?
-    let walkingMinutes: Int?
-    let isOpenNow: Bool?
-    let quickGrab: Bool?
+    let openNow: Bool?
     let photoUrl: String?
-    
-    // Backend returns camelCase for these fields
+
     enum CodingKeys: String, CodingKey {
-        case name, address, rating, cuisine, quickGrab, photoUrl, priceLevel, isOpenNow, walkingMinutes, distanceKm
+        case name, address, rating, cuisine
+        case distanceKm = "distance_km"
+        case walkingMinutes = "walking_minutes"
+        case priceLevel = "price_level"
+        case openNow = "open_now"
+        case photoUrl = "photo_url"
     }
 }
 
-// MARK: - Walk Route (v2 spec)
-struct WalkRoute: Codable, Identifiable {
-    var id: String { name }
-    
-    let name: String
-    let description: String
-    let distanceKm: Double
-    let estimatedMinutes: Int
-    let difficulty: String
-    let routeType: String?
-    let waypoints: [Waypoint]?
-    let mapUrl: String?
-    let highlights: [String]?
-    let elevationGain: Double?
-    let wheelchairAccessible: Bool?
-    let bestTimeOfDay: String?
-    
-    // Backward-compatibility helper for callers expecting durationMinutes
-    var durationMinutes: Int { estimatedMinutes }
-    
-    // Backend returns camelCase for these fields
-    enum CodingKeys: String, CodingKey {
-        case name, description, difficulty, waypoints, highlights, distanceKm, estimatedMinutes, routeType, mapUrl, elevationGain, wheelchairAccessible, bestTimeOfDay
-    }
-}
-
-// MARK: - Waypoint (v2 spec)
-struct Waypoint: Codable {
-    let latitude: Double
-    let longitude: Double
-    let label: String?
-}
-
-// MARK: - Break Recommendations (v2 spec)
-struct DailyBreakRecommendations: Codable {
-    let strategy: String?
-    let overallBreakStrategy: String?
-    let suggestedBreaks: [DailyBreakWindow]?
+// MARK: - Legacy Support (for old endpoints if needed)
+struct LunchRecommendations: Codable {
+    let recommendationTime: String?
     let minutesUntilLunch: Int?
-    
+    let message: String
+    let nearbySpots: [LunchSpot]
+
     enum CodingKeys: String, CodingKey {
-        case strategy
-        case overallBreakStrategy = "overall_break_strategy"
-        case suggestedBreaks = "suggested_breaks"
-        case minutesUntilLunch = "minutes_until_lunch"
+        case recommendationTime = "recommendationTime"
+        case minutesUntilLunch = "minutesUntilLunch"
+        case message
+        case nearbySpots = "nearbySpots"
     }
 }
 
-// MARK: - Break Window (v2 spec)
-struct DailyBreakWindow: Codable, Identifiable {
-    var id: String { (suggestedTime ?? "") + purpose }
-    
-    let purpose: String            // hydration, meal, rest, movement, prep
-    let suggestedTime: String?     // "10:30 AM"
-    let durationMinutes: Int?
-    let reasoning: String
-    
+struct WalkRoutes: Codable {
+    let suggestedTime: String?
+    let durationMinutes: Int
+    let distanceKm: Double
+    let routeType: String
+    let healthBenefit: String
+    let routes: [WalkRoute]
+
     enum CodingKeys: String, CodingKey {
-        case purpose
-        case suggestedTime = "suggested_time"
-        case durationMinutes = "duration_minutes"
-        case reasoning
+        case suggestedTime = "suggestedTime"
+        case durationMinutes = "durationMinutes"
+        case distanceKm = "distanceKm"
+        case routeType = "routeType"
+        case healthBenefit = "healthBenefit"
+        case routes
     }
 }
-

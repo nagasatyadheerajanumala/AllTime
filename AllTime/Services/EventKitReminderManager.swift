@@ -24,7 +24,12 @@ class EventKitReminderManager: ObservableObject {
     /// Checks current authorization status without requesting permission
     func checkAuthorizationStatus() {
         authorizationStatus = EKEventStore.authorizationStatus(for: .reminder)
-        isAuthorized = authorizationStatus == .authorized
+        // iOS 17+ uses .fullAccess instead of .authorized
+        if #available(iOS 17.0, *) {
+            isAuthorized = authorizationStatus == .fullAccess
+        } else {
+            isAuthorized = authorizationStatus == .authorized
+        }
     }
     
     /// Requests reminder access permission from the user
@@ -32,17 +37,32 @@ class EventKitReminderManager: ObservableObject {
     func requestAuthorization() async -> Bool {
         // Check current status first
         let currentStatus = EKEventStore.authorizationStatus(for: .reminder)
-        if currentStatus == .authorized {
+
+        // iOS 17+ uses .fullAccess, older versions use .authorized
+        let isCurrentlyAuthorized: Bool
+        if #available(iOS 17.0, *) {
+            isCurrentlyAuthorized = currentStatus == .fullAccess
+        } else {
+            isCurrentlyAuthorized = currentStatus == .authorized
+        }
+
+        if isCurrentlyAuthorized {
             await MainActor.run {
                 isAuthorized = true
-                authorizationStatus = .authorized
+                authorizationStatus = currentStatus
             }
             return true
         }
-        
-        // Request access
+
+        // Request access - use requestFullAccessToReminders on iOS 17+
         do {
-            let granted = try await eventStore.requestAccess(to: .reminder)
+            let granted: Bool
+            if #available(iOS 17.0, *) {
+                granted = try await eventStore.requestFullAccessToReminders()
+            } else {
+                granted = try await eventStore.requestAccess(to: .reminder)
+            }
+
             await MainActor.run {
                 isAuthorized = granted
                 authorizationStatus = EKEventStore.authorizationStatus(for: .reminder)

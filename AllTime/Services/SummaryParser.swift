@@ -21,14 +21,14 @@ class SummaryParser {
                 parsed.sleepStatus = determineSleepStatus(hours)
             }
 
-            // Extract steps
-            if let stepsMatch = extractPattern(from: line, pattern: #"(\d{1,3}(?:,\d{3})*) steps"#) {
+            // Extract steps - use capture group 1 to get just the number part
+            if let stepsMatch = extractPattern(from: line, pattern: #"(\d{1,3}(?:,\d{3})*|\d+) steps"#, captureGroup: 1) {
                 let stepsStr = stepsMatch.replacingOccurrences(of: ",", with: "")
                 parsed.steps = Int(stepsStr)
             }
 
-            // Extract steps goal
-            if let stepsGoalMatch = extractPattern(from: line, pattern: #"(\d{1,3}(?:,\d{3})*) step goal"#) {
+            // Extract steps goal - use capture group 1
+            if let stepsGoalMatch = extractPattern(from: line, pattern: #"(\d{1,3}(?:,\d{3})*|\d+) step goal"#, captureGroup: 1) {
                 let goalStr = stepsGoalMatch.replacingOccurrences(of: ",", with: "")
                 parsed.stepsGoal = Int(goalStr)
             }

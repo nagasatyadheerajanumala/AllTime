@@ -1253,3 +1253,26 @@ class HealthInsightsDetailViewModel: ObservableObject {
         }
     }
 }
+
+// MARK: - Instruction Step
+struct InstructionStep: View {
+    let number: String
+    let text: String
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Text(number)
+                .font(.system(size: 12, weight: .bold))
+                .foregroundColor(.white)
+                .frame(width: 22, height: 22)
+                .background(
+                    Circle()
+                        .fill(DesignSystem.Colors.primary)
+                )
+
+            Text(text)
+                .font(.subheadline)
+                .foregroundColor(DesignSystem.Colors.secondaryText)
+        }
+    }
+}

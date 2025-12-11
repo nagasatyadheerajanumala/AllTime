@@ -2,7 +2,7 @@ import Foundation
 
 /// Mock data for testing and previewing the premium daily summary UI
 struct MockDailySummaryData {
-    
+
     /// Generate mock daily summary with rich, realistic data
     static func generateMockSummary() -> DailySummary {
         return DailySummary(
@@ -46,6 +46,83 @@ struct MockDailySummaryData {
                 "💧 Water intake low: You're 0.7 liters below your daily water goal - keep a water bottle nearby during meetings",
                 "⚠️ Steps goal not met: You're 1,755 steps short of your daily goal - try to close the gap today",
                 "⚠️ You have 1 back-to-back meeting(s) today - consider adding buffer time between meetings to avoid rushing"
+            ],
+            healthBasedSuggestions: [
+                DailySummarySuggestion(
+                    title: "Lunch Break",
+                    description: "Take a 45-minute lunch break around 12:30 PM",
+                    category: "meal",
+                    priority: "high",
+                    icon: "🍽️",
+                    suggestedTime: "12:30 PM",
+                    action: "view_food_places"
+                ),
+                DailySummarySuggestion(
+                    title: "Walk Break",
+                    description: "Take a 20-minute walk during your free block at 10:30 AM",
+                    category: "exercise",
+                    priority: "medium",
+                    icon: "🚶",
+                    suggestedTime: "10:30 AM",
+                    action: "view_walk_routes"
+                ),
+                DailySummarySuggestion(
+                    title: "Stay Hydrated",
+                    description: "With 6 meetings today, aim for 1.5L of water",
+                    category: "hydration",
+                    priority: "high",
+                    icon: "💧",
+                    suggestedTime: "Throughout the day",
+                    action: nil
+                ),
+                DailySummarySuggestion(
+                    title: "Rest Break",
+                    description: "Take a 10-minute mental break between back-to-back meetings",
+                    category: "rest",
+                    priority: "medium",
+                    icon: "😌",
+                    suggestedTime: "11:30 AM",
+                    action: nil
+                )
+            ],
+            locationRecommendations: LocationRecommendations(
+                userCity: "San Francisco",
+                userCountry: "US",
+                latitude: 37.7749,
+                longitude: -122.4194,
+                lunchRecommendation: LunchRecommendation(
+                    recommendationTime: "12:30 PM",
+                    minutesUntilLunch: 45,
+                    message: "Time to start thinking about lunch!",
+                    nearbySpots: [
+                        NearbySpot(name: "Sweetgreen", cuisine: "Healthy", distance: "0.2 miles", rating: 4.5),
+                        NearbySpot(name: "Chipotle", cuisine: "Mexican", distance: "0.3 miles", rating: 4.2),
+                        NearbySpot(name: "Panda Express", cuisine: "Chinese", distance: "0.4 miles", rating: 4.0)
+                    ]
+                ),
+                walkRoutes: [
+                    WalkRoute(name: "Embarcadero Walk", distance: "1.2 miles", duration: "20 minutes", type: "scenic"),
+                    WalkRoute(name: "Financial District Loop", distance: "0.8 miles", duration: "15 minutes", type: "urban")
+                ],
+                lunchMessage: "Perfect time for a healthy lunch nearby!",
+                walkMessage: "Great weather for a walk today"
+            ),
+            breakRecommendations: BreakRecommendations(
+                totalRecommendedBreakMinutes: 60,
+                suggestedBreaks: [
+                    SuggestedBreak(suggestedTime: "10:00", durationMinutes: 5, purpose: "hydration", reasoning: "Keep water nearby during meetings"),
+                    SuggestedBreak(suggestedTime: "11:30", durationMinutes: 10, purpose: "rest", reasoning: "Mental break between back-to-back meetings"),
+                    SuggestedBreak(suggestedTime: "12:30", durationMinutes: 45, purpose: "meal", reasoning: "No clear lunch break detected - block time for a proper meal"),
+                    SuggestedBreak(suggestedTime: "15:00", durationMinutes: 20, purpose: "movement", reasoning: "Yesterday's step count was low - take a walk")
+                ],
+                hydrationReminders: 4.0,
+                needsLunchBreak: true,
+                hasBackToBackOverload: true,
+                overallBreakStrategy: "MODERATE LOAD: Busy day ahead - take at least one 5-minute break every hour"
+            ),
+            patternInsights: [
+                "📊 Pattern discovered: Days with >5 meetings correlate with 3,000 fewer steps",
+                "💤 After long meeting days, your sleep averages 6.5 hours (0.5 below normal)"
             ]
         )
     }
@@ -60,10 +137,14 @@ struct MockDailySummaryData {
                 "Health tracking is available. Connect HealthKit to see personalized insights."
             ],
             focusRecommendations: [],
-            alerts: []
+            alerts: [],
+            healthBasedSuggestions: nil,
+            locationRecommendations: nil,
+            breakRecommendations: nil,
+            patternInsights: nil
         )
     }
-    
+
     /// Generate light day summary (few meetings, good health)
     static func generateLightDaySummary() -> DailySummary {
         return DailySummary(
@@ -88,10 +169,34 @@ struct MockDailySummaryData {
             ],
             alerts: [
                 "✅ Great recovery: You're well-rested and hydrated - perfect conditions for productivity"
-            ]
+            ],
+            healthBasedSuggestions: [
+                DailySummarySuggestion(
+                    title: "Deep Work Session",
+                    description: "Perfect day for focused work - use your 6-hour block wisely",
+                    category: "rest",
+                    priority: "medium",
+                    icon: "🎯",
+                    suggestedTime: "11:00 AM - 5:00 PM",
+                    action: nil
+                )
+            ],
+            locationRecommendations: nil,
+            breakRecommendations: BreakRecommendations(
+                totalRecommendedBreakMinutes: 30,
+                suggestedBreaks: [
+                    SuggestedBreak(suggestedTime: "11:00", durationMinutes: 5, purpose: "hydration", reasoning: "Maintain your excellent hydration"),
+                    SuggestedBreak(suggestedTime: "13:00", durationMinutes: 15, purpose: "movement", reasoning: "Regular break for circulation")
+                ],
+                hydrationReminders: 2.0,
+                needsLunchBreak: false,
+                hasBackToBackOverload: false,
+                overallBreakStrategy: "LIGHT DAY: Perfect day for deep work - maintain regular 15-minute breaks every 2 hours"
+            ),
+            patternInsights: nil
         )
     }
-    
+
     /// Generate heavy day summary (many meetings, some health concerns)
     static func generateHeavyDaySummary() -> DailySummary {
         return DailySummary(
@@ -134,6 +239,53 @@ struct MockDailySummaryData {
                 "⚠️ 4 back-to-back meetings detected - this violates healthy meeting practices",
                 "⚠️ Steps and activity critically low - try to walk between meetings",
                 "😰 Elevated stress indicators: High heart rate + low recovery - monitor your stress levels today"
+            ],
+            healthBasedSuggestions: [
+                DailySummarySuggestion(
+                    title: "Urgent: Hydration",
+                    description: "Set hourly water reminders - critical with your meeting load",
+                    category: "hydration",
+                    priority: "high",
+                    icon: "💧",
+                    suggestedTime: "Every hour",
+                    action: nil
+                ),
+                DailySummarySuggestion(
+                    title: "Forced Lunch Break",
+                    description: "Block 60 minutes for a proper meal - non-negotiable",
+                    category: "meal",
+                    priority: "high",
+                    icon: "🍽️",
+                    suggestedTime: "12:30 PM",
+                    action: "view_food_places"
+                ),
+                DailySummarySuggestion(
+                    title: "Quick Walk",
+                    description: "Even 5 minutes between meetings helps",
+                    category: "exercise",
+                    priority: "medium",
+                    icon: "🚶",
+                    suggestedTime: "Between meetings",
+                    action: nil
+                )
+            ],
+            locationRecommendations: nil,
+            breakRecommendations: BreakRecommendations(
+                totalRecommendedBreakMinutes: 90,
+                suggestedBreaks: [
+                    SuggestedBreak(suggestedTime: "10:00", durationMinutes: 5, purpose: "hydration", reasoning: "URGENT: Keep water accessible"),
+                    SuggestedBreak(suggestedTime: "12:30", durationMinutes: 60, purpose: "meal", reasoning: "REQUIRED: Proper nutrition needed"),
+                    SuggestedBreak(suggestedTime: "14:00", durationMinutes: 15, purpose: "rest", reasoning: "Mental reset after continuous meetings"),
+                    SuggestedBreak(suggestedTime: "16:00", durationMinutes: 10, purpose: "movement", reasoning: "Combat prolonged sitting")
+                ],
+                hydrationReminders: 6.0,
+                needsLunchBreak: true,
+                hasBackToBackOverload: true,
+                overallBreakStrategy: "CRITICAL: VERY heavy meeting load (6 hours) - you MUST take breaks or risk burnout"
+            ),
+            patternInsights: [
+                "🚨 Warning: Your last 3 heavy meeting days resulted in 20% lower productivity the next day",
+                "💤 Sleep quality typically drops after days like this - consider an earlier bedtime"
             ]
         )
     }

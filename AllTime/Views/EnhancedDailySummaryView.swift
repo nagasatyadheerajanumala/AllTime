@@ -1,5 +1,73 @@
 import SwiftUI
 
+// MARK: - Legacy View Aliases (for backward compatibility)
+typealias LoadingView = EnhancedLoadingView
+typealias ErrorView = EnhancedErrorView
+typealias EmptyStateView = EnhancedEmptyStateView
+
+struct EnhancedLoadingView: View {
+    var body: some View {
+        VStack(spacing: 24) {
+            ProgressView()
+                .progressViewStyle(CircularProgressViewStyle(tint: Color(hex: "3B82F6")))
+                .scaleEffect(1.2)
+            Text("Preparing your summary")
+                .font(.system(size: 15, weight: .light))
+                .tracking(1)
+                .foregroundColor(.white.opacity(0.4))
+        }
+    }
+}
+
+struct EnhancedErrorView: View {
+    let message: String
+    let onRetry: () -> Void
+
+    var body: some View {
+        VStack(spacing: 24) {
+            Image(systemName: "exclamationmark.triangle")
+                .font(.system(size: 40, weight: .thin))
+                .foregroundColor(Color(hex: "F59E0B"))
+            VStack(spacing: 8) {
+                Text("Unable to load")
+                    .font(.system(size: 18, weight: .light))
+                    .foregroundColor(.white)
+                Text(message)
+                    .font(.system(size: 14, weight: .regular))
+                    .foregroundColor(.white.opacity(0.5))
+                    .multilineTextAlignment(.center)
+            }
+            Button(action: onRetry) {
+                Text("Try Again")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(Color(hex: "3B82F6"))
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 12)
+                    .background(Capsule().stroke(Color(hex: "3B82F6").opacity(0.5), lineWidth: 1))
+            }
+        }
+        .padding(.horizontal, 40)
+    }
+}
+
+struct EnhancedEmptyStateView: View {
+    var body: some View {
+        VStack(spacing: 24) {
+            Image(systemName: "doc.text")
+                .font(.system(size: 40, weight: .thin))
+                .foregroundColor(.white.opacity(0.3))
+            VStack(spacing: 8) {
+                Text("No summary yet")
+                    .font(.system(size: 18, weight: .light))
+                    .foregroundColor(.white)
+                Text("Your daily summary will appear here")
+                    .font(.system(size: 14, weight: .regular))
+                    .foregroundColor(.white.opacity(0.4))
+            }
+        }
+    }
+}
+
 /// Enhanced Daily Summary View using v1 API
 struct EnhancedDailySummaryView: View {
     @StateObject private var viewModel = EnhancedDailySummaryViewModel()

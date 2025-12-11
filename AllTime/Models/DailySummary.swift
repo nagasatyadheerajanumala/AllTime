@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 
 // MARK: - Daily AI Summary Response (New API)
 struct DailyAISummaryResponse: Codable, Identifiable {
@@ -59,7 +60,26 @@ struct FreeTimeSuggestion: Codable, Identifiable {
     }
 }
 
-// NOTE: HealthBasedSuggestion is now defined in LocationModels.swift for the new API
+// MARK: - Health-Based Suggestion (NEW)
+struct HealthBasedSuggestion: Codable, Identifiable {
+    let title: String
+    let description: String
+    let category: String // exercise, sleep, nutrition, stress, time_management
+    let priority: String // high, medium, low
+    let relatedEvent: String? // Related calendar event
+    let suggestedTime: String? // Suggested time for the action
+    
+    enum CodingKeys: String, CodingKey {
+        case title
+        case description
+        case category
+        case priority
+        case relatedEvent = "related_event"
+        case suggestedTime = "suggested_time"
+    }
+    
+    var id: String { title + (relatedEvent ?? "") }
+}
 
 // MARK: - Health Impact Insights (NEW)
 struct HealthImpactInsights: Codable {
@@ -91,18 +111,170 @@ struct HealthTrends: Codable {
     }
 }
 
-// MARK: - Enhanced Daily Summary (New Format)
+// MARK: - Enhanced Daily Summary (New Format - matches /api/v1/daily-summary)
 struct DailySummary: Codable {
     let daySummary: [String]
     let healthSummary: [String]
     let focusRecommendations: [String]
     let alerts: [String]
+    let healthBasedSuggestions: [DailySummarySuggestion]?
+    let locationRecommendations: LocationRecommendations?
+    let breakRecommendations: BreakRecommendations?
+    let patternInsights: [String]?
 
     enum CodingKeys: String, CodingKey {
         case daySummary = "day_summary"
         case healthSummary = "health_summary"
         case focusRecommendations = "focus_recommendations"
         case alerts
+        case healthBasedSuggestions = "health_based_suggestions"
+        case locationRecommendations = "location_recommendations"
+        case breakRecommendations = "break_recommendations"
+        case patternInsights = "pattern_insights"
+    }
+}
+
+// MARK: - Daily Summary Suggestion (from API /api/v1/daily-summary)
+struct DailySummarySuggestion: Codable, Identifiable {
+    let title: String
+    let description: String
+    let category: String          // "meal", "exercise", "hydration", "rest"
+    let priority: String          // "high", "medium", "low"
+    let icon: String              // Emoji icon
+    let suggestedTime: String?    // e.g., "12:30 PM" or "Throughout the day"
+    let action: String?           // "view_food_places", "view_walk_routes", etc.
+
+    var id: String { title + (suggestedTime ?? "") }
+
+    enum CodingKeys: String, CodingKey {
+        case title, description, category, priority, icon, action
+        case suggestedTime = "suggested_time"
+    }
+
+    // Computed property for category color
+    var categoryColor: Color {
+        switch category {
+        case "meal": return .orange
+        case "exercise": return .green
+        case "hydration": return .blue
+        case "rest": return .purple
+        default: return .gray
+        }
+    }
+
+    // Priority color
+    var priorityColor: Color {
+        switch priority {
+        case "high": return .red
+        case "medium": return .orange
+        case "low": return .green
+        default: return .gray
+        }
+    }
+}
+
+// MARK: - Location Recommendations
+struct LocationRecommendations: Codable {
+    let userCity: String?
+    let userCountry: String?
+    let latitude: Double?
+    let longitude: Double?
+    let lunchRecommendation: LunchRecommendation?
+    let walkRoutes: [WalkRoute]?
+    let lunchMessage: String?
+    let walkMessage: String?
+
+    enum CodingKeys: String, CodingKey {
+        case userCity = "user_city"
+        case userCountry = "user_country"
+        case latitude, longitude
+        case lunchRecommendation = "lunch_recommendation"
+        case walkRoutes = "walk_routes"
+        case lunchMessage = "lunch_message"
+        case walkMessage = "walk_message"
+    }
+}
+
+struct LunchRecommendation: Codable {
+    let recommendationTime: String?
+    let minutesUntilLunch: Int?
+    let message: String?
+    let nearbySpots: [NearbySpot]?
+
+    enum CodingKeys: String, CodingKey {
+        case recommendationTime = "recommendation_time"
+        case minutesUntilLunch = "minutes_until_lunch"
+        case message
+        case nearbySpots = "nearby_spots"
+    }
+}
+
+struct NearbySpot: Codable, Identifiable {
+    let name: String
+    let cuisine: String?
+    let distance: String?
+    let rating: Double?
+
+    var id: String { name }
+
+    enum CodingKeys: String, CodingKey {
+        case name, cuisine, distance, rating
+    }
+}
+
+struct WalkRoute: Codable, Identifiable {
+    let name: String
+    let distance: String?
+    let duration: String?
+    let type: String?  // "scenic", "urban", "nature"
+
+    var id: String { name }
+
+    enum CodingKeys: String, CodingKey {
+        case name, distance, duration, type
+    }
+}
+
+// MARK: - Break Recommendations (from API)
+struct BreakRecommendations: Codable {
+    let totalRecommendedBreakMinutes: Int?
+    let suggestedBreaks: [SuggestedBreak]?
+    let hydrationReminders: Double?
+    let needsLunchBreak: Bool?
+    let hasBackToBackOverload: Bool?
+    let overallBreakStrategy: String?
+}
+
+struct SuggestedBreak: Codable, Identifiable {
+    let suggestedTime: String?      // "11:00" (24-hour format)
+    let durationMinutes: Int?
+    let purpose: String?            // "hydration", "meal", "rest", "movement"
+    let reasoning: String?
+
+    var id: String { (suggestedTime ?? "") + (purpose ?? "") }
+
+    // Computed property for display time
+    var displayTime: String {
+        guard let time = suggestedTime else { return "" }
+        // Convert 24h to 12h format
+        let components = time.split(separator: ":")
+        guard let hour = Int(components[0]) else { return time }
+        let period = hour < 12 ? "AM" : "PM"
+        let displayHour = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour)
+        let minutes = components.count > 1 ? String(components[1]) : "00"
+        return "\(displayHour):\(minutes) \(period)"
+    }
+
+    // Computed property for purpose icon
+    var purposeIcon: String {
+        switch purpose {
+        case "hydration": return "💧"
+        case "meal": return "🍽️"
+        case "rest": return "😌"
+        case "movement": return "🚶"
+        case "prep": return "📝"
+        default: return "⏸️"
+        }
     }
 }
 

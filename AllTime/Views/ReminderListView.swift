@@ -55,13 +55,30 @@ struct ReminderListView: View {
                                         },
                                         onComplete: { reminder in
                                             Task {
-                                                try? await viewModel.completeReminder(id: reminder.id)
+                                                do {
+                                                    _ = try await viewModel.completeReminder(id: reminder.id)
+                                                } catch {
+                                                    print("Error completing reminder: \(error)")
+                                                }
                                             }
                                         },
                                         onSnooze: { reminder in
                                             Task {
-                                                let snoozeDate = Date().addingTimeInterval(30 * 60) // 30 minutes
-                                                try? await viewModel.snoozeReminder(id: reminder.id, until: snoozeDate)
+                                                do {
+                                                    let snoozeDate = Date().addingTimeInterval(30 * 60) // 30 minutes
+                                                    _ = try await viewModel.snoozeReminder(id: reminder.id, until: snoozeDate)
+                                                } catch {
+                                                    print("Error snoozing reminder: \(error)")
+                                                }
+                                            }
+                                        },
+                                        onDelete: { reminder in
+                                            Task {
+                                                do {
+                                                    try await viewModel.deleteReminder(id: reminder.id)
+                                                } catch {
+                                                    print("Error deleting reminder: \(error)")
+                                                }
                                             }
                                         }
                                     )
@@ -192,19 +209,21 @@ struct ReminderGroupSection: View {
     let onReminderTap: (Reminder) -> Void
     let onComplete: (Reminder) -> Void
     let onSnooze: (Reminder) -> Void
-    
+    var onDelete: ((Reminder) -> Void)? = nil
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text(title)
                 .font(.headline)
                 .foregroundColor(.primary)
                 .padding(.horizontal)
-            
+
             ForEach(reminders) { reminder in
                 ReminderRowView(
                     reminder: reminder,
                     onComplete: { onComplete(reminder) },
-                    onSnooze: { onSnooze(reminder) }
+                    onSnooze: { onSnooze(reminder) },
+                    onDelete: onDelete != nil ? { onDelete?(reminder) } : nil
                 )
                 .padding(.horizontal)
                 .onTapGesture {

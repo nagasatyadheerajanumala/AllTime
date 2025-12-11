@@ -766,56 +766,16 @@ class APIService: ObservableObject {
         let (data, response) = try await session.data(for: request)
 
         let statusCode = (response as? HTTPURLResponse)?.statusCode ?? -1
-        let responseURL = (response as? HTTPURLResponse)?.url?.absoluteString ?? "unknown"
         print("🔗 APIService: Response status: \(statusCode)")
-        print("🔗 APIService: Response URL: \(responseURL)")
-        
-        // Check if URLSession followed a redirect to Google
-        if responseURL.contains("accounts.google.com") {
-            print("❌ APIService: Backend redirected to Google instead of returning JSON")
-            print("❌ APIService: This means the backend is configured for browser-based OAuth, not mobile app OAuth")
-            throw APIError(
-                message: "Backend misconfiguration: The backend is redirecting to Google instead of returning a JSON response with the authorization URL. The backend should return {\"authorization_url\": \"...\"} instead of performing a redirect.",
-                code: String(statusCode),
-                details: "Backend returned redirect to: \(responseURL)"
-            )
-        }
-        
-        // Log response data for debugging
-        if let responseString = String(data: data, encoding: .utf8) {
-            print("🔗 APIService: Response data (first 500 chars): \(String(responseString.prefix(500)))")
-            
-            // Check if response is HTML instead of JSON
-            if responseString.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("<") {
-                print("❌ APIService: Backend returned HTML instead of JSON - likely an error page or redirect")
-                print("❌ APIService: Full response: \(responseString)")
-                throw APIError(
-                    message: "Backend returned invalid response (HTML instead of JSON). The backend should return {\"authorization_url\": \"...\"} but returned an HTML page instead. Please check backend logs.",
-                    code: String(statusCode),
-                    details: "Response started with: \(String(responseString.prefix(100)))"
-                )
-            }
-        }
 
         try await validateResponse(response, data: data)
 
         // Decode using OAuthStartResponse model
         let decoder = JSONDecoder()
-        do {
-            let oauthResponse = try decoder.decode(OAuthStartResponse.self, from: data)
-            print("✅ APIService: OAuth URL received: \(oauthResponse.authorizationUrl)")
-            return oauthResponse.authorizationUrl
-        } catch {
-            print("❌ APIService: Failed to decode OAuth response: \(error)")
-            if let responseString = String(data: data, encoding: .utf8) {
-                print("❌ APIService: Response was: \(responseString)")
-            }
-            throw APIError(
-                message: "Failed to parse OAuth URL from backend. Expected JSON format: {\"authorization_url\": \"...\"}",
-                code: String(statusCode),
-                details: "Decode error: \(error.localizedDescription)"
-            )
-        }
+        let oauthResponse = try decoder.decode(OAuthStartResponse.self, from: data)
+
+        print("✅ APIService: OAuth URL received: \(oauthResponse.authorizationUrl)")
+        return oauthResponse.authorizationUrl
     }
     
     func completeGoogleOAuth(code: String) async throws {
@@ -843,56 +803,16 @@ class APIService: ObservableObject {
         let (data, response) = try await session.data(for: request)
 
         let statusCode = (response as? HTTPURLResponse)?.statusCode ?? -1
-        let responseURL = (response as? HTTPURLResponse)?.url?.absoluteString ?? "unknown"
         print("🔗 APIService: Response status: \(statusCode)")
-        print("🔗 APIService: Response URL: \(responseURL)")
-        
-        // Check if URLSession followed a redirect to Microsoft
-        if responseURL.contains("login.microsoftonline.com") || responseURL.contains("microsoft.com") {
-            print("❌ APIService: Backend redirected to Microsoft instead of returning JSON")
-            print("❌ APIService: This means the backend is configured for browser-based OAuth, not mobile app OAuth")
-            throw APIError(
-                message: "Backend misconfiguration: The backend is redirecting to Microsoft instead of returning a JSON response with the authorization URL. The backend should return {\"authorization_url\": \"...\"} instead of performing a redirect.",
-                code: String(statusCode),
-                details: "Backend returned redirect to: \(responseURL)"
-            )
-        }
-        
-        // Log response data for debugging
-        if let responseString = String(data: data, encoding: .utf8) {
-            print("🔗 APIService: Response data (first 500 chars): \(String(responseString.prefix(500)))")
-            
-            // Check if response is HTML instead of JSON
-            if responseString.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("<") {
-                print("❌ APIService: Backend returned HTML instead of JSON - likely an error page or redirect")
-                print("❌ APIService: Full response: \(responseString)")
-                throw APIError(
-                    message: "Backend returned invalid response (HTML instead of JSON). The backend should return {\"authorization_url\": \"...\"} but returned an HTML page instead. Please check backend logs.",
-                    code: String(statusCode),
-                    details: "Response started with: \(String(responseString.prefix(100)))"
-                )
-            }
-        }
 
         try await validateResponse(response, data: data)
 
         // Decode using OAuthStartResponse model
         let decoder = JSONDecoder()
-        do {
-            let oauthResponse = try decoder.decode(OAuthStartResponse.self, from: data)
-            print("✅ APIService: OAuth URL received: \(oauthResponse.authorizationUrl)")
-            return oauthResponse.authorizationUrl
-        } catch {
-            print("❌ APIService: Failed to decode OAuth response: \(error)")
-            if let responseString = String(data: data, encoding: .utf8) {
-                print("❌ APIService: Response was: \(responseString)")
-            }
-            throw APIError(
-                message: "Failed to parse OAuth URL from backend. Expected JSON format: {\"authorization_url\": \"...\"}",
-                code: String(statusCode),
-                details: "Decode error: \(error.localizedDescription)"
-            )
-        }
+        let oauthResponse = try decoder.decode(OAuthStartResponse.self, from: data)
+
+        print("✅ APIService: OAuth URL received: \(oauthResponse.authorizationUrl)")
+        return oauthResponse.authorizationUrl
     }
     
     func completeMicrosoftOAuth(code: String) async throws {
@@ -2566,12 +2486,13 @@ class APIService: ObservableObject {
             throw error
         }
     }
+    
+    // MARK: - Daily Summary API (Primary Endpoint)
 
-    // MARK: - Enhanced Daily Summary (New Format with Health Tracking)
-
-    /// Fetch enhanced daily summary with water tracking, break recommendations, and health alerts
-    /// - Parameter date: Optional date. If nil, backend defaults to today.
-    /// - Returns: DailySummary with string arrays
+    /// Get enhanced daily summary from /api/v1/daily-summary endpoint
+    /// This is the primary endpoint for the DailySummaryView
+    /// - Parameter date: Optional date. If nil, defaults to today.
+    /// - Returns: DailySummary with all fields
     func getEnhancedDailySummary(date: Date? = nil) async throws -> DailySummary {
         guard let token = accessToken else {
             throw NSError(
@@ -2603,117 +2524,134 @@ class APIService: ObservableObject {
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.timeoutInterval = Constants.API.timeout
 
-        print("💧 APIService: ===== FETCHING ENHANCED DAILY SUMMARY =====")
-        print("💧 APIService: URL: \(url)")
+        print("📊 APIService: ===== FETCHING DAILY SUMMARY =====")
+        print("📊 APIService: URL: \(url)")
         if let date = date {
             let formatter = DateFormatter()
             formatter.dateFormat = "yyyy-MM-dd"
-            print("💧 APIService: Date: \(formatter.string(from: date))")
+            print("📊 APIService: Date: \(formatter.string(from: date))")
         } else {
-            print("💧 APIService: Date: Today (default)")
+            print("📊 APIService: Date: Today (default)")
         }
 
-        let (data, response) = try await session.data(for: request)
+        do {
+            let (data, response) = try await session.data(for: request)
 
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw NSError(
-                domain: "AllTime",
-                code: 500,
-                userInfo: [NSLocalizedDescriptionKey: "Invalid response from server"]
-            )
-        }
-
-        let responseString = String(data: data, encoding: .utf8) ?? "Unable to decode response"
-        print("💧 APIService: Response status: \(httpResponse.statusCode)")
-
-        switch httpResponse.statusCode {
-        case 200:
-            let decoder = JSONDecoder()
-
-            do {
-                let summary = try decoder.decode(DailySummary.self, from: data)
-                print("✅ APIService: Successfully decoded enhanced daily summary")
-                print("✅ APIService: Day summary items: \(summary.daySummary.count)")
-                print("✅ APIService: Health summary items: \(summary.healthSummary.count)")
-                print("✅ APIService: Focus recommendations: \(summary.focusRecommendations.count)")
-                print("✅ APIService: Alerts: \(summary.alerts.count)")
-                return summary
-            } catch let decodingError as DecodingError {
-                print("❌ APIService: ===== DECODING ERROR =====")
-                print("❌ APIService: Failed to decode DailySummary: \(decodingError)")
-                print("❌ APIService: Response was: \(responseString)")
+            guard let httpResponse = response as? HTTPURLResponse else {
                 throw NSError(
                     domain: "AllTime",
-                    code: 1002,
-                    userInfo: [
-                        NSLocalizedDescriptionKey: "Failed to decode daily summary response: \(decodingError.localizedDescription)",
-                        "rawResponse": responseString,
-                        "underlyingError": decodingError
-                    ]
+                    code: 500,
+                    userInfo: [NSLocalizedDescriptionKey: "Invalid response from server"]
                 )
             }
 
-        case 401:
-            print("❌ APIService: Unauthorized - invalid or expired token")
-            throw NSError(
-                domain: "AllTime",
-                code: 401,
-                userInfo: [NSLocalizedDescriptionKey: "Authentication failed. Please sign in again."]
-            )
+            let responseString = String(data: data, encoding: .utf8) ?? "Unable to decode response"
+            print("📊 APIService: Response status: \(httpResponse.statusCode)")
 
-        case 500:
-            // Try to parse error message
-            print("❌ APIService: ===== SERVER ERROR (500) =====")
-            print("❌ APIService: Full response body: \(responseString)")
+            switch httpResponse.statusCode {
+            case 200:
+                let decoder = JSONDecoder()
 
-            if let errorData = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                print("❌ APIService: Parsed error data: \(errorData)")
-                if let message = errorData["message"] as? String {
-                    print("❌ APIService: Error message: \(message)")
-                    if let details = errorData["details"] as? String {
-                        print("❌ APIService: Error details: \(details)")
+                do {
+                    let summary = try decoder.decode(DailySummary.self, from: data)
+                    print("✅ APIService: Successfully decoded daily summary")
+                    print("✅ APIService: Day summary items: \(summary.daySummary.count)")
+                    print("✅ APIService: Health summary items: \(summary.healthSummary.count)")
+                    print("✅ APIService: Focus recommendations: \(summary.focusRecommendations.count)")
+                    print("✅ APIService: Alerts: \(summary.alerts.count)")
+                    if let suggestions = summary.healthBasedSuggestions {
+                        print("✅ APIService: Health suggestions: \(suggestions.count)")
                     }
-                    if let error = errorData["error"] as? String {
-                        print("❌ APIService: Error type: \(error)")
+                    if let breaks = summary.breakRecommendations {
+                        print("✅ APIService: Has break recommendations: true")
+                        if let suggestedBreaks = breaks.suggestedBreaks {
+                            print("✅ APIService: Suggested breaks: \(suggestedBreaks.count)")
+                        }
                     }
+                    return summary
+                } catch let decodingError as DecodingError {
+                    print("❌ APIService: ===== DECODING ERROR =====")
+                    print("❌ APIService: Failed to decode DailySummary: \(decodingError)")
+                    print("❌ APIService: Response was: \(responseString.prefix(500))...")
+
+                    // Log detailed decoding error
+                    switch decodingError {
+                    case .keyNotFound(let key, let context):
+                        print("❌ APIService: Missing key '\(key.stringValue)' at path: \(context.codingPath.map { $0.stringValue }.joined(separator: "."))")
+                    case .typeMismatch(let type, let context):
+                        print("❌ APIService: Type mismatch for type '\(type)' at path: \(context.codingPath.map { $0.stringValue }.joined(separator: "."))")
+                    case .valueNotFound(let type, let context):
+                        print("❌ APIService: Value not found for type '\(type)' at path: \(context.codingPath.map { $0.stringValue }.joined(separator: "."))")
+                    case .dataCorrupted(let context):
+                        print("❌ APIService: Data corrupted at path: \(context.codingPath.map { $0.stringValue }.joined(separator: "."))")
+                    @unknown default:
+                        print("❌ APIService: Unknown decoding error")
+                    }
+
+                    throw NSError(
+                        domain: "AllTime",
+                        code: 1002,
+                        userInfo: [
+                            NSLocalizedDescriptionKey: "Failed to decode daily summary: \(decodingError.localizedDescription)",
+                            "rawResponse": responseString
+                        ]
+                    )
+                }
+
+            case 401:
+                print("❌ APIService: Unauthorized - invalid or expired token")
+                throw NSError(
+                    domain: "AllTime",
+                    code: 401,
+                    userInfo: [NSLocalizedDescriptionKey: "Authentication failed. Please sign in again."]
+                )
+
+            case 500:
+                // Try to parse error message
+                if let errorData = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let message = errorData["message"] as? String {
+                    print("❌ APIService: Server error: \(message)")
                     throw NSError(
                         domain: "AllTime",
                         code: 500,
                         userInfo: [NSLocalizedDescriptionKey: "Server error: \(message)"]
                     )
                 }
-            }
-            print("❌ APIService: Server error (500) - failed to generate summary")
-            print("❌ APIService: This may indicate the backend endpoint is not implemented or has an error")
-            throw NSError(
-                domain: "AllTime",
-                code: 500,
-                userInfo: [NSLocalizedDescriptionKey: "Failed to generate summary. Check backend logs for details."]
-            )
+                print("❌ APIService: Server error (500)")
+                throw NSError(
+                    domain: "AllTime",
+                    code: 500,
+                    userInfo: [NSLocalizedDescriptionKey: "Failed to generate summary. Please try again."]
+                )
 
-        default:
-            print("❌ APIService: Unexpected status code: \(httpResponse.statusCode)")
-            throw NSError(
-                domain: "AllTime",
-                code: httpResponse.statusCode,
-                userInfo: [NSLocalizedDescriptionKey: "Unknown error (code: \(httpResponse.statusCode))"]
-            )
+            default:
+                print("❌ APIService: Unexpected status code: \(httpResponse.statusCode)")
+                throw NSError(
+                    domain: "AllTime",
+                    code: httpResponse.statusCode,
+                    userInfo: [NSLocalizedDescriptionKey: "Unknown error (code: \(httpResponse.statusCode))"]
+                )
+            }
+        } catch {
+            print("❌ APIService: Network error: \(error.localizedDescription)")
+            throw error
         }
     }
 
-    // MARK: - AI-Powered Daily Summary (Generate Endpoint)
+    // MARK: - Food Recommendations API
 
-    /// Generate AI-powered daily summary using the new /api/daily-summary/generate endpoint
-    /// This endpoint uses OpenAI to create detailed, narrative-style summaries
+    /// Get food recommendations near user's location
     /// - Parameters:
-    ///   - date: Target date for the summary (defaults to today)
-    ///   - timezone: User's timezone (defaults to current timezone)
-    /// - Returns: DailySummary with AI-generated narrative paragraphs
-    /// - Note: This can take 3-10 seconds due to OpenAI processing. Implement caching on client.
-    func generateAIDailySummary(date: Date = Date(), timezone: String? = nil) async throws -> DailySummary {
+    ///   - radiusKm: Search radius in kilometers (default 1.5)
+    ///   - category: "all", "healthy", or "regular"
+    ///   - maxResults: Maximum results per category
+    ///   - latitude: User's latitude (optional, uses default if not provided)
+    ///   - longitude: User's longitude (optional, uses default if not provided)
+    /// - Returns: FoodRecommendationsResponse
+    func getFoodRecommendations(radiusMiles: Double = 1.5, category: String = "all", maxResults: Int = 15, latitude: Double? = nil, longitude: Double? = nil) async throws -> FoodRecommendationsResponse {
         guard let token = accessToken else {
             throw NSError(
                 domain: "AllTime",
@@ -2722,21 +2660,24 @@ class APIService: ObservableObject {
             )
         }
 
-        // Format date as YYYY-MM-DD
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy-MM-dd"
-        dateFormatter.timeZone = TimeZone.current
-        let dateString = dateFormatter.string(from: date)
+        var urlComponents = URLComponents(string: "\(baseURL)/api/v1/recommendations/food")!
 
-        // Use provided timezone or current timezone
-        let userTimezone = timezone ?? TimeZone.current.identifier
-
-        // Build URL with query parameters
-        var urlComponents = URLComponents(string: "\(baseURL)/api/daily-summary/generate")!
-        urlComponents.queryItems = [
-            URLQueryItem(name: "date", value: dateString),
-            URLQueryItem(name: "timezone", value: userTimezone)
+        // Build query items - latitude, longitude, and radius_miles are REQUIRED for proper results
+        var queryItems = [
+            URLQueryItem(name: "category", value: category),
+            URLQueryItem(name: "max_results", value: String(maxResults))
         ]
+
+        // Add radius_miles (required by backend)
+        queryItems.append(URLQueryItem(name: "radius_miles", value: String(radiusMiles)))
+
+        // Add location - REQUIRED for food recommendations to work properly
+        if let lat = latitude, let lon = longitude {
+            queryItems.append(URLQueryItem(name: "latitude", value: String(lat)))
+            queryItems.append(URLQueryItem(name: "longitude", value: String(lon)))
+        }
+
+        urlComponents.queryItems = queryItems
 
         guard let url = urlComponents.url else {
             throw NSError(
@@ -2749,158 +2690,181 @@ class APIService: ObservableObject {
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.timeoutInterval = 15.0 // Longer timeout for AI generation (3-10 seconds expected)
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.timeoutInterval = Constants.API.timeout
 
-        print("🤖 APIService: ===== GENERATING AI DAILY SUMMARY =====")
-        print("🤖 APIService: URL: \(url)")
-        print("🤖 APIService: Date: \(dateString)")
-        print("🤖 APIService: Timezone: \(userTimezone)")
-        print("🤖 APIService: Note: This may take 3-10 seconds (OpenAI processing)")
-
-        let startTime = Date()
-        let (data, response) = try await session.data(for: request)
-        let duration = Date().timeIntervalSince(startTime)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw NSError(
-                domain: "AllTime",
-                code: 500,
-                userInfo: [NSLocalizedDescriptionKey: "Invalid response from server"]
-            )
+        print("🍽️ APIService: ===== FETCHING FOOD RECOMMENDATIONS =====")
+        print("🍽️ APIService: URL: \(url)")
+        print("🍽️ APIService: Radius: \(radiusMiles) miles, Category: \(category)")
+        if let lat = latitude, let lon = longitude {
+            print("🍽️ APIService: Location: \(lat), \(lon)")
+        } else {
+            print("⚠️ APIService: WARNING - Location not provided! Results may be empty.")
         }
 
-        let responseString = String(data: data, encoding: .utf8) ?? "Unable to decode response"
-        print("🤖 APIService: Response status: \(httpResponse.statusCode)")
-        print("🤖 APIService: Generation took: \(String(format: "%.2f", duration))s")
+        do {
+            let (data, response) = try await session.data(for: request)
 
-        switch httpResponse.statusCode {
-        case 200:
-            let decoder = JSONDecoder()
-            // Don't use .convertFromSnakeCase since DailySummary has explicit CodingKeys
-            // that already map to snake_case backend format
-
-            do {
-                let summary = try decoder.decode(DailySummary.self, from: data)
-                print("✅ APIService: Successfully decoded AI daily summary")
-                print("✅ APIService: Day summary: \(summary.daySummary.count) paragraphs")
-                print("✅ APIService: Health summary: \(summary.healthSummary.count) paragraphs")
-                print("✅ APIService: Focus recommendations: \(summary.focusRecommendations.count) paragraphs")
-                print("✅ APIService: Alerts: \(summary.alerts.count) items")
-
-                // Log first paragraph of each section for verification
-                if !summary.daySummary.isEmpty {
-                    print("📝 Day summary preview: \(summary.daySummary[0].prefix(100))...")
-                }
-                if !summary.healthSummary.isEmpty {
-                    print("💪 Health summary preview: \(summary.healthSummary[0].prefix(100))...")
-                }
-
-                return summary
-            } catch let decodingError as DecodingError {
-                print("❌ APIService: ===== DECODING ERROR =====")
-                print("❌ APIService: Failed to decode AI DailySummary: \(decodingError)")
-                print("❌ APIService: Response was: \(responseString)")
+            guard let httpResponse = response as? HTTPURLResponse else {
                 throw NSError(
                     domain: "AllTime",
-                    code: 1002,
-                    userInfo: [
-                        NSLocalizedDescriptionKey: "Failed to decode AI summary: \(decodingError.localizedDescription)",
-                        "rawResponse": responseString,
-                        "underlyingError": decodingError
-                    ]
+                    code: 500,
+                    userInfo: [NSLocalizedDescriptionKey: "Invalid response from server"]
                 )
             }
 
-        case 401:
-            print("❌ APIService: Unauthorized - invalid or expired token")
-            throw NSError(
-                domain: "AllTime",
-                code: 401,
-                userInfo: [NSLocalizedDescriptionKey: "Authentication failed. Please sign in again."]
-            )
+            let responseString = String(data: data, encoding: .utf8) ?? "Unable to decode response"
+            print("🍽️ APIService: Response status: \(httpResponse.statusCode)")
 
-        case 400:
-            print("❌ APIService: Bad Request - invalid date or timezone format")
-            print("❌ APIService: Response: \(responseString)")
-            throw NSError(
-                domain: "AllTime",
-                code: 400,
-                userInfo: [NSLocalizedDescriptionKey: "Invalid request parameters"]
-            )
-
-        case 500:
-            print("❌ APIService: ===== SERVER ERROR (500) =====")
-            print("❌ APIService: AI generation failed - backend may return fallback summary")
-            print("❌ APIService: Full response: \(responseString)")
-            print("❌ APIService: ⚠️ Response time was \(String(format: "%.2f", duration))s - should be 3-10s for OpenAI")
-
-            if duration < 1.0 {
-                print("❌ APIService: 🔍 TOO FAST! Backend crashed before reaching OpenAI (normal is 3-10s)")
-                print("❌ APIService: 🔍 Most likely causes:")
-                print("❌ APIService:    1. Missing OPENAI_API_KEY in Cloud Run environment variables")
-                print("❌ APIService:    2. Database query error (events or health metrics)")
-                print("❌ APIService:    3. Missing npm dependencies (openai package)")
-                print("❌ APIService: 🔍 See BACKEND_500_ERROR_DEBUG.md for detailed debugging steps")
-            }
-
-            if let errorData = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                print("❌ APIService: Error details from backend:")
-                if let message = errorData["message"] as? String {
-                    print("❌ APIService:    Message: \(message)")
-                }
-                if let error = errorData["error"] as? String {
-                    print("❌ APIService:    Error: \(error)")
-                }
-                if let path = errorData["path"] as? String {
-                    print("❌ APIService:    Path: \(path)")
-                }
-                if let timestamp = errorData["timestamp"] as? String {
-                    print("❌ APIService:    Timestamp: \(timestamp)")
-                }
-
-                // Return user-friendly error with debugging hint
-                if let message = errorData["message"] as? String {
-                    var errorMsg = "Backend error: \(message)"
-                    if duration < 1.0 {
-                        errorMsg += "\n\n🔍 Debug hint: Backend crashed immediately (0.07s instead of 3-10s). This usually means OPENAI_API_KEY is not set in Cloud Run environment."
-                    }
+            switch httpResponse.statusCode {
+            case 200:
+                let decoder = JSONDecoder()
+                do {
+                    let recommendations = try decoder.decode(FoodRecommendationsResponse.self, from: data)
+                    print("✅ APIService: Successfully decoded food recommendations")
+                    print("✅ APIService: Healthy options: \(recommendations.healthyOptions?.count ?? 0)")
+                    print("✅ APIService: Regular options: \(recommendations.regularOptions?.count ?? 0)")
+                    return recommendations
+                } catch let decodingError {
+                    print("❌ APIService: Failed to decode FoodRecommendationsResponse: \(decodingError)")
+                    print("❌ APIService: Response was: \(responseString.prefix(500))...")
                     throw NSError(
                         domain: "AllTime",
-                        code: 500,
-                        userInfo: [
-                            NSLocalizedDescriptionKey: errorMsg,
-                            "backendMessage": message,
-                            "responseTime": duration
-                        ]
+                        code: 1002,
+                        userInfo: [NSLocalizedDescriptionKey: "Failed to decode food recommendations"]
                     )
                 }
+
+            case 401:
+                throw NSError(
+                    domain: "AllTime",
+                    code: 401,
+                    userInfo: [NSLocalizedDescriptionKey: "Authentication failed. Please sign in again."]
+                )
+
+            default:
+                throw NSError(
+                    domain: "AllTime",
+                    code: httpResponse.statusCode,
+                    userInfo: [NSLocalizedDescriptionKey: "Server error (code: \(httpResponse.statusCode))"]
+                )
             }
-
-            // Generic error if we can't parse backend response
-            var errorMsg = "Failed to generate AI summary. The server encountered an error."
-            if duration < 1.0 {
-                errorMsg += "\n\n🔍 Backend crashed before reaching OpenAI. Check that OPENAI_API_KEY is set in Cloud Run."
-            }
-
-            throw NSError(
-                domain: "AllTime",
-                code: 500,
-                userInfo: [NSLocalizedDescriptionKey: errorMsg]
-            )
-
-        default:
-            print("❌ APIService: Unexpected status code: \(httpResponse.statusCode)")
-            throw NSError(
-                domain: "AllTime",
-                code: httpResponse.statusCode,
-                userInfo: [NSLocalizedDescriptionKey: "Unknown error (code: \(httpResponse.statusCode))"]
-            )
+        } catch {
+            print("❌ APIService: Network error: \(error.localizedDescription)")
+            throw error
         }
     }
 
-    // MARK: - Enhanced Daily Intelligence (v1 API)
-    
-    /// Fetch enhanced daily summary for a specific date
+    // MARK: - Walk Recommendations API
+
+    /// Get walk route recommendations near user's location
+    /// - Parameters:
+    ///   - distanceMiles: Desired walking distance in miles
+    ///   - difficulty: "easy", "moderate", or "challenging"
+    ///   - latitude: User's latitude (optional, uses default if not provided)
+    ///   - longitude: User's longitude (optional, uses default if not provided)
+    /// - Returns: WalkRecommendationsResponse
+    func getWalkRecommendations(distanceMiles: Double = 1.0, difficulty: String = "moderate", latitude: Double? = nil, longitude: Double? = nil) async throws -> WalkRecommendationsResponse {
+        guard let token = accessToken else {
+            throw NSError(
+                domain: "AllTime",
+                code: 401,
+                userInfo: [NSLocalizedDescriptionKey: "Authentication required. Please sign in again."]
+            )
+        }
+
+        var urlComponents = URLComponents(string: "\(baseURL)/api/v1/recommendations/walk")!
+        var queryItems = [
+            URLQueryItem(name: "distance_miles", value: String(distanceMiles)),
+            URLQueryItem(name: "difficulty", value: difficulty)
+        ]
+
+        // Add location if available
+        if let lat = latitude, let lon = longitude {
+            queryItems.append(URLQueryItem(name: "latitude", value: String(lat)))
+            queryItems.append(URLQueryItem(name: "longitude", value: String(lon)))
+        }
+
+        urlComponents.queryItems = queryItems
+
+        guard let url = urlComponents.url else {
+            throw NSError(
+                domain: "AllTime",
+                code: 400,
+                userInfo: [NSLocalizedDescriptionKey: "Invalid URL"]
+            )
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.timeoutInterval = Constants.API.timeout
+
+        print("🚶 APIService: ===== FETCHING WALK RECOMMENDATIONS =====")
+        print("🚶 APIService: URL: \(url)")
+        print("🚶 APIService: Distance: \(distanceMiles) miles, Difficulty: \(difficulty)")
+        if let lat = latitude, let lon = longitude {
+            print("🚶 APIService: Location: \(lat), \(lon)")
+        } else {
+            print("🚶 APIService: Location: Not provided (backend will use default)")
+        }
+
+        do {
+            let (data, response) = try await session.data(for: request)
+
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw NSError(
+                    domain: "AllTime",
+                    code: 500,
+                    userInfo: [NSLocalizedDescriptionKey: "Invalid response from server"]
+                )
+            }
+
+            let responseString = String(data: data, encoding: .utf8) ?? "Unable to decode response"
+            print("🚶 APIService: Response status: \(httpResponse.statusCode)")
+
+            switch httpResponse.statusCode {
+            case 200:
+                let decoder = JSONDecoder()
+                do {
+                    let recommendations = try decoder.decode(WalkRecommendationsResponse.self, from: data)
+                    print("✅ APIService: Successfully decoded walk recommendations")
+                    print("✅ APIService: Routes found: \(recommendations.routes?.count ?? 0)")
+                    return recommendations
+                } catch let decodingError {
+                    print("❌ APIService: Failed to decode WalkRecommendationsResponse: \(decodingError)")
+                    print("❌ APIService: Response was: \(responseString.prefix(500))...")
+                    throw NSError(
+                        domain: "AllTime",
+                        code: 1002,
+                        userInfo: [NSLocalizedDescriptionKey: "Failed to decode walk recommendations"]
+                    )
+                }
+
+            case 401:
+                throw NSError(
+                    domain: "AllTime",
+                    code: 401,
+                    userInfo: [NSLocalizedDescriptionKey: "Authentication failed. Please sign in again."]
+                )
+
+            default:
+                throw NSError(
+                    domain: "AllTime",
+                    code: httpResponse.statusCode,
+                    userInfo: [NSLocalizedDescriptionKey: "Server error (code: \(httpResponse.statusCode))"]
+                )
+            }
+        } catch {
+            print("❌ APIService: Network error: \(error.localizedDescription)")
+            throw error
+        }
+    }
+
+    // MARK: - Enhanced Daily Intelligence (v1 API - Legacy)
+
+    /// Fetch enhanced daily summary for a specific date (legacy endpoint)
     /// - Parameter date: Optional date. If nil, backend defaults to today.
     /// - Returns: EnhancedDailySummaryResponse
     func fetchDailySummary(date: Date? = nil) async throws -> EnhancedDailySummaryResponse {
@@ -4441,5 +4405,374 @@ class APIService: ObservableObject {
                 userInfo: [NSLocalizedDescriptionKey: "Server error (code: \(httpResponse.statusCode))"]
             )
         }
+    }
+
+    // MARK: - Intelligent Up Next
+
+    /// Get intelligent "Up Next" suggestions based on calendar gaps and context.
+    /// This analyzes your calendar to find free time slots and suggests contextual activities:
+    /// - Lunch during 11:30 AM - 2:30 PM gaps
+    /// - Gym/workout after 5 PM
+    /// - Focus work during morning/afternoon gaps
+    /// - Walking breaks for short gaps
+    func getIntelligentUpNext(timezone: String = TimeZone.current.identifier) async throws -> UpNextItemsResponse {
+        var components = URLComponents(string: "\(baseURL)/api/v1/today/upnext")!
+        components.queryItems = [
+            URLQueryItem(name: "timezone", value: timezone)
+        ]
+
+        var request = URLRequest(url: components.url!)
+        request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+
+        print("🎯 APIService: Fetching intelligent Up Next")
+        let (data, response) = try await session.data(for: request)
+        try await validateResponse(response, data: data)
+
+        // Debug: Log raw response to see date formats
+        if let responseStr = String(data: data, encoding: .utf8) {
+            print("🎯 APIService: Raw UpNext response (first 1500 chars):")
+            print(String(responseStr.prefix(1500)))
+        }
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .custom(flexibleDateDecoder)
+        return try decoder.decode(UpNextItemsResponse.self, from: data)
+    }
+
+    // MARK: - Tasks (Up Next)
+
+    /// Quick add a task - just title, AI does the rest
+    func quickAddTask(title: String, source: String = "quick_add", deadline: Date? = nil) async throws -> UserTask {
+        let url = URL(string: "\(baseURL)/api/v1/tasks/quick")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        // Determine deadline type based on deadline
+        let deadlineType: TaskDeadlineType? = deadline != nil ? .specificTime : nil
+        let body = QuickAddRequest(title: title, source: source, deadline: deadline, deadlineType: deadlineType)
+
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        request.httpBody = try encoder.encode(body)
+
+        print("🔵 APIService: Quick adding task: \(title), deadline: \(deadline?.description ?? "none")")
+        let (data, response) = try await session.data(for: request)
+        try await validateResponse(response, data: data)
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .custom(flexibleDateDecoder)
+        return try decoder.decode(UserTask.self, from: data)
+    }
+
+    /// Flexible date decoder that handles multiple date formats from the backend
+    private func flexibleDateDecoder(_ decoder: Decoder) throws -> Date {
+        let container = try decoder.singleValueContainer()
+
+        // First, try to decode as an array (Jackson's default LocalDateTime serialization)
+        // Format: [year, month, day, hour, minute, second?, nanosecond?]
+        if let dateArray = try? container.decode([Int].self) {
+            var components = DateComponents()
+            components.timeZone = TimeZone.current
+
+            if dateArray.count >= 3 {
+                components.year = dateArray[0]
+                components.month = dateArray[1]
+                components.day = dateArray[2]
+            }
+            if dateArray.count >= 4 {
+                components.hour = dateArray[3]
+            }
+            if dateArray.count >= 5 {
+                components.minute = dateArray[4]
+            }
+            if dateArray.count >= 6 {
+                components.second = dateArray[5]
+            }
+            if dateArray.count >= 7 {
+                // Nanoseconds - convert to nanoseconds for DateComponents
+                components.nanosecond = dateArray[6]
+            }
+
+            if let date = Calendar.current.date(from: components) {
+                return date
+            }
+        }
+
+        // Try to decode as a String
+        guard let dateString = try? container.decode(String.self) else {
+            throw DecodingError.dataCorruptedError(in: container, debugDescription: "Date is neither array nor string format")
+        }
+
+        // Try ISO8601 with fractional seconds and timezone
+        let iso8601FormatterWithFractional = ISO8601DateFormatter()
+        iso8601FormatterWithFractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let date = iso8601FormatterWithFractional.date(from: dateString) {
+            return date
+        }
+
+        // Try ISO8601 without fractional seconds
+        let iso8601Formatter = ISO8601DateFormatter()
+        iso8601Formatter.formatOptions = [.withInternetDateTime]
+        if let date = iso8601Formatter.date(from: dateString) {
+            return date
+        }
+
+        // Try without timezone (backend often returns this format)
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone.current
+
+        let formats = [
+            "yyyy-MM-dd'T'HH:mm:ss.SSSSSS",
+            "yyyy-MM-dd'T'HH:mm:ss.SSS",
+            "yyyy-MM-dd'T'HH:mm:ss",
+            "yyyy-MM-dd HH:mm:ss",
+            "yyyy-MM-dd"
+        ]
+
+        for format in formats {
+            formatter.dateFormat = format
+            if let date = formatter.date(from: dateString) {
+                return date
+            }
+        }
+
+        throw DecodingError.dataCorruptedError(in: container, debugDescription: "Cannot decode date: \(dateString)")
+    }
+
+    /// Create a task with full details
+    func createTask(_ taskRequest: TaskRequest) async throws -> UserTask {
+        let url = URL(string: "\(baseURL)/api/v1/tasks")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        request.httpBody = try encoder.encode(taskRequest)
+
+        print("🔵 APIService: Creating task: \(taskRequest.title)")
+        let (data, response) = try await session.data(for: request)
+        try await validateResponse(response, data: data)
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .custom(flexibleDateDecoder)
+        return try decoder.decode(UserTask.self, from: data)
+    }
+
+    /// Update a task
+    func updateTask(id: Int64, _ taskRequest: TaskRequest) async throws -> UserTask {
+        let url = URL(string: "\(baseURL)/api/v1/tasks/\(id)")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "PUT"
+        request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        request.httpBody = try encoder.encode(taskRequest)
+
+        print("🔵 APIService: Updating task \(id)")
+        let (data, response) = try await session.data(for: request)
+        try await validateResponse(response, data: data)
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .custom(flexibleDateDecoder)
+        return try decoder.decode(UserTask.self, from: data)
+    }
+
+    /// Delete a task
+    func deleteTask(id: Int64) async throws {
+        let url = URL(string: "\(baseURL)/api/v1/tasks/\(id)")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "DELETE"
+        request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+
+        print("🔵 APIService: Deleting task \(id)")
+        let (_, response) = try await session.data(for: request)
+        try await validateResponse(response, data: Data())
+    }
+
+    /// Mark task as completed
+    func completeTask(id: Int64, actualDurationMinutes: Int? = nil) async throws -> UserTask {
+        let url = URL(string: "\(baseURL)/api/v1/tasks/\(id)/complete")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let body = CompleteTaskRequest(actualDurationMinutes: actualDurationMinutes)
+        request.httpBody = try JSONEncoder().encode(body)
+
+        print("🔵 APIService: Completing task \(id)")
+        let (data, response) = try await session.data(for: request)
+        try await validateResponse(response, data: data)
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .custom(flexibleDateDecoder)
+        return try decoder.decode(UserTask.self, from: data)
+    }
+
+    /// Get today's tasks for "Up Next" section
+    func getTodaysTasks(timezone: String = TimeZone.current.identifier) async throws -> UpNextResponse {
+        var components = URLComponents(string: "\(baseURL)/api/v1/tasks/today")!
+        components.queryItems = [
+            URLQueryItem(name: "timezone", value: timezone)
+        ]
+
+        var request = URLRequest(url: components.url!)
+        request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+
+        print("🔵 APIService: Fetching today's tasks")
+        let (data, response) = try await session.data(for: request)
+        try await validateResponse(response, data: data)
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .custom(flexibleDateDecoder)
+        return try decoder.decode(UpNextResponse.self, from: data)
+    }
+
+    /// Get pending tasks
+    func getPendingTasks() async throws -> [UserTask] {
+        let url = URL(string: "\(baseURL)/api/v1/tasks/pending")!
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+
+        print("🔵 APIService: Fetching pending tasks")
+        let (data, response) = try await session.data(for: request)
+        try await validateResponse(response, data: data)
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .custom(flexibleDateDecoder)
+        return try decoder.decode([UserTask].self, from: data)
+    }
+
+    /// Get overdue tasks
+    func getOverdueTasks() async throws -> [UserTask] {
+        let url = URL(string: "\(baseURL)/api/v1/tasks/overdue")!
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+
+        print("🔵 APIService: Fetching overdue tasks")
+        let (data, response) = try await session.data(for: request)
+        try await validateResponse(response, data: data)
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .custom(flexibleDateDecoder)
+        return try decoder.decode([UserTask].self, from: data)
+    }
+
+    /// Auto-schedule pending tasks
+    func autoScheduleTasks(date: Date = Date(), timezone: String = TimeZone.current.identifier) async throws -> ScheduleResponse {
+        let url = URL(string: "\(baseURL)/api/v1/tasks/schedule")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        let dateString = formatter.string(from: date)
+
+        let body = ScheduleTasksRequest(date: dateString, timezone: timezone)
+        request.httpBody = try JSONEncoder().encode(body)
+
+        print("🔵 APIService: Auto-scheduling tasks for \(dateString)")
+        let (data, response) = try await session.data(for: request)
+        try await validateResponse(response, data: data)
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .custom(flexibleDateDecoder)
+        return try decoder.decode(ScheduleResponse.self, from: data)
+    }
+
+    /// Get AI scheduling suggestion for a task
+    func suggestTaskSchedule(taskId: Int64, date: Date = Date(), timezone: String = TimeZone.current.identifier) async throws -> UserTask {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        let dateString = formatter.string(from: date)
+
+        var components = URLComponents(string: "\(baseURL)/api/v1/tasks/\(taskId)/suggest")!
+        components.queryItems = [
+            URLQueryItem(name: "date", value: dateString),
+            URLQueryItem(name: "timezone", value: timezone)
+        ]
+
+        var request = URLRequest(url: components.url!)
+        request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+
+        print("🔵 APIService: Getting schedule suggestion for task \(taskId)")
+        let (data, response) = try await session.data(for: request)
+        try await validateResponse(response, data: data)
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .custom(flexibleDateDecoder)
+        return try decoder.decode(UserTask.self, from: data)
+    }
+
+    // MARK: - Today Overview API (Tiles)
+
+    /// Fetch today overview for tile previews
+    func fetchTodayOverview(timezone: String = TimeZone.current.identifier) async throws -> TodayOverviewResponse {
+        var components = URLComponents(string: "\(baseURL)/api/v1/today/overview")!
+        components.queryItems = [
+            URLQueryItem(name: "timezone", value: timezone)
+        ]
+
+        var request = URLRequest(url: components.url!)
+        request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+
+        print("🔵 APIService: Fetching today overview")
+        let (data, response) = try await session.data(for: request)
+
+        // Log response for debugging
+        if let responseString = String(data: data, encoding: .utf8) {
+            print("🔵 APIService: Overview response: \(responseString.prefix(500))...")
+        }
+
+        try await validateResponse(response, data: data)
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .custom(flexibleDateDecoder)
+        return try decoder.decode(TodayOverviewResponse.self, from: data)
+    }
+
+    // MARK: - Task Convenience Methods (for ToDoDetailView)
+
+    /// Fetch today's tasks as a simple array
+    func fetchTodaysTasks(timezone: String = TimeZone.current.identifier) async throws -> [UserTask] {
+        let response = try await getTodaysTasks(timezone: timezone)
+        return response.tasks
+    }
+
+    /// Shared singleton instance for convenience
+    static let shared = APIService()
+
+    /// Update task status (PENDING, IN_PROGRESS, COMPLETED, etc.)
+    func updateTaskStatus(taskId: Int, status: String) async throws -> UserTask {
+        let url = URL(string: "\(baseURL)/api/v1/tasks/\(taskId)/status")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "PUT"
+        request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let body = ["status": status]
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+
+        print("🔵 APIService: Updating task \(taskId) status to \(status)")
+        let (data, response) = try await session.data(for: request)
+        try await validateResponse(response, data: data)
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .custom(flexibleDateDecoder)
+        return try decoder.decode(UserTask.self, from: data)
+    }
+
+    /// Delete a task (convenience overload with Int)
+    func deleteTask(taskId: Int) async throws {
+        try await deleteTask(id: Int64(taskId))
     }
 }

@@ -4,7 +4,7 @@ import SwiftUI
 struct Constants {
     // MARK: - API Configuration
     struct API {
-        static let baseURL = "https://alltime-backend-hicsfvfd7q-uc.a.run.app"
+        static let baseURL = "https://alltime-backend-756952284083.us-central1.run.app"
         static let timeout: TimeInterval = 30.0
     }
     

@@ -2,20 +2,37 @@ import SwiftUI
 
 // MARK: - Chrona Official Dark Theme Design System
 struct DesignSystem {
-    
+
     // MARK: - Colors - Official Chrona Dark Theme
     struct Colors {
         // Primary Accent - Chrona Icon Blue
         static let primary = Color(hex: "3C82F6") // Official Chrona blue
         static let primaryDark = Color(hex: "2563EB")
         static let primaryLight = Color(hex: "60A5FA")
-        
+
         // Accent Colors
         static let accent = Color(hex: "FF6B6B")
         static let success = Color(hex: "34C759") // iOS Green
         static let warning = Color(hex: "FF9500") // iOS Orange
         static let info = Color(hex: "5AC8FA") // iOS Cyan
-        
+
+        // Today Screen Tile Colors (Distinct, Related Palette)
+        static let todayTileGradient = LinearGradient(
+            colors: [Color(hex: "6366F1"), Color(hex: "4F46E5")], // Indigo
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+        static let suggestionsTileGradient = LinearGradient(
+            colors: [Color(hex: "F59E0B"), Color(hex: "D97706")], // Amber/Orange
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+        static let todoTileGradient = LinearGradient(
+            colors: [Color(hex: "10B981"), Color(hex: "059669")], // Emerald/Green
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+
         // Event Category Colors
         static let eventColors: [Color] = [
             Color(hex: "FF6B6B"), // Red
@@ -70,25 +87,25 @@ struct DesignSystem {
         )
     }
     
-    // MARK: - Typography - Apple-Style Clean Typography
+    // MARK: - Typography - Apple-Style Clean Typography with Dynamic Type Support
     struct Typography {
-        // Display - Large, thin-weight SF Pro Display style
-        static let largeTitle = Font.system(size: 34, weight: .thin, design: .default)
-        static let title1 = Font.system(size: 28, weight: .thin, design: .default)
-        static let title2 = Font.system(size: 22, weight: .light, design: .default)
-        static let title3 = Font.system(size: 20, weight: .light, design: .default)
-        
-        // Section Headers - Medium-weight SF Pro
-        static let sectionHeader = Font.system(size: 17, weight: .medium, design: .default)
-        
-        // Body - Regular-weight SF Pro
-        static let body = Font.system(size: 17, weight: .regular, design: .default)
-        static let bodyBold = Font.system(size: 17, weight: .semibold, design: .default)
-        static let callout = Font.system(size: 16, weight: .regular, design: .default)
-        static let subheadline = Font.system(size: 15, weight: .regular, design: .default)
-        static let footnote = Font.system(size: 13, weight: .regular, design: .default)
-        static let caption = Font.system(size: 12, weight: .regular, design: .default)
-        static let caption2 = Font.system(size: 11, weight: .regular, design: .default)
+        // Display - Large titles that scale with user preferences
+        static let largeTitle = Font.largeTitle.weight(.thin)
+        static let title1 = Font.title.weight(.thin)
+        static let title2 = Font.title2.weight(.light)
+        static let title3 = Font.title3.weight(.light)
+
+        // Section Headers - Medium-weight, scales with user preferences
+        static let sectionHeader = Font.headline
+
+        // Body - Regular-weight, scales with user preferences
+        static let body = Font.body
+        static let bodyBold = Font.body.weight(.semibold)
+        static let callout = Font.callout
+        static let subheadline = Font.subheadline
+        static let footnote = Font.footnote
+        static let caption = Font.caption
+        static let caption2 = Font.caption2
     }
     
     // MARK: - Spacing - Generous and Elegant
@@ -111,9 +128,20 @@ struct DesignSystem {
         static let md: CGFloat = 12
         static let lg: CGFloat = 16 // Standard card radius
         static let xl: CGFloat = 20
-        static let xxl: CGFloat = 22 // Maximum card radius
+        static let xxl: CGFloat = 24 // Large tile radius (Today tiles)
         static let button: CGFloat = 16 // Button radius (16pt+)
         static let full: CGFloat = 999
+    }
+
+    // MARK: - Today Screen Specific Layout
+    struct Today {
+        static let cardPadding: CGFloat = 16
+        static let cardPaddingLarge: CGFloat = 20
+        static let tileCornerRadius: CGFloat = 24
+        static let innerCardCornerRadius: CGFloat = 18
+        static let tileMinHeight: CGFloat = 140
+        static let tileSpacing: CGFloat = 12
+        static let sectionSpacing: CGFloat = 16
     }
     
     // MARK: - Shadows
@@ -254,6 +282,28 @@ extension View {
     
     func hapticFeedback(_ style: UIImpactFeedbackGenerator.FeedbackStyle = .light) -> some View {
         self // Disabled for performance - can be re-enabled later
+    }
+
+    // Today Overview Sheet Card Style (consistent section cards)
+    func cardStyle(padding: CGFloat = DesignSystem.Today.cardPadding) -> some View {
+        self
+            .padding(padding)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: DesignSystem.Today.innerCardCornerRadius)
+                    .fill(DesignSystem.Colors.cardBackground)
+            )
+    }
+
+    // Today Overview Section Card Style (for sections like Key Metrics, AI Summary)
+    func sectionCardStyle() -> some View {
+        self
+            .padding(DesignSystem.Today.cardPadding)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: DesignSystem.Today.innerCardCornerRadius)
+                    .fill(DesignSystem.Colors.cardBackground)
+            )
     }
 }
 

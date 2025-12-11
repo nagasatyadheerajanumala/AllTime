@@ -121,11 +121,24 @@ class HealthSummaryViewModel: ObservableObject {
         }
     }
     
-    /// Loads health goals
+    /// Loads health goals - from cache first, then API
     func loadGoals() async {
+        // Try to load from cache first (same cache as HealthGoalsViewModel)
+        let goalsCacheKey = "health_goals"
+        if let cached = await CacheService.shared.loadJSON(UserHealthGoals.self, filename: goalsCacheKey) {
+            goals = cached
+            print("✅ HealthSummaryViewModel: Loaded health goals from cache")
+            print("   - Sleep: \(cached.sleepHours ?? 0), Steps: \(cached.steps ?? 0)")
+            return
+        }
+
+        // Fallback to API
         do {
-            goals = try await apiService.getHealthGoals()
-            print("✅ HealthSummaryViewModel: Loaded health goals")
+            let fetched = try await apiService.getHealthGoals()
+            goals = fetched
+            print("✅ HealthSummaryViewModel: Loaded health goals from API")
+            // Cache for next time
+            await CacheService.shared.saveJSON(fetched, filename: goalsCacheKey)
         } catch {
             print("⚠️ HealthSummaryViewModel: Failed to load goals: \(error.localizedDescription)")
             // Don't set error - goals are optional
