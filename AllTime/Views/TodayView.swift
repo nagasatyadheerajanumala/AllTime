@@ -63,6 +63,14 @@ struct TodayView: View {
                         UpNextSectionView()
                             .padding(.horizontal, DesignSystem.Spacing.md)
 
+                        // Mood Check-In Card
+                        MoodCheckInCardView()
+                            .padding(.horizontal, DesignSystem.Spacing.md)
+
+                        // AI Day Forecast
+                        DayForecastCardView()
+                            .padding(.horizontal, DesignSystem.Spacing.md)
+
                         // Today's Events (if any)
                         if !todayEvents.isEmpty {
                             eventsSection
@@ -171,7 +179,7 @@ struct TodayView: View {
             // (5a) All Suggestions Accordion
             if let suggestions = briefing.suggestions, !suggestions.isEmpty {
                 InsightsAccordionSection(
-                    title: "All Suggestions",
+                    title: "All Actions",
                     icon: "lightbulb.fill",
                     iconColor: Color(hex: "F59E0B"),
                     badge: "\(suggestions.count)",

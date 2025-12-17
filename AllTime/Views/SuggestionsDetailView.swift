@@ -49,7 +49,7 @@ struct SuggestionsDetailView: View {
                 .padding(.top, 16)
             }
             .background(DesignSystem.Colors.background)
-            .navigationTitle("Suggestions")
+            .navigationTitle("Actions")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -123,11 +123,11 @@ struct SuggestionsDetailView: View {
                 .font(.system(size: 48))
                 .foregroundColor(DesignSystem.Colors.tertiaryText)
 
-            Text("No suggestions available")
+            Text("No actions available")
                 .font(.headline)
                 .foregroundColor(DesignSystem.Colors.secondaryText)
 
-            Text("Check back later for personalized recommendations")
+            Text("Check back later for personalized actions")
                 .font(.subheadline)
                 .foregroundColor(DesignSystem.Colors.tertiaryText)
                 .multilineTextAlignment(.center)
@@ -341,8 +341,16 @@ struct SuggestionDetailCard: View {
             showingBlockTime = true
         case "view_food_places":
             showingFoodPlaces = true
-        case "view_walk_routes", "open_map":
+        case "view_walk_routes":
             showingWalkRoutes = true
+        case "open_map":
+            // Check category to determine what to show
+            // Nutrition/lunch = food places, Movement/walk = walk routes
+            if suggestion.category == "nutrition" {
+                showingFoodPlaces = true
+            } else {
+                showingWalkRoutes = true
+            }
         case "open_health":
             // Open Health app
             if let url = URL(string: "x-apple-health://") {
@@ -358,77 +366,149 @@ struct SuggestionDetailCard: View {
 struct BlockTimeSheetView: View {
     let suggestion: BriefingSuggestion
     @Environment(\.dismiss) private var dismiss
-    @State private var isBlocking = false
-    @State private var blockSuccess = false
+    @State private var isAddingToCalendar = false
+    @State private var isAddingToReminder = false
+    @State private var calendarSuccess = false
+    @State private var reminderSuccess = false
+    @State private var errorMessage: String?
+
+    private let apiService = APIService()
+
+    // Parsed dates
+    private var startDate: Date? {
+        parseSuggestionDate(suggestion.recommendedStart)
+    }
+
+    private var endDate: Date? {
+        if let end = parseSuggestionDate(suggestion.recommendedEnd) {
+            return end
+        }
+        // Calculate from start + duration
+        if let start = startDate, let duration = suggestion.durationMinutes {
+            return start.addingTimeInterval(TimeInterval(duration * 60))
+        }
+        return nil
+    }
 
     var body: some View {
         NavigationView {
-            VStack(spacing: 24) {
+            VStack(spacing: 20) {
                 // Icon
                 ZStack {
                     Circle()
                         .fill(suggestion.categoryColor.opacity(0.15))
-                        .frame(width: 80, height: 80)
+                        .frame(width: 72, height: 72)
                     Image(systemName: suggestion.displayIcon)
-                        .font(.system(size: 32))
+                        .font(.system(size: 28))
                         .foregroundColor(suggestion.categoryColor)
                 }
-                .padding(.top, 32)
+                .padding(.top, 24)
 
                 // Title
                 Text(suggestion.title)
-                    .font(.title2.weight(.bold))
+                    .font(.title3.weight(.bold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
+                    .multilineTextAlignment(.center)
 
-                // Time info
-                if let start = suggestion.recommendedStart, let duration = suggestion.durationMinutes {
-                    VStack(spacing: 4) {
-                        Text("Suggested time")
-                            .font(.subheadline)
-                            .foregroundColor(DesignSystem.Colors.secondaryText)
-                        Text(formatDateTime(start))
+                // Time info card
+                if let start = startDate {
+                    VStack(spacing: 8) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "clock.fill")
+                                .font(.subheadline)
+                                .foregroundColor(suggestion.categoryColor)
+                            Text("Suggested Time")
+                                .font(.subheadline.weight(.medium))
+                                .foregroundColor(DesignSystem.Colors.secondaryText)
+                        }
+
+                        Text(formatDateTimeDisplay(start))
                             .font(.headline)
                             .foregroundColor(DesignSystem.Colors.primaryText)
-                        Text("\(duration) minutes")
-                            .font(.subheadline)
-                            .foregroundColor(DesignSystem.Colors.secondaryText)
+
+                        if let duration = suggestion.durationMinutes {
+                            Text("\(duration) minutes")
+                                .font(.subheadline)
+                                .foregroundColor(DesignSystem.Colors.tertiaryText)
+                        }
                     }
+                    .padding(16)
+                    .frame(maxWidth: .infinity)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(DesignSystem.Colors.cardBackground)
+                    )
+                    .padding(.horizontal)
+                }
+
+                // Error message
+                if let error = errorMessage {
+                    Text(error)
+                        .font(.caption)
+                        .foregroundColor(.red)
+                        .padding(.horizontal)
                 }
 
                 Spacer()
 
-                // Block time button
-                Button(action: {
-                    blockTime()
-                }) {
-                    HStack {
-                        if isBlocking {
-                            ProgressView()
-                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                        } else if blockSuccess {
-                            Image(systemName: "checkmark")
-                        } else {
-                            Image(systemName: "calendar.badge.plus")
+                // Action buttons
+                VStack(spacing: 12) {
+                    // Add to Calendar button
+                    Button(action: addToCalendar) {
+                        HStack {
+                            if isAddingToCalendar {
+                                ProgressView()
+                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                            } else if calendarSuccess {
+                                Image(systemName: "checkmark")
+                            } else {
+                                Image(systemName: "calendar.badge.plus")
+                            }
+                            Text(calendarSuccess ? "Added to Calendar" : "Add to Calendar")
+                                .fontWeight(.semibold)
                         }
-                        Text(blockSuccess ? "Added to Calendar" : "Block Time")
-                            .fontWeight(.semibold)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .background(
+                            RoundedRectangle(cornerRadius: 14)
+                                .fill(calendarSuccess ? Color.green : suggestion.categoryColor)
+                        )
                     }
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-                    .background(
-                        RoundedRectangle(cornerRadius: 14)
-                            .fill(blockSuccess ? Color.green : suggestion.categoryColor)
-                    )
+                    .disabled(isAddingToCalendar || calendarSuccess || startDate == nil)
+
+                    // Add to Reminders button
+                    Button(action: addToReminders) {
+                        HStack {
+                            if isAddingToReminder {
+                                ProgressView()
+                                    .progressViewStyle(CircularProgressViewStyle(tint: suggestion.categoryColor))
+                            } else if reminderSuccess {
+                                Image(systemName: "checkmark")
+                                    .foregroundColor(.green)
+                            } else {
+                                Image(systemName: "bell.badge.fill")
+                            }
+                            Text(reminderSuccess ? "Reminder Created" : "Add to Reminders")
+                                .fontWeight(.semibold)
+                        }
+                        .foregroundColor(reminderSuccess ? .green : suggestion.categoryColor)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .background(
+                            RoundedRectangle(cornerRadius: 14)
+                                .strokeBorder(reminderSuccess ? Color.green : suggestion.categoryColor, lineWidth: 2)
+                        )
+                    }
+                    .disabled(isAddingToReminder || reminderSuccess || startDate == nil)
                 }
-                .disabled(isBlocking || blockSuccess)
                 .padding(.horizontal)
-                .padding(.bottom, 32)
+                .padding(.bottom, 24)
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Cancel") { dismiss() }
+                    Button("Done") { dismiss() }
                         .foregroundColor(DesignSystem.Colors.primary)
                 }
             }
@@ -436,61 +516,71 @@ struct BlockTimeSheetView: View {
         .presentationDetents([.medium])
     }
 
-    private func formatDateTime(_ dateString: String) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
-        if let date = formatter.date(from: dateString) {
-            formatter.dateStyle = .medium
-            formatter.timeStyle = .short
-            return formatter.string(from: date)
+    // MARK: - Date Parsing
+
+    private func parseSuggestionDate(_ dateString: String?) -> Date? {
+        guard let dateString = dateString else { return nil }
+
+        // Try multiple date formats
+        let formatters: [DateFormatter] = [
+            // ISO8601 with timezone
+            {
+                let f = DateFormatter()
+                f.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZ"
+                f.locale = Locale(identifier: "en_US_POSIX")
+                return f
+            }(),
+            // ISO8601 without timezone (backend format)
+            {
+                let f = DateFormatter()
+                f.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
+                f.locale = Locale(identifier: "en_US_POSIX")
+                f.timeZone = TimeZone.current
+                return f
+            }(),
+            // With milliseconds
+            {
+                let f = DateFormatter()
+                f.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS"
+                f.locale = Locale(identifier: "en_US_POSIX")
+                f.timeZone = TimeZone.current
+                return f
+            }()
+        ]
+
+        for formatter in formatters {
+            if let date = formatter.date(from: dateString) {
+                return date
+            }
         }
-        return dateString
+
+        // Try ISO8601DateFormatter as fallback
+        let iso = ISO8601DateFormatter()
+        iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let date = iso.date(from: dateString) {
+            return date
+        }
+        iso.formatOptions = [.withInternetDateTime]
+        return iso.date(from: dateString)
     }
 
-    private func blockTime() {
-        guard !isBlocking else { return }
+    private func formatDateTimeDisplay(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        return formatter.string(from: date)
+    }
 
-        // Parse start and end times from suggestion
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+    // MARK: - Actions
 
-        var startDate: Date?
-        var endDate: Date?
-
-        if let startStr = suggestion.recommendedStart {
-            startDate = formatter.date(from: startStr)
-            if startDate == nil {
-                formatter.formatOptions = [.withInternetDateTime]
-                startDate = formatter.date(from: startStr)
-            }
+    private func addToCalendar() {
+        guard let start = startDate, let end = endDate else {
+            errorMessage = "Invalid time for this action"
+            return
         }
 
-        if let endStr = suggestion.recommendedEnd {
-            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-            endDate = formatter.date(from: endStr)
-            if endDate == nil {
-                formatter.formatOptions = [.withInternetDateTime]
-                endDate = formatter.date(from: endStr)
-            }
-        }
-
-        // Calculate start and end times
-        let start: Date
-        let end: Date
-
-        if let startDate = startDate, let endDate = endDate {
-            start = startDate
-            end = endDate
-        } else if let startDate = startDate, let duration = suggestion.durationMinutes {
-            start = startDate
-            end = startDate.addingTimeInterval(TimeInterval(duration * 60))
-        } else {
-            // Fallback: use current time + 1 hour
-            start = Date()
-            end = start.addingTimeInterval(3600)
-        }
-
-        isBlocking = true
+        isAddingToCalendar = true
+        errorMessage = nil
 
         Task {
             do {
@@ -502,22 +592,127 @@ struct BlockTimeSheetView: View {
                 )
 
                 await MainActor.run {
-                    isBlocking = false
+                    isAddingToCalendar = false
                     if response.success {
-                        blockSuccess = true
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-                            dismiss()
+                        calendarSuccess = true
+                        // Auto-dismiss if both actions complete or after delay
+                        if reminderSuccess {
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { dismiss() }
                         }
+                    } else {
+                        errorMessage = "Failed to add to calendar"
                     }
                 }
             } catch {
                 await MainActor.run {
-                    isBlocking = false
-                    // Show error - for now just print
-                    print("Failed to block time: \(error.localizedDescription)")
+                    isAddingToCalendar = false
+                    errorMessage = "Error: \(error.localizedDescription)"
                 }
             }
         }
+    }
+
+    private func addToReminders() {
+        guard let start = startDate else {
+            errorMessage = "Invalid time for this action"
+            return
+        }
+
+        isAddingToReminder = true
+        errorMessage = nil
+
+        Task {
+            do {
+                // Create reminder using direct API call to avoid decoding issues
+                let success = try await createReminderDirectly(
+                    title: suggestion.title,
+                    description: suggestion.description,
+                    dueDate: start
+                )
+
+                await MainActor.run {
+                    isAddingToReminder = false
+                    if success {
+                        reminderSuccess = true
+                        // Auto-dismiss if both actions complete
+                        if calendarSuccess {
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { dismiss() }
+                        }
+                    } else {
+                        errorMessage = "Failed to create reminder"
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    isAddingToReminder = false
+                    errorMessage = "Error: \(error.localizedDescription)"
+                }
+            }
+        }
+    }
+
+    /// Create reminder with direct API call to handle response properly
+    private func createReminderDirectly(title: String, description: String?, dueDate: Date) async throws -> Bool {
+        guard let token = KeychainManager.shared.getAccessToken() else {
+            throw NSError(domain: "AllTime", code: 401, userInfo: [NSLocalizedDescriptionKey: "Not authenticated"])
+        }
+
+        guard let url = URL(string: "\(Constants.API.baseURL)/api/v1/reminders") else {
+            throw NSError(domain: "AllTime", code: 400, userInfo: [NSLocalizedDescriptionKey: "Invalid URL"])
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 30
+
+        // Format date as LocalDateTime string (WITHOUT timezone - backend expects yyyy-MM-dd'T'HH:mm:ss)
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
+        dateFormatter.locale = Locale(identifier: "en_US_POSIX")
+        let dueDateString = dateFormatter.string(from: dueDate)
+
+        // Build JSON manually to ensure correct format
+        let body: [String: Any] = [
+            "title": title,
+            "description": description ?? "",
+            "due_date": dueDateString,
+            "reminder_minutes_before": 15,
+            "priority": "medium",
+            "notification_enabled": true,
+            "notification_sound": "default"
+        ]
+
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+
+        print("🔔 Creating reminder: \(title) at \(dueDateString)")
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            return false
+        }
+
+        // Log response for debugging
+        if httpResponse.statusCode != 201 {
+            if let responseStr = String(data: data, encoding: .utf8) {
+                print("🔔 Reminder creation failed: \(responseStr)")
+            }
+        }
+
+        // 201 Created = success, we don't need to decode the response
+        let success = httpResponse.statusCode == 201
+        print("🔔 Reminder creation status: \(httpResponse.statusCode)")
+
+        // Post notification to refresh reminders list
+        if success {
+            await MainActor.run {
+                NotificationCenter.default.post(name: NSNotification.Name("RefreshReminders"), object: nil)
+            }
+        }
+
+        return success
     }
 }
 

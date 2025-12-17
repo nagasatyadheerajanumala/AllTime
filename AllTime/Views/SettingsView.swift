@@ -107,7 +107,35 @@ struct SettingsView: View {
                         .font(.system(size: 13))
                         .foregroundColor(.secondary)
                 }
-                
+
+                // Personalization Section
+                Section {
+                    NavigationLink(destination: InterestsSetupView()) {
+                        SettingsRow(
+                            icon: "heart.fill",
+                            iconColor: .pink,
+                            title: "My Interests"
+                        )
+                    }
+
+                    NavigationLink(destination: PlanMyDayView()) {
+                        SettingsRow(
+                            icon: "calendar.badge.plus",
+                            iconColor: .orange,
+                            title: "Plan My Day"
+                        )
+                    }
+                } header: {
+                    Text("PERSONALIZATION")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(.secondary)
+                        .textCase(.uppercase)
+                } footer: {
+                    Text("Set your interests to get personalized weekend and vacation suggestions")
+                        .font(.system(size: 13))
+                        .foregroundColor(.secondary)
+                }
+
                 // App Settings Section
                 Section {
                     // Theme Toggle

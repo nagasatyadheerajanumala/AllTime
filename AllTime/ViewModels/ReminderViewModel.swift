@@ -1,5 +1,21 @@
 import Foundation
 import Combine
+import EventKit
+
+// MARK: - Reminder Error
+enum ReminderError: LocalizedError {
+    case notFound
+    case eventKitNotAuthorized
+
+    var errorDescription: String? {
+        switch self {
+        case .notFound:
+            return "Reminder not found"
+        case .eventKitNotAuthorized:
+            return "Not authorized to access Reminders"
+        }
+    }
+}
 
 @MainActor
 class ReminderViewModel: ObservableObject {
@@ -127,29 +143,171 @@ class ReminderViewModel: ObservableObject {
     }
     
     // MARK: - Complete Reminder
-    
+
     func completeReminder(id: Int64) async throws -> Reminder {
+        // Check if this is an EventKit-only reminder (negative ID)
+        if id < 0 {
+            // Find the reminder and complete it via EventKit
+            guard let reminder = reminders.first(where: { $0.id == id }) else {
+                throw ReminderError.notFound
+            }
+
+            // Complete in EventKit
+            try await completeEventKitReminder(reminder)
+
+            // Return updated reminder
+            var completedReminder = reminder
+            completedReminder = Reminder(
+                id: reminder.id,
+                userId: reminder.userId,
+                title: reminder.title,
+                description: reminder.description,
+                dueDate: reminder.dueDate,
+                reminderTime: reminder.reminderTime,
+                isCompleted: true,
+                priority: reminder.priority,
+                status: .completed,
+                eventId: reminder.eventId,
+                recurrenceRule: reminder.recurrenceRule,
+                snoozeUntil: reminder.snoozeUntil,
+                notificationEnabled: reminder.notificationEnabled,
+                notificationSound: reminder.notificationSound,
+                createdAt: reminder.createdAt,
+                updatedAt: Date(),
+                completedAt: Date()
+            )
+
+            await loadReminders() // Refresh list
+            return completedReminder
+        }
+
+        // Backend reminder - use API
         let reminder = try await apiService.completeReminder(id: id)
         await loadReminders() // Refresh list
         return reminder
     }
+
+    /// Completes an EventKit reminder directly
+    private func completeEventKitReminder(_ reminder: Reminder) async throws {
+        guard eventKitManager.isAuthorized else {
+            throw EventKitReminderError.notAuthorized
+        }
+
+        // We need to find and complete the actual EKReminder
+        // Fetch all reminders and find the matching one by title and date
+        let ekReminders = try await eventKitManager.fetchAllRemindersFromAllCalendars()
+
+        guard let ekReminder = ekReminders.first(where: { ek in
+            ek.title == reminder.title
+        }) else {
+            throw ReminderError.notFound
+        }
+
+        // Mark as complete
+        ekReminder.isCompleted = true
+        ekReminder.completionDate = Date()
+
+        // Save to EventKit
+        let eventStore = EKEventStore()
+        try eventStore.save(ekReminder, commit: true)
+        print("✅ ReminderViewModel: Completed EventKit reminder: \(reminder.title)")
+    }
     
     // MARK: - Snooze Reminder
-    
+
     func snoozeReminder(id: Int64, until: Date) async throws -> Reminder {
+        // Check if this is an EventKit-only reminder (negative ID)
+        if id < 0 {
+            // Find the reminder and snooze it via EventKit
+            guard let reminder = reminders.first(where: { $0.id == id }) else {
+                throw ReminderError.notFound
+            }
+
+            // Snooze in EventKit (update the due date)
+            try await snoozeEventKitReminder(reminder, until: until)
+
+            // Return updated reminder
+            let snoozedReminder = Reminder(
+                id: reminder.id,
+                userId: reminder.userId,
+                title: reminder.title,
+                description: reminder.description,
+                dueDate: until,
+                reminderTime: reminder.reminderTime,
+                isCompleted: reminder.isCompleted,
+                priority: reminder.priority,
+                status: .snoozed,
+                eventId: reminder.eventId,
+                recurrenceRule: reminder.recurrenceRule,
+                snoozeUntil: until,
+                notificationEnabled: reminder.notificationEnabled,
+                notificationSound: reminder.notificationSound,
+                createdAt: reminder.createdAt,
+                updatedAt: Date(),
+                completedAt: reminder.completedAt
+            )
+
+            await loadReminders() // Refresh list
+            return snoozedReminder
+        }
+
+        // Backend reminder - use API
         let reminder = try await apiService.snoozeReminder(id: id, until: until)
         await loadReminders() // Refresh list
         return reminder
     }
+
+    /// Snoozes an EventKit reminder directly by updating its due date
+    private func snoozeEventKitReminder(_ reminder: Reminder, until: Date) async throws {
+        guard eventKitManager.isAuthorized else {
+            throw EventKitReminderError.notAuthorized
+        }
+
+        // Fetch all reminders and find the matching one by title
+        let ekReminders = try await eventKitManager.fetchAllRemindersFromAllCalendars()
+
+        guard let ekReminder = ekReminders.first(where: { ek in
+            ek.title == reminder.title
+        }) else {
+            throw ReminderError.notFound
+        }
+
+        // Update the due date and alarm
+        let calendar = Calendar.current
+        ekReminder.dueDateComponents = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: until)
+
+        // Update or add alarm
+        ekReminder.alarms?.removeAll()
+        ekReminder.addAlarm(EKAlarm(absoluteDate: until))
+
+        // Save to EventKit
+        let eventStore = EKEventStore()
+        try eventStore.save(ekReminder, commit: true)
+        print("✅ ReminderViewModel: Snoozed EventKit reminder: \(reminder.title) until \(until)")
+    }
     
     // MARK: - Delete Reminder
-    
+
     func deleteReminder(id: Int64) async throws {
+        // Check if this is an EventKit-only reminder (negative ID)
+        if id < 0 {
+            // Find the reminder and delete it via EventKit
+            guard let reminder = reminders.first(where: { $0.id == id }) else {
+                throw ReminderError.notFound
+            }
+
+            // Delete from EventKit
+            try await deleteEventKitReminder(reminder)
+            await loadReminders() // Refresh list
+            return
+        }
+
+        // Backend reminder - use API
         // Get reminder before deleting to sync deletion to EventKit
         let reminder = try? await apiService.getReminder(id: id)
-        
+
         try await apiService.deleteReminder(id: id)
-        
+
         // Delete from EventKit if it exists
         if let reminder = reminder, eventKitManager.isAuthorized {
             do {
@@ -158,8 +316,29 @@ class ReminderViewModel: ObservableObject {
                 print("⚠️ ReminderViewModel: Failed to delete from EventKit: \(error.localizedDescription)")
             }
         }
-        
+
         await loadReminders() // Refresh list
+    }
+
+    /// Deletes an EventKit reminder directly
+    private func deleteEventKitReminder(_ reminder: Reminder) async throws {
+        guard eventKitManager.isAuthorized else {
+            throw EventKitReminderError.notAuthorized
+        }
+
+        // Fetch all reminders and find the matching one by title
+        let ekReminders = try await eventKitManager.fetchAllRemindersFromAllCalendars()
+
+        guard let ekReminder = ekReminders.first(where: { ek in
+            ek.title == reminder.title
+        }) else {
+            throw ReminderError.notFound
+        }
+
+        // Delete from EventKit
+        let eventStore = EKEventStore()
+        try eventStore.remove(ekReminder, commit: true)
+        print("✅ ReminderViewModel: Deleted EventKit reminder: \(reminder.title)")
     }
     
     // MARK: - Grouped Reminders
@@ -170,15 +349,15 @@ class ReminderViewModel: ObservableObject {
         let today = calendar.startOfDay(for: now)
         let tomorrow = calendar.date(byAdding: .day, value: 1, to: today) ?? today
         let nextWeek = calendar.date(byAdding: .day, value: 7, to: today) ?? today
-        
+
         var groups: [String: [Reminder]] = [:]
-        
+
         for reminder in reminders where reminder.status == .pending {
             let dueDate = reminder.dueDate
             let dueDateStart = calendar.startOfDay(for: dueDate)
-            
+
             if dueDateStart < today {
-                groups["Overdue", default: []].append(reminder)
+                groups["Catch Up", default: []].append(reminder)
             } else if dueDateStart == today {
                 groups["Today", default: []].append(reminder)
             } else if dueDateStart == tomorrow {
@@ -186,10 +365,10 @@ class ReminderViewModel: ObservableObject {
             } else if dueDateStart < nextWeek {
                 groups["This Week", default: []].append(reminder)
             } else {
-                groups["Later", default: []].append(reminder)
+                groups["Coming Up", default: []].append(reminder)
             }
         }
-        
+
         return groups
     }
     

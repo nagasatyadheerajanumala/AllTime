@@ -5,12 +5,14 @@ enum TodayTileType: String, CaseIterable {
     case summary
     case suggestions
     case todo
+    case insights
 
     var title: String {
         switch self {
         case .summary: return "Today"
-        case .suggestions: return "Suggestions"
+        case .suggestions: return "Actions"
         case .todo: return "To-Do"
+        case .insights: return "Insights"
         }
     }
 
@@ -19,6 +21,7 @@ enum TodayTileType: String, CaseIterable {
         case .summary: return "sparkles"
         case .suggestions: return "lightbulb.fill"
         case .todo: return "checklist"
+        case .insights: return "chart.line.uptrend.xyaxis"
         }
     }
 
@@ -39,6 +42,12 @@ enum TodayTileType: String, CaseIterable {
         case .todo:
             return LinearGradient(
                 colors: [Color(hex: "10B981"), Color(hex: "059669")],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        case .insights:
+            return LinearGradient(
+                colors: [Color(hex: "8B5CF6"), Color(hex: "6D28D9")],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
@@ -305,14 +314,14 @@ struct TodoTileContent: View {
             // Stats row
             HStack(spacing: DesignSystem.Spacing.md) {
                 if let pending = data.pendingCount, pending > 0 {
-                    Text("\(pending) pending")
+                    Text("\(pending) open")
                         .font(.caption2.weight(.medium))
                         .foregroundColor(.white.opacity(0.7))
                 }
                 if let overdue = data.overdueCount, overdue > 0 {
-                    Text("\(overdue) overdue")
+                    Text("\(overdue) to catch up")
                         .font(.caption2.weight(.medium))
-                        .foregroundColor(Color(hex: "FEF2F2"))
+                        .foregroundColor(.white.opacity(0.85))
                 }
                 if let completed = data.completedTodayCount, completed > 0 {
                     Text("\(completed) done")

@@ -17,6 +17,9 @@ class CalendarViewModel: ObservableObject {
     @Published var syncError: String?
     @Published var syncStatus: String? // "success" | "failed"
     @Published var showSyncError = false
+
+    // Auto-reconnect flag to prevent duplicate OAuth attempts
+    private var isAutoReconnecting = false
     
     private let apiService = APIService()
     private let cacheManager = EventCacheManager.shared
@@ -81,6 +84,7 @@ class CalendarViewModel: ObservableObject {
                }
                
                // Listen for Google Calendar token expiry notifications
+               // Auto-reconnect: Automatically trigger OAuth flow instead of showing alert
                NotificationCenter.default.addObserver(
                    forName: NSNotification.Name("GoogleCalendarTokenExpired"),
                    object: nil,
@@ -92,15 +96,30 @@ class CalendarViewModel: ObservableObject {
                           let errorMessage = userInfo["error"] as? String {
                            print("📅 CalendarViewModel: Token expiry error: \(errorMessage)")
                        }
-                       // Show reconnect prompt (DO NOT sign out - this is just calendar token expiry)
+
+                       // AUTO-RECONNECT: Directly trigger OAuth flow for seamless UX
                        guard let self = self else { return }
+
+                       // Prevent duplicate OAuth attempts
+                       guard !self.isAutoReconnecting else {
+                           print("📅 CalendarViewModel: Auto-reconnect already in progress, skipping...")
+                           return
+                       }
+
+                       print("📅 CalendarViewModel: Auto-triggering Google OAuth reconnection flow...")
+                       self.isAutoReconnecting = true
                        self.reconnectProvider = "google"
-                       self.reconnectAlertMessage = "Your Google Calendar connection has expired. Please reconnect to continue syncing events."
-                       self.showReconnectAlert = true
+
+                       // Automatically start the OAuth flow - no user action required
+                       await GoogleAuthManager.shared.startGoogleOAuth()
+
+                       // Reset flag after OAuth completes (success or failure)
+                       self.isAutoReconnecting = false
                    }
                }
-               
+
                // Listen for Microsoft Calendar token expiry notifications
+               // Auto-reconnect: Automatically trigger OAuth flow instead of showing alert
                NotificationCenter.default.addObserver(
                    forName: NSNotification.Name("MicrosoftCalendarTokenExpired"),
                    object: nil,
@@ -112,9 +131,15 @@ class CalendarViewModel: ObservableObject {
                           let errorMessage = userInfo["error"] as? String {
                            print("📅 CalendarViewModel: Token expiry error: \(errorMessage)")
                        }
-                       // Show reconnect prompt (DO NOT sign out - this is just calendar token expiry)
+
+                       // AUTO-RECONNECT: Directly trigger OAuth flow for seamless UX
                        guard let self = self else { return }
+                       print("📅 CalendarViewModel: Auto-triggering Microsoft OAuth reconnection flow...")
                        self.reconnectProvider = "microsoft"
+
+                       // Automatically start the OAuth flow - no user action required
+                       // TODO: Add MicrosoftAuthManager.shared.startMicrosoftOAuth() when Microsoft OAuth is implemented
+                       // For now, show alert as fallback for Microsoft
                        self.reconnectAlertMessage = "Your Microsoft Calendar connection has expired. Please reconnect to continue syncing events."
                        self.showReconnectAlert = true
                    }

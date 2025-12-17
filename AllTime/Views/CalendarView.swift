@@ -11,6 +11,12 @@ struct CalendarView: View {
     @State private var viewMode: CalendarViewMode = .month
     @State private var calendarStyle: CalendarStyle = .traditional
     @State private var showingAddEvent = false
+
+    // Day Detail Sheet State
+    @State private var showingDayDetail = false
+    @State private var selectedDayForDetail: Date = Date()
+    @State private var selectedDayEvents: [Event] = []
+    @State private var useDarkThemeForSheet = false  // For wheel calendar style
     
     var body: some View {
         NavigationView {
@@ -104,9 +110,13 @@ struct CalendarView: View {
                                         selectedDate: $calendarViewModel.selectedDate,
                                         events: calendarViewModel.events,
                                         onDateSelected: { date in
-                                            // Load events asynchronously without blocking UI
+                                            // Load events and show day detail sheet
                                             Task { @MainActor in
                                                 await calendarViewModel.loadEventsForSelectedDate(date)
+                                                selectedDayForDetail = date
+                                                selectedDayEvents = calendarViewModel.eventsForDate(date)
+                                                useDarkThemeForSheet = true
+                                                showingDayDetail = true
                                             }
                                         }
                                     )
@@ -118,9 +128,13 @@ struct CalendarView: View {
                                         selectedDate: $calendarViewModel.selectedDate,
                                         events: calendarViewModel.events,
                                         onDateSelected: { date in
-                                            // Load events asynchronously without blocking UI
+                                            // Load events and show day detail sheet
                                             Task { @MainActor in
                                                 await calendarViewModel.loadEventsForSelectedDate(date)
+                                                selectedDayForDetail = date
+                                                selectedDayEvents = calendarViewModel.eventsForDate(date)
+                                                useDarkThemeForSheet = true
+                                                showingDayDetail = true
                                             }
                                         }
                                     )
@@ -131,7 +145,13 @@ struct CalendarView: View {
                                     PremiumCalendarGrid(
                                         selectedDate: $calendarViewModel.selectedDate,
                                         events: calendarViewModel.events,
-                                        viewMode: viewMode
+                                        viewMode: viewMode,
+                                        onDayTap: { date, events in
+                                            selectedDayForDetail = date
+                                            selectedDayEvents = events
+                                            useDarkThemeForSheet = true  // Day view in wheel mode
+                                            showingDayDetail = true
+                                        }
                                     )
                                     .padding(.horizontal, DesignSystem.Spacing.md)
                                 }
@@ -140,7 +160,13 @@ struct CalendarView: View {
                                 PremiumCalendarGrid(
                                     selectedDate: $calendarViewModel.selectedDate,
                                     events: calendarViewModel.events,
-                                    viewMode: viewMode
+                                    viewMode: viewMode,
+                                    onDayTap: { date, events in
+                                        selectedDayForDetail = date
+                                        selectedDayEvents = events
+                                        useDarkThemeForSheet = false  // Traditional style uses light theme
+                                        showingDayDetail = true
+                                    }
                                 )
                                 .padding(.horizontal, DesignSystem.Spacing.md)
                             }
@@ -148,17 +174,6 @@ struct CalendarView: View {
                             // Meeting Clashes Section (if any)
                             MeetingClashesSection(
                                 selectedDate: calendarViewModel.selectedDate
-                            )
-                            .padding(.horizontal, DesignSystem.Spacing.md)
-                            
-                            // Events for Selected Date
-                            PremiumEventsSection(
-                                headerText: formattedSelectedDate,
-                                events: calendarViewModel.eventsForDate(calendarViewModel.selectedDate),
-                                onEventTap: { event in
-                                    selectedEventId = Int64(event.id)
-                                    showingEventDetail = true
-                                }
                             )
                             .padding(.horizontal, DesignSystem.Spacing.md)
                             .padding(.bottom, 100) // Space for FAB + tab bar
@@ -218,6 +233,13 @@ struct CalendarView: View {
                             await calendarViewModel.refreshEvents()
                         }
                     }
+            }
+            .sheet(isPresented: $showingDayDetail) {
+                DayDetailView(
+                    date: selectedDayForDetail,
+                    events: selectedDayEvents
+                )
+                .preferredColorScheme(useDarkThemeForSheet ? .dark : nil)
             }
             .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("EventCreated"))) { _ in
                 Task {
@@ -318,16 +340,8 @@ struct MeetingClashesSection: View {
                             )
                     )
                 }
-            } else if let error = viewModel.errorMessage {
-                HStack {
-                    Image(systemName: "exclamationmark.circle.fill")
-                        .foregroundColor(.red)
-                    Text("Failed to load clashes: \(error)")
-                        .font(DesignSystem.Typography.caption)
-                        .foregroundColor(DesignSystem.Colors.secondaryText)
-                }
-                .padding(DesignSystem.Spacing.md)
             }
+            // Silently ignore errors - don't show error message to user
         }
         .onAppear {
             // Load clashes for selected date ± 7 days

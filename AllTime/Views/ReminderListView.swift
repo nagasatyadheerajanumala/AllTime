@@ -21,7 +21,7 @@ struct ReminderListView: View {
                 .ignoresSafeArea()
                 
                 if viewModel.isLoading && viewModel.reminders.isEmpty {
-                    ProgressView("Loading reminders...")
+                    ProgressView("Loading...")
                 } else if let error = viewModel.errorMessage {
                     ReminderErrorView(message: error) {
                         Task {
@@ -42,7 +42,7 @@ struct ReminderListView: View {
                             
                             // Grouped reminders
                             let groups = viewModel.groupedReminders()
-                            let groupOrder = ["Overdue", "Today", "Tomorrow", "This Week", "Later"]
+                            let groupOrder = ["Catch Up", "Today", "Tomorrow", "This Week", "Coming Up"]
                             
                             ForEach(groupOrder, id: \.self) { groupName in
                                 if let reminders = groups[groupName], !reminders.isEmpty {
@@ -110,6 +110,11 @@ struct ReminderListView: View {
             }
             .refreshable {
                 await viewModel.loadReminders()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("RefreshReminders"))) { _ in
+                Task {
+                    await viewModel.loadReminders()
+                }
             }
             .onAppear {
                 Task {
@@ -239,15 +244,15 @@ struct ReminderGroupSection: View {
 struct EmptyRemindersView: View {
     var body: some View {
         VStack(spacing: 16) {
-            Image(systemName: "bell.slash")
-                .font(.system(size: 48))
+            Image(systemName: "note.text")
+                .font(.system(size: 48, weight: .light))
                 .foregroundColor(.secondary)
-            
-            Text("No Reminders")
+
+            Text("All Clear")
                 .font(.title2)
-                .fontWeight(.semibold)
-            
-            Text("Create a reminder to get started")
+                .fontWeight(.medium)
+
+            Text("Tap + to jot something down")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
         }
@@ -259,25 +264,25 @@ struct EmptyRemindersView: View {
 struct ReminderErrorView: View {
     let message: String
     let onRetry: () -> Void
-    
+
     var body: some View {
         VStack(spacing: 16) {
-            Image(systemName: "exclamationmark.triangle")
-                .font(.system(size: 48))
-                .foregroundColor(.orange)
-            
-            Text("Error")
+            Image(systemName: "wifi.slash")
+                .font(.system(size: 48, weight: .light))
+                .foregroundColor(.secondary)
+
+            Text("Couldn't load")
                 .font(.title2)
-                .fontWeight(.semibold)
-            
-            Text(message)
+                .fontWeight(.medium)
+
+            Text("Check your connection and try again")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal)
-            
-            Button("Retry", action: onRetry)
-                .buttonStyle(.borderedProminent)
+
+            Button("Try Again", action: onRetry)
+                .buttonStyle(.bordered)
         }
         .padding()
     }

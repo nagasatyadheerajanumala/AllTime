@@ -222,19 +222,19 @@ enum TaskPriority: String, Codable, CaseIterable {
 
     var displayName: String {
         switch self {
-        case .low: return "Low"
-        case .medium: return "Medium"
-        case .high: return "High"
-        case .urgent: return "Urgent"
+        case .low: return "Flexible"
+        case .medium: return "Regular"
+        case .high: return "Important"
+        case .urgent: return "Time-sensitive"
         }
     }
 
     var color: Color {
         switch self {
         case .low: return .secondary
-        case .medium: return .blue
-        case .high: return .orange
-        case .urgent: return .red
+        case .medium: return Color(hex: "007AFF")   // Blue
+        case .high: return Color(hex: "5856D6")     // Indigo
+        case .urgent: return Color(hex: "FF9500")   // Orange
         }
     }
 

@@ -11,6 +11,8 @@ struct TodayTilesContainerView: View {
     @State private var showingSummaryDetail = false
     @State private var showingSuggestionsDetail = false
     @State private var showingTodoDetail = false
+    @State private var showingInsightsDetail = false
+    @StateObject private var predictionsViewModel = PredictionsViewModel()
 
     var body: some View {
         VStack(spacing: DesignSystem.Today.tileSpacing) {
@@ -66,7 +68,7 @@ struct TodayTilesContainerView: View {
                             }
                         ))
                     } else {
-                        EmptyTileContent(message: "No suggestions")
+                        EmptyTileContent(message: "No actions")
                     }
                 }
                 .frame(maxWidth: .infinity)
@@ -85,6 +87,19 @@ struct TodayTilesContainerView: View {
                 }
                 .frame(maxWidth: .infinity)
             }
+
+            // Insights Tile (Predictions) - Full width
+            TodayTileView(
+                type: .insights,
+                isLoading: predictionsViewModel.isLoading,
+                onTap: { showingInsightsDetail = true }
+            ) {
+                if let predictions = predictionsViewModel.predictions {
+                    PredictionsTileContent(predictions: predictions)
+                } else {
+                    EmptyTileContent(message: "Tap to view insights")
+                }
+            }
         }
         .sheet(isPresented: $showingSummaryDetail) {
             TodaySummaryDetailView(
@@ -102,6 +117,12 @@ struct TodayTilesContainerView: View {
             ToDoDetailView(
                 todoTile: overview?.todoTile
             )
+        }
+        .sheet(isPresented: $showingInsightsDetail) {
+            PredictionsDetailView()
+        }
+        .task {
+            await predictionsViewModel.fetchPredictions()
         }
     }
 

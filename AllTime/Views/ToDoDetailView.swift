@@ -11,9 +11,9 @@ struct ToDoDetailView: View {
 
     enum TaskFilter: String, CaseIterable {
         case all = "All"
-        case pending = "Pending"
-        case overdue = "Overdue"
-        case completed = "Completed"
+        case pending = "Open"
+        case overdue = "Catch Up"
+        case completed = "Done"
     }
 
     var body: some View {
@@ -82,13 +82,13 @@ struct ToDoDetailView: View {
         HStack(spacing: 12) {
             TaskStatCard(
                 value: "\(todoTile?.pendingCount ?? viewModel.pendingCount)",
-                label: "Pending",
+                label: "Open",
                 color: DesignSystem.Colors.primary
             )
             TaskStatCard(
                 value: "\(todoTile?.overdueCount ?? viewModel.overdueCount)",
-                label: "Overdue",
-                color: Color(hex: "EF4444")
+                label: "Catch Up",
+                color: Color(hex: "FF9500")
             )
             TaskStatCard(
                 value: "\(todoTile?.completedTodayCount ?? viewModel.completedCount)",
@@ -196,9 +196,9 @@ struct ToDoDetailView: View {
     private var emptyStateMessage: String {
         switch selectedFilter {
         case .all: return "No tasks yet"
-        case .pending: return "No pending tasks"
-        case .overdue: return "No overdue tasks"
-        case .completed: return "No completed tasks"
+        case .pending: return "Nothing open"
+        case .overdue: return "All caught up"
+        case .completed: return "Nothing done yet"
         }
     }
 }
@@ -307,13 +307,13 @@ struct TodoTaskRow: View {
                     if let time = task.timeLabel {
                         Text(time)
                             .font(.caption)
-                            .foregroundColor(task.isOverdue == true ? Color(hex: "EF4444") : DesignSystem.Colors.secondaryText)
+                            .foregroundColor(task.isOverdue == true ? Color(hex: "FF9500") : DesignSystem.Colors.secondaryText)
                     }
 
                     if task.isOverdue == true {
-                        Text("Overdue")
-                            .font(.caption.weight(.medium))
-                            .foregroundColor(Color(hex: "EF4444"))
+                        Text("Past")
+                            .font(.caption)
+                            .foregroundColor(Color(hex: "FF9500"))
                     }
                 }
             }
@@ -336,7 +336,7 @@ struct TodoTaskRow: View {
         .padding(12)
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(task.isOverdue == true ? Color(hex: "EF4444").opacity(0.08) : DesignSystem.Colors.cardBackground)
+                .fill(task.isOverdue == true ? Color(hex: "FF9500").opacity(0.08) : DesignSystem.Colors.cardBackground)
         )
     }
 
@@ -345,11 +345,11 @@ struct TodoTaskRow: View {
             return Color(hex: "10B981")
         }
         if task.isOverdue == true {
-            return Color(hex: "EF4444")
+            return Color(hex: "FF9500")
         }
         switch task.priority {
-        case .urgent: return Color(hex: "EF4444")
-        case .high: return Color(hex: "F59E0B")
+        case .urgent: return Color(hex: "FF9500")
+        case .high: return Color(hex: "5856D6")
         default: return DesignSystem.Colors.secondaryText
         }
     }
@@ -373,9 +373,9 @@ struct TaskPriorityBadge: View {
 
     private var priorityColor: Color {
         switch priority {
-        case .urgent: return Color(hex: "EF4444")
-        case .high: return Color(hex: "F59E0B")
-        case .medium: return DesignSystem.Colors.primary
+        case .urgent: return Color(hex: "FF9500")   // Orange - time-sensitive
+        case .high: return Color(hex: "5856D6")     // Indigo - important
+        case .medium: return Color(hex: "007AFF")   // Blue - regular
         case .low: return DesignSystem.Colors.secondaryText
         }
     }
@@ -390,6 +390,7 @@ struct AddTaskView: View {
     @State private var dueDate = Date()
     @State private var hasDueDate = false
     @State private var isSubmitting = false
+    @State private var errorMessage: String?
 
     let priorities = ["LOW", "MEDIUM", "HIGH", "URGENT"]
 
@@ -415,6 +416,14 @@ struct AddTaskView: View {
                         DatePicker("Due", selection: $dueDate, displayedComponents: [.date, .hourAndMinute])
                     }
                 }
+
+                if let error = errorMessage {
+                    Section {
+                        Text(error)
+                            .foregroundColor(.red)
+                            .font(.caption)
+                    }
+                }
             }
             .navigationTitle("New Task")
             .navigationBarTitleDisplayMode(.inline)
@@ -434,14 +443,43 @@ struct AddTaskView: View {
     }
 
     private func addTask() {
+        guard !title.isEmpty else { return }
         isSubmitting = true
-        // TODO: Call API to add task
+
         Task {
-            // Simulate API call
-            try? await Task.sleep(nanoseconds: 500_000_000)
-            await MainActor.run {
-                onTaskAdded()
-                dismiss()
+            do {
+                let taskRequest = TaskRequest(
+                    title: title,
+                    description: nil,
+                    durationMinutes: nil,
+                    preferredTimeSlot: nil,
+                    preferredTime: nil,
+                    targetDate: hasDueDate ? dueDate : nil,
+                    deadline: hasDueDate ? dueDate : nil,
+                    deadlineType: hasDueDate ? "SPECIFIC_TIME" : "NO_DEADLINE",
+                    notifyMinutesBefore: nil,
+                    isReminder: false,
+                    reminderTime: nil,
+                    syncToReminders: false,
+                    priority: priority,
+                    category: nil,
+                    tags: nil,
+                    source: "ios_app"
+                )
+
+                let _ = try await APIService.shared.createTask(taskRequest)
+
+                await MainActor.run {
+                    isSubmitting = false
+                    onTaskAdded()
+                    dismiss()
+                }
+            } catch {
+                await MainActor.run {
+                    isSubmitting = false
+                    errorMessage = error.localizedDescription
+                    print("❌ Failed to create task: \(error.localizedDescription)")
+                }
             }
         }
     }

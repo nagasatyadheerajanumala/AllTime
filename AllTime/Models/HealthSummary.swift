@@ -123,22 +123,22 @@ enum SuggestionPriority: String, Codable {
     case medium = "medium"
     case high = "high"
     case urgent = "urgent"
-    
+
     var displayName: String {
         switch self {
-        case .low: return "Low"
-        case .medium: return "Medium"
-        case .high: return "High"
-        case .urgent: return "Urgent"
+        case .low: return "Helpful"
+        case .medium: return "Recommended"
+        case .high: return "Good for you"
+        case .urgent: return "Worth considering"
         }
     }
-    
+
     var color: String {
         switch self {
-        case .low: return "blue"
-        case .medium: return "orange"
-        case .high: return "red"
-        case .urgent: return "purple"
+        case .low: return "gray"
+        case .medium: return "blue"
+        case .high: return "indigo"
+        case .urgent: return "orange"
         }
     }
 }

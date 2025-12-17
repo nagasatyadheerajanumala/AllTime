@@ -7,25 +7,25 @@ struct PremiumCalendarHeader: View {
     @Binding var calendarStyle: CalendarStyle
     let isRefreshing: Bool
     let onRefresh: () -> Void
-    
+
     private let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "MMMM yyyy"
         return formatter
     }()
-    
+
     private let dayFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "EEEE, MMM d"
         return formatter
     }()
-    
+
     private let weekFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "MMM d"
         return formatter
     }()
-    
+
     private var dateRangeText: String {
         let calendar = Calendar.current
         switch viewMode {
@@ -42,12 +42,12 @@ struct PremiumCalendarHeader: View {
             return dayFormatter.string(from: selectedDate)
         }
     }
-    
+
     var body: some View {
         VStack(spacing: DesignSystem.Spacing.md) {
-            // Date Range and Controls
+            // Date Range and Controls - Apple-like clean design
             HStack {
-                // Previous Period
+                // Previous Period Button
                 Button(action: {
                     withAnimation(DesignSystem.Animations.smooth) {
                         let calendar = Calendar.current
@@ -62,32 +62,31 @@ struct PremiumCalendarHeader: View {
                     }
                 }) {
                     Image(systemName: "chevron.left")
-                        .font(.system(size: 18, weight: .semibold))
+                        .font(.system(size: 16, weight: .semibold))
                         .foregroundColor(calendarStyle == .wheel ? .white : DesignSystem.Colors.primary)
-                        .frame(width: 44, height: 44)
+                        .frame(width: 36, height: 36)
                         .background(
                             Circle()
-                                .fill(calendarStyle == .wheel ? .white.opacity(0.2) : DesignSystem.Colors.primary.opacity(0.1))
+                                .fill(calendarStyle == .wheel ? .white.opacity(0.15) : DesignSystem.Colors.primary.opacity(0.1))
                         )
                 }
-                .hapticFeedback()
-                
+
                 Spacer()
-                
-                // Date Range Display
-                VStack(spacing: 2) {
+
+                // Date Range Display - Cleaner typography
+                VStack(spacing: 4) {
                     Text(dateRangeText)
-                        .font(DesignSystem.Typography.title2)
+                        .font(.title3.weight(.semibold))
                         .foregroundColor(calendarStyle == .wheel ? .white : DesignSystem.Colors.primaryText)
-                    
-                    Text("Tap a date to view events")
-                        .font(DesignSystem.Typography.caption)
-                        .foregroundColor(calendarStyle == .wheel ? .white.opacity(0.8) : DesignSystem.Colors.tertiaryText)
+
+                    Text("Tap a date for details")
+                        .font(.caption)
+                        .foregroundColor(calendarStyle == .wheel ? .white.opacity(0.6) : DesignSystem.Colors.tertiaryText)
                 }
-                
+
                 Spacer()
-                
-                // Next Period
+
+                // Next Period Button
                 Button(action: {
                     withAnimation(DesignSystem.Animations.smooth) {
                         let calendar = Calendar.current
@@ -102,55 +101,58 @@ struct PremiumCalendarHeader: View {
                     }
                 }) {
                     Image(systemName: "chevron.right")
-                        .font(.system(size: 18, weight: .semibold))
+                        .font(.system(size: 16, weight: .semibold))
                         .foregroundColor(calendarStyle == .wheel ? .white : DesignSystem.Colors.primary)
-                        .frame(width: 44, height: 44)
+                        .frame(width: 36, height: 36)
                         .background(
                             Circle()
-                                .fill(calendarStyle == .wheel ? .white.opacity(0.2) : DesignSystem.Colors.primary.opacity(0.1))
+                                .fill(calendarStyle == .wheel ? .white.opacity(0.15) : DesignSystem.Colors.primary.opacity(0.1))
                         )
                 }
-                .hapticFeedback()
             }
             .padding(.horizontal, DesignSystem.Spacing.md)
-            .padding(.top, DesignSystem.Spacing.sm)
-            
-            // View Mode Selector
-            HStack(spacing: DesignSystem.Spacing.sm) {
-                ForEach([CalendarViewMode.month, .week, .day], id: \.self) { mode in
-                    Button(action: {
-                        withAnimation(DesignSystem.Animations.smooth) {
-                            viewMode = mode
-                        }
-                    }) {
-                        Text(mode == .month ? "Month" : mode == .week ? "Week" : "Day")
-                            .font(DesignSystem.Typography.subheadline)
-                            .fontWeight(viewMode == mode ? .semibold : .regular)
-                        .foregroundColor(
-                            viewMode == mode 
-                                ? (calendarStyle == .wheel ? .white : .white)
-                                : (calendarStyle == .wheel ? .white.opacity(0.8) : DesignSystem.Colors.primary)
-                        )
-                        .padding(.horizontal, DesignSystem.Spacing.md)
-                        .padding(.vertical, DesignSystem.Spacing.sm)
-                        .background(
-                            viewMode == mode 
-                                ? (calendarStyle == .wheel
-                                    ? LinearGradient(colors: [.white.opacity(0.3)], startPoint: .leading, endPoint: .trailing)
-                                    : DesignSystem.Colors.primaryGradient)
-                                : LinearGradient(
-                                    colors: [calendarStyle == .wheel ? .white.opacity(0.15) : DesignSystem.Colors.primary.opacity(0.1)],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
+            .padding(.top, DesignSystem.Spacing.md)
+
+            // View Mode Selector - Apple-like segmented control style
+            HStack(spacing: DesignSystem.Spacing.xs) {
+                // Segmented control for Month/Week/Day
+                HStack(spacing: 2) {
+                    ForEach([CalendarViewMode.month, .week, .day], id: \.self) { mode in
+                        Button(action: {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                viewMode = mode
+                            }
+                        }) {
+                            Text(mode == .month ? "Month" : mode == .week ? "Week" : "Day")
+                                .font(.subheadline.weight(viewMode == mode ? .semibold : .medium))
+                                .foregroundColor(
+                                    viewMode == mode
+                                        ? .white
+                                        : (calendarStyle == .wheel ? .white.opacity(0.7) : DesignSystem.Colors.secondaryText)
                                 )
-                        )
-                            .cornerRadius(DesignSystem.CornerRadius.sm)
+                                .padding(.horizontal, DesignSystem.Spacing.md)
+                                .padding(.vertical, 8)
+                                .background(
+                                    Group {
+                                        if viewMode == mode {
+                                            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.sm)
+                                                .fill(DesignSystem.Colors.primary)
+                                        } else {
+                                            Color.clear
+                                        }
+                                    }
+                                )
+                        }
                     }
-                    .hapticFeedback()
                 }
-                
+                .padding(3)
+                .background(
+                    RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.md)
+                        .fill(calendarStyle == .wheel ? .white.opacity(0.1) : DesignSystem.Colors.cardBackgroundElevated)
+                )
+
                 Spacer()
-                
+
                 // Calendar Style Toggle
                 Button(action: {
                     withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
@@ -158,29 +160,32 @@ struct PremiumCalendarHeader: View {
                     }
                 }) {
                     Image(systemName: calendarStyle == .traditional ? "circle.dotted" : "square.grid.2x2")
-                        .font(.system(size: 16, weight: .semibold))
+                        .font(.system(size: 14, weight: .semibold))
                         .foregroundColor(calendarStyle == .wheel ? .white : DesignSystem.Colors.primary)
-                        .frame(width: 44, height: 44)
+                        .frame(width: 36, height: 36)
                         .background(
                             Circle()
-                                .fill(calendarStyle == .wheel ? .white.opacity(0.2) : DesignSystem.Colors.primary.opacity(0.1))
+                                .fill(calendarStyle == .wheel ? .white.opacity(0.15) : DesignSystem.Colors.primary.opacity(0.1))
                         )
                 }
-                .hapticFeedback()
-                
+
                 // Refresh Button
                 Button(action: onRefresh) {
-                    Image(systemName: isRefreshing ? "arrow.clockwise" : "arrow.clockwise")
-                        .font(.system(size: 16, weight: .semibold))
+                    Image(systemName: "arrow.clockwise")
+                        .font(.system(size: 14, weight: .semibold))
                         .foregroundColor(calendarStyle == .wheel ? .white : DesignSystem.Colors.primary)
+                        .frame(width: 36, height: 36)
+                        .background(
+                            Circle()
+                                .fill(calendarStyle == .wheel ? .white.opacity(0.15) : DesignSystem.Colors.primary.opacity(0.1))
+                        )
                         .rotationEffect(.degrees(isRefreshing ? 360 : 0))
                         .animation(isRefreshing ? Animation.linear(duration: 1).repeatForever(autoreverses: false) : .default, value: isRefreshing)
                 }
-                .hapticFeedback()
                 .disabled(isRefreshing)
             }
             .padding(.horizontal, DesignSystem.Spacing.md)
-            .padding(.bottom, DesignSystem.Spacing.sm)
+            .padding(.bottom, DesignSystem.Spacing.md)
         }
         .background(
             Group {
@@ -189,19 +194,9 @@ struct PremiumCalendarHeader: View {
                         .fill(.ultraThinMaterial)
                         .opacity(0.5)
                 } else {
-                    DesignSystem.Colors.cardBackground
+                    DesignSystem.Colors.background
                 }
             }
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 0)
-                .stroke((calendarStyle == .wheel || calendarStyle == .wheel) ? .white.opacity(0.1) : .clear, lineWidth: 0.5)
-        )
-        .shadow(
-            color: (calendarStyle == .wheel || calendarStyle == .wheel) ? .black.opacity(0.1) : DesignSystem.Shadow.small.color,
-            radius: (calendarStyle == .wheel || calendarStyle == .wheel) ? 5 : DesignSystem.Shadow.small.radius,
-            x: 0,
-            y: (calendarStyle == .wheel || calendarStyle == .wheel) ? 2 : DesignSystem.Shadow.small.y
         )
     }
 }
@@ -211,29 +206,30 @@ struct PremiumCalendarGrid: View {
     @Binding var selectedDate: Date
     let events: [Event]
     let viewMode: CalendarViewMode
-    
+    var onDayTap: ((Date, [Event]) -> Void)? = nil  // New callback for day tap
+
     private let calendar = Calendar.current
-    
+
     // Pre-computed event index (built once when events change)
     @State private var eventsByDate: [Date: [Event]] = [:]
-    
+
     var body: some View {
-        VStack(spacing: DesignSystem.Spacing.sm) {
-            // Weekday Headers
+        VStack(spacing: DesignSystem.Spacing.md) {
+            // Weekday Headers - Apple-like styling
             HStack(spacing: 0) {
                 ForEach(weekdaySymbols, id: \.self) { weekday in
-                    Text(weekday)
-                        .font(DesignSystem.Typography.caption)
-                        .fontWeight(.semibold)
-                        .foregroundColor(DesignSystem.Colors.tertiaryText)
+                    Text(weekday.uppercased())
+                        .font(.caption2.weight(.semibold))
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
                         .frame(maxWidth: .infinity)
                 }
             }
-            .padding(.vertical, DesignSystem.Spacing.sm)
-            
-            // Calendar Days Grid
-            let columns = Array(repeating: GridItem(.flexible(), spacing: 4), count: columnCount)
-            LazyVGrid(columns: columns, spacing: 4) {
+            .padding(.horizontal, DesignSystem.Spacing.xs)
+            .padding(.bottom, DesignSystem.Spacing.xs)
+
+            // Calendar Days Grid with better spacing
+            let columns = Array(repeating: GridItem(.flexible(), spacing: 6), count: columnCount)
+            LazyVGrid(columns: columns, spacing: 6) {
                 ForEach(calendarDays, id: \.self) { date in
                     PremiumCalendarDayCell(
                         date: date,
@@ -242,24 +238,22 @@ struct PremiumCalendarGrid: View {
                         isCurrentMonth: isDateInCurrentRange(date),
                         hasEvents: hasEventsOnDate(date),
                         eventCount: eventCountOnDate(date),
-                        events: eventsForDay(date), // Pass events for colored dots
+                        events: eventsForDay(date),
                         onTap: {
                             withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                                 selectedDate = date
                             }
+                            // Call the day tap callback to open detail sheet
+                            onDayTap?(date, eventsForDay(date))
                         }
                     )
                 }
             }
         }
-        .padding(DesignSystem.Spacing.md)
-        .background(DesignSystem.Colors.cardBackground)
-        .cornerRadius(DesignSystem.CornerRadius.lg)
-        .shadow(
-            color: DesignSystem.Shadow.medium.color,
-            radius: DesignSystem.Shadow.medium.radius,
-            x: DesignSystem.Shadow.medium.x,
-            y: DesignSystem.Shadow.medium.y
+        .padding(DesignSystem.Today.cardPadding)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Today.innerCardCornerRadius)
+                .fill(DesignSystem.Colors.cardBackground)
         )
         .onAppear {
             // Build index when view appears
@@ -397,71 +391,76 @@ struct PremiumCalendarDayCell: View {
     let isCurrentMonth: Bool
     let hasEvents: Bool
     let eventCount: Int
-    let events: [Event] // Add events to show colored dots
+    let events: [Event]
     let onTap: () -> Void
-    
+
     private let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "d"
         return formatter
     }()
-    
+
     var body: some View {
         Button(action: {
             onTap()
         }) {
-            VStack(alignment: .leading, spacing: 2) {
-                // Day number
-                Text(dateFormatter.string(from: date))
-                    .font(.system(size: 15, weight: isToday || isSelected ? .bold : .regular))
-                    .foregroundColor(textColor)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                
-                // Event titles/labels (like Apple Calendar)
-                if hasEvents {
-                    VStack(alignment: .leading, spacing: 1) {
-                        let eventsToShow = Array(events.prefix(3))
+            VStack(alignment: .leading, spacing: 3) {
+                // Day number - cleaner Apple-like styling
+                HStack {
+                    Text(dateFormatter.string(from: date))
+                        .font(.system(size: 14, weight: isToday ? .bold : .medium))
+                        .foregroundColor(textColor)
+
+                    Spacer()
+                }
+                .padding(.horizontal, 4)
+                .padding(.top, 4)
+
+                // Event bullet labels (max 2 lines)
+                if hasEvents && isCurrentMonth {
+                    VStack(alignment: .leading, spacing: 2) {
+                        let eventsToShow = Array(events.prefix(2))
                         ForEach(eventsToShow, id: \.id) { event in
-                            HStack(spacing: 2) {
-                                // Small colored circle indicator
+                            HStack(spacing: 3) {
+                                // Small colored dot indicator
                                 Circle()
                                     .fill(event.sourceColorAsColor)
-                                    .frame(width: 3, height: 3)
-                                
-                                // Event title (truncated)
-                                Text(event.title)
-                                    .font(.system(size: 9, weight: .medium))
-                                    .foregroundColor(isSelected ? .white.opacity(0.9) : DesignSystem.Colors.primaryText)
+                                    .frame(width: 4, height: 4)
+
+                                // Event title bullet (truncated)
+                                Text(event.title.isEmpty ? "No Title" : event.title)
+                                    .font(.system(size: 8, weight: .medium))
+                                    .foregroundColor(isSelected ? .white.opacity(0.9) : DesignSystem.Colors.secondaryText)
                                     .lineLimit(1)
                                     .truncationMode(.tail)
                             }
+                            .padding(.horizontal, 4)
                         }
-                        
-                        // Show "+N" if more events
-                        if eventCount > 3 {
-                            Text("+\(eventCount - 3)")
-                                .font(.system(size: 9, weight: .medium))
-                                .foregroundColor(isSelected ? .white.opacity(0.8) : DesignSystem.Colors.tertiaryText)
-                                .padding(.leading, 5)
+
+                        // Show "+N" indicator if more events
+                        if eventCount > 2 {
+                            Text("+\(eventCount - 2)")
+                                .font(.system(size: 8, weight: .semibold))
+                                .foregroundColor(isSelected ? .white.opacity(0.7) : DesignSystem.Colors.tertiaryText)
+                                .padding(.horizontal, 4)
                         }
                     }
                 }
+
+                Spacer(minLength: 0)
             }
-            .frame(minHeight: 60, maxHeight: 80)
+            .frame(minHeight: 56, maxHeight: 70)
             .frame(maxWidth: .infinity, alignment: .topLeading)
-            .padding(.vertical, 4)
-            .padding(.horizontal, 2)
             .background(backgroundColor)
             .cornerRadius(DesignSystem.CornerRadius.sm)
             .overlay(
                 RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.sm)
-                    .stroke(borderColor, lineWidth: isToday ? 2 : 0)
+                    .stroke(borderColor, lineWidth: isToday && !isSelected ? 1.5 : 0)
             )
         }
         .buttonStyle(PlainButtonStyle())
-        .hapticFeedback(.light)
     }
-    
+
     private var textColor: Color {
         if !isCurrentMonth {
             return DesignSystem.Colors.tertiaryText.opacity(0.3)
@@ -473,36 +472,24 @@ struct PremiumCalendarDayCell: View {
             return DesignSystem.Colors.primaryText
         }
     }
-    
+
     private var backgroundColor: Color {
         if isSelected {
             return DesignSystem.Colors.primary
         } else if isToday {
-            return DesignSystem.Colors.primary.opacity(0.1)
-        } else {
+            return DesignSystem.Colors.primary.opacity(0.08)
+        } else if !isCurrentMonth {
             return Color.clear
+        } else {
+            return DesignSystem.Colors.cardBackgroundElevated.opacity(0.5)
         }
     }
-    
+
     private var borderColor: Color {
         if isToday && !isSelected {
-            return DesignSystem.Colors.primary
+            return DesignSystem.Colors.primary.opacity(0.5)
         } else {
             return Color.clear
-        }
-    }
-    
-    // Get color based on event source (Apple Calendar style)
-    private func eventSourceColor(_ source: String) -> Color {
-        switch source.lowercased() {
-        case "google":
-            return Color(red: 0.26, green: 0.52, blue: 0.96) // Google Blue #4285F4
-        case "microsoft", "outlook":
-            return Color(red: 1.0, green: 0.42, blue: 0.21) // Microsoft Orange #FF6B35
-        case "apple", "eventkit":
-            return Color(red: 0.69, green: 0.32, blue: 0.87) // Apple Purple #AF52DE
-        default:
-            return DesignSystem.Colors.primary
         }
     }
 }

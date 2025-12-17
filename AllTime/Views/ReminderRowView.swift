@@ -5,148 +5,209 @@ struct ReminderRowView: View {
     let onComplete: () -> Void
     let onSnooze: () -> Void
     var onDelete: (() -> Void)? = nil
-    
+
     private static let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .short
+        formatter.dateFormat = "MMM d"
         formatter.timeZone = TimeZone.current
         return formatter
     }()
-    
+
     private static let timeFormatter: DateFormatter = {
         let formatter = DateFormatter()
-        formatter.timeStyle = .short
+        formatter.dateFormat = "h:mm a"
         formatter.timeZone = TimeZone.current
         return formatter
     }()
-    
-    private var isOverdue: Bool {
+
+    /// Returns a friendly, relative date string
+    private var friendlyDateString: String {
+        let calendar = Calendar.current
+        let now = Date()
+        let dueDate = reminder.dueDate
+
+        if calendar.isDateInToday(dueDate) {
+            return "Today, \(Self.timeFormatter.string(from: dueDate))"
+        } else if calendar.isDateInTomorrow(dueDate) {
+            return "Tomorrow, \(Self.timeFormatter.string(from: dueDate))"
+        } else if calendar.isDateInYesterday(dueDate) {
+            return "Yesterday"
+        } else if dueDate < now {
+            let days = calendar.dateComponents([.day], from: dueDate, to: now).day ?? 0
+            if days == 1 {
+                return "1 day ago"
+            } else if days < 7 {
+                return "\(days) days ago"
+            }
+        } else {
+            let days = calendar.dateComponents([.day], from: now, to: dueDate).day ?? 0
+            if days < 7 {
+                let weekday = calendar.component(.weekday, from: dueDate)
+                let weekdayName = calendar.weekdaySymbols[weekday - 1]
+                return weekdayName
+            }
+        }
+        return Self.dateFormatter.string(from: dueDate)
+    }
+
+    private var needsAttention: Bool {
         reminder.dueDate < Date() && reminder.status == .pending
     }
-    
+
     var body: some View {
-        HStack(spacing: 12) {
-            // Checkbox/Status indicator
+        HStack(alignment: .top, spacing: 12) {
+            // Simple checkbox - Apple Notes style
             Button(action: onComplete) {
                 Image(systemName: reminder.isCompleted ? "checkmark.circle.fill" : "circle")
-                    .font(.title3)
-                    .foregroundColor(reminder.isCompleted ? .green : (isOverdue ? .red : .gray))
+                    .font(.system(size: 22, weight: .light))
+                    .foregroundColor(reminder.isCompleted ? Color(hex: "34C759") : Color(hex: "C7C7CC"))
             }
             .buttonStyle(PlainButtonStyle())
-            
-            // Reminder content
-            VStack(alignment: .leading, spacing: 4) {
+            .padding(.top, 2)
+
+            // Note content - clean and simple
+            VStack(alignment: .leading, spacing: 6) {
+                // Title - prominent, like a note title
                 Text(reminder.title)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                    .strikethrough(reminder.isCompleted)
-                    .foregroundColor(reminder.isCompleted ? .secondary : (isOverdue ? .red : .primary))
+                    .font(.system(size: 16, weight: .regular))
+                    .strikethrough(reminder.isCompleted, color: .secondary)
+                    .foregroundColor(reminder.isCompleted ? .secondary : .primary)
                     .lineLimit(2)
-                
+                    .multilineTextAlignment(.leading)
+
+                // Description - if present
                 if let description = reminder.description, !description.isEmpty {
                     Text(description)
-                        .font(.caption)
+                        .font(.system(size: 14))
                         .foregroundColor(.secondary)
-                        .lineLimit(1)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
                 }
-                
-                HStack(spacing: 8) {
-                    // Due date
-                    HStack(spacing: 4) {
-                        Image(systemName: "clock")
-                            .font(.caption2)
-                        Text(Self.dateFormatter.string(from: reminder.dueDate))
-                            .font(.caption)
+
+                // Subtle metadata row
+                HStack(spacing: 12) {
+                    // Date - friendly format
+                    Text(friendlyDateString)
+                        .font(.system(size: 12))
+                        .foregroundColor(needsAttention ? Color(hex: "FF9500") : .secondary)
+
+                    // Priority indicator - subtle dot or text
+                    if let priority = reminder.priority, priority != .low {
+                        PriorityIndicator(priority: priority)
                     }
-                    .foregroundColor(isOverdue ? .red : .secondary)
-                    
-                    // Priority badge
-                    if let priority = reminder.priority {
-                        PriorityBadge(priority: priority)
-                    }
-                    
-                    // Recurrence indicator
+
+                    // Recurring indicator
                     if reminder.recurrenceRule != nil {
-                        Image(systemName: "repeat")
-                            .font(.caption2)
-                            .foregroundColor(.blue)
+                        HStack(spacing: 2) {
+                            Image(systemName: "arrow.triangle.2.circlepath")
+                                .font(.system(size: 10))
+                            Text("Repeats")
+                                .font(.system(size: 11))
+                        }
+                        .foregroundColor(.secondary)
                     }
-                    
+
                     Spacer()
                 }
             }
-            
-            Spacer()
 
-            // Action buttons
-            HStack(spacing: 12) {
-                // Snooze button
-                if !reminder.isCompleted && reminder.status != .snoozed {
-                    Button(action: onSnooze) {
-                        Image(systemName: "moon.zzz")
-                            .font(.caption)
-                            .foregroundColor(.blue)
-                    }
-                    .buttonStyle(PlainButtonStyle())
-                }
+            Spacer(minLength: 0)
 
-                // Delete button
-                if let onDelete = onDelete {
-                    Button(action: onDelete) {
-                        Image(systemName: "trash")
-                            .font(.caption)
-                            .foregroundColor(.red.opacity(0.7))
+            // Minimal action buttons - only show on hover/interaction in practice
+            if !reminder.isCompleted {
+                HStack(spacing: 16) {
+                    if reminder.status != .snoozed {
+                        Button(action: onSnooze) {
+                            Image(systemName: "clock.arrow.circlepath")
+                                .font(.system(size: 14))
+                                .foregroundColor(.secondary)
+                        }
+                        .buttonStyle(PlainButtonStyle())
                     }
-                    .buttonStyle(PlainButtonStyle())
+
+                    if let onDelete = onDelete {
+                        Button(action: onDelete) {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(.secondary)
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                    }
                 }
             }
         }
-        .padding(.vertical, 8)
-        .padding(.horizontal, 12)
+        .padding(.vertical, 12)
+        .padding(.horizontal, 16)
         .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(UIColor.secondarySystemGroupedBackground))
+            RoundedRectangle(cornerRadius: 10)
+                .fill(Color(UIColor.systemBackground))
         )
     }
 }
 
-// MARK: - Priority Badge
+// MARK: - Priority Indicator (Subtle, non-alarming)
+
+struct PriorityIndicator: View {
+    let priority: ReminderPriority
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Circle()
+                .fill(priorityColor)
+                .frame(width: 6, height: 6)
+
+            Text(priority.displayName)
+                .font(.system(size: 11))
+                .foregroundColor(.secondary)
+        }
+    }
+
+    private var priorityColor: Color {
+        switch priority {
+        case .low: return Color(hex: "8E8E93")      // Gray - flexible
+        case .medium: return Color(hex: "007AFF")   // Blue - regular
+        case .high: return Color(hex: "5856D6")     // Indigo - important
+        case .urgent: return Color(hex: "FF9500")   // Orange - time-sensitive
+        }
+    }
+}
+
+// MARK: - Legacy Priority Badge (kept for compatibility)
 
 struct PriorityBadge: View {
     let priority: ReminderPriority
-    
+
     var body: some View {
         Text(priority.displayName)
             .font(.caption2)
-            .fontWeight(.semibold)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
+            .fontWeight(.medium)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 3)
             .background(
                 Capsule()
-                    .fill(priorityColor(priority))
+                    .fill(priorityColor(priority).opacity(0.15))
             )
-            .foregroundColor(.white)
+            .foregroundColor(priorityColor(priority))
     }
-    
+
     private func priorityColor(_ priority: ReminderPriority) -> Color {
         switch priority {
-        case .low: return .blue
-        case .medium: return .orange
-        case .high: return .red
-        case .urgent: return .purple
+        case .low: return Color(hex: "8E8E93")      // Gray
+        case .medium: return Color(hex: "007AFF")   // Blue
+        case .high: return Color(hex: "5856D6")     // Indigo
+        case .urgent: return Color(hex: "FF9500")   // Orange
         }
     }
 }
 
 #Preview {
-    VStack(spacing: 12) {
+    VStack(spacing: 8) {
         ReminderRowView(
             reminder: Reminder(
                 id: 1,
                 userId: 1,
-                title: "Team Standup",
-                description: "Daily sync meeting",
+                title: "Review the quarterly report",
+                description: "Check the numbers and add comments",
                 dueDate: Date().addingTimeInterval(3600),
                 reminderTime: nil,
                 isCompleted: false,
@@ -164,12 +225,12 @@ struct PriorityBadge: View {
             onComplete: {},
             onSnooze: {}
         )
-        
+
         ReminderRowView(
             reminder: Reminder(
                 id: 2,
                 userId: 1,
-                title: "Overdue Task",
+                title: "Pick up groceries on the way home",
                 description: nil,
                 dueDate: Date().addingTimeInterval(-3600),
                 reminderTime: nil,
@@ -186,9 +247,34 @@ struct PriorityBadge: View {
                 completedAt: nil
             ),
             onComplete: {},
+            onSnooze: {},
+            onDelete: {}
+        )
+
+        ReminderRowView(
+            reminder: Reminder(
+                id: 3,
+                userId: 1,
+                title: "Call Mom",
+                description: "Wish her happy birthday",
+                dueDate: Date(),
+                reminderTime: nil,
+                isCompleted: true,
+                priority: .medium,
+                status: .completed,
+                eventId: nil,
+                recurrenceRule: nil,
+                snoozeUntil: nil,
+                notificationEnabled: true,
+                notificationSound: "default",
+                createdAt: Date(),
+                updatedAt: Date(),
+                completedAt: Date()
+            ),
+            onComplete: {},
             onSnooze: {}
         )
     }
     .padding()
+    .background(Color(UIColor.systemGroupedBackground))
 }
-

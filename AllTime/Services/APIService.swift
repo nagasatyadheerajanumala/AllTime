@@ -689,32 +689,8 @@ class APIService: ObservableObject {
     }
     
     // MARK: - User Management
-    func updateUserProfile(fullName: String, email: String?) async throws -> User {
-        // Backend endpoint: PUT /user/profile (per API documentation)
-        let url = URL(string: "\(baseURL)/user/profile")!
-        var request = URLRequest(url: url)
-        request.httpMethod = "PUT"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
-        
-        // Backend expects camelCase: fullName and email
-        var body: [String: Any] = [
-            "fullName": fullName
-        ]
-        if let email = email {
-            body["email"] = email
-        }
-        
-        request.httpBody = try JSONSerialization.data(withJSONObject: body)
-        
-        let (data, response) = try await session.data(for: request)
-        try await validateResponse(response, data: data)
-        
-        // Decode and return updated user profile
-        let decoder = JSONDecoder()
-        decoder.keyDecodingStrategy = .convertFromSnakeCase
-        return try decoder.decode(User.self, from: data)
-    }
+    // Note: Use the updateUserProfile method with multiple optional parameters above (line ~348)
+    // It uses the correct endpoint /api/user/update with snake_case field names
     
     func fetchUserPreferences() async throws -> String {
         let url = URL(string: "\(baseURL)/api/user/preferences")!
@@ -1478,7 +1454,117 @@ class APIService: ObservableObject {
         // For now, only Google sync is supported
         return try await syncGoogleCalendar()
     }
-    
+
+    // MARK: - Connection Health Check
+
+    /// Response model for connection health check
+    struct ConnectionHealthResponse: Codable {
+        let healthy: Bool
+        let needsReconnect: Bool
+        let connections: [ConnectionDetail]
+        let userMessage: String?
+        let actionUrl: String?
+
+        struct ConnectionDetail: Codable {
+            let provider: String
+            let email: String?
+            let status: String
+            let needsReconnect: Bool
+            let lastSyncAt: String?
+            let lastError: String?
+            let actionRequired: String?
+            let actionMessage: String?
+
+            enum CodingKeys: String, CodingKey {
+                case provider, email, status
+                case needsReconnect = "needs_reconnect"
+                case lastSyncAt = "last_sync_at"
+                case lastError = "last_error"
+                case actionRequired = "action_required"
+                case actionMessage = "action_message"
+            }
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case healthy
+            case needsReconnect = "needs_reconnect"
+            case connections
+            case userMessage = "user_message"
+            case actionUrl = "action_url"
+        }
+    }
+
+    /// Check connection health and trigger reconnection flow if needed.
+    /// Call this on app launch and periodically to proactively detect connection issues.
+    /// - Returns: ConnectionHealthResponse with status of all calendar connections
+    func checkConnectionHealth() async throws -> ConnectionHealthResponse {
+        let url = URL(string: "\(baseURL)/sync/connection-health")!
+        print("🏥 APIService: ===== CHECKING CONNECTION HEALTH =====")
+
+        guard let token = accessToken else {
+            print("⚠️ APIService: No access token - user not signed in")
+            throw NSError(
+                domain: "AllTime",
+                code: 401,
+                userInfo: [NSLocalizedDescriptionKey: "Not signed in"]
+            )
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.timeoutInterval = 10 // Quick timeout for health check
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+
+        let (data, response) = try await session.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw NSError(domain: "AllTime", code: 0, userInfo: [NSLocalizedDescriptionKey: "Invalid response"])
+        }
+
+        if httpResponse.statusCode == 401 {
+            // User token expired, need to re-authenticate
+            try await validateResponse(response, data: data)
+        }
+
+        guard httpResponse.statusCode == 200 else {
+            let errorMsg = String(data: data, encoding: .utf8) ?? "Unknown error"
+            throw NSError(
+                domain: "AllTime",
+                code: httpResponse.statusCode,
+                userInfo: [NSLocalizedDescriptionKey: errorMsg]
+            )
+        }
+
+        let healthResponse = try JSONDecoder().decode(ConnectionHealthResponse.self, from: data)
+
+        print("🏥 APIService: Health check result - healthy: \(healthResponse.healthy), needs_reconnect: \(healthResponse.needsReconnect)")
+
+        // If any connection needs reconnection, post the appropriate notification
+        if healthResponse.needsReconnect {
+            for connection in healthResponse.connections where connection.needsReconnect {
+                print("⚠️ APIService: Connection \(connection.provider) needs reconnection: \(connection.lastError ?? "Unknown error")")
+
+                let notificationName = connection.provider.lowercased() == "microsoft" ?
+                    NSNotification.Name("MicrosoftCalendarTokenExpired") :
+                    NSNotification.Name("GoogleCalendarTokenExpired")
+
+                DispatchQueue.main.async {
+                    NotificationCenter.default.post(
+                        name: notificationName,
+                        object: nil,
+                        userInfo: [
+                            "provider": connection.provider,
+                            "message": connection.actionMessage ?? "Please reconnect your calendar",
+                            "lastError": connection.lastError ?? ""
+                        ]
+                    )
+                }
+            }
+        }
+
+        return healthResponse
+    }
+
     /// Disconnect/remove a calendar connection by provider name
     /// - Parameter provider: "google" or "microsoft" (case-insensitive)
     /// - Returns: DeleteCalendarResponse with status and message
@@ -3535,11 +3621,10 @@ class APIService: ObservableObject {
         guard let httpResponse = response as? HTTPURLResponse else {
             throw NSError(domain: "AllTime", code: 500, userInfo: [NSLocalizedDescriptionKey: "Invalid response"])
         }
-        
+
+        // Don't use .iso8601 or .convertFromSnakeCase - Reminder model has custom decoder
         let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        decoder.keyDecodingStrategy = .convertFromSnakeCase
-        
+
         switch httpResponse.statusCode {
         case 201:
             let reminder = try decoder.decode(Reminder.self, from: data)
@@ -3554,7 +3639,7 @@ class APIService: ObservableObject {
             throw NSError(domain: "AllTime", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: "Server error (code: \(httpResponse.statusCode))"])
         }
     }
-    
+
     /// Get all reminders, optionally filtered by status
     func getReminders(status: ReminderStatus? = nil) async throws -> [Reminder] {
         guard let token = accessToken else {
@@ -3587,16 +3672,15 @@ class APIService: ObservableObject {
               httpResponse.statusCode == 200 else {
             throw NSError(domain: "AllTime", code: (response as? HTTPURLResponse)?.statusCode ?? 500, userInfo: [NSLocalizedDescriptionKey: "Failed to fetch reminders"])
         }
-        
+
+        // Don't use .iso8601 or .convertFromSnakeCase - Reminder model has custom decoder
         let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        decoder.keyDecodingStrategy = .convertFromSnakeCase
-        
+
         let responseData = try decoder.decode(RemindersResponse.self, from: data)
         print("✅ APIService: Fetched \(responseData.reminders.count) reminders")
         return responseData.reminders
     }
-    
+
     /// Get reminders in a date range
     func getRemindersInRange(startDate: Date, endDate: Date) async throws -> [Reminder] {
         guard let token = accessToken else {
@@ -3632,16 +3716,15 @@ class APIService: ObservableObject {
               httpResponse.statusCode == 200 else {
             throw NSError(domain: "AllTime", code: (response as? HTTPURLResponse)?.statusCode ?? 500, userInfo: [NSLocalizedDescriptionKey: "Failed to fetch reminders"])
         }
-        
+
+        // Don't use .iso8601 or .convertFromSnakeCase - Reminder model has custom decoder
         let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        decoder.keyDecodingStrategy = .convertFromSnakeCase
-        
+
         let responseData = try decoder.decode(RemindersRangeResponse.self, from: data)
         print("✅ APIService: Fetched \(responseData.reminders.count) reminders in range")
         return responseData.reminders
     }
-    
+
     /// Get reminder by ID
     func getReminder(id: Int64) async throws -> Reminder {
         guard let token = accessToken else {
@@ -3668,11 +3751,10 @@ class APIService: ObservableObject {
         guard let httpResponse = response as? HTTPURLResponse else {
             throw NSError(domain: "AllTime", code: 500, userInfo: [NSLocalizedDescriptionKey: "Invalid response"])
         }
-        
+
+        // Don't use .iso8601 or .convertFromSnakeCase - Reminder model has custom decoder
         let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        decoder.keyDecodingStrategy = .convertFromSnakeCase
-        
+
         switch httpResponse.statusCode {
         case 200:
             let reminder = try decoder.decode(Reminder.self, from: data)
@@ -3684,7 +3766,7 @@ class APIService: ObservableObject {
             throw NSError(domain: "AllTime", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: "Server error (code: \(httpResponse.statusCode))"])
         }
     }
-    
+
     /// Update reminder
     func updateReminder(id: Int64, request: ReminderRequest) async throws -> Reminder {
         guard let token = accessToken else {
@@ -3718,11 +3800,10 @@ class APIService: ObservableObject {
         guard let httpResponse = response as? HTTPURLResponse else {
             throw NSError(domain: "AllTime", code: 500, userInfo: [NSLocalizedDescriptionKey: "Invalid response"])
         }
-        
+
+        // Don't use .iso8601 or .convertFromSnakeCase - Reminder model has custom decoder
         let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        decoder.keyDecodingStrategy = .convertFromSnakeCase
-        
+
         switch httpResponse.statusCode {
         case 200:
             let reminder = try decoder.decode(Reminder.self, from: data)
@@ -3737,7 +3818,7 @@ class APIService: ObservableObject {
             throw NSError(domain: "AllTime", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: "Server error (code: \(httpResponse.statusCode))"])
         }
     }
-    
+
     /// Complete reminder
     func completeReminder(id: Int64) async throws -> Reminder {
         guard let token = accessToken else {
@@ -3764,11 +3845,10 @@ class APIService: ObservableObject {
         guard let httpResponse = response as? HTTPURLResponse else {
             throw NSError(domain: "AllTime", code: 500, userInfo: [NSLocalizedDescriptionKey: "Invalid response"])
         }
-        
+
+        // Don't use .iso8601 or .convertFromSnakeCase - Reminder model has custom decoder
         let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        decoder.keyDecodingStrategy = .convertFromSnakeCase
-        
+
         switch httpResponse.statusCode {
         case 200:
             let reminder = try decoder.decode(Reminder.self, from: data)
@@ -3780,7 +3860,7 @@ class APIService: ObservableObject {
             throw NSError(domain: "AllTime", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: "Server error (code: \(httpResponse.statusCode))"])
         }
     }
-    
+
     /// Snooze reminder
     func snoozeReminder(id: Int64, until: Date) async throws -> Reminder {
         guard let token = accessToken else {
@@ -3814,11 +3894,10 @@ class APIService: ObservableObject {
         guard let httpResponse = response as? HTTPURLResponse else {
             throw NSError(domain: "AllTime", code: 500, userInfo: [NSLocalizedDescriptionKey: "Invalid response"])
         }
-        
+
+        // Don't use .iso8601 or .convertFromSnakeCase - Reminder model has custom decoder
         let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        decoder.keyDecodingStrategy = .convertFromSnakeCase
-        
+
         switch httpResponse.statusCode {
         case 200:
             let reminder = try decoder.decode(Reminder.self, from: data)
@@ -3833,7 +3912,7 @@ class APIService: ObservableObject {
             throw NSError(domain: "AllTime", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: "Server error (code: \(httpResponse.statusCode))"])
         }
     }
-    
+
     /// Delete reminder
     func deleteReminder(id: Int64) async throws {
         guard let token = accessToken else {
@@ -3897,11 +3976,10 @@ class APIService: ObservableObject {
         guard let httpResponse = response as? HTTPURLResponse else {
             throw NSError(domain: "AllTime", code: 500, userInfo: [NSLocalizedDescriptionKey: "Invalid response"])
         }
-        
+
+        // Don't use .iso8601 or .convertFromSnakeCase - Reminder model has custom decoder
         let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        decoder.keyDecodingStrategy = .convertFromSnakeCase
-        
+
         switch httpResponse.statusCode {
         case 200:
             let responseData = try decoder.decode(EventRemindersResponse.self, from: data)
@@ -3913,7 +3991,7 @@ class APIService: ObservableObject {
             throw NSError(domain: "AllTime", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: "Server error (code: \(httpResponse.statusCode))"])
         }
     }
-    
+
     /// Preview recurring instances
     func previewRecurringInstances(reminderId: Int64, startDate: Date, endDate: Date) async throws -> [Reminder] {
         guard let token = accessToken else {
@@ -3948,11 +4026,10 @@ class APIService: ObservableObject {
         guard let httpResponse = response as? HTTPURLResponse else {
             throw NSError(domain: "AllTime", code: 500, userInfo: [NSLocalizedDescriptionKey: "Invalid response"])
         }
-        
+
+        // Don't use .iso8601 or .convertFromSnakeCase - Reminder model has custom decoder
         let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        decoder.keyDecodingStrategy = .convertFromSnakeCase
-        
+
         switch httpResponse.statusCode {
         case 200:
             let responseData = try decoder.decode(PreviewRecurringInstancesResponse.self, from: data)
@@ -3967,7 +4044,7 @@ class APIService: ObservableObject {
             throw NSError(domain: "AllTime", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: "Server error (code: \(httpResponse.statusCode))"])
         }
     }
-    
+
     // MARK: - Health Summary & AI Suggestions
     
     /// Get health summary (GET /api/v1/health/summary)
@@ -4774,5 +4851,160 @@ class APIService: ObservableObject {
     /// Delete a task (convenience overload with Int)
     func deleteTask(taskId: Int) async throws {
         try await deleteTask(id: Int64(taskId))
+    }
+
+    // MARK: - Predictions API
+
+    /// Get all predictions for today
+    func getTodayPredictions() async throws -> PredictionsResponse {
+        let url = URL(string: "\(baseURL)/api/v1/predictions/today")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+
+        print("🔵 APIService: Fetching today's predictions")
+        let (data, response) = try await session.data(for: request)
+
+        if let responseString = String(data: data, encoding: .utf8) {
+            print("🔵 APIService: Predictions response: \(responseString.prefix(500))...")
+        }
+
+        try await validateResponse(response, data: data)
+
+        let decoder = JSONDecoder()
+        return try decoder.decode(PredictionsResponse.self, from: data)
+    }
+
+    /// Get all predictions for a specific date
+    func getPredictions(date: Date) async throws -> PredictionsResponse {
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd"
+        let dateString = dateFormatter.string(from: date)
+
+        let url = URL(string: "\(baseURL)/api/v1/predictions/\(dateString)")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+
+        print("🔵 APIService: Fetching predictions for \(dateString)")
+        let (data, response) = try await session.data(for: request)
+
+        try await validateResponse(response, data: data)
+
+        let decoder = JSONDecoder()
+        return try decoder.decode(PredictionsResponse.self, from: data)
+    }
+
+    /// Get travel predictions for today
+    func getTodayTravelPredictions() async throws -> TravelPredictionsResponse {
+        let url = URL(string: "\(baseURL)/api/v1/predictions/travel/today")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+
+        print("🔵 APIService: Fetching today's travel predictions")
+        let (data, response) = try await session.data(for: request)
+
+        try await validateResponse(response, data: data)
+
+        let decoder = JSONDecoder()
+        return try decoder.decode(TravelPredictionsResponse.self, from: data)
+    }
+
+    /// Get travel predictions for a specific date
+    func getTravelPredictions(date: Date) async throws -> TravelPredictionsResponse {
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd"
+        let dateString = dateFormatter.string(from: date)
+
+        let url = URL(string: "\(baseURL)/api/v1/predictions/travel/\(dateString)")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+
+        print("🔵 APIService: Fetching travel predictions for \(dateString)")
+        let (data, response) = try await session.data(for: request)
+
+        try await validateResponse(response, data: data)
+
+        let decoder = JSONDecoder()
+        return try decoder.decode(TravelPredictionsResponse.self, from: data)
+    }
+
+    /// Get capacity prediction for today
+    func getTodayCapacity() async throws -> CapacityPrediction {
+        let url = URL(string: "\(baseURL)/api/v1/predictions/capacity/today")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+
+        print("🔵 APIService: Fetching today's capacity")
+        let (data, response) = try await session.data(for: request)
+
+        try await validateResponse(response, data: data)
+
+        let decoder = JSONDecoder()
+        return try decoder.decode(CapacityPrediction.self, from: data)
+    }
+
+    /// Get capacity prediction for a specific date
+    func getCapacityPrediction(date: Date) async throws -> CapacityPrediction {
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd"
+        let dateString = dateFormatter.string(from: date)
+
+        let url = URL(string: "\(baseURL)/api/v1/predictions/capacity/\(dateString)")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+
+        print("🔵 APIService: Fetching capacity for \(dateString)")
+        let (data, response) = try await session.data(for: request)
+
+        try await validateResponse(response, data: data)
+
+        let decoder = JSONDecoder()
+        return try decoder.decode(CapacityPrediction.self, from: data)
+    }
+
+    /// Get capacity predictions for a week
+    func getWeekCapacity(startDate: Date? = nil) async throws -> WeekCapacityResponse {
+        var urlString = "\(baseURL)/api/v1/predictions/capacity/week"
+
+        if let start = startDate {
+            let dateFormatter = DateFormatter()
+            dateFormatter.dateFormat = "yyyy-MM-dd"
+            let dateString = dateFormatter.string(from: start)
+            urlString += "?start=\(dateString)"
+        }
+
+        let url = URL(string: urlString)!
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+
+        print("🔵 APIService: Fetching week capacity")
+        let (data, response) = try await session.data(for: request)
+
+        try await validateResponse(response, data: data)
+
+        let decoder = JSONDecoder()
+        return try decoder.decode(WeekCapacityResponse.self, from: data)
+    }
+
+    /// Get detected event patterns
+    func getEventPatterns() async throws -> PatternsResponse {
+        let url = URL(string: "\(baseURL)/api/v1/predictions/patterns")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+
+        print("🔵 APIService: Fetching event patterns")
+        let (data, response) = try await session.data(for: request)
+
+        try await validateResponse(response, data: data)
+
+        let decoder = JSONDecoder()
+        return try decoder.decode(PatternsResponse.self, from: data)
     }
 }

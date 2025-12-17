@@ -779,12 +779,12 @@ struct TaskRowView: View {
                     .foregroundColor(DesignSystem.Colors.tertiaryText)
 
                     if task.isOverdue == true {
-                        Text("Overdue")
+                        Text("Pending")
                             .font(DesignSystem.Typography.caption2)
-                            .foregroundColor(.red)
+                            .foregroundColor(.orange)
                             .padding(.horizontal, 4)
                             .padding(.vertical, 2)
-                            .background(Color.red.opacity(0.1))
+                            .background(Color.orange.opacity(0.1))
                             .cornerRadius(4)
                     }
                 }

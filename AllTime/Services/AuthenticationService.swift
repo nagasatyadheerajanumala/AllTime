@@ -70,16 +70,17 @@ class AuthenticationService: NSObject, ObservableObject {
     
     func signOut() {
         print("🔐 AuthenticationService: Signing out user...")
-        
+
         // Clear all stored data
         _ = keychainManager.clearTokens()
         UserDefaults.standard.removeObject(forKey: "user_profile")
-        
+        UserDefaults.standard.removeObject(forKey: "userId")
+
         // Reset app state
         currentUser = nil
         isAuthenticated = false
         errorMessage = nil
-        
+
         print("🔐 AuthenticationService: User signed out successfully")
     }
     
@@ -117,6 +118,10 @@ class AuthenticationService: NSObject, ObservableObject {
                 UserDefaults.standard.set(userData, forKey: "user_profile")
                 print("🍎 Apple Sign-In: User profile stored")
             }
+
+            // Store userId separately for services that need quick access
+            UserDefaults.standard.set(user.id, forKey: "userId")
+            print("🍎 Apple Sign-In: User ID (\(user.id)) stored")
             
             // Update user with profileCompleted from response
             // Prefer top-level profileCompleted, fallback to user.profileCompleted
@@ -217,7 +222,11 @@ class AuthenticationService: NSObject, ObservableObject {
             currentUser = user
             isAuthenticated = true
             print("🔐 AuthenticationService: User profile fetched successfully")
-            
+
+            // Store userId for services that need quick access (in case it wasn't stored before)
+            UserDefaults.standard.set(user.id, forKey: "userId")
+            print("🔐 AuthenticationService: User ID (\(user.id)) stored")
+
             // Preload events cache when restoring session
             await preloadEventsCache()
             if let profileCompleted = user.profileCompleted {

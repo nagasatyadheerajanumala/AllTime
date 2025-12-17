@@ -40,14 +40,31 @@ class UserManager: ObservableObject {
         loadUserProfile()
     }
     
-    func updateUserProfile(fullName: String, email: String?) {
+    func updateUserProfile(
+        fullName: String? = nil,
+        email: String? = nil,
+        location: String? = nil,
+        bio: String? = nil,
+        phoneNumber: String? = nil
+    ) {
         print("👤 UserManager: Updating user profile...")
         isLoading = true
         errorMessage = nil
-        
+
         Task {
             do {
-                let updatedUser = try await apiService.updateUserProfile(fullName: fullName, email: email)
+                // Use the correct APIService method with proper snake_case field names
+                let updatedUser = try await apiService.updateUserProfile(
+                    fullName: fullName,
+                    email: email,
+                    preferences: nil,
+                    profilePictureUrl: nil,
+                    dateOfBirth: nil,
+                    gender: nil,
+                    location: location,
+                    bio: bio,
+                    phoneNumber: phoneNumber
+                )
                 // Update user profile with response
                 self.user = updatedUser
                 isLoading = false

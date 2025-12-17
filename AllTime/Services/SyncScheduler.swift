@@ -48,15 +48,40 @@ class SyncScheduler: ObservableObject {
     /// Trigger sync immediately (called on app launch or foreground)
     func syncOnAppLaunch() async {
         print("🔄 SyncScheduler: ===== SYNC ON APP LAUNCH =====")
-        
+
+        // First, check connection health to detect any issues early
+        await checkConnectionHealthBeforeSync()
+
         // Check if we synced recently (within minimum interval)
         if let lastSync = lastSyncTime,
            Date().timeIntervalSince(lastSync) < minimumSyncInterval {
             print("🔄 SyncScheduler: Skipping sync - synced \(Int(Date().timeIntervalSince(lastSync) / 60)) minutes ago")
             return
         }
-        
+
         await performSync(reason: "app_launch")
+    }
+
+    /// Check connection health before syncing to detect reconnection needs early
+    private func checkConnectionHealthBeforeSync() async {
+        print("🏥 SyncScheduler: Checking connection health...")
+
+        do {
+            let health = try await apiService.checkConnectionHealth()
+
+            if health.healthy {
+                print("✅ SyncScheduler: All connections healthy")
+            } else if health.needsReconnect {
+                print("⚠️ SyncScheduler: One or more connections need reconnection")
+                // The APIService.checkConnectionHealth already posts notifications
+                // which will be handled by CalendarViewModel to show alerts
+            } else {
+                print("⚠️ SyncScheduler: Some connections have issues but don't require reconnection")
+            }
+        } catch {
+            // Don't block sync if health check fails - just log and continue
+            print("⚠️ SyncScheduler: Connection health check failed: \(error.localizedDescription)")
+        }
     }
     
     /// Trigger sync when app comes to foreground
