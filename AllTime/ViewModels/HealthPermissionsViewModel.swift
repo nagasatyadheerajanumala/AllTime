@@ -103,8 +103,8 @@ class HealthPermissionsViewModel: ObservableObject {
         isSyncing = true
         errorMessage = nil
         
-        // Sync last 14 days on first authorization
-        await healthSyncService.syncLastNDaysToBackend(14)
+        // Sync last 30 days on first authorization (to match capacity analysis period)
+        await healthSyncService.syncLastNDaysToBackend(30)
         
         hasSyncedOnce = healthSyncService.lastSyncDate != nil
         isSyncing = false

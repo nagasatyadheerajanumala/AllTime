@@ -21,15 +21,28 @@ struct ContentView: View {
 
     var body: some View {
         Group {
-            if authService.isAuthenticated {
+            if authService.isCheckingSession {
+                // Show loading while checking existing session
+                ZStack {
+                    Color.black.ignoresSafeArea()
+                    VStack(spacing: 20) {
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                            .scaleEffect(1.5)
+                        Text("Loading...")
+                            .foregroundColor(.white.opacity(0.7))
+                            .font(.subheadline)
+                    }
+                }
+            } else if authService.isAuthenticated {
                 // Show profile setup only for new users who haven't completed profile
                 // After user skips or completes, they go to main app
                 // We use a state variable to track if user has dismissed the setup screen
                 // Check hasDismissedProfileSetup FIRST to prevent re-evaluation during editing
                 if !hasDismissedProfileSetup {
                     // Check if profile needs to be completed
-                    if let user = authService.currentUser, 
-                       let profileCompleted = user.profileCompleted, 
+                    if let user = authService.currentUser,
+                       let profileCompleted = user.profileCompleted,
                        !profileCompleted {
                         ProfileSetupView(onDismiss: {
                             hasDismissedProfileSetup = true

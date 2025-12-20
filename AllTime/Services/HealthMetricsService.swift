@@ -339,8 +339,13 @@ class HealthMetricsService: ObservableObject {
         guard let type = HKCategoryType.categoryType(forIdentifier: .sleepAnalysis) else {
             return (nil, nil)
         }
-        
-        let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
+
+        // FIXED: For sleep, we need to query for sleep that ENDED on this date
+        // Sleep spans midnight (e.g., 11 PM to 7 AM), so using .strictStartDate would miss overnight sleep
+        // Using .strictEndDate ensures we capture sleep that ended during this day (i.e., "last night's sleep")
+        let calendar = Calendar.current
+        let sleepQueryStart = calendar.date(byAdding: .hour, value: -12, to: start) ?? start // Look back 12 hours for sleep start
+        let predicate = HKQuery.predicateForSamples(withStart: sleepQueryStart, end: end, options: .strictEndDate)
         
         return try await withCheckedThrowingContinuation { continuation in
             let query = HKSampleQuery(sampleType: type, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: nil) { _, samples, error in
@@ -780,6 +785,43 @@ class HealthMetricsService: ObservableObject {
     func clearCache() {
         cacheQueue.async { [weak self] in
             self?.dailyCache.removeAll()
+            print("🗑️ HealthMetricsService: Cache cleared")
+        }
+    }
+
+    /// Force refresh metrics for today - clears cache and re-queries HealthKit
+    func forceRefreshToday() async throws -> DailyHealthMetrics {
+        print("🔄 HealthMetricsService: Force refreshing today's metrics...")
+        clearCache()
+
+        let today = Date()
+        let metrics = try await fetchDailyMetrics(for: today)
+
+        print("📊 HealthMetricsService: Today's metrics refreshed:")
+        print("   - Steps: \(metrics.steps ?? 0)")
+        print("   - Sleep: \(metrics.sleepMinutes ?? 0) minutes")
+        print("   - Active minutes: \(metrics.activeMinutes ?? 0)")
+        print("   - Resting HR: \(metrics.restingHeartRate ?? 0)")
+
+        return metrics
+    }
+
+    /// Debug method to compare HealthKit data with what we're showing
+    func debugPrintTodayMetrics() async {
+        print("🔍 ===== DEBUG: HealthKit Data for Today =====")
+        do {
+            clearCache() // Clear cache to get fresh data
+            let metrics = try await fetchDailyMetrics(for: Date())
+            print("📊 Steps: \(metrics.steps ?? 0)")
+            print("😴 Sleep: \(metrics.sleepMinutes ?? 0) minutes (\(Double(metrics.sleepMinutes ?? 0) / 60.0) hours)")
+            print("🏃 Active minutes: \(metrics.activeMinutes ?? 0)")
+            print("💓 Resting HR: \(metrics.restingHeartRate ?? 0) bpm")
+            print("❤️ Avg HR: \(metrics.activeHeartRate ?? 0) bpm")
+            print("🔥 Active energy: \(metrics.activeEnergyBurned ?? 0) kcal")
+            print("🚶 Walking distance: \(metrics.walkingDistanceMeters ?? 0) meters")
+            print("🔍 ===== END DEBUG =====")
+        } catch {
+            print("❌ Debug failed: \(error.localizedDescription)")
         }
     }
     

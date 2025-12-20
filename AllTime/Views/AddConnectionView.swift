@@ -55,17 +55,6 @@ struct AddConnectionView: View {
                                 microsoftAuthManager.startMicrosoftOAuth()
                             }
                         }
-                        
-                        // Apple Calendar (EventKit)
-                        ProviderCard(
-                            title: "Apple Calendar",
-                            description: "Sync your local calendar events",
-                            icon: "applelogo",
-                            color: .gray
-                        ) {
-                            // This will be handled by CalendarManager
-                            dismiss()
-                        }
                     }
                     .padding(.horizontal)
                     

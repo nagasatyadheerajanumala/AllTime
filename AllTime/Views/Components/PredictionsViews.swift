@@ -71,38 +71,43 @@ struct PredictionsTileContent: View {
     }
 }
 
-// MARK: - Predictions Detail View
+// MARK: - Predictions Detail View (Redesigned)
 struct PredictionsDetailView: View {
-    @StateObject private var viewModel = PredictionsViewModel()
+    @StateObject private var viewModel = CapacityAnalysisViewModel()
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         NavigationView {
             ScrollView {
                 VStack(alignment: .leading, spacing: DesignSystem.Today.sectionSpacing) {
-                    // Capacity Overview Card
-                    if let capacity = viewModel.predictions?.capacity {
-                        capacityCard(capacity: capacity)
-                    }
+                    if viewModel.isLoading && viewModel.capacityAnalysis == nil {
+                        loadingView
+                    } else if let analysis = viewModel.capacityAnalysis {
+                        // Capacity Score Card
+                        capacityScoreCard(analysis.summary)
 
-                    // Travel Predictions
-                    if let travel = viewModel.predictions?.travelPredictions, !travel.isEmpty {
-                        travelSection(predictions: travel)
-                    }
+                        // Key Insights
+                        if !analysis.insights.isEmpty {
+                            insightsSection(analysis.insights)
+                        }
 
-                    // Warnings
-                    if let capacity = viewModel.predictions?.capacity, !capacity.warnings.isEmpty {
-                        warningsSection(warnings: capacity.warnings)
-                    }
+                        // Health Correlations
+                        if let healthImpact = analysis.healthImpact,
+                           (healthImpact.sleepCorrelation?.hasSignificantCorrelation == true ||
+                            healthImpact.activityCorrelation?.hasSignificantActivityImpact == true) {
+                            healthCorrelationsSection(healthImpact)
+                        }
 
-                    // Recommendations
-                    if let capacity = viewModel.predictions?.capacity, !capacity.recommendations.isEmpty {
-                        recommendationsSection(recommendations: capacity.recommendations)
-                    }
+                        // Top Time Consumers
+                        if let meetings = analysis.meetingPatterns.topRepetitiveMeetings, !meetings.isEmpty {
+                            timeConsumersSection(meetings)
+                        }
 
-                    // Patterns
-                    if let patterns = viewModel.predictions?.patterns, !patterns.isEmpty {
-                        patternsSection(patterns: patterns)
+                        // Meeting Patterns
+                        meetingPatternsSection(analysis.meetingPatterns, summary: analysis.summary)
+
+                    } else if viewModel.hasError {
+                        errorView
                     }
 
                     Spacer(minLength: DesignSystem.Spacing.xl)
@@ -126,61 +131,112 @@ struct PredictionsDetailView: View {
         }
         .presentationDragIndicator(.visible)
         .task {
-            await viewModel.fetchPredictions()
+            await viewModel.fetchCapacityAnalysis()
         }
     }
 
-    // MARK: - Capacity Card
-    private func capacityCard(capacity: CapacityPrediction) -> some View {
-        VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-            // Header
-            HStack {
-                Image(systemName: capacity.capacityIcon)
-                    .font(.title2)
-                    .foregroundColor(Color(hex: capacity.capacityColor))
+    // MARK: - Loading View
+    private var loadingView: some View {
+        VStack(spacing: 16) {
+            ProgressView()
+                .scaleEffect(1.2)
+            Text("Analyzing your patterns...")
+                .font(.subheadline)
+                .foregroundColor(DesignSystem.Colors.secondaryText)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 60)
+    }
 
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Today's Capacity")
-                        .font(.caption)
+    // MARK: - Error View
+    private var errorView: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "exclamationmark.triangle")
+                .font(.system(size: 40))
+                .foregroundColor(DesignSystem.Colors.secondaryText)
+            Text("Unable to load insights")
+                .font(.headline)
+                .foregroundColor(DesignSystem.Colors.primaryText)
+            Text(viewModel.errorMessage ?? "Please try again later")
+                .font(.subheadline)
+                .foregroundColor(DesignSystem.Colors.secondaryText)
+                .multilineTextAlignment(.center)
+            Button("Retry") {
+                Task { await viewModel.refresh() }
+            }
+            .buttonStyle(.bordered)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 40)
+    }
+
+    // MARK: - Capacity Score Card
+    private func capacityScoreCard(_ summary: CapacityAnalysisSummary) -> some View {
+        VStack(spacing: DesignSystem.Spacing.lg) {
+            // Score Circle
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Your Capacity Score")
+                        .font(.subheadline)
                         .foregroundColor(DesignSystem.Colors.secondaryText)
-                    Text(capacity.capacityDisplayText)
+                    Text(summary.statusText)
                         .font(.title2.weight(.bold))
                         .foregroundColor(DesignSystem.Colors.primaryText)
                 }
 
                 Spacer()
 
-                // Percentage badge
-                Text("\(Int(capacity.capacityPercentage))%")
-                    .font(.headline.weight(.bold))
-                    .foregroundColor(Color(hex: capacity.capacityColor))
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(
-                        Capsule()
-                            .fill(Color(hex: capacity.capacityColor).opacity(0.15))
-                    )
-            }
+                // Circular Score
+                ZStack {
+                    Circle()
+                        .stroke(summary.scoreColor.opacity(0.2), lineWidth: 8)
+                        .frame(width: 80, height: 80)
 
-            // Progress bar
-            GeometryReader { geometry in
-                ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(Color(hex: capacity.capacityColor).opacity(0.2))
-                        .frame(height: 8)
+                    Circle()
+                        .trim(from: 0, to: CGFloat(summary.capacityScore) / 100)
+                        .stroke(summary.scoreColor, style: StrokeStyle(lineWidth: 8, lineCap: .round))
+                        .frame(width: 80, height: 80)
+                        .rotationEffect(.degrees(-90))
 
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(Color(hex: capacity.capacityColor))
-                        .frame(width: geometry.size.width * min(capacity.capacityPercentage / 100, 1.0), height: 8)
+                    VStack(spacing: 0) {
+                        Text("\(summary.capacityScore)")
+                            .font(.title.weight(.bold))
+                            .foregroundColor(summary.scoreColor)
+                        Text("/100")
+                            .font(.caption2)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
+                    }
                 }
             }
-            .frame(height: 8)
 
-            // Stats grid
-            HStack(spacing: DesignSystem.Spacing.md) {
-                statItem(icon: "calendar", value: "\(capacity.meetingCount)", label: "Meetings")
-                statItem(icon: "clock", value: capacity.formattedDuration, label: "Total Time")
-                statItem(icon: "arrow.right.arrow.left", value: "\(capacity.backToBackCount)", label: "Back-to-back")
+            // Stats Grid
+            HStack(spacing: 0) {
+                statBlock(
+                    icon: "calendar",
+                    value: "\(summary.totalMeetings)",
+                    label: "Meetings",
+                    sublabel: "in 30 days"
+                )
+
+                Divider()
+                    .frame(height: 50)
+
+                statBlock(
+                    icon: "clock",
+                    value: summary.formattedMeetingHours,
+                    label: "Total Time",
+                    sublabel: "in meetings"
+                )
+
+                Divider()
+                    .frame(height: 50)
+
+                statBlock(
+                    icon: "bolt.fill",
+                    value: "\(summary.highIntensityDays)",
+                    label: "Intense Days",
+                    sublabel: "high load"
+                )
             }
         }
         .padding(DesignSystem.Spacing.lg)
@@ -190,121 +246,116 @@ struct PredictionsDetailView: View {
         )
     }
 
-    private func statItem(icon: String, value: String, label: String) -> some View {
+    private func statBlock(icon: String, value: String, label: String, sublabel: String) -> some View {
         VStack(spacing: 4) {
             Image(systemName: icon)
                 .font(.caption)
                 .foregroundColor(DesignSystem.Colors.secondaryText)
             Text(value)
-                .font(.headline.weight(.semibold))
+                .font(.headline.weight(.bold))
                 .foregroundColor(DesignSystem.Colors.primaryText)
             Text(label)
+                .font(.caption2)
+                .foregroundColor(DesignSystem.Colors.secondaryText)
+            Text(sublabel)
                 .font(.caption2)
                 .foregroundColor(DesignSystem.Colors.tertiaryText)
         }
         .frame(maxWidth: .infinity)
     }
 
-    // MARK: - Travel Section
-    private func travelSection(predictions: [TravelPrediction]) -> some View {
+    // MARK: - Insights Section
+    private func insightsSection(_ insights: [CapacityInsight]) -> some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-            sectionHeader(icon: "car.fill", title: "Travel Alerts", color: Color(hex: "3B82F6"))
+            sectionHeader(icon: "lightbulb.fill", title: "Key Insights", color: Color(hex: "F59E0B"))
 
-            ForEach(predictions) { prediction in
-                travelRow(prediction: prediction)
+            ForEach(insights) { insight in
+                insightCard(insight)
             }
         }
     }
 
-    private func travelRow(prediction: TravelPrediction) -> some View {
-        HStack(spacing: DesignSystem.Spacing.md) {
-            // Traffic indicator
-            Circle()
-                .fill(Color(hex: prediction.trafficColor))
-                .frame(width: 12, height: 12)
+    private func insightCard(_ insight: CapacityInsight) -> some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+            HStack(spacing: DesignSystem.Spacing.sm) {
+                Image(systemName: insight.severityIcon)
+                    .font(.title3)
+                    .foregroundColor(insight.severityColor)
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(prediction.eventTitle ?? "Event")
-                    .font(.subheadline.weight(.medium))
-                    .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(1)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(insight.title)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundColor(DesignSystem.Colors.primaryText)
 
-                if let location = prediction.eventLocation {
-                    Text(location)
+                    Text(insight.description)
                         .font(.caption)
                         .foregroundColor(DesignSystem.Colors.secondaryText)
-                        .lineLimit(1)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
+
+                Spacer()
             }
 
-            Spacer()
-
-            VStack(alignment: .trailing, spacing: 2) {
-                Text("Leave by")
-                    .font(.caption2)
-                    .foregroundColor(DesignSystem.Colors.tertiaryText)
-                Text(prediction.formattedLeaveBy)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundColor(DesignSystem.Colors.primary)
+            if let actionable = insight.actionable, !actionable.isEmpty {
+                HStack(spacing: 6) {
+                    Image(systemName: "arrow.right.circle.fill")
+                        .font(.caption)
+                        .foregroundColor(DesignSystem.Colors.primary)
+                    Text(actionable)
+                        .font(.caption.weight(.medium))
+                        .foregroundColor(DesignSystem.Colors.primary)
+                }
+                .padding(.leading, 36)
             }
         }
         .padding(DesignSystem.Spacing.md)
         .background(
             RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.md)
-                .fill(DesignSystem.Colors.cardBackground)
+                .fill(insight.severityColor.opacity(0.1))
+                .overlay(
+                    RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.md)
+                        .stroke(insight.severityColor.opacity(0.3), lineWidth: 1)
+                )
         )
     }
 
-    // MARK: - Warnings Section
-    private func warningsSection(warnings: [CapacityWarning]) -> some View {
+    // MARK: - Health Correlations Section
+    private func healthCorrelationsSection(_ health: HealthImpactSummary) -> some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-            sectionHeader(icon: "exclamationmark.triangle.fill", title: "Warnings", color: Color(hex: "F59E0B"))
+            sectionHeader(icon: "heart.fill", title: "Health Impact", color: Color(hex: "EC4899"))
 
-            ForEach(warnings) { warning in
-                warningRow(warning: warning)
-            }
-        }
-    }
+            VStack(spacing: DesignSystem.Spacing.sm) {
+                // Sleep Correlation
+                if let sleep = health.sleepCorrelation, sleep.hasSignificantCorrelation {
+                    correlationRow(
+                        icon: "moon.zzz.fill",
+                        iconColor: Color(hex: "6366F1"),
+                        title: "Sleep Impact",
+                        description: "High meeting days = \(sleep.formattedDifference) less sleep",
+                        isNegative: sleep.sleepDifference > 0
+                    )
+                }
 
-    private func warningRow(warning: CapacityWarning) -> some View {
-        HStack(spacing: DesignSystem.Spacing.md) {
-            Image(systemName: warning.severityIcon)
-                .font(.title3)
-                .foregroundColor(Color(hex: warning.severityColor))
-                .frame(width: 32)
+                // Activity Correlation
+                if let activity = health.activityCorrelation, activity.hasSignificantActivityImpact {
+                    correlationRow(
+                        icon: "figure.walk",
+                        iconColor: Color(hex: "10B981"),
+                        title: "Activity Impact",
+                        description: "Meeting days = \(activity.formattedDifference) fewer",
+                        isNegative: activity.stepsDifference > 0
+                    )
+                }
 
-            Text(warning.message)
-                .font(.subheadline)
-                .foregroundColor(DesignSystem.Colors.primaryText)
-                .fixedSize(horizontal: false, vertical: true)
-
-            Spacer()
-        }
-        .padding(DesignSystem.Spacing.md)
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.md)
-                .fill(Color(hex: warning.severityColor).opacity(0.1))
-        )
-    }
-
-    // MARK: - Recommendations Section
-    private func recommendationsSection(recommendations: [String]) -> some View {
-        VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-            sectionHeader(icon: "lightbulb.fill", title: "Recommendations", color: Color(hex: "10B981"))
-
-            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                ForEach(recommendations, id: \.self) { recommendation in
-                    HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.caption)
-                            .foregroundColor(Color(hex: "10B981"))
-                            .padding(.top, 2)
-
-                        Text(recommendation)
-                            .font(.subheadline)
-                            .foregroundColor(DesignSystem.Colors.primaryText)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
+                // Stress Correlation
+                if let stress = health.stressCorrelation, stress.hasSignificantStressCorrelation {
+                    correlationRow(
+                        icon: "waveform.path.ecg",
+                        iconColor: Color(hex: "EF4444"),
+                        title: "Stress Indicator",
+                        description: "Intense meeting days show elevated heart rate",
+                        isNegative: true
+                    )
                 }
             }
             .padding(DesignSystem.Spacing.md)
@@ -315,58 +366,153 @@ struct PredictionsDetailView: View {
         }
     }
 
-    // MARK: - Patterns Section
-    private func patternsSection(patterns: [EventPattern]) -> some View {
-        VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-            sectionHeader(icon: "repeat", title: "Detected Patterns", color: Color(hex: "8B5CF6"))
-
-            ForEach(patterns) { pattern in
-                patternRow(pattern: pattern)
-            }
-        }
-    }
-
-    private func patternRow(pattern: EventPattern) -> some View {
+    private func correlationRow(icon: String, iconColor: Color, title: String, description: String, isNegative: Bool) -> some View {
         HStack(spacing: DesignSystem.Spacing.md) {
-            // Pattern icon
             ZStack {
                 Circle()
-                    .fill(Color(hex: "8B5CF6").opacity(0.15))
+                    .fill(iconColor.opacity(0.15))
                     .frame(width: 40, height: 40)
-                Image(systemName: "repeat")
+                Image(systemName: icon)
                     .font(.body)
-                    .foregroundColor(Color(hex: "8B5CF6"))
+                    .foregroundColor(iconColor)
             }
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(pattern.title)
+                Text(title)
                     .font(.subheadline.weight(.medium))
                     .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(1)
-
-                Text(pattern.formattedDaysOfWeek)
+                Text(description)
                     .font(.caption)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
             }
 
             Spacer()
 
-            // Confidence badge
-            Text(pattern.confidenceText)
-                .font(.caption2.weight(.medium))
-                .foregroundColor(Color(hex: "8B5CF6"))
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(
-                    Capsule()
-                        .fill(Color(hex: "8B5CF6").opacity(0.15))
-                )
+            Image(systemName: isNegative ? "arrow.down.circle.fill" : "arrow.up.circle.fill")
+                .font(.title3)
+                .foregroundColor(isNegative ? Color(hex: "EF4444") : Color(hex: "10B981"))
         }
-        .padding(DesignSystem.Spacing.md)
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.md)
-                .fill(DesignSystem.Colors.cardBackground)
-        )
+    }
+
+    // MARK: - Time Consumers Section
+    private func timeConsumersSection(_ meetings: [RepetitiveMeetingInfo]) -> some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+            sectionHeader(icon: "clock.fill", title: "Top Time Consumers", color: Color(hex: "3B82F6"))
+
+            VStack(spacing: DesignSystem.Spacing.sm) {
+                ForEach(meetings.prefix(5)) { meeting in
+                    timeConsumerRow(meeting)
+                }
+            }
+            .padding(DesignSystem.Spacing.md)
+            .background(
+                RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.md)
+                    .fill(DesignSystem.Colors.cardBackground)
+            )
+        }
+    }
+
+    private func timeConsumerRow(_ meeting: RepetitiveMeetingInfo) -> some View {
+        HStack(spacing: DesignSystem.Spacing.md) {
+            // Rank indicator
+            Circle()
+                .fill(Color(hex: "3B82F6").opacity(0.15))
+                .frame(width: 36, height: 36)
+                .overlay(
+                    Text("\(meeting.occurrenceCount)x")
+                        .font(.caption.weight(.bold))
+                        .foregroundColor(Color(hex: "3B82F6"))
+                )
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(meeting.title)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(1)
+
+                Text(meeting.frequencyLabel)
+                    .font(.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+            }
+
+            Spacer()
+
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(meeting.formattedTotalHours)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                Text("total")
+                    .font(.caption2)
+                    .foregroundColor(DesignSystem.Colors.tertiaryText)
+            }
+        }
+    }
+
+    // MARK: - Meeting Patterns Section
+    private func meetingPatternsSection(_ patterns: MeetingPatternsSummary, summary: CapacityAnalysisSummary) -> some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+            sectionHeader(icon: "chart.bar.fill", title: "Meeting Patterns", color: Color(hex: "8B5CF6"))
+
+            VStack(spacing: DesignSystem.Spacing.md) {
+                // Average per day
+                patternStatRow(
+                    icon: "calendar.day.timeline.leading",
+                    label: "Average meetings per day",
+                    value: String(format: "%.1f", patterns.avgMeetingsPerDay)
+                )
+
+                // Busiest day
+                if let busiestDay = patterns.busiestDay {
+                    patternStatRow(
+                        icon: "flame.fill",
+                        label: "Busiest day",
+                        value: busiestDay.capitalized
+                    )
+                }
+
+                // Back-to-back stats
+                if let b2b = patterns.backToBackStats, b2b.daysWithBackToBack > 0 {
+                    patternStatRow(
+                        icon: "arrow.right.arrow.left",
+                        label: "Back-to-back days",
+                        value: "\(b2b.daysWithBackToBack) days"
+                    )
+                }
+
+                // Days with health impact
+                if summary.healthImpactedDays > 0 {
+                    patternStatRow(
+                        icon: "heart.text.square",
+                        label: "Health-impacted days",
+                        value: "\(summary.healthImpactedDays) days"
+                    )
+                }
+            }
+            .padding(DesignSystem.Spacing.md)
+            .background(
+                RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.md)
+                    .fill(DesignSystem.Colors.cardBackground)
+            )
+        }
+    }
+
+    private func patternStatRow(icon: String, label: String, value: String) -> some View {
+        HStack {
+            Image(systemName: icon)
+                .font(.body)
+                .foregroundColor(Color(hex: "8B5CF6"))
+                .frame(width: 24)
+
+            Text(label)
+                .font(.subheadline)
+                .foregroundColor(DesignSystem.Colors.secondaryText)
+
+            Spacer()
+
+            Text(value)
+                .font(.subheadline.weight(.semibold))
+                .foregroundColor(DesignSystem.Colors.primaryText)
+        }
     }
 
     // MARK: - Section Header
@@ -383,8 +529,67 @@ struct PredictionsDetailView: View {
     }
 }
 
+// MARK: - Capacity Analysis ViewModel
+@MainActor
+class CapacityAnalysisViewModel: ObservableObject {
+    @Published var capacityAnalysis: CapacityAnalysisResponse?
+    @Published var isLoading: Bool = false
+    @Published var hasError: Bool = false
+    @Published var errorMessage: String?
+
+    private let apiService = APIService.shared
+    private let cacheService = CacheService.shared
+    private let cacheKey = "capacity_analysis_30d"
+
+    init() {
+        loadCacheSync()
+    }
+
+    private func loadCacheSync() {
+        if let cached = cacheService.loadJSONSync(CapacityAnalysisResponse.self, filename: cacheKey) {
+            print("CapacityAnalysis: Loaded from cache")
+            capacityAnalysis = cached
+        }
+    }
+
+    func fetchCapacityAnalysis(forceRefresh: Bool = false) async {
+        hasError = false
+        errorMessage = nil
+
+        if !forceRefresh, capacityAnalysis != nil {
+            // Check if cache is stale (older than 30 minutes)
+            if let metadata = cacheService.getCacheMetadataSync(filename: cacheKey),
+               Date().timeIntervalSince(metadata.lastUpdated) < 1800 {
+                return
+            }
+        }
+
+        if capacityAnalysis == nil {
+            isLoading = true
+        }
+
+        do {
+            let response = try await apiService.getCapacityAnalysis(days: 30)
+            capacityAnalysis = response
+            cacheService.saveJSONSync(response, filename: cacheKey, expiration: 1800)
+            print("CapacityAnalysis: Fetched and cached")
+            isLoading = false
+        } catch {
+            print("CapacityAnalysis: Error - \(error.localizedDescription)")
+            isLoading = false
+            if capacityAnalysis == nil {
+                hasError = true
+                errorMessage = error.localizedDescription
+            }
+        }
+    }
+
+    func refresh() async {
+        await fetchCapacityAnalysis(forceRefresh: true)
+    }
+}
+
 // MARK: - Predictions Tile Type Extension
-/// Adds the insights tile type alongside existing tiles
 enum PredictionsTileType {
     case insights
 

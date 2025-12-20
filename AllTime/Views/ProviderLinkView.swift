@@ -9,8 +9,7 @@ struct ProviderLinkView: View {
     
     private let providers = [
         ("google", "Google Calendar", "g.circle.fill", Color.red),
-        ("microsoft", "Microsoft Outlook", "m.circle.fill", Color.blue),
-        ("apple", "Apple Calendar", "applelogo", Color.gray)
+        ("microsoft", "Microsoft Outlook", "m.circle.fill", Color.blue)
     ]
     
     var body: some View {

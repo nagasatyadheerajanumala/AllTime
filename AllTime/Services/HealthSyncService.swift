@@ -77,8 +77,8 @@ class HealthSyncService: ObservableObject {
                 // Sync from last sync date forward
                 startDate = lastSync
             } else {
-                // First sync: sync last 14 days
-                startDate = calendar.date(byAdding: .day, value: -14, to: today) ?? today
+                // First sync: sync last 30 days (to match capacity analysis period)
+                startDate = calendar.date(byAdding: .day, value: -30, to: today) ?? today
             }
             
             let endDate = today

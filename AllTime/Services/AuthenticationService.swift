@@ -8,21 +8,22 @@ class AuthenticationService: NSObject, ObservableObject {
     @Published var currentUser: User?
     @Published var isLoading = false
     @Published var errorMessage: String?
-    
+    @Published var isCheckingSession = true  // True while checking existing session on app launch
+
     private let apiService = APIService()
     private let keychainManager = KeychainManager.shared
     private var cancellables = Set<AnyCancellable>()
-    
+
     override init() {
         super.init()
         print("🔐 AuthenticationService: Initializing...")
         print("🔐 AuthenticationService: Backend URL: \(Constants.API.baseURL)")
-        
+
         // Test backend connection
         Task {
             await apiService.testBackendConnection()
         }
-        
+
         // Listen for force sign-out notifications
         NotificationCenter.default.addObserver(
             forName: NSNotification.Name("ForceSignOut"),
@@ -34,7 +35,7 @@ class AuthenticationService: NSObject, ObservableObject {
                 self?.signOut()
             }
         }
-        
+
         checkExistingSession()
     }
     
@@ -42,15 +43,17 @@ class AuthenticationService: NSObject, ObservableObject {
     
     private func checkExistingSession() {
         print("🔐 AuthenticationService: Checking existing session...")
-        
+
         if keychainManager.hasValidTokens() {
             print("🔐 AuthenticationService: Found stored tokens, restoring session...")
             // Try to fetch user profile to validate tokens
             Task {
                 await fetchUserProfile()
+                isCheckingSession = false
             }
         } else {
             print("🔐 AuthenticationService: No stored tokens found")
+            isCheckingSession = false
         }
     }
     

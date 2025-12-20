@@ -9,7 +9,7 @@ struct CalendarView: View {
     @State private var showingEventDetail = false
     @State private var selectedEventId: Int64?
     @State private var viewMode: CalendarViewMode = .month
-    @State private var calendarStyle: CalendarStyle = .traditional
+    @State private var calendarStyle: CalendarStyle = .wheel
     @State private var showingAddEvent = false
 
     // Day Detail Sheet State

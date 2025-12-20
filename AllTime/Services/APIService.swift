@@ -5007,4 +5007,44 @@ class APIService: ObservableObject {
         let decoder = JSONDecoder()
         return try decoder.decode(PatternsResponse.self, from: data)
     }
+
+    // MARK: - Capacity Analysis
+
+    /// Get comprehensive capacity analysis with meeting patterns and health impact
+    func getCapacityAnalysis(days: Int = 30) async throws -> CapacityAnalysisResponse {
+        let timezone = TimeZone.current.identifier
+        let url = URL(string: "\(baseURL)/api/v1/capacity/analysis?days=\(days)&timezone=\(timezone)")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+
+        print("🔵 APIService: Fetching capacity analysis (\(days) days)")
+        let (data, response) = try await session.data(for: request)
+
+        if let responseString = String(data: data, encoding: .utf8) {
+            print("🔵 APIService: Capacity analysis response: \(responseString.prefix(500))...")
+        }
+
+        try await validateResponse(response, data: data)
+
+        let decoder = JSONDecoder()
+        return try decoder.decode(CapacityAnalysisResponse.self, from: data)
+    }
+
+    /// Get capacity insights only (lighter endpoint)
+    func getCapacityInsights(days: Int = 30) async throws -> [CapacityInsight] {
+        let timezone = TimeZone.current.identifier
+        let url = URL(string: "\(baseURL)/api/v1/capacity/insights?days=\(days)&timezone=\(timezone)")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+
+        print("🔵 APIService: Fetching capacity insights (\(days) days)")
+        let (data, response) = try await session.data(for: request)
+
+        try await validateResponse(response, data: data)
+
+        let decoder = JSONDecoder()
+        return try decoder.decode([CapacityInsight].self, from: data)
+    }
 }
