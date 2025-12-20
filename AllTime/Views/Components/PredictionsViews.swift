@@ -88,14 +88,15 @@ struct PredictionsDetailView: View {
                         capacityScoreCard(analysis.summary)
 
                         // Key Insights
-                        if !analysis.insights.isEmpty {
-                            insightsSection(analysis.insights)
+                        if let insights = analysis.insights, !insights.isEmpty {
+                            insightsSection(insights)
                         }
 
                         // Health Correlations
-                        if analysis.healthImpact.sleepCorrelation?.hasSignificantCorrelation == true ||
-                           analysis.healthImpact.activityCorrelation?.hasSignificantActivityImpact == true {
-                            healthCorrelationsSection(analysis.healthImpact)
+                        if let healthImpact = analysis.healthImpact,
+                           (healthImpact.sleepCorrelation?.hasSignificantCorrelation == true ||
+                            healthImpact.activityCorrelation?.hasSignificantActivityImpact == true) {
+                            healthCorrelationsSection(healthImpact)
                         }
 
                         // Top Time Consumers

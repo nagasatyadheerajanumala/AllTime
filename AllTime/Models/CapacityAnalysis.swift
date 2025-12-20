@@ -9,18 +9,10 @@ struct CapacityAnalysisResponse: Codable {
     let analysisPeriodDays: Int
     let summary: CapacityAnalysisSummary
     let meetingPatterns: MeetingPatternsSummary
-    let healthImpact: HealthImpactSummary
-    let insights: [CapacityInsight]
+    let healthImpact: HealthImpactSummary?
+    let insights: [CapacityInsight]?
 
-    enum CodingKeys: String, CodingKey {
-        case generatedAt = "generated_at"
-        case timezone
-        case analysisPeriodDays = "analysis_period_days"
-        case summary
-        case meetingPatterns = "meeting_patterns"
-        case healthImpact = "health_impact"
-        case insights
-    }
+    // No CodingKeys needed - API returns camelCase which matches Swift property names
 }
 
 // MARK: - Capacity Summary
@@ -34,15 +26,7 @@ struct CapacityAnalysisSummary: Codable {
     let overallCapacityStatus: String
     let capacityScore: Int
 
-    enum CodingKeys: String, CodingKey {
-        case totalMeetings = "total_meetings"
-        case avgMeetingsPerDay = "avg_meetings_per_day"
-        case totalMeetingHours = "total_meeting_hours"
-        case highIntensityDays = "high_intensity_days"
-        case healthImpactedDays = "health_impacted_days"
-        case overallCapacityStatus = "overall_capacity_status"
-        case capacityScore = "capacity_score"
-    }
+    // No CodingKeys needed - API returns camelCase
 
     // Computed properties for display
     var scoreColor: Color {
@@ -101,36 +85,23 @@ struct MeetingPatternsSummary: Codable {
     let durationAnalysis: DurationAnalysisInfo?
     let insights: [MeetingPatternInsight]?
 
-    enum CodingKeys: String, CodingKey {
-        case totalMeetings = "total_meetings"
-        case daysWithMeetings = "days_with_meetings"
-        case avgMeetingsPerDay = "avg_meetings_per_day"
-        case weeklyTrends = "weekly_trends"
-        case busiestDay = "busiest_day"
-        case avgMeetingsOnBusiestDay = "avg_meetings_on_busiest_day"
-        case topRepetitiveMeetings = "top_repetitive_meetings"
-        case recentHighIntensityDays = "recent_high_intensity_days"
-        case backToBackStats = "back_to_back_stats"
-        case durationAnalysis = "duration_analysis"
-        case insights
-    }
+    // No CodingKeys needed - API returns camelCase
 }
 
 struct WeeklyTrendData: Codable, Identifiable {
     let weekNumber: Int
     let weekStartDate: String
     let meetingCount: Int
-    let meetingHours: Double
-    let highIntensityDays: Int
+    let totalMinutes: Int?
+    let totalHours: Double?
+    let highIntensityDays: Int?
 
     var id: Int { weekNumber }
 
-    enum CodingKeys: String, CodingKey {
-        case weekNumber = "week_number"
-        case weekStartDate = "week_start_date"
-        case meetingCount = "meeting_count"
-        case meetingHours = "meeting_hours"
-        case highIntensityDays = "high_intensity_days"
+    // No CodingKeys needed - API returns camelCase
+
+    var meetingHours: Double {
+        totalHours ?? (Double(totalMinutes ?? 0) / 60.0)
     }
 }
 
@@ -143,13 +114,7 @@ struct RepetitiveMeetingInfo: Codable, Identifiable {
 
     var id: String { title }
 
-    enum CodingKeys: String, CodingKey {
-        case title
-        case occurrenceCount = "occurrence_count"
-        case totalHours = "total_hours"
-        case avgDurationMinutes = "avg_duration_minutes"
-        case frequencyPattern = "frequency_pattern"
-    }
+    // No CodingKeys needed - API returns camelCase
 
     var formattedTotalHours: String {
         let hours = Int(totalHours)
@@ -183,13 +148,7 @@ struct HighIntensityDayInfo: Codable, Identifiable {
 
     var id: String { date }
 
-    enum CodingKeys: String, CodingKey {
-        case date
-        case meetingCount = "meeting_count"
-        case meetingHours = "meeting_hours"
-        case backToBackCount = "back_to_back_count"
-        case intensityScore = "intensity_score"
-    }
+    // No CodingKeys needed - API returns camelCase
 }
 
 struct BackToBackStatsInfo: Codable {
@@ -197,11 +156,7 @@ struct BackToBackStatsInfo: Codable {
     let daysWithBackToBack: Int
     let avgGapMinutes: Double
 
-    enum CodingKeys: String, CodingKey {
-        case totalBackToBackPairs = "total_back_to_back_pairs"
-        case daysWithBackToBack = "days_with_back_to_back"
-        case avgGapMinutes = "avg_gap_minutes"
-    }
+    // No CodingKeys needed - API returns camelCase
 }
 
 struct DurationAnalysisInfo: Codable {
@@ -211,13 +166,7 @@ struct DurationAnalysisInfo: Codable {
     let mediumMeetings: Int
     let longMeetings: Int
 
-    enum CodingKeys: String, CodingKey {
-        case totalMeetingHours = "total_meeting_hours"
-        case avgMeetingDurationMinutes = "avg_meeting_duration_minutes"
-        case shortMeetings = "short_meetings"
-        case mediumMeetings = "medium_meetings"
-        case longMeetings = "long_meetings"
-    }
+    // No CodingKeys needed - API returns camelCase
 }
 
 struct MeetingPatternInsight: Codable, Identifiable {
@@ -239,15 +188,7 @@ struct HealthImpactSummary: Codable {
     let recentImpactDays: [HealthImpactDayInfo]?
     let insights: [HealthImpactInsight]?
 
-    enum CodingKeys: String, CodingKey {
-        case dataPointsAnalyzed = "data_points_analyzed"
-        case correlations
-        case sleepCorrelation = "sleep_correlation"
-        case stressCorrelation = "stress_correlation"
-        case activityCorrelation = "activity_correlation"
-        case recentImpactDays = "recent_impact_days"
-        case insights
-    }
+    // No CodingKeys needed - API returns camelCase
 }
 
 struct HealthCorrelationInfo: Codable, Identifiable {
@@ -281,12 +222,7 @@ struct SleepCorrelationInfo: Codable {
     let sleepDifference: Double
     let hasSignificantCorrelation: Bool
 
-    enum CodingKeys: String, CodingKey {
-        case avgSleepHighMeetingDays = "avg_sleep_high_meeting_days"
-        case avgSleepLowMeetingDays = "avg_sleep_low_meeting_days"
-        case sleepDifference = "sleep_difference"
-        case hasSignificantCorrelation = "has_significant_correlation"
-    }
+    // No CodingKeys needed - API returns camelCase
 
     var formattedDifference: String {
         let hours = abs(sleepDifference)
@@ -301,13 +237,7 @@ struct StressCorrelationInfo: Codable {
     let avgHrNormalDays: Double?
     let hasSignificantStressCorrelation: Bool
 
-    enum CodingKeys: String, CodingKey {
-        case avgHrvHighIntensityDays = "avg_hrv_high_intensity_days"
-        case avgHrvNormalDays = "avg_hrv_normal_days"
-        case avgHrHighIntensityDays = "avg_hr_high_intensity_days"
-        case avgHrNormalDays = "avg_hr_normal_days"
-        case hasSignificantStressCorrelation = "has_significant_stress_correlation"
-    }
+    // No CodingKeys needed - API returns camelCase
 }
 
 struct ActivityCorrelationInfo: Codable {
@@ -316,12 +246,7 @@ struct ActivityCorrelationInfo: Codable {
     let stepsDifference: Int
     let hasSignificantActivityImpact: Bool
 
-    enum CodingKeys: String, CodingKey {
-        case avgStepsMeetingDays = "avg_steps_meeting_days"
-        case avgStepsNonMeetingDays = "avg_steps_non_meeting_days"
-        case stepsDifference = "steps_difference"
-        case hasSignificantActivityImpact = "has_significant_activity_impact"
-    }
+    // No CodingKeys needed - API returns camelCase
 
     var formattedDifference: String {
         return "\(abs(stepsDifference).formatted()) steps"
@@ -337,13 +262,7 @@ struct HealthImpactDayInfo: Codable, Identifiable {
 
     var id: String { date }
 
-    enum CodingKeys: String, CodingKey {
-        case date
-        case meetingCount = "meeting_count"
-        case meetingHours = "meeting_hours"
-        case healthMetrics = "health_metrics"
-        case impactLevel = "impact_level"
-    }
+    // No CodingKeys needed - API returns camelCase
 }
 
 struct HealthMetricsSummary: Codable {
@@ -352,12 +271,7 @@ struct HealthMetricsSummary: Codable {
     let avgHr: Int?
     let avgHrv: Int?
 
-    enum CodingKeys: String, CodingKey {
-        case sleepHours = "sleep_hours"
-        case steps
-        case avgHr = "avg_hr"
-        case avgHrv = "avg_hrv"
-    }
+    // No CodingKeys needed - API returns camelCase
 }
 
 struct HealthImpactInsight: Codable, Identifiable {
