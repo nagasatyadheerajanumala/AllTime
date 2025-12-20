@@ -1,4 +1,5 @@
 import SwiftUI
+import Combine
 
 // MARK: - Predictions Tile Content
 struct PredictionsTileContent: View {
@@ -92,10 +93,9 @@ struct PredictionsDetailView: View {
                         }
 
                         // Health Correlations
-                        if let healthImpact = analysis.healthImpact,
-                           (healthImpact.sleepCorrelation?.hasSignificantCorrelation == true ||
-                            healthImpact.activityCorrelation?.hasSignificantActivityImpact == true) {
-                            healthCorrelationsSection(healthImpact)
+                        if analysis.healthImpact.sleepCorrelation?.hasSignificantCorrelation == true ||
+                           analysis.healthImpact.activityCorrelation?.hasSignificantActivityImpact == true {
+                            healthCorrelationsSection(analysis.healthImpact)
                         }
 
                         // Top Time Consumers
