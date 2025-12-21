@@ -31,6 +31,9 @@ struct AllTimeApp: App {
     
     // Sync scheduler
     @StateObject private var syncScheduler = SyncScheduler.shared
+
+    // Navigation manager for global tab control
+    @ObservedObject private var navigationManager = NavigationManager.shared
     
     init() {
         print("🚀 AllTimeApp: ===== APP INITIALIZING =====")
@@ -58,6 +61,7 @@ struct AllTimeApp: App {
                 .environmentObject(settingsViewModel)
                 .environmentObject(syncScheduler)
                 .environmentObject(themeManager)
+                .environmentObject(navigationManager)
                 .preferredColorScheme(.dark) // Force dark theme - Chrona only uses dark mode
                 .onOpenURL { url in
                     print("🔵 AllTimeApp: ===== DEEP LINK RECEIVED =====")

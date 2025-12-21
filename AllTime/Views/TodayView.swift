@@ -67,10 +67,6 @@ struct TodayView: View {
                         MoodCheckInCardView()
                             .padding(.horizontal, DesignSystem.Spacing.md)
 
-                        // AI Day Forecast
-                        DayForecastCardView()
-                            .padding(.horizontal, DesignSystem.Spacing.md)
-
                         // Today's Events (if any)
                         if !todayEvents.isEmpty {
                             eventsSection
@@ -628,3 +624,4 @@ struct EventDetailRow<Content: View>: View {
         )
     }
 }
+

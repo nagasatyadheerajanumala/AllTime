@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>AllTime.ipa</key>
+	<array>
+		<dict>
+			<key>architectures</key>
+			<array>
+				<string>arm64</string>
+			</array>
+			<key>buildNumber</key>
+			<string>1</string>
+			<key>certificate</key>
+			<dict>
+				<key>SHA1</key>
+				<string>3DF5CB3FDEF47F4C46F386AD110872635F3D7F5D</string>
+				<key>dateExpires</key>
+				<string>10/9/26</string>
+				<key>type</key>
+				<string>Cloud Managed Apple Distribution</string>
+			</dict>
+			<key>entitlements</key>
+			<dict>
+				<key>application-identifier</key>
+				<string>B6RGN544X7.com.storillc.AllTime</string>
+				<key>com.apple.developer.applesignin</key>
+				<array>
+					<string>Default</string>
+				</array>
+				<key>com.apple.developer.healthkit</key>
+				<true/>
+				<key>com.apple.developer.healthkit.access</key>
+				<array>
+					<string>health-records</string>
+				</array>
+				<key>com.apple.developer.healthkit.background-delivery</key>
+				<true/>
+				<key>com.apple.developer.healthkit.recalibrate-estimates</key>
+				<true/>
+				<key>com.apple.developer.team-identifier</key>
+				<string>B6RGN544X7</string>
+				<key>com.apple.developer.usernotifications.communication</key>
+				<true/>
+				<key>com.apple.developer.usernotifications.time-sensitive</key>
+				<true/>
+				<key>get-task-allow</key>
+				<false/>
+			</dict>
+			<key>name</key>
+			<string>AllTime.app</string>
+			<key>profile</key>
+			<dict>
+				<key>UUID</key>
+				<string>c6efbf2e-f448-4eab-aebc-a9cf5c5cba19</string>
+				<key>dateExpires</key>
+				<string>10/15/26</string>
+				<key>name</key>
+				<string>iOS Team Ad Hoc Provisioning Profile: com.storillc.AllTime</string>
+			</dict>
+			<key>team</key>
+			<dict>
+				<key>id</key>
+				<string>B6RGN544X7</string>
+				<key>name</key>
+				<string>STORI LLC</string>
+			</dict>
+			<key>versionNumber</key>
+			<string>1.0.0</string>
+		</dict>
+	</array>
+</dict>
+</plist>

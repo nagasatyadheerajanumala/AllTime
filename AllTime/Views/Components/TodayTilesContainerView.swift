@@ -12,7 +12,7 @@ struct TodayTilesContainerView: View {
     @State private var showingSuggestionsDetail = false
     @State private var showingTodoDetail = false
     @State private var showingInsightsDetail = false
-    @StateObject private var predictionsViewModel = PredictionsViewModel()
+    @StateObject private var insightsViewModel = InsightsDashboardViewModel()
 
     var body: some View {
         VStack(spacing: DesignSystem.Today.tileSpacing) {
@@ -88,17 +88,13 @@ struct TodayTilesContainerView: View {
                 .frame(maxWidth: .infinity)
             }
 
-            // Insights Tile (Predictions) - Full width
+            // Insights Tile - Full width
             TodayTileView(
                 type: .insights,
-                isLoading: predictionsViewModel.isLoading,
+                isLoading: insightsViewModel.state == .loading && insightsViewModel.claraNarrative.isEmpty,
                 onTap: { showingInsightsDetail = true }
             ) {
-                if let predictions = predictionsViewModel.predictions {
-                    PredictionsTileContent(predictions: predictions)
-                } else {
-                    EmptyTileContent(message: "Tap to view insights")
-                }
+                InsightsTileContent(viewModel: insightsViewModel)
             }
         }
         .sheet(isPresented: $showingSummaryDetail) {
@@ -119,10 +115,10 @@ struct TodayTilesContainerView: View {
             )
         }
         .sheet(isPresented: $showingInsightsDetail) {
-            PredictionsDetailView()
+            InsightsDashboardView()
         }
         .task {
-            await predictionsViewModel.fetchPredictions()
+            await insightsViewModel.loadData()
         }
     }
 
@@ -266,7 +262,7 @@ struct TodaySummaryDetailView: View {
                     DetailMetricCard(title: "Sleep", value: String(format: "%.1fh", sleep), icon: "moon.fill", color: Color(hex: "8B5CF6"))
                 }
                 if let steps = metrics.effectiveSteps {
-                    DetailMetricCard(title: "Steps", value: "\(steps)", icon: "figure.walk", color: Color(hex: "10B981"))
+                    DetailMetricCard(title: "Steps", value: steps.formatted(), icon: "figure.walk", color: Color(hex: "10B981"))
                 }
                 DetailMetricCard(title: "Meetings", value: "\(metrics.effectiveMeetingsCount)", icon: "calendar", color: Color(hex: "3B82F6"))
                 if metrics.effectiveLongestFreeBlock > 0 {
@@ -661,6 +657,85 @@ struct DetailMetricCard: View {
         .background(
             RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.md)
                 .fill(DesignSystem.Colors.cardBackgroundElevated)
+        )
+    }
+}
+
+// MARK: - Insights Tile Content
+struct InsightsTileContent: View {
+    @ObservedObject var viewModel: InsightsDashboardViewModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+            // Clara's narrative (1 line summary)
+            if !viewModel.claraNarrative.isEmpty {
+                Text(viewModel.claraNarrative)
+                    .font(.subheadline)
+                    .foregroundColor(.white.opacity(0.95))
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else {
+                Text("View your weekly summary")
+                    .font(.subheadline)
+                    .foregroundColor(.white.opacity(0.7))
+            }
+
+            Spacer(minLength: 0)
+
+            // Compact metrics row (3 chips max)
+            if !viewModel.keyMetrics.isEmpty {
+                HStack(spacing: DesignSystem.Spacing.sm) {
+                    ForEach(viewModel.keyMetrics.prefix(3)) { metric in
+                        InsightMetricChip(
+                            icon: metric.icon,
+                            value: metric.value,
+                            label: metric.label
+                        )
+                    }
+                    Spacer()
+                }
+            } else {
+                // Skeleton chips when loading
+                HStack(spacing: DesignSystem.Spacing.sm) {
+                    ForEach(0..<3, id: \.self) { _ in
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color.white.opacity(0.15))
+                            .frame(width: 70, height: 28)
+                    }
+                    Spacer()
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Insight Metric Chip (Compact, subtle)
+struct InsightMetricChip: View {
+    let icon: String
+    let value: String
+    let label: String
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Image(systemName: icon)
+                .font(.caption2)
+                .foregroundColor(.white.opacity(0.7))
+
+            VStack(alignment: .leading, spacing: 0) {
+                Text(value)
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(.white)
+                Text(label)
+                    .font(.system(size: 9))
+                    .foregroundColor(.white.opacity(0.6))
+                    .lineLimit(1)
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 5)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color.white.opacity(0.12))
         )
     }
 }

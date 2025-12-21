@@ -108,17 +108,16 @@ struct WeeklyTrendData: Codable, Identifiable {
 struct RepetitiveMeetingInfo: Codable, Identifiable {
     let title: String
     let occurrenceCount: Int
-    let totalHours: Double
-    let avgDurationMinutes: Int
-    let frequencyPattern: String
+    let totalMinutes: Int?
+    let totalHours: Double?
+    let averageDurationMinutes: Int?
+    let frequencyPattern: String?
 
     var id: String { title }
 
-    // No CodingKeys needed - API returns camelCase
-
     var formattedTotalHours: String {
-        let hours = Int(totalHours)
-        let minutes = Int((totalHours - Double(hours)) * 60)
+        let hours = Int(totalHours ?? 0)
+        let minutes = Int(((totalHours ?? 0) - Double(hours)) * 60)
         if hours > 0 && minutes > 0 {
             return "\(hours)h \(minutes)m"
         } else if hours > 0 {
@@ -129,52 +128,61 @@ struct RepetitiveMeetingInfo: Codable, Identifiable {
     }
 
     var frequencyLabel: String {
-        switch frequencyPattern.lowercased() {
+        guard let pattern = frequencyPattern else { return "Unknown" }
+        switch pattern.lowercased() {
         case "daily": return "Daily"
         case "weekly": return "Weekly"
         case "bi_weekly", "biweekly": return "Bi-weekly"
         case "monthly": return "Monthly"
-        default: return frequencyPattern.capitalized
+        default: return pattern.capitalized
         }
     }
 }
 
 struct HighIntensityDayInfo: Codable, Identifiable {
     let date: String
+    let dayOfWeek: String?
     let meetingCount: Int
-    let meetingHours: Double
-    let backToBackCount: Int
-    let intensityScore: Int
+    let totalMeetingMinutes: Int?
+    let totalMeetingHours: Double?
+    let backToBackCount: Int?
+    let intensityScore: Int?
 
     var id: String { date }
 
-    // No CodingKeys needed - API returns camelCase
+    var meetingHours: Double {
+        totalMeetingHours ?? (Double(totalMeetingMinutes ?? 0) / 60.0)
+    }
 }
 
 struct BackToBackStatsInfo: Codable {
-    let totalBackToBackPairs: Int
-    let daysWithBackToBack: Int
-    let avgGapMinutes: Double
-
-    // No CodingKeys needed - API returns camelCase
+    let totalBackToBackOccurrences: Int?
+    let daysWithBackToBack: Int?
+    let maxBackToBackStreak: Int?
+    let averageBackToBackPerDay: Double?
 }
 
 struct DurationAnalysisInfo: Codable {
-    let totalMeetingHours: Double
-    let avgMeetingDurationMinutes: Int
-    let shortMeetings: Int
-    let mediumMeetings: Int
-    let longMeetings: Int
-
-    // No CodingKeys needed - API returns camelCase
+    let averageDurationMinutes: Double?
+    let minDurationMinutes: Int?
+    let maxDurationMinutes: Int?
+    let durationBuckets: [String: Int]?
+    let totalMeetingMinutes: Int?
+    let totalMeetingHours: Double?
 }
 
 struct MeetingPatternInsight: Codable, Identifiable {
-    let type: String
-    let message: String
-    let severity: String
+    private let _id: String?
+    let title: String?
+    let description: String?
+    let severity: String?
 
-    var id: String { type + message }
+    var id: String { _id ?? UUID().uuidString }
+
+    private enum CodingKeys: String, CodingKey {
+        case _id = "id"
+        case title, description, severity
+    }
 }
 
 // MARK: - Health Impact Summary
@@ -192,15 +200,21 @@ struct HealthImpactSummary: Codable {
 }
 
 struct HealthCorrelationInfo: Codable, Identifiable {
-    let factor: String
-    let impact: String
-    let strength: String
-    let description: String
+    private let _id: String?
+    let title: String?
+    let description: String?
+    let type: String?  // "positive" or "negative"
+    let strength: String?  // "weak", "moderate", "strong"
 
-    var id: String { factor }
+    var id: String { _id ?? UUID().uuidString }
+
+    private enum CodingKeys: String, CodingKey {
+        case _id = "id"
+        case title, description, type, strength
+    }
 
     var impactColor: Color {
-        switch impact.lowercased() {
+        switch (type ?? "").lowercased() {
         case "positive": return Color(hex: "10B981")
         case "negative": return Color(hex: "EF4444")
         default: return Color(hex: "6B7280")
@@ -208,7 +222,7 @@ struct HealthCorrelationInfo: Codable, Identifiable {
     }
 
     var impactIcon: String {
-        switch impact.lowercased() {
+        switch (type ?? "").lowercased() {
         case "positive": return "arrow.up.circle.fill"
         case "negative": return "arrow.down.circle.fill"
         default: return "minus.circle.fill"
@@ -217,69 +231,107 @@ struct HealthCorrelationInfo: Codable, Identifiable {
 }
 
 struct SleepCorrelationInfo: Codable {
-    let avgSleepHighMeetingDays: Double
-    let avgSleepLowMeetingDays: Double
-    let sleepDifference: Double
-    let hasSignificantCorrelation: Bool
-
-    // No CodingKeys needed - API returns camelCase
+    let highMeetingDays: Int?
+    let lowMeetingDays: Int?
+    let noMeetingDays: Int?
+    let avgSleepHighMeetingDays: Double?
+    let avgSleepLowMeetingDays: Double?
+    let avgSleepNoMeetingDays: Double?
+    let sleepDifference: Double?
+    let correlationStrength: String?
+    let hasSignificantCorrelation: Bool?
 
     var formattedDifference: String {
-        let hours = abs(sleepDifference)
+        let hours = abs(sleepDifference ?? 0)
         return String(format: "%.1f hours", hours)
     }
 }
 
 struct StressCorrelationInfo: Codable {
-    let avgHrvHighIntensityDays: Double?
-    let avgHrvNormalDays: Double?
-    let avgHrHighIntensityDays: Double?
-    let avgHrNormalDays: Double?
-    let hasSignificantStressCorrelation: Bool
+    let highIntensityDays: Int?
+    let lowIntensityDays: Int?
+    let avgHrHighIntensity: Double?
+    let avgHrLowIntensity: Double?
+    let hrDifference: Double?
+    let avgHrvHighIntensity: Double?
+    let avgHrvLowIntensity: Double?
+    let hrvDifference: Double?
+    let hasHrCorrelation: Bool?
+    let hasHrvCorrelation: Bool?
 
-    // No CodingKeys needed - API returns camelCase
+    // Computed property for view compatibility
+    var hasSignificantStressCorrelation: Bool {
+        (hasHrCorrelation ?? false) || (hasHrvCorrelation ?? false)
+    }
 }
 
 struct ActivityCorrelationInfo: Codable {
-    let avgStepsMeetingDays: Int
-    let avgStepsNonMeetingDays: Int
-    let stepsDifference: Int
-    let hasSignificantActivityImpact: Bool
-
-    // No CodingKeys needed - API returns camelCase
+    let meetingDaysCount: Int?
+    let freeDaysCount: Int?
+    let avgStepsOnMeetingDays: Double?
+    let avgStepsOnFreeDays: Double?
+    let stepsDifference: Int?
+    let avgActiveMinutesOnMeetingDays: Double?
+    let avgActiveMinutesOnFreeDays: Double?
+    let activeMinutesDifference: Int?
+    let hasSignificantActivityImpact: Bool?
 
     var formattedDifference: String {
-        return "\(abs(stepsDifference).formatted()) steps"
+        return "\(abs(stepsDifference ?? 0).formatted()) steps"
     }
 }
 
 struct HealthImpactDayInfo: Codable, Identifiable {
     let date: String
     let meetingCount: Int
-    let meetingHours: Double
-    let healthMetrics: HealthMetricsSummary?
-    let impactLevel: String
+    let totalMeetingMinutes: Int?
+    let backToBackCount: Int?
+    let healthImpacts: [String]?
+    let likelyCause: String?
 
     var id: String { date }
 
-    // No CodingKeys needed - API returns camelCase
-}
-
-struct HealthMetricsSummary: Codable {
-    let sleepHours: Double?
-    let steps: Int?
-    let avgHr: Int?
-    let avgHrv: Int?
-
-    // No CodingKeys needed - API returns camelCase
+    // Computed property for display
+    var meetingHours: Double {
+        Double(totalMeetingMinutes ?? 0) / 60.0
+    }
 }
 
 struct HealthImpactInsight: Codable, Identifiable {
-    let type: String
-    let message: String
-    let severity: String
+    private let _id: String?
+    let title: String?
+    let description: String?
+    let category: String?  // sleep, stress, activity, schedule, general
+    let priority: String?  // high, medium, low, positive, info
 
-    var id: String { type + message }
+    var id: String { _id ?? UUID().uuidString }
+
+    private enum CodingKeys: String, CodingKey {
+        case _id = "id"
+        case title, description, category, priority
+    }
+
+    var priorityColor: Color {
+        switch (priority ?? "").lowercased() {
+        case "high": return Color(hex: "EF4444") // Red
+        case "medium": return Color(hex: "F59E0B") // Orange
+        case "low": return Color(hex: "3B82F6") // Blue
+        case "positive": return Color(hex: "10B981") // Green
+        case "info": return Color(hex: "6B7280") // Gray
+        default: return Color(hex: "6B7280")
+        }
+    }
+
+    var categoryIcon: String {
+        switch (category ?? "").lowercased() {
+        case "sleep": return "bed.double.fill"
+        case "stress": return "heart.fill"
+        case "activity": return "figure.walk"
+        case "schedule": return "calendar"
+        case "general": return "info.circle.fill"
+        default: return "circle.fill"
+        }
+    }
 }
 
 // MARK: - Capacity Insight

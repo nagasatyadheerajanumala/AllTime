@@ -364,10 +364,7 @@ struct SummaryMetricsCard: View {
     }
 
     private func formatNumber(_ number: Int) -> String {
-        if number >= 1000 {
-            return String(format: "%.1fk", Double(number) / 1000)
-        }
-        return "\(number)"
+        return number.formatted()
     }
 }
 

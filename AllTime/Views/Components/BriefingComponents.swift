@@ -932,7 +932,7 @@ struct KeyMetricsSection: View {
                 if let steps = metrics.stepsToday {
                     MetricTile(
                         icon: "figure.walk",
-                        value: "\(steps)",
+                        value: steps.formatted(),
                         label: "Steps",
                         color: Color(hex: "F59E0B")
                     )

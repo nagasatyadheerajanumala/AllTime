@@ -2,13 +2,52 @@ import SwiftUI
 import UserNotifications
 
 struct NotificationSettingsView: View {
-    @State private var dailySummaryEnabled = true
-    @State private var eventRemindersEnabled = true
-    @State private var reminderTime = Date()
+    @ObservedObject private var morningBriefingService = MorningBriefingNotificationService.shared
+    @AppStorage("daily_summary_enabled") private var dailySummaryEnabled = true
+    @AppStorage("event_reminders_enabled") private var eventRemindersEnabled = true
+    @State private var reminderTime: Date
     @State private var showingPermissionAlert = false
-    
+
+    // UserDefaults key for reminder time
+    private static let reminderTimeKey = "daily_summary_time"
+
+    init() {
+        // Load saved reminder time or default to 8:00 PM
+        if let savedTime = UserDefaults.standard.object(forKey: Self.reminderTimeKey) as? Date {
+            _reminderTime = State(initialValue: savedTime)
+        } else {
+            var components = DateComponents()
+            components.hour = 20
+            components.minute = 0
+            let defaultTime = Calendar.current.date(from: components) ?? Date()
+            _reminderTime = State(initialValue: defaultTime)
+        }
+    }
+
     var body: some View {
         List {
+            // MARK: - Morning Briefing Section
+            Section {
+                Toggle("Morning Briefing", isOn: $morningBriefingService.isEnabled)
+                    .onChange(of: morningBriefingService.isEnabled) { _, enabled in
+                        if enabled {
+                            requestNotificationPermission()
+                        }
+                    }
+
+                if morningBriefingService.isEnabled {
+                    DatePicker(
+                        "Delivery Time",
+                        selection: $morningBriefingService.scheduledTime,
+                        displayedComponents: .hourAndMinute
+                    )
+                }
+            } header: {
+                Text("Morning Briefing")
+            } footer: {
+                Text("Start your day with a preview of your schedule. Tap the notification to open your Today view.")
+            }
+
             Section {
                 Toggle("Daily Summary", isOn: $dailySummaryEnabled)
                 .onChange(of: dailySummaryEnabled) { _, enabled in
@@ -16,10 +55,13 @@ struct NotificationSettingsView: View {
                         requestNotificationPermission()
                     }
                 }
-                
+
                 if dailySummaryEnabled {
                     DatePicker("Time", selection: $reminderTime, displayedComponents: .hourAndMinute)
                         .labelsHidden()
+                        .onChange(of: reminderTime) { _, newTime in
+                            UserDefaults.standard.set(newTime, forKey: Self.reminderTimeKey)
+                        }
                 }
             } header: {
                 Text("Daily Briefings")
@@ -41,7 +83,12 @@ struct NotificationSettingsView: View {
             }
             
             Section {
-                Button("Test Notification") {
+                Button("Test Morning Briefing") {
+                    morningBriefingService.sendTestNotification()
+                }
+                .disabled(!morningBriefingService.isEnabled)
+
+                Button("Test General Notification") {
                     sendTestNotification()
                 }
                 .disabled(!dailySummaryEnabled && !eventRemindersEnabled)
@@ -81,8 +128,12 @@ struct NotificationSettingsView: View {
     private func checkNotificationStatus() {
         UNUserNotificationCenter.current().getNotificationSettings { settings in
             DispatchQueue.main.async {
-                dailySummaryEnabled = settings.authorizationStatus == .authorized
-                eventRemindersEnabled = settings.authorizationStatus == .authorized
+                // Only disable if notifications are not authorized
+                // Don't enable automatically - respect user's saved preference
+                if settings.authorizationStatus != .authorized {
+                    dailySummaryEnabled = false
+                    eventRemindersEnabled = false
+                }
             }
         }
     }

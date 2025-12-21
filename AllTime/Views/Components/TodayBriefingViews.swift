@@ -1373,9 +1373,9 @@ struct DetailedMetricsSection: View {
                         }
                         // Steps (new API uses stepsYesterday, legacy uses stepsToday)
                         if let steps = metrics.stepsYesterday {
-                            DetailMetricRow(label: "Steps yesterday", value: "\(steps)")
+                            DetailMetricRow(label: "Steps yesterday", value: steps.formatted())
                         } else if let steps = metrics.stepsToday {
-                            DetailMetricRow(label: "Steps today", value: "\(steps)")
+                            DetailMetricRow(label: "Steps today", value: steps.formatted())
                         }
                         // Active minutes (new API uses activeMinutesYesterday, legacy uses activeMinutes)
                         if let active = metrics.activeMinutesYesterday {
@@ -1784,9 +1784,6 @@ struct HealthInsightsCard: View {
     }
 
     private func formatNumber(_ num: Int) -> String {
-        if num >= 1000 {
-            return String(format: "%.1fk", Double(num) / 1000)
-        }
-        return "\(num)"
+        return num.formatted()
     }
 }

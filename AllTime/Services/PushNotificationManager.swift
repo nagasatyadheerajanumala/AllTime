@@ -141,7 +141,17 @@ extension PushNotificationManager: UNUserNotificationCenterDelegate {
         let userInfo = response.notification.request.content.userInfo
         print("🔔 PushNotificationManager: Notification tapped: \(response.notification.request.identifier)")
         print("🔔 PushNotificationManager: User info: \(userInfo)")
-        
+
+        // Handle morning briefing notifications
+        if let type = userInfo["type"] as? String, type == "morning_briefing" {
+            print("🔔 PushNotificationManager: Morning briefing notification tapped - navigating to Today")
+            Task { @MainActor in
+                NavigationManager.shared.navigateToToday()
+            }
+            completionHandler()
+            return
+        }
+
         // Handle reminder notifications
         if let reminderId = userInfo["reminder_id"] as? Int64,
            let type = userInfo["type"] as? String,
@@ -149,7 +159,7 @@ extension PushNotificationManager: UNUserNotificationCenterDelegate {
             print("🔔 PushNotificationManager: Reminder notification tapped - ID: \(reminderId)")
             handleReminderNotification(reminderId: reminderId, actionIdentifier: response.actionIdentifier)
         }
-        
+
         completionHandler()
     }
     

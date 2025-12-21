@@ -5047,4 +5047,73 @@ class APIService: ObservableObject {
         let decoder = JSONDecoder()
         return try decoder.decode([CapacityInsight].self, from: data)
     }
+
+    // MARK: - Weekly Insights
+
+    /// Get weekly insights summary (Last Week Recap + Next Week Focus)
+    func getWeeklyInsights(weekStart: String? = nil) async throws -> WeeklyInsightsSummaryResponse {
+        let timezone = TimeZone.current.identifier
+        var urlString = "\(baseURL)/api/v1/insights/weekly?timezone=\(timezone)"
+
+        if let weekStart = weekStart {
+            urlString += "&weekStart=\(weekStart)"
+        }
+
+        let url = URL(string: urlString)!
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+
+        print("🔵 APIService: Fetching weekly insights (weekStart: \(weekStart ?? "current"))")
+        let (data, response) = try await session.data(for: request)
+
+        if let responseString = String(data: data, encoding: .utf8) {
+            print("🔵 APIService: Weekly insights response: \(responseString.prefix(500))...")
+        }
+
+        try await validateResponse(response, data: data)
+
+        let decoder = JSONDecoder()
+        return try decoder.decode(WeeklyInsightsSummaryResponse.self, from: data)
+    }
+
+    /// Refresh weekly insights (force regenerate)
+    func refreshWeeklyInsights(weekStart: String) async throws -> WeeklyInsightsSummaryResponse {
+        let timezone = TimeZone.current.identifier
+        let url = URL(string: "\(baseURL)/api/v1/insights/weekly/refresh")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let body: [String: String] = [
+            "weekStart": weekStart,
+            "timezone": timezone
+        ]
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+
+        print("🔵 APIService: Refreshing weekly insights for \(weekStart)")
+        let (data, response) = try await session.data(for: request)
+
+        try await validateResponse(response, data: data)
+
+        let decoder = JSONDecoder()
+        return try decoder.decode(WeeklyInsightsSummaryResponse.self, from: data)
+    }
+
+    /// Get available weeks for insights
+    func getAvailableWeeks() async throws -> AvailableWeeksResponse {
+        let url = URL(string: "\(baseURL)/api/v1/insights/weekly/available")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+
+        print("🔵 APIService: Fetching available weeks")
+        let (data, response) = try await session.data(for: request)
+
+        try await validateResponse(response, data: data)
+
+        let decoder = JSONDecoder()
+        return try decoder.decode(AvailableWeeksResponse.self, from: data)
+    }
 }

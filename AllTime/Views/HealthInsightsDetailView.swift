@@ -277,7 +277,7 @@ struct HealthSummaryStatsGrid: View {
             
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: DesignSystem.Spacing.md) {
                 if let steps = stats.avgSteps {
-                    HealthMetricCard(icon: "figure.walk", title: "Avg Steps", value: String(format: "%.0f", steps), color: .blue)
+                    HealthMetricCard(icon: "figure.walk", title: "Avg Steps", value: Int(steps).formatted(), color: .blue)
                 }
                 
                 if let sleep = stats.avgSleepMinutes {
@@ -519,7 +519,7 @@ struct ComprehensiveHealthBreakdown: View {
                     icon: "figure.walk",
                     color: .blue,
                     items: [
-                        ("Steps", activity.stepsAvg != nil ? String(format: "%.0f", activity.stepsAvg!) : nil),
+                        ("Steps", activity.stepsAvg != nil ? Int(activity.stepsAvg!).formatted() : nil),
                         ("Active", activity.activeMinutesAvg != nil ? String(format: "%.0f min", activity.activeMinutesAvg!) : nil),
                         ("Walking", activity.walkingDistanceAvg != nil ? String(format: "%.1f km", activity.walkingDistanceAvg! / 1000) : nil)
                     ]
@@ -831,7 +831,7 @@ struct WeeklyHealthChartsSection: View {
         func formattedValue(_ value: Double) -> String {
             switch self {
             case .steps:
-                return "\(Int(value))"
+                return Int(value).formatted()
             case .activeMinutes, .sleepMinutes:
                 return "\(Int(value))\(unitSuffix)"
             case .activeEnergy:

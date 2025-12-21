@@ -327,24 +327,24 @@ struct PredictionsDetailView: View {
 
             VStack(spacing: DesignSystem.Spacing.sm) {
                 // Sleep Correlation
-                if let sleep = health.sleepCorrelation, sleep.hasSignificantCorrelation {
+                if let sleep = health.sleepCorrelation, sleep.hasSignificantCorrelation == true {
                     correlationRow(
                         icon: "moon.zzz.fill",
                         iconColor: Color(hex: "6366F1"),
                         title: "Sleep Impact",
                         description: "High meeting days = \(sleep.formattedDifference) less sleep",
-                        isNegative: sleep.sleepDifference > 0
+                        isNegative: (sleep.sleepDifference ?? 0) > 0
                     )
                 }
 
                 // Activity Correlation
-                if let activity = health.activityCorrelation, activity.hasSignificantActivityImpact {
+                if let activity = health.activityCorrelation, activity.hasSignificantActivityImpact == true {
                     correlationRow(
                         icon: "figure.walk",
                         iconColor: Color(hex: "10B981"),
                         title: "Activity Impact",
                         description: "Meeting days = \(activity.formattedDifference) fewer",
-                        isNegative: activity.stepsDifference > 0
+                        isNegative: (activity.stepsDifference ?? 0) > 0
                     )
                 }
 
@@ -472,11 +472,11 @@ struct PredictionsDetailView: View {
                 }
 
                 // Back-to-back stats
-                if let b2b = patterns.backToBackStats, b2b.daysWithBackToBack > 0 {
+                if let b2b = patterns.backToBackStats, (b2b.daysWithBackToBack ?? 0) > 0 {
                     patternStatRow(
                         icon: "arrow.right.arrow.left",
                         label: "Back-to-back days",
-                        value: "\(b2b.daysWithBackToBack) days"
+                        value: "\(b2b.daysWithBackToBack ?? 0) days"
                     )
                 }
 

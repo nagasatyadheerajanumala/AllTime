@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct PremiumTabView: View {
-    @State private var selectedTab = 0
+    @ObservedObject private var navigationManager = NavigationManager.shared
     @Namespace private var tabAnimation
     @State private var hasRequestedHealthKit = false
 
@@ -13,7 +13,7 @@ struct PremiumTabView: View {
 
             // Content - using switch for proper view lifecycle
             Group {
-                switch selectedTab {
+                switch navigationManager.selectedTab {
                 case 0:
                     TodayView()
                 case 1:
@@ -36,7 +36,7 @@ struct PremiumTabView: View {
 
             // Floating Tab Bar
             FloatingTabBar(
-                selectedTab: $selectedTab,
+                selectedTab: $navigationManager.selectedTab,
                 namespace: tabAnimation
             )
         }

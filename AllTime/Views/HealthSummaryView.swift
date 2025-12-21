@@ -168,6 +168,12 @@ struct HealthSummaryView: View {
             .sheet(isPresented: $showingGoals) {
                 HealthGoalsView()
             }
+            .onAppear {
+                // Debug: Print actual HealthKit data to console for comparison
+                Task {
+                    await HealthMetricsService.shared.debugPrintTodayMetrics()
+                }
+            }
             .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("HealthGoalsUpdated"))) { _ in
                 // Reload goals when updated
                 Task {

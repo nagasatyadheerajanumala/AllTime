@@ -241,10 +241,7 @@ struct ClassyMetricsSection: View {
     }
 
     private func formatSteps(_ steps: Int) -> String {
-        if steps >= 1000 {
-            return String(format: "%.1fk", Double(steps) / 1000)
-        }
-        return "\(steps)"
+        return steps.formatted()
     }
 }
 

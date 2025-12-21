@@ -1107,10 +1107,7 @@ struct PerDayMetricsCard: View {
     }
     
     private func formatNumber(_ number: Int) -> String {
-        if number >= 1000 {
-            return String(format: "%.1fk", Double(number) / 1000.0)
-        }
-        return "\(number)"
+        return number.formatted()
     }
     
     private func formatSleep(_ minutes: Int) -> String {
@@ -1369,10 +1366,7 @@ struct TrendCard: View {
     }
     
     private func formatNumber(_ number: Int) -> String {
-        if number >= 1000 {
-            return String(format: "%.1fk", Double(number) / 1000.0)
-        }
-        return "\(number)"
+        return number.formatted()
     }
     
     private func formatSleep(_ minutes: Int) -> String {
