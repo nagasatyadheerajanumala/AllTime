@@ -1,22 +1,53 @@
 import SwiftUI
 
-// MARK: - Chrona Official Dark Theme Design System
+// MARK: - Chrona Design System with Light/Dark Theme Support
 struct DesignSystem {
 
-    // MARK: - Colors - Official Chrona Dark Theme
+    // MARK: - Colors - Adaptive Light/Dark Theme
     struct Colors {
-        // Primary Accent - Chrona Icon Blue
-        static let primary = Color(hex: "3C82F6") // Official Chrona blue
+        // Primary Accent - Chrona Blue (works in both themes)
+        static let primary = Color(hex: "3B82F6") // Unified Chrona blue
         static let primaryDark = Color(hex: "2563EB")
         static let primaryLight = Color(hex: "60A5FA")
 
-        // Accent Colors
+        // Accent Colors (work well in both themes)
         static let accent = Color(hex: "FF6B6B")
         static let success = Color(hex: "34C759") // iOS Green
         static let warning = Color(hex: "FF9500") // iOS Orange
         static let info = Color(hex: "5AC8FA") // iOS Cyan
 
-        // Today Screen Tile Colors (Distinct, Related Palette)
+        // MARK: Calm UI Colors (adaptive)
+        static let calmSurface = Color(UIColor { traits in
+            traits.userInterfaceStyle == .dark ? UIColor(hex: "0F0F0F") : UIColor(hex: "F5F5F7")
+        })
+        static let calmBorder = Color(UIColor { traits in
+            traits.userInterfaceStyle == .dark ? UIColor.white.withAlphaComponent(0.06) : UIColor.black.withAlphaComponent(0.08)
+        })
+        static let calmAccent = Color(hex: "6366F1").opacity(0.8) // Muted indigo
+
+        // Softer Alert Colors (less alarming)
+        static let softWarning = Color(hex: "F59E0B").opacity(0.7)
+        static let softCritical = Color(hex: "EF4444").opacity(0.6)
+        static let softSuccess = Color(hex: "10B981").opacity(0.8)
+        static let neutralBlue = Color(hex: "3B82F6") // For "patterns" instead of "problems"
+
+        // MARK: Hero & Calm Gradients (adaptive)
+        static var heroGradient: LinearGradient {
+            LinearGradient(
+                colors: [Color(hex: "1E1B4B"), Color(hex: "0F0D24")], // Deep indigo (works in both)
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        }
+        static var insightsGradient: LinearGradient {
+            LinearGradient(
+                colors: [Color(hex: "2E1065").opacity(0.8), Color(hex: "1E1B4B").opacity(0.6)], // Muted purple
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        }
+
+        // Today Screen Tile Colors (keeping for backwards compatibility)
         static let todayTileGradient = LinearGradient(
             colors: [Color(hex: "6366F1"), Color(hex: "4F46E5")], // Indigo
             startPoint: .topLeading,
@@ -44,42 +75,66 @@ struct DesignSystem {
             Color(hex: "FFD3B6"), // Peach
             Color(hex: "95E1D3"), // Aqua
         ]
-        
-        // Background Colors - Pure Black Theme
-        static let background = Color(hex: "000000") // Pure black
-        static let backgroundLifted = Color(hex: "050505") // Slightly lifted black
-        static let backgroundLifted2 = Color(hex: "0A0A0A") // More lifted black
-        static let secondaryBackground = Color(hex: "0D0D0D") // Card background
-        static let tertiaryBackground = Color(hex: "131313") // Elevated card background
-        
-        // Text Colors - Official Dark Theme
-        static let primaryText = Color(hex: "FFFFFF") // Pure white
-        static let secondaryText = Color(hex: "B3B3B3") // Secondary gray
-        static let tertiaryText = Color(hex: "666666") // Tertiary gray (low contrast)
-        static let disabledText = Color(hex: "333333") // Disabled text
-        
-        // Card Colors
-        static let cardBackground = Color(hex: "0D0D0D")
-        static let cardBackgroundElevated = Color(hex: "131313")
-        static let cardShadow = Color.black.opacity(0.3)
-        
+
+        // MARK: - Adaptive Background Colors
+        static let background = Color(UIColor { traits in
+            traits.userInterfaceStyle == .dark ? UIColor(hex: "000000") : UIColor(hex: "F2F2F7")
+        })
+        static let backgroundLifted = Color(UIColor { traits in
+            traits.userInterfaceStyle == .dark ? UIColor(hex: "050505") : UIColor(hex: "FFFFFF")
+        })
+        static let backgroundLifted2 = Color(UIColor { traits in
+            traits.userInterfaceStyle == .dark ? UIColor(hex: "0A0A0A") : UIColor(hex: "F8F8FA")
+        })
+        static let secondaryBackground = Color(UIColor { traits in
+            traits.userInterfaceStyle == .dark ? UIColor(hex: "0D0D0D") : UIColor(hex: "FFFFFF")
+        })
+        static let tertiaryBackground = Color(UIColor { traits in
+            traits.userInterfaceStyle == .dark ? UIColor(hex: "131313") : UIColor(hex: "F5F5F7")
+        })
+
+        // MARK: - Adaptive Text Colors
+        static let primaryText = Color(UIColor { traits in
+            traits.userInterfaceStyle == .dark ? UIColor(hex: "FFFFFF") : UIColor(hex: "000000")
+        })
+        static let secondaryText = Color(UIColor { traits in
+            traits.userInterfaceStyle == .dark ? UIColor(hex: "B3B3B3") : UIColor(hex: "6B7280")
+        })
+        static let tertiaryText = Color(UIColor { traits in
+            traits.userInterfaceStyle == .dark ? UIColor(hex: "666666") : UIColor(hex: "9CA3AF")
+        })
+        static let disabledText = Color(UIColor { traits in
+            traits.userInterfaceStyle == .dark ? UIColor(hex: "333333") : UIColor(hex: "D1D5DB")
+        })
+
+        // MARK: - Adaptive Card Colors
+        static let cardBackground = Color(UIColor { traits in
+            traits.userInterfaceStyle == .dark ? UIColor(hex: "0D0D0D") : UIColor(hex: "FFFFFF")
+        })
+        static let cardBackgroundElevated = Color(UIColor { traits in
+            traits.userInterfaceStyle == .dark ? UIColor(hex: "131313") : UIColor(hex: "FAFAFA")
+        })
+        static let cardShadow = Color(UIColor { traits in
+            traits.userInterfaceStyle == .dark ? UIColor.black.withAlphaComponent(0.3) : UIColor.black.withAlphaComponent(0.08)
+        })
+
         // Glow Effects
         static let glowBlue = Color(hex: "3C82F6").opacity(0.15) // Subtle blue glow
         static let glowBlueStrong = Color(hex: "3C82F6").opacity(0.2) // Stronger glow
-        
+
         // Gradients
         static let primaryGradient = LinearGradient(
             colors: [primary, primaryDark],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
         )
-        
+
         static let accentGradient = LinearGradient(
             colors: [accent, Color(hex: "FF8787")],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
         )
-        
+
         static let backgroundGradient = LinearGradient(
             colors: [Color(UIColor.systemBackground), Color(UIColor.secondarySystemBackground)],
             startPoint: .top,
@@ -223,6 +278,32 @@ extension Color {
     }
 }
 
+// MARK: - UIColor Extension for Hex (needed for adaptive colors)
+extension UIColor {
+    convenience init(hex: String) {
+        let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
+        var int: UInt64 = 0
+        Scanner(string: hex).scanHexInt64(&int)
+        let a, r, g, b: UInt64
+        switch hex.count {
+        case 3: // RGB (12-bit)
+            (a, r, g, b) = (255, (int >> 8) * 17, (int >> 4 & 0xF) * 17, (int & 0xF) * 17)
+        case 6: // RGB (24-bit)
+            (a, r, g, b) = (255, int >> 16, int >> 8 & 0xFF, int & 0xFF)
+        case 8: // ARGB (32-bit)
+            (a, r, g, b) = (int >> 24, int >> 16 & 0xFF, int >> 8 & 0xFF, int & 0xFF)
+        default:
+            (a, r, g, b) = (255, 0, 0, 0)
+        }
+        self.init(
+            red: CGFloat(r) / 255,
+            green: CGFloat(g) / 255,
+            blue: CGFloat(b) / 255,
+            alpha: CGFloat(a) / 255
+        )
+    }
+}
+
     // MARK: - View Extensions for Design System
 extension View {
     // Chrona Dark Theme Card Style
@@ -303,6 +384,51 @@ extension View {
             .background(
                 RoundedRectangle(cornerRadius: DesignSystem.Today.innerCardCornerRadius)
                     .fill(DesignSystem.Colors.cardBackground)
+            )
+    }
+
+    // MARK: - Calm UI Card Style (premium, relaxed feel)
+    func calmCard(padding: CGFloat = DesignSystem.Spacing.md) -> some View {
+        self
+            .padding(padding)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg)
+                    .fill(DesignSystem.Colors.cardBackground)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg)
+                    .stroke(DesignSystem.Colors.calmBorder, lineWidth: 0.5)
+            )
+    }
+
+    // Calm Hero Card Style (for primary summary card)
+    func heroCard() -> some View {
+        self
+            .padding(DesignSystem.Today.cardPaddingLarge)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: DesignSystem.Today.tileCornerRadius)
+                    .fill(DesignSystem.Colors.heroGradient)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: DesignSystem.Today.tileCornerRadius)
+                    .stroke(Color.white.opacity(0.08), lineWidth: 0.5)
+            )
+    }
+
+    // Calm Insights Preview Card Style
+    func insightsCard() -> some View {
+        self
+            .padding(DesignSystem.Spacing.md)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg)
+                    .fill(DesignSystem.Colors.insightsGradient)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg)
+                    .stroke(Color.white.opacity(0.06), lineWidth: 0.5)
             )
     }
 }

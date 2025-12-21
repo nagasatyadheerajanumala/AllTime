@@ -8,7 +8,13 @@ struct TodayView: View {
     @State private var showingAddEvent = false
     @ObservedObject private var healthMetricsService = HealthMetricsService.shared
 
-    // Accordion expansion states
+    // Sheet presentation states
+    @State private var showingSummaryDetail = false
+    @State private var showingSuggestionsDetail = false
+    @State private var showingTodoDetail = false
+    @State private var showingInsightsDashboard = false
+
+    // Accordion expansion states (kept for compatibility)
     @State private var expandedSections: Set<String> = []
 
     private var todayEvents: [Event] {
@@ -43,31 +49,48 @@ struct TodayView: View {
 
                 // Main scrollable content
                 ScrollView {
-                    VStack(spacing: DesignSystem.Spacing.lg) {
+                    VStack(spacing: DesignSystem.Spacing.md) {
                         // Safe area padding
                         Color.clear.frame(height: 8)
 
-                        // (1) Greeting Header
-                        GreetingHeaderView()
-                            .padding(.horizontal, DesignSystem.Spacing.md)
-
-                        // (2) Weather-App Style Tiles
-                        TodayTilesContainerView(
+                        // SECTION 1: Hero Summary Card (PRIMARY)
+                        // Replaces greeting header + 4 colorful tiles with single calm hero
+                        HeroSummaryCard(
                             overview: overviewViewModel.overview,
                             briefing: briefingViewModel.briefing,
-                            isLoading: overviewViewModel.isLoading || briefingViewModel.isLoading
+                            isLoading: overviewViewModel.isLoading || briefingViewModel.isLoading,
+                            onTap: { showingSummaryDetail = true }
                         )
                         .padding(.horizontal, DesignSystem.Spacing.md)
 
-                        // Up Next - Task Management
+                        // SECTION 2: Actions Row (SECONDARY)
+                        // Compact suggestions + todo counts
+                        ActionsRow(
+                            overview: overviewViewModel.overview,
+                            briefing: briefingViewModel.briefing,
+                            isLoading: overviewViewModel.isLoading || briefingViewModel.isLoading,
+                            onSuggestionsTap: { showingSuggestionsDetail = true },
+                            onTodoTap: { showingTodoDetail = true }
+                        )
+                        .padding(.horizontal, DesignSystem.Spacing.md)
+
+                        // SECTION 3: Weekly Insights (Capacity Score + Patterns)
+                        // Moved up for prominence - shows capacity health
+                        InsightsPreviewCard(onTap: { showingInsightsDashboard = true })
+                            .padding(.horizontal, DesignSystem.Spacing.md)
+
+                        // SECTION 4: Plan Your Day (UpNext)
+                        // Task management and intelligent suggestions
                         UpNextSectionView()
                             .padding(.horizontal, DesignSystem.Spacing.md)
 
-                        // Mood Check-In Card
+                        // SECTION 5: Mood Check-In
+                        // How are you feeling? + energy prediction
                         MoodCheckInCardView()
                             .padding(.horizontal, DesignSystem.Spacing.md)
 
-                        // Today's Events (if any)
+                        // SECTION 6: Schedule (CONDITIONAL)
+                        // Only show if there are events today
                         if !todayEvents.isEmpty {
                             eventsSection
                                 .padding(.horizontal, DesignSystem.Spacing.md)
@@ -104,6 +127,24 @@ struct TodayView: View {
             }
             .sheet(isPresented: $showingAddEvent) {
                 AddEventView(initialDate: Date())
+            }
+            .sheet(isPresented: $showingSummaryDetail) {
+                TodaySummaryDetailView(
+                    briefing: briefingViewModel.briefing,
+                    summaryTile: overviewViewModel.overview?.summaryTile
+                )
+            }
+            .sheet(isPresented: $showingSuggestionsDetail) {
+                SuggestionsDetailView(
+                    briefing: briefingViewModel.briefing,
+                    suggestionsTile: overviewViewModel.overview?.suggestionsTile
+                )
+            }
+            .sheet(isPresented: $showingTodoDetail) {
+                ToDoDetailView(todoTile: overviewViewModel.overview?.todoTile)
+            }
+            .sheet(isPresented: $showingInsightsDashboard) {
+                InsightsDashboardView()
             }
             .onAppear {
                 Task {

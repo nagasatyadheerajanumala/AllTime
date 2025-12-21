@@ -62,7 +62,7 @@ struct AllTimeApp: App {
                 .environmentObject(syncScheduler)
                 .environmentObject(themeManager)
                 .environmentObject(navigationManager)
-                .preferredColorScheme(.dark) // Force dark theme - Chrona only uses dark mode
+                .preferredColorScheme(themeManager.colorScheme) // Use ThemeManager for light/dark/system
                 .onOpenURL { url in
                     print("🔵 AllTimeApp: ===== DEEP LINK RECEIVED =====")
                     print("🔵 AllTimeApp: Full URL: \(url.absoluteString)")

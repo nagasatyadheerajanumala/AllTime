@@ -580,6 +580,81 @@ struct InsightsErrorState: View {
     }
 }
 
+// MARK: - Pattern Row (Softer alternative to RankedIssueRow)
+// Used in "Patterns to Watch" section - neutral styling, no alert colors
+
+struct PatternRow: View {
+    let rank: Int
+    let title: String
+    let detail: String
+    let isExpanded: Bool
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            VStack(alignment: .leading, spacing: 0) {
+                // Main Row
+                HStack(alignment: .center, spacing: DesignSystem.Spacing.sm) {
+                    // Rank Badge - neutral gray instead of colored
+                    Text("\(rank)")
+                        .font(.caption.weight(.medium))
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                        .frame(width: 22, height: 22)
+                        .background(
+                            Circle()
+                                .fill(DesignSystem.Colors.cardBackgroundElevated)
+                        )
+
+                    // Title
+                    Text(title)
+                        .font(.subheadline.weight(.medium))
+                        .foregroundColor(DesignSystem.Colors.primaryText)
+                        .lineLimit(isExpanded ? nil : 1)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    Spacer()
+
+                    // Chevron
+                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                        .font(.caption.weight(.medium))
+                        .foregroundColor(DesignSystem.Colors.tertiaryText)
+                }
+                .padding(.vertical, 12)
+                .padding(.horizontal, DesignSystem.Spacing.sm)
+
+                // Expanded Detail - softer styling
+                if isExpanded {
+                    HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
+                        Rectangle()
+                            .fill(DesignSystem.Colors.calmBorder)
+                            .frame(width: 2)
+                            .padding(.leading, 10)
+
+                        Text(detail)
+                            .font(.caption)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
+                            .lineSpacing(3)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .padding(.trailing, DesignSystem.Spacing.sm)
+                    }
+                    .padding(.bottom, 12)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+                }
+            }
+            .background(
+                RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.md)
+                    .fill(DesignSystem.Colors.cardBackground)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.md)
+                    .stroke(DesignSystem.Colors.calmBorder, lineWidth: 0.5)
+            )
+        }
+        .buttonStyle(PlainButtonStyle())
+        .animation(.easeInOut(duration: 0.2), value: isExpanded)
+    }
+}
+
 // MARK: - Preview
 
 #Preview {
@@ -608,6 +683,15 @@ struct InsightsErrorState: View {
                 title: "Too Many Back-to-Back Meetings",
                 detail: "You had 5 days with 3+ back-to-back meetings this week. This leaves no buffer time for breaks or preparation.",
                 severity: .high,
+                isExpanded: true,
+                onTap: {}
+            )
+
+            // PatternRow - softer alternative
+            PatternRow(
+                rank: 1,
+                title: "Meeting clusters observed",
+                detail: "You had 5 days with 3+ back-to-back meetings this week. Consider adding buffers between meetings.",
                 isExpanded: true,
                 onTap: {}
             )

@@ -7,6 +7,7 @@ struct InsightsDashboardView: View {
     @State private var showWeekPicker = false
     @State private var isNarrativeExpanded = false
     @State private var expandedIssueId: UUID?
+    @State private var isPatternsExpanded = false
 
     var body: some View {
         NavigationView {
@@ -77,14 +78,14 @@ struct InsightsDashboardView: View {
                 // SECTION 1: Your Current State (Hero)
                 currentStateSection
 
-                // SECTION 2: What Went Wrong
-                if !viewModel.issues.isEmpty {
-                    whatWentWrongSection
-                }
-
-                // SECTION 3: Next Week Focus
+                // SECTION 2: Next Week Focus (PRIMARY ACTION - moved up for prominence)
                 if !viewModel.recommendations.isEmpty {
                     nextWeekFocusSection
+                }
+
+                // SECTION 3: Patterns to Watch (COLLAPSED BY DEFAULT - reframed from "What Went Wrong")
+                if !viewModel.issues.isEmpty {
+                    patternsToWatchSection
                 }
 
                 // Bottom spacing for tab bar
@@ -164,43 +165,75 @@ struct InsightsDashboardView: View {
         }
     }
 
-    // MARK: - Section 2: What Went Wrong
+    // MARK: - Section 3: Patterns to Watch (Reframed from "What Went Wrong")
+    // Uses calm, neutral styling - collapsed by default
 
-    private var whatWentWrongSection: some View {
+    private var patternsToWatchSection: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-            // Section Header
-            InsightSectionHeader(
-                title: "What Went Wrong",
-                subtitle: "Issues from the past week",
-                icon: "exclamationmark.triangle.fill",
-                iconColor: Color(hex: "EF4444")
-            )
+            // Collapsible Section Header
+            Button(action: {
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    isPatternsExpanded.toggle()
+                }
+            }) {
+                HStack {
+                    // Icon - neutral blue eye instead of red warning
+                    Image(systemName: "eye.circle.fill")
+                        .font(.title3)
+                        .foregroundColor(DesignSystem.Colors.neutralBlue)
 
-            // Ranked Issues
-            VStack(spacing: DesignSystem.Spacing.sm) {
-                ForEach(viewModel.issues) { issue in
-                    RankedIssueRow(
-                        rank: issue.rank,
-                        title: issue.title,
-                        detail: issue.detail,
-                        severity: mapSeverity(issue.severity),
-                        isExpanded: expandedIssueId == issue.id,
-                        onTap: {
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                if expandedIssueId == issue.id {
-                                    expandedIssueId = nil
-                                } else {
-                                    expandedIssueId = issue.id
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Patterns to Watch")
+                            .font(.headline.weight(.semibold))
+                            .foregroundColor(DesignSystem.Colors.primaryText)
+
+                        Text("\(viewModel.issues.count) observations from your week")
+                            .font(.caption)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
+                    }
+
+                    Spacer()
+
+                    // Expand/collapse indicator
+                    Image(systemName: isPatternsExpanded ? "chevron.up" : "chevron.down")
+                        .font(.caption.weight(.medium))
+                        .foregroundColor(DesignSystem.Colors.tertiaryText)
+                }
+                .padding(DesignSystem.Spacing.md)
+                .background(
+                    RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg)
+                        .fill(DesignSystem.Colors.cardBackground)
+                )
+            }
+            .buttonStyle(PlainButtonStyle())
+
+            // Expandable content - pattern items with softer styling
+            if isPatternsExpanded {
+                VStack(spacing: DesignSystem.Spacing.sm) {
+                    ForEach(viewModel.issues) { issue in
+                        PatternRow(
+                            rank: issue.rank,
+                            title: issue.title,
+                            detail: issue.detail,
+                            isExpanded: expandedIssueId == issue.id,
+                            onTap: {
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    if expandedIssueId == issue.id {
+                                        expandedIssueId = nil
+                                    } else {
+                                        expandedIssueId = issue.id
+                                    }
                                 }
                             }
-                        }
-                    )
+                        )
+                    }
                 }
+                .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
     }
 
-    // MARK: - Section 3: Next Week Focus
+    // MARK: - Section 2: Next Week Focus (PRIMARY ACTION)
 
     private var nextWeekFocusSection: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
