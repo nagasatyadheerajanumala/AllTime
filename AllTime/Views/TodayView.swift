@@ -12,10 +12,13 @@ struct TodayView: View {
     @State private var showingSummaryDetail = false
     @State private var showingSuggestionsDetail = false
     @State private var showingTodoDetail = false
-    @State private var showingInsightsDashboard = false
+    @State private var showingPlanMyDay = false
 
     // Accordion expansion states (kept for compatibility)
     @State private var expandedSections: Set<String> = []
+
+    // Task management for cancellation
+    @State private var loadTask: Task<Void, Never>?
 
     private var todayEvents: [Event] {
         calendarViewModel.eventsForToday().sorted { event1, event2 in
@@ -38,6 +41,27 @@ struct TodayView: View {
             guard let start = event.startDate, let end = event.endDate else { return false }
             return now >= start && now <= end
         }
+    }
+
+    /// Check if today is a weekend or has a holiday
+    private var isWeekendOrHoliday: Bool {
+        Calendar.current.isDateInWeekend(Date()) || todayHolidayName != nil
+    }
+
+    /// Get the name of today's holiday (if any)
+    private var todayHolidayName: String? {
+        todayEvents.first { event in
+            event.title.lowercased().contains("holiday") ||
+            event.allDay && (
+                event.title.lowercased().contains("christmas") ||
+                event.title.lowercased().contains("thanksgiving") ||
+                event.title.lowercased().contains("new year") ||
+                event.title.lowercased().contains("independence") ||
+                event.title.lowercased().contains("memorial") ||
+                event.title.lowercased().contains("labor day") ||
+                event.title.lowercased().contains("veterans")
+            )
+        }?.title
     }
 
     var body: some View {
@@ -74,22 +98,17 @@ struct TodayView: View {
                         )
                         .padding(.horizontal, DesignSystem.Spacing.md)
 
-                        // SECTION 3: Weekly Insights (Capacity Score + Patterns)
-                        // Moved up for prominence - shows capacity health
-                        InsightsPreviewCard(onTap: { showingInsightsDashboard = true })
-                            .padding(.horizontal, DesignSystem.Spacing.md)
-
-                        // SECTION 4: Plan Your Day (UpNext)
+                        // SECTION 3: Plan Your Day (UpNext)
                         // Task management and intelligent suggestions
                         UpNextSectionView()
                             .padding(.horizontal, DesignSystem.Spacing.md)
 
-                        // SECTION 5: Mood Check-In
-                        // How are you feeling? + energy prediction
+                        // SECTION 4: Mood Check-In
+                        // How are you feeling?
                         MoodCheckInCardView()
                             .padding(.horizontal, DesignSystem.Spacing.md)
 
-                        // SECTION 6: Schedule (CONDITIONAL)
+                        // SECTION 5: Schedule (CONDITIONAL)
                         // Only show if there are events today
                         if !todayEvents.isEmpty {
                             eventsSection
@@ -107,9 +126,11 @@ struct TodayView: View {
                     }
                 }
                 .refreshable {
-                    await calendarViewModel.refreshEvents()
-                    await briefingViewModel.refresh()
-                    await overviewViewModel.refresh()
+                    // Run all refreshes in parallel
+                    async let calendarRefresh: () = calendarViewModel.refreshEvents()
+                    async let briefingRefresh: () = briefingViewModel.refresh()
+                    async let overviewRefresh: () = overviewViewModel.refresh()
+                    _ = await (calendarRefresh, briefingRefresh, overviewRefresh)
                 }
 
                 // Floating Action Button
@@ -143,16 +164,28 @@ struct TodayView: View {
             .sheet(isPresented: $showingTodoDetail) {
                 ToDoDetailView(todoTile: overviewViewModel.overview?.todoTile)
             }
-            .sheet(isPresented: $showingInsightsDashboard) {
-                InsightsDashboardView()
+            .sheet(isPresented: $showingPlanMyDay) {
+                PlanMyDayView()
             }
             .onAppear {
-                Task {
-                    await calendarViewModel.loadEventsForSelectedDate(Date())
-                    await healthMetricsService.checkAuthorizationStatus()
-                    await briefingViewModel.fetchBriefing()
-                    await overviewViewModel.fetchOverview()
+                // Cancel any existing task
+                loadTask?.cancel()
+
+                // Run all data loading in parallel for faster startup
+                loadTask = Task {
+                    async let calendarTask: () = calendarViewModel.loadEventsForSelectedDate(Date())
+                    async let healthTask: () = healthMetricsService.checkAuthorizationStatus()
+                    async let briefingTask: () = briefingViewModel.fetchBriefing()
+                    async let overviewTask: () = overviewViewModel.fetchOverview()
+
+                    // Wait for all to complete (parallel execution)
+                    _ = await (calendarTask, healthTask, briefingTask, overviewTask)
                 }
+            }
+            .onDisappear {
+                // Cancel pending requests when view disappears
+                loadTask?.cancel()
+                loadTask = nil
             }
             .onChange(of: healthMetricsService.isAuthorized) { oldValue, newValue in
                 if !oldValue && newValue {
@@ -332,27 +365,54 @@ struct TodayView: View {
         .disabled(briefingViewModel.isLoading)
     }
 
-    // MARK: - FAB Button
+    // MARK: - FAB Buttons
     private var fabButton: some View {
-        Button(action: { showingAddEvent = true }) {
-            Image(systemName: "plus")
-                .font(.system(size: 24, weight: .semibold))
-                .foregroundColor(.white)
-                .frame(width: 56, height: 56)
-                .background(
-                    Circle()
-                        .fill(
-                            LinearGradient(
-                                colors: [
-                                    DesignSystem.Colors.primary,
-                                    DesignSystem.Colors.primaryDark
-                                ],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
+        VStack(spacing: 12) {
+            // Plan My Day FAB (shows on weekends/holidays)
+            if isWeekendOrHoliday {
+                Button(action: { showingPlanMyDay = true }) {
+                    Image(systemName: "wand.and.stars")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundColor(.white)
+                        .frame(width: 48, height: 48)
+                        .background(
+                            Circle()
+                                .fill(
+                                    LinearGradient(
+                                        colors: [
+                                            Color(hex: "8B5CF6"),
+                                            Color(hex: "6366F1")
+                                        ],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                                .shadow(color: Color(hex: "8B5CF6").opacity(0.4), radius: 10, y: 4)
                         )
-                        .shadow(color: DesignSystem.Colors.primary.opacity(0.4), radius: 12, y: 6)
-                )
+                }
+            }
+
+            // Add Event FAB
+            Button(action: { showingAddEvent = true }) {
+                Image(systemName: "plus")
+                    .font(.system(size: 24, weight: .semibold))
+                    .foregroundColor(.white)
+                    .frame(width: 56, height: 56)
+                    .background(
+                        Circle()
+                            .fill(
+                                LinearGradient(
+                                    colors: [
+                                        DesignSystem.Colors.primary,
+                                        DesignSystem.Colors.primaryDark
+                                    ],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .shadow(color: DesignSystem.Colors.primary.opacity(0.4), radius: 12, y: 6)
+                    )
+            }
         }
         .padding(.trailing, DesignSystem.Spacing.lg)
         .padding(.bottom, 100)

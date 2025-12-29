@@ -108,11 +108,43 @@ class AuthenticationService: NSObject, ObservableObject {
                 accessToken: authResponse.accessToken,
                 refreshToken: authResponse.refreshToken
             )
-            
+
             if tokenStored {
                 print("🍎 Apple Sign-In: Tokens stored securely in Keychain")
+
+                // CRITICAL: Verify tokens were actually stored by reading them back
+                let verifyAccess = keychainManager.getAccessToken()
+                let verifyRefresh = keychainManager.getRefreshToken()
+
+                if verifyAccess != nil && verifyRefresh != nil {
+                    print("✅ Apple Sign-In: Token verification passed - both tokens readable from Keychain")
+                } else {
+                    print("❌ Apple Sign-In: Token verification FAILED!")
+                    print("   - Access token readable: \(verifyAccess != nil)")
+                    print("   - Refresh token readable: \(verifyRefresh != nil)")
+                    // Retry storage once
+                    let retryStored = keychainManager.storeTokens(
+                        accessToken: authResponse.accessToken,
+                        refreshToken: authResponse.refreshToken
+                    )
+                    print("   - Retry storage result: \(retryStored)")
+                }
             } else {
-                print("❌ Apple Sign-In: Failed to store tokens in Keychain")
+                print("❌ Apple Sign-In: Failed to store tokens in Keychain - retrying...")
+                // Retry once with a clear first
+                _ = keychainManager.clearTokens()
+                let retryStored = keychainManager.storeTokens(
+                    accessToken: authResponse.accessToken,
+                    refreshToken: authResponse.refreshToken
+                )
+                if retryStored {
+                    print("✅ Apple Sign-In: Tokens stored on retry")
+                } else {
+                    print("❌ Apple Sign-In: CRITICAL - Tokens could not be stored even after retry!")
+                    throw NSError(domain: "AllTime", code: -1, userInfo: [
+                        NSLocalizedDescriptionKey: "Failed to securely store authentication tokens. Please try again."
+                    ])
+                }
             }
             
             // Store user profile data
@@ -151,9 +183,10 @@ class AuthenticationService: NSObject, ObservableObject {
             isAuthenticated = true
             isLoading = false
             
-            // Preload events cache for instant wheel scrolling
+            // Preload caches for instant UI
             Task {
                 await preloadEventsCache()
+                await InsightsPrefetchService.shared.prefetchAllInsights()
             }
             
             // Log profile completion status
@@ -230,21 +263,43 @@ class AuthenticationService: NSObject, ObservableObject {
             UserDefaults.standard.set(user.id, forKey: "userId")
             print("🔐 AuthenticationService: User ID (\(user.id)) stored")
 
-            // Preload events cache when restoring session
+            // Preload caches when restoring session
             await preloadEventsCache()
+            await InsightsPrefetchService.shared.prefetchAllInsights()
             if let profileCompleted = user.profileCompleted {
                 print("🔐 AuthenticationService: Profile completed: \(profileCompleted)")
             }
         } catch {
-            // If user profile fetch fails with 401, tokens are invalid - sign out
+            // Check if this is a 401 error (tokens are invalid)
+            // Handle both NSError and APIError cases
+            let is401Error: Bool
             if let nsError = error as NSError?, nsError.code == 401 {
+                is401Error = true
+            } else if let apiError = error as? APIError, apiError.code == "401" {
+                is401Error = true
+            } else if error.localizedDescription.contains("401") || error.localizedDescription.contains("Unauthorized") {
+                is401Error = true
+            } else {
+                is401Error = false
+            }
+
+            if is401Error {
                 print("🔐 AuthenticationService: User profile fetch failed with 401 - tokens are invalid")
                 print("🔐 AuthenticationService: Signing out...")
                 signOut()
             } else {
-                // For other errors, don't sign out - just log the error
+                // For other errors (network, server issues), keep user authenticated
+                // They have valid tokens, just couldn't fetch profile right now
                 print("🔐 AuthenticationService: Failed to fetch user profile: \(error.localizedDescription)")
-                print("🔐 AuthenticationService: Keeping authentication state - user profile fetch is optional")
+                print("🔐 AuthenticationService: Keeping user authenticated - profile fetch is optional")
+                isAuthenticated = true
+
+                // Try to load cached user profile from UserDefaults
+                if let userData = UserDefaults.standard.data(forKey: "user_profile"),
+                   let cachedUser = try? JSONDecoder().decode(User.self, from: userData) {
+                    currentUser = cachedUser
+                    print("🔐 AuthenticationService: Using cached user profile (ID: \(cachedUser.id))")
+                }
             }
         }
     }

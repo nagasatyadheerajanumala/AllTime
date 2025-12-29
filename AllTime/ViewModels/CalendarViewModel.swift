@@ -84,7 +84,7 @@ class CalendarViewModel: ObservableObject {
                }
                
                // Listen for Google Calendar token expiry notifications
-               // Auto-reconnect: Automatically trigger OAuth flow instead of showing alert
+               // Show error message instead of auto-triggering OAuth (which causes popup loops)
                NotificationCenter.default.addObserver(
                    forName: NSNotification.Name("GoogleCalendarTokenExpired"),
                    object: nil,
@@ -97,24 +97,27 @@ class CalendarViewModel: ObservableObject {
                            print("📅 CalendarViewModel: Token expiry error: \(errorMessage)")
                        }
 
-                       // AUTO-RECONNECT: Directly trigger OAuth flow for seamless UX
                        guard let self = self else { return }
 
-                       // Prevent duplicate OAuth attempts
+                       // Prevent duplicate notifications from triggering multiple alerts
                        guard !self.isAutoReconnecting else {
-                           print("📅 CalendarViewModel: Auto-reconnect already in progress, skipping...")
+                           print("📅 CalendarViewModel: Already handling token expiry, skipping...")
                            return
                        }
 
-                       print("📅 CalendarViewModel: Auto-triggering Google OAuth reconnection flow...")
                        self.isAutoReconnecting = true
                        self.reconnectProvider = "google"
 
-                       // Automatically start the OAuth flow - no user action required
-                       await GoogleAuthManager.shared.startGoogleOAuth()
+                       // Show reconnect alert instead of auto-triggering OAuth
+                       // This prevents the popup loop issue
+                       print("📅 CalendarViewModel: Showing reconnect prompt for Google Calendar")
+                       self.reconnectAlertMessage = "Your Google Calendar connection has expired. Please reconnect to continue syncing events."
+                       self.showReconnectAlert = true
 
-                       // Reset flag after OAuth completes (success or failure)
-                       self.isAutoReconnecting = false
+                       // Reset flag after a delay to allow retry if user dismisses
+                       DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
+                           self.isAutoReconnecting = false
+                       }
                    }
                }
 
@@ -526,17 +529,47 @@ class CalendarViewModel: ObservableObject {
         }
     }
     
+    /// Fast refresh - just fetches events from backend without full calendar sync
+    /// Use this after creating/updating events locally
+    func refreshEventsFromBackend() async {
+        print("📅 CalendarViewModel: ===== FAST REFRESH FROM BACKEND =====")
+
+        do {
+            // Calculate date range (current month +/- 1 month)
+            let calendar = Calendar.current
+            let now = Date()
+            let startDate = calendar.date(byAdding: .month, value: -1, to: now) ?? now
+            let endDate = calendar.date(byAdding: .month, value: 2, to: now) ?? now
+
+            print("📅 CalendarViewModel: Fetching events from \(startDate) to \(endDate)")
+
+            let response = try await apiService.getAllEvents(
+                start: startDate,
+                end: endDate
+            )
+
+            await MainActor.run {
+                // Store events directly - Event is a typealias for CalendarEvent
+                self.events = response.events
+                self.rebuildEventIndex()
+                print("✅ CalendarViewModel: Fast refresh complete - \(self.events.count) events loaded")
+            }
+        } catch {
+            print("❌ CalendarViewModel: Fast refresh failed: \(error.localizedDescription)")
+        }
+    }
+
     func refreshEvents() async {
         print("📅 CalendarViewModel: ===== REFRESHING EVENTS =====")
         print("📅 CalendarViewModel: Starting refresh at \(Date())")
-        
+
         isRefreshing = true
         isSyncing = true
         errorMessage = nil
         syncError = nil
         syncStatus = nil
         showSyncError = false
-        
+
         do {
             // Step 1: Clear cache BEFORE sync to force fresh data
             print("📅 CalendarViewModel: Step 1: Clearing cache for fresh sync...")

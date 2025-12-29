@@ -94,7 +94,7 @@ struct HeroSummaryCard: View {
 
     // MARK: - Stats Row
     private var statsRow: some View {
-        HStack(spacing: DesignSystem.Spacing.sm) {
+        FlowLayout(spacing: DesignSystem.Spacing.sm) {
             // Meetings
             if meetingsCount > 0 {
                 StatChip(
@@ -121,9 +121,8 @@ struct HeroSummaryCard: View {
                     label: ""
                 )
             }
-
-            Spacer()
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     // MARK: - Skeleton
@@ -197,13 +196,16 @@ private struct StatChip: View {
             Text(value)
                 .font(.caption.weight(.semibold))
                 .foregroundColor(.white)
+                .lineLimit(1)
 
             if !label.isEmpty {
                 Text(label)
                     .font(.caption2)
                     .foregroundColor(.white.opacity(0.5))
+                    .lineLimit(1)
             }
         }
+        .fixedSize(horizontal: true, vertical: false) // Prevent wrapping
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
         .background(

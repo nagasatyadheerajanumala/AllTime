@@ -14,9 +14,11 @@ class TodayBriefingViewModel: ObservableObject {
     // MARK: - Private Properties
     private let apiService = APIService()
     private let cacheService = CacheService.shared
+    private let memoryCache = InMemoryCache.shared
     private var cancellables = Set<AnyCancellable>()
     private var retryCount = 0
     private let maxRetries = 3
+    private var currentTask: Task<Void, Never>?
 
     // Cache key for today's briefing
     private var cacheKey: String {
@@ -25,67 +27,112 @@ class TodayBriefingViewModel: ObservableObject {
         return "daily_briefing_\(formatter.string(from: Date()))"
     }
 
+    // In-memory cache key
+    private var memoryCacheKey: String { "mem_\(cacheKey)" }
+
     // MARK: - Initialization
     init() {
         loadCacheSync()
     }
 
+    // MARK: - Task Cancellation
+    /// Cancel any in-flight requests (call in onDisappear)
+    func cancelPendingRequests() {
+        currentTask?.cancel()
+        currentTask = nil
+    }
+
+    deinit {
+        currentTask?.cancel()
+    }
+
     // MARK: - Cache Loading (Synchronous for instant UI)
     private func loadCacheSync() {
+        // Try disk cache directly (fast, ~5-10ms) - memory cache requires async
+        // This ensures we have data on first frame render
         if let cached = cacheService.loadJSONSync(DailyBriefingResponse.self, filename: cacheKey) {
-            print("Today Briefing: Loaded from cache instantly")
             briefing = cached
             hasError = false
             errorMessage = nil
+            // Populate memory cache for next access (non-blocking)
+            Task.detached(priority: .utility) { [memoryCacheKey, memoryCache] in
+                await memoryCache.set(memoryCacheKey, value: cached)
+            }
         }
     }
 
     // MARK: - Public Methods
 
     /// Fetch briefing from API with optional force refresh
+    /// Uses request de-duplication to prevent duplicate API calls
     func fetchBriefing(forceRefresh: Bool = false) async {
         // Reset error state
         hasError = false
         errorMessage = nil
 
-        // Check cache first if not force refreshing
+        // 1. Check in-memory cache first (instant, < 1ms)
         if !forceRefresh {
-            if let cached = cacheService.loadJSONSync(DailyBriefingResponse.self, filename: cacheKey) {
-                briefing = cached
-                print("Today Briefing: Using cached data")
+            if let memCached: DailyBriefingResponse = await memoryCache.get(memoryCacheKey) {
+                briefing = memCached
 
-                // Check if cache is stale (older than 30 minutes)
-                if let metadata = cacheService.getCacheMetadataSync(filename: cacheKey),
-                   Date().timeIntervalSince(metadata.lastUpdated) > 1800 {
-                    print("Today Briefing: Cache is stale, refreshing in background")
-                    Task.detached(priority: .utility) { [weak self] in
-                        await self?.refreshInBackground()
-                    }
+                // Check if needs background refresh
+                if await memoryCache.needsRefresh(memoryCacheKey) {
+                    refreshInBackgroundNonBlocking()
                 }
                 return
             }
         }
 
-        // Show loading only if we don't have cached data
+        // 2. Check disk cache if not force refreshing
+        if !forceRefresh {
+            if let cached = cacheService.loadJSONSync(DailyBriefingResponse.self, filename: cacheKey) {
+                briefing = cached
+                await memoryCache.set(memoryCacheKey, value: cached)
+
+                // Check if cache is stale (older than 30 minutes)
+                if let metadata = cacheService.getCacheMetadataSync(filename: cacheKey),
+                   Date().timeIntervalSince(metadata.lastUpdated) > 1800 {
+                    refreshInBackgroundNonBlocking()
+                }
+                return
+            }
+        }
+
+        // 3. No cache - show loading only if we don't have data
         if briefing == nil {
             isLoading = true
         }
 
+        // 4. Fetch with request de-duplication and auto-retry for auth errors
         do {
-            let response = try await fetchFromAPI()
+            let response = try await RequestDeduplicator.shared.dedupe(key: "briefing_fetch") {
+                try await self.fetchFromAPI()
+            }
+
             briefing = response
             lastRefreshDate = Date()
             retryCount = 0
 
-            // Cache the response
+            // Cache the response (memory + disk)
+            await memoryCache.set(memoryCacheKey, value: response)
             cacheService.saveJSONSync(response, filename: cacheKey, expiration: 24 * 60 * 60)
-            print("Today Briefing: Saved to cache")
 
             isLoading = false
             hasError = false
             errorMessage = nil
         } catch {
-            print("Today Briefing: Error - \(error.localizedDescription)")
+            if Task.isCancelled { return } // Don't show error if cancelled
+
+            // Auto-retry for auth errors (token may not be ready yet on app launch)
+            if case BriefingError.unauthorized = error, retryCount < maxRetries {
+                retryCount += 1
+                print("⚠️ Briefing: Auth error on initial load, auto-retrying (\(retryCount)/\(maxRetries))...")
+                // Wait briefly for token to become available
+                try? await Task.sleep(nanoseconds: UInt64(500_000_000 * retryCount)) // 0.5s, 1s, 1.5s
+                await fetchBriefing(forceRefresh: true)
+                return
+            }
+
             isLoading = false
 
             // Only show error if we have no cached data
@@ -93,6 +140,14 @@ class TodayBriefingViewModel: ObservableObject {
                 hasError = true
                 errorMessage = error.localizedDescription
             }
+        }
+    }
+
+    /// Non-blocking background refresh
+    private func refreshInBackgroundNonBlocking() {
+        currentTask?.cancel()
+        currentTask = Task.detached(priority: .utility) { [weak self] in
+            await self?.refreshInBackground()
         }
     }
 
@@ -171,18 +226,32 @@ class TodayBriefingViewModel: ObservableObject {
     }
 
     private func refreshInBackground() async {
+        guard !Task.isCancelled else { return }
+
         do {
             let response = try await fetchFromAPI()
+
+            guard !Task.isCancelled else { return }
+
+            // Update memory cache first (instant for next access)
+            await memoryCache.set(memoryCacheKey, value: response)
 
             await MainActor.run {
                 self.briefing = response
                 self.lastRefreshDate = Date()
             }
 
-            cacheService.saveJSONSync(response, filename: cacheKey, expiration: 24 * 60 * 60)
-            print("Today Briefing: Background refresh completed")
+            // Save to disk cache in background
+            Task.detached(priority: .utility) { [cacheService, cacheKey] in
+                cacheService.saveJSONSync(response, filename: cacheKey, expiration: 24 * 60 * 60)
+            }
         } catch {
-            print("Today Briefing: Background refresh failed - \(error.localizedDescription)")
+            // Silently fail - we have cached data
+            #if DEBUG
+            if !Task.isCancelled {
+                print("⚠️ Briefing background refresh failed: \(error.localizedDescription)")
+            }
+            #endif
         }
     }
 }

@@ -250,15 +250,27 @@ class APIService: ObservableObject {
     func fetchUserProfile() async throws -> User {
         // Backend endpoint: GET /api/user/me (per frontend developer guide)
         let url = URL(string: "\(baseURL)/api/user/me")!
-        var request = URLRequest(url: url)
-        request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
-        
-        let (data, response) = try await session.data(for: request)
-        try await validateResponse(response, data: data)
-        
-        let decoder = JSONDecoder()
-        decoder.keyDecodingStrategy = .convertFromSnakeCase
-        return try decoder.decode(User.self, from: data)
+
+        // Helper function to make the request
+        func makeRequest() async throws -> User {
+            var request = URLRequest(url: url)
+            request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+
+            let (data, response) = try await session.data(for: request)
+            try await validateResponse(response, data: data)
+
+            let decoder = JSONDecoder()
+            decoder.keyDecodingStrategy = .convertFromSnakeCase
+            return try decoder.decode(User.self, from: data)
+        }
+
+        do {
+            return try await makeRequest()
+        } catch let error as APIError where error.code == "401_REFRESHED" {
+            // Token was refreshed, retry the request with new token
+            print("🔄 APIService: Retrying fetchUserProfile after token refresh...")
+            return try await makeRequest()
+        }
     }
     
     func setupProfile(
@@ -509,40 +521,50 @@ class APIService: ObservableObject {
         limit: Int? = nil,
         autoSync: Bool = true
     ) async throws -> EventsResponse {
+        // CRITICAL: Validate token before making request to prevent silent failures
+        guard let token = accessToken, !token.isEmpty else {
+            print("❌ APIService: fetchEvents - No access token available")
+            throw NSError(
+                domain: "AllTime",
+                code: 401,
+                userInfo: [NSLocalizedDescriptionKey: "Authentication required. Please sign in again."]
+            )
+        }
+
         var components = URLComponents(string: "\(baseURL)/events")!
         var queryItems: [URLQueryItem] = [
             URLQueryItem(name: "page", value: String(page)),
             URLQueryItem(name: "autoSync", value: String(autoSync))
         ]
-        
+
         if let startDate = startDate {
             let formatter = ISO8601DateFormatter()
             formatter.formatOptions = [.withInternetDateTime]
             queryItems.append(URLQueryItem(name: "start", value: formatter.string(from: startDate)))
         }
-        
+
         if let endDate = endDate {
             let formatter = ISO8601DateFormatter()
             formatter.formatOptions = [.withInternetDateTime]
             queryItems.append(URLQueryItem(name: "end", value: formatter.string(from: endDate)))
         }
-        
+
         if let days = days {
             queryItems.append(URLQueryItem(name: "days", value: String(days)))
         }
-        
+
         if let period = period {
             queryItems.append(URLQueryItem(name: "period", value: period))
         }
-        
+
         if let limit = limit {
             queryItems.append(URLQueryItem(name: "limit", value: String(limit)))
         }
-        
+
         components.queryItems = queryItems
-        
+
         var request = URLRequest(url: components.url!)
-        request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         
         do {
             let (data, response) = try await session.data(for: request)
@@ -554,12 +576,20 @@ class APIService: ObservableObject {
         } catch let error as APIError where error.code == "401_REFRESHED" {
             // Token was refreshed, retry the request with new token
             print("🔄 APIService: Retrying fetchEvents after token refresh...")
+            guard let refreshedToken = accessToken, !refreshedToken.isEmpty else {
+                print("❌ APIService: fetchEvents retry - No access token after refresh")
+                throw NSError(
+                    domain: "AllTime",
+                    code: 401,
+                    userInfo: [NSLocalizedDescriptionKey: "Authentication required. Please sign in again."]
+                )
+            }
             var retryRequest = URLRequest(url: components.url!)
-            retryRequest.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
-            
+            retryRequest.setValue("Bearer \(refreshedToken)", forHTTPHeaderField: "Authorization")
+
             let (data, response) = try await session.data(for: retryRequest)
             try await validateResponse(response, data: data)
-            
+
             let decoder = JSONDecoder()
             return try decoder.decode(EventsResponse.self, from: data)
         }
@@ -711,8 +741,15 @@ class APIService: ObservableObject {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
         
-        let eventData = events.map { event in
-            [
+        let eventData = events.compactMap { event -> [String: Any]? in
+            // EventKit events must have an identifier for backend sync
+            guard let eventId = event.eventIdentifier else {
+                print("⚠️ APIService: Skipping event without identifier: \(event.title ?? "Untitled")")
+                return nil
+            }
+            return [
+                "source_event_id": eventId,
+                "source": "eventkit",
                 "title": event.title ?? "",
                 "start_time": ISO8601DateFormatter().string(from: event.startDate),
                 "end_time": ISO8601DateFormatter().string(from: event.endDate),
@@ -1009,18 +1046,24 @@ class APIService: ObservableObject {
     
     // MARK: - Calendar Management
     func getConnectedCalendars() async throws -> CalendarListResponse {
+        // CRITICAL: Validate token before making request to prevent silent failures
+        guard let token = accessToken, !token.isEmpty else {
+            print("❌ APIService: getConnectedCalendars - No access token available")
+            throw NSError(
+                domain: "AllTime",
+                code: 401,
+                userInfo: [NSLocalizedDescriptionKey: "Authentication required. Please sign in again."]
+            )
+        }
+
         let url = URL(string: "\(baseURL)/calendars")!
         print("🌐 APIService: Fetching connected calendars from \(url)")
-        
+
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.timeoutInterval = Constants.API.timeout
-        
-        // Add authorization header
-        if let token = accessToken {
-            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        }
-        
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+
         let (data, response) = try await session.data(for: request)
         try await validateResponse(response, data: data)
         
@@ -1046,7 +1089,55 @@ class APIService: ObservableObject {
         let calendarResponse = try await getConnectedCalendars()
         return ProvidersResponse(providers: calendarResponse.calendars, count: calendarResponse.count)
     }
-    
+
+    // MARK: - Meeting Clashes
+
+    /// Fetch meeting clashes for a date range
+    /// - Parameters:
+    ///   - start: Start date (defaults to today)
+    ///   - end: End date (defaults to 7 days from today)
+    /// - Returns: ClashResponse containing clashes grouped by date
+    func getMeetingClashes(start: Date? = nil, end: Date? = nil) async throws -> ClashResponse {
+        var urlComponents = URLComponents(string: "\(baseURL)/calendar/clashes")!
+        var queryItems: [URLQueryItem] = []
+
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd"
+
+        if let startDate = start {
+            queryItems.append(URLQueryItem(name: "start", value: dateFormatter.string(from: startDate)))
+        }
+        if let endDate = end {
+            queryItems.append(URLQueryItem(name: "end", value: dateFormatter.string(from: endDate)))
+        }
+
+        if !queryItems.isEmpty {
+            urlComponents.queryItems = queryItems
+        }
+
+        guard let url = urlComponents.url else {
+            throw NSError(domain: "AllTime", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid URL"])
+        }
+
+        print("🔔 APIService: Fetching meeting clashes from \(url)")
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.timeoutInterval = Constants.API.timeout
+
+        if let token = accessToken {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+
+        let (data, response) = try await session.data(for: request)
+        try await validateResponse(response, data: data)
+
+        let clashResponse = try JSONDecoder().decode(ClashResponse.self, from: data)
+        print("✅ APIService: Found \(clashResponse.totalClashes) clashes")
+
+        return clashResponse
+    }
+
     func getUpcomingEvents(days: Int = 7) async throws -> EventsResponse {
         // Use the new structured GET /calendars/events/upcoming endpoint
         // This endpoint returns the same structure as GET /events
@@ -1702,8 +1793,50 @@ class APIService: ObservableObject {
         
         // Fallback validation
         try await validateResponse(response, data: data)
-        
+
         // If we get here, decode the response
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        return try decoder.decode(DeleteCalendarResponse.self, from: data)
+    }
+
+    /// Disconnect a specific calendar connection by ID (for multi-account support)
+    /// - Parameter connectionId: The unique connection ID to delete
+    /// - Returns: DeleteCalendarResponse with status and message
+    /// - Throws: APIError on failure
+    func disconnectConnection(_ connectionId: Int) async throws -> DeleteCalendarResponse {
+        let url = URL(string: "\(baseURL)/calendars/connection/\(connectionId)")!
+        print("🗑️ APIService: ===== DISCONNECTING SPECIFIC CALENDAR =====")
+        print("🗑️ APIService: Connection ID: \(connectionId)")
+        print("🗑️ APIService: URL: \(url)")
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "DELETE"
+        request.timeoutInterval = Constants.API.timeout
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        // Add authorization header
+        guard let token = accessToken else {
+            throw NSError(
+                domain: "AllTime",
+                code: 401,
+                userInfo: [NSLocalizedDescriptionKey: "Authentication required. Please sign in again."]
+            )
+        }
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+
+        print("🌐 APIService: Sending DELETE request to \(url)")
+        let (data, response) = try await session.data(for: request)
+
+        let statusCode = (response as? HTTPURLResponse)?.statusCode ?? -1
+        print("📥 APIService: Response status: \(statusCode)")
+
+        // Log response body for debugging
+        let responseString = String(data: data, encoding: .utf8) ?? "No response body"
+        print("📥 APIService: Response body: \(responseString)")
+
+        try await validateResponse(response, data: data)
+
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         return try decoder.decode(DeleteCalendarResponse.self, from: data)
@@ -1944,7 +2077,7 @@ class APIService: ObservableObject {
     /// Attempts to refresh the access token if a 401 error occurs
     private func attemptTokenRefresh() async -> Bool {
         refreshLock.lock()
-        
+
         // If already refreshing, wait for it to complete
         if isRefreshingToken {
             refreshLock.unlock()
@@ -1953,36 +2086,57 @@ class APIService: ObservableObject {
             try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
             return KeychainManager.shared.getAccessToken() != nil
         }
-        
+
         isRefreshingToken = true
         refreshLock.unlock()
-        
+
         defer {
             refreshLock.lock()
             isRefreshingToken = false
             refreshLock.unlock()
         }
-        
+
         print("🔄 APIService: Attempting to refresh access token...")
-        
-        guard let refreshToken = KeychainManager.shared.getRefreshToken() else {
-            print("❌ APIService: No refresh token available")
+
+        // Try to get refresh token with retry (Keychain can sometimes fail transiently)
+        var refreshToken: String?
+        for attempt in 1...3 {
+            refreshToken = KeychainManager.shared.getRefreshToken()
+            if refreshToken != nil {
+                break
+            }
+            print("🔄 APIService: Refresh token read attempt \(attempt) returned nil, retrying...")
+            try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
+        }
+
+        guard let validRefreshToken = refreshToken else {
+            print("❌ APIService: No refresh token available after 3 attempts")
+            print("❌ APIService: Access token exists: \(KeychainManager.shared.getAccessToken() != nil)")
+            print("❌ APIService: This likely means tokens were never properly stored during sign-in")
             // Trigger sign out
             NotificationCenter.default.post(name: NSNotification.Name("ForceSignOut"), object: nil)
             return false
         }
-        
+
         do {
-            let refreshResponse = try await self.refreshToken(refreshToken: refreshToken)
-            
-            // Store new access token
-            let success = KeychainManager.shared.store(key: "access_token", value: refreshResponse.accessToken)
-            
+            let refreshResponse = try await self.refreshToken(refreshToken: validRefreshToken)
+
+            // Store new access token with retry
+            var success = false
+            for attempt in 1...3 {
+                success = KeychainManager.shared.store(key: "access_token", value: refreshResponse.accessToken)
+                if success {
+                    break
+                }
+                print("🔄 APIService: Token store attempt \(attempt) failed, retrying...")
+                try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
+            }
+
             if success {
                 print("✅ APIService: Token refreshed successfully")
                 return true
             } else {
-                print("❌ APIService: Failed to store refreshed token")
+                print("❌ APIService: Failed to store refreshed token after 3 attempts")
                 // Trigger sign out
                 NotificationCenter.default.post(name: NSNotification.Name("ForceSignOut"), object: nil)
                 return false
@@ -2246,7 +2400,8 @@ class APIService: ObservableObject {
         endDate: Date,
         isAllDay: Bool,
         provider: String? = nil,
-        attendees: [String]? = nil
+        attendees: [String]? = nil,
+        eventColor: String? = nil
     ) async throws -> CreateEventResponse {
         let url = URL(string: "\(baseURL)/calendars/events")!
         print("📝 APIService: ===== CREATING EVENT =====")
@@ -2305,7 +2460,8 @@ class APIService: ObservableObject {
             endTime: endTimeString,
             allDay: isAllDay,
             provider: provider,
-            attendees: attendees?.isEmpty == false ? attendees : nil
+            attendees: attendees?.isEmpty == false ? attendees : nil,
+            eventColor: eventColor
         )
         
         print("📝 APIService: Provider: \(provider ?? "local")")
@@ -4794,13 +4950,23 @@ class APIService: ObservableObject {
 
     /// Fetch today overview for tile previews
     func fetchTodayOverview(timezone: String = TimeZone.current.identifier) async throws -> TodayOverviewResponse {
+        // CRITICAL: Validate token before making request to prevent silent failures
+        guard let token = accessToken, !token.isEmpty else {
+            print("❌ APIService: fetchTodayOverview - No access token available")
+            throw NSError(
+                domain: "AllTime",
+                code: 401,
+                userInfo: [NSLocalizedDescriptionKey: "Authentication required. Please sign in again."]
+            )
+        }
+
         var components = URLComponents(string: "\(baseURL)/api/v1/today/overview")!
         components.queryItems = [
             URLQueryItem(name: "timezone", value: timezone)
         ]
 
         var request = URLRequest(url: components.url!)
-        request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
 
         print("🔵 APIService: Fetching today overview")
         let (data, response) = try await session.data(for: request)
@@ -5115,5 +5281,260 @@ class APIService: ObservableObject {
 
         let decoder = JSONDecoder()
         return try decoder.decode(AvailableWeeksResponse.self, from: data)
+    }
+
+    /// Get weekly narrative insights (calm, notebook-style with OpenAI)
+    func getWeeklyNarrativeInsights(weekStart: String? = nil) async throws -> WeeklyNarrativeResponse {
+        let timezone = TimeZone.current.identifier
+        var urlString = "\(baseURL)/api/v1/insights/weekly/narrative?timezone=\(timezone)"
+
+        if let weekStart = weekStart {
+            urlString += "&weekStart=\(weekStart)"
+        }
+
+        let url = URL(string: urlString)!
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+        request.timeoutInterval = 60 // Longer timeout for OpenAI generation
+
+        print("📓 APIService: Fetching weekly narrative insights (weekStart: \(weekStart ?? "current"))")
+        let (data, response) = try await session.data(for: request)
+
+        if let responseString = String(data: data, encoding: .utf8) {
+            print("📓 APIService: Weekly narrative response: \(responseString.prefix(500))...")
+        }
+
+        try await validateResponse(response, data: data)
+
+        let decoder = JSONDecoder()
+        return try decoder.decode(WeeklyNarrativeResponse.self, from: data)
+    }
+
+    // MARK: - Life Insights (Monthly/2-Month)
+
+    /// Get AI-generated life insights for 30 or 60 days.
+    /// Returns cached insights if available, otherwise generates new.
+    func getLifeInsights(mode: String = "30day") async throws -> LifeInsightsResponse {
+        let timezone = TimeZone.current.identifier
+        let urlString = "\(baseURL)/api/v1/insights/life?mode=\(mode)&timezone=\(timezone)"
+
+        let url = URL(string: urlString)!
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+
+        print("🧠 APIService: Fetching life insights (mode: \(mode))")
+        let (data, response) = try await session.data(for: request)
+
+        if let responseString = String(data: data, encoding: .utf8) {
+            print("🧠 APIService: Life insights raw response (\(data.count) bytes):")
+            print("🧠 APIService: \(responseString)")
+        }
+
+        try await validateResponse(response, data: data)
+
+        let decoder = JSONDecoder()
+        do {
+            let result = try decoder.decode(LifeInsightsResponse.self, from: data)
+            print("🧠 APIService: Decode SUCCESS - headline=\(result.headline ?? "nil"), patterns=\(result.yourLifePatterns?.count ?? 0)")
+            return result
+        } catch {
+            print("🧠 APIService: Decode FAILED - \(error)")
+            if let decodingError = error as? DecodingError {
+                switch decodingError {
+                case .keyNotFound(let key, let context):
+                    print("🧠 APIService: Missing key '\(key.stringValue)' at \(context.codingPath)")
+                case .typeMismatch(let type, let context):
+                    print("🧠 APIService: Type mismatch for \(type) at \(context.codingPath)")
+                case .valueNotFound(let type, let context):
+                    print("🧠 APIService: Value not found for \(type) at \(context.codingPath)")
+                case .dataCorrupted(let context):
+                    print("🧠 APIService: Data corrupted at \(context.codingPath)")
+                @unknown default:
+                    print("🧠 APIService: Unknown decoding error")
+                }
+            }
+            throw error
+        }
+    }
+
+    /// Force regenerate life insights (bypasses cache).
+    /// Rate limited to 5 generations per day.
+    func regenerateLifeInsights(mode: String = "30day") async throws -> RegenerateInsightsResponse {
+        let timezone = TimeZone.current.identifier
+        let urlString = "\(baseURL)/api/v1/insights/life/regenerate?mode=\(mode)&timezone=\(timezone)"
+
+        let url = URL(string: urlString)!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        print("🔄 APIService: Regenerating life insights (mode: \(mode))")
+        let (data, response) = try await session.data(for: request)
+
+        if let responseString = String(data: data, encoding: .utf8) {
+            print("🔄 APIService: Regenerate response: \(responseString.prefix(500))...")
+        }
+
+        try await validateResponse(response, data: data)
+
+        let decoder = JSONDecoder()
+        return try decoder.decode(RegenerateInsightsResponse.self, from: data)
+    }
+
+    /// Get rate limit status for life insights regeneration.
+    func getLifeInsightsRateLimit() async throws -> RateLimitStatus {
+        let url = URL(string: "\(baseURL)/api/v1/insights/life/rate-limit")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+
+        print("📊 APIService: Fetching life insights rate limit")
+        let (data, response) = try await session.data(for: request)
+
+        try await validateResponse(response, data: data)
+
+        let decoder = JSONDecoder()
+        return try decoder.decode(RateLimitStatus.self, from: data)
+    }
+
+    /// Get places recommendations based on user patterns.
+    /// Returns personalized place suggestions based on calendar history.
+    func getPlacesRecommendations(lat: Double? = nil, lng: Double? = nil) async throws -> PlacesRecommendationResponse {
+        let timezone = TimeZone.current.identifier
+        var urlString = "\(baseURL)/api/v1/insights/places?timezone=\(timezone)"
+
+        if let lat = lat, let lng = lng {
+            urlString += "&lat=\(lat)&lng=\(lng)"
+        }
+
+        let url = URL(string: urlString)!
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+
+        print("📍 APIService: Fetching places recommendations")
+        let (data, response) = try await session.data(for: request)
+
+        if let responseString = String(data: data, encoding: .utf8) {
+            print("📍 APIService: Places response: \(responseString.prefix(500))...")
+        }
+
+        try await validateResponse(response, data: data)
+
+        let decoder = JSONDecoder()
+        return try decoder.decode(PlacesRecommendationResponse.self, from: data)
+    }
+
+    // MARK: - Task Suggestions
+
+    /// Get AI-generated task suggestions for a specific date.
+    /// These are tasks the AI thinks the user should do based on patterns.
+    func getTaskSuggestions(date: Date = Date()) async throws -> [TaskSuggestion] {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        let dateString = formatter.string(from: date)
+
+        let url = URL(string: "\(baseURL)/api/v1/suggestions/tasks?date=\(dateString)")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+
+        print("💡 APIService: Fetching task suggestions for \(dateString)")
+        let (data, response) = try await session.data(for: request)
+
+        if let responseString = String(data: data, encoding: .utf8) {
+            print("💡 APIService: Task suggestions response: \(responseString.prefix(500))...")
+        }
+
+        try await validateResponse(response, data: data)
+
+        let decoder = JSONDecoder()
+        let suggestionsResponse = try decoder.decode(TaskSuggestionsResponse.self, from: data)
+        return suggestionsResponse.suggestions
+    }
+
+    /// Accept a task suggestion - creates a real task from the suggestion.
+    func acceptTaskSuggestion(suggestionId: Int64, scheduledDate: Date? = nil, scheduledTime: String? = nil) async throws -> AcceptSuggestionResponse {
+        let url = URL(string: "\(baseURL)/api/v1/suggestions/tasks/\(suggestionId)/accept")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        var dateString: String? = nil
+        if let date = scheduledDate {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "yyyy-MM-dd"
+            dateString = formatter.string(from: date)
+        }
+
+        let body = AcceptSuggestionRequest(
+            suggestionId: suggestionId,
+            scheduledDate: dateString,
+            scheduledTime: scheduledTime
+        )
+        request.httpBody = try JSONEncoder().encode(body)
+
+        print("✅ APIService: Accepting task suggestion \(suggestionId)")
+        let (data, response) = try await session.data(for: request)
+
+        try await validateResponse(response, data: data)
+
+        let decoder = JSONDecoder()
+        return try decoder.decode(AcceptSuggestionResponse.self, from: data)
+    }
+
+    /// Dismiss a task suggestion - user doesn't want to do this.
+    func dismissTaskSuggestion(suggestionId: Int64, reason: String? = nil) async throws {
+        let url = URL(string: "\(baseURL)/api/v1/suggestions/tasks/\(suggestionId)/dismiss")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let body = DismissSuggestionRequest(suggestionId: suggestionId, reason: reason)
+        request.httpBody = try JSONEncoder().encode(body)
+
+        print("❌ APIService: Dismissing task suggestion \(suggestionId)")
+        let (data, response) = try await session.data(for: request)
+
+        try await validateResponse(response, data: data)
+    }
+
+    /// Provide feedback on a suggestion (after task completion).
+    func provideSuggestionFeedback(suggestionId: Int64, wasHelpful: Bool, feedbackText: String? = nil) async throws {
+        let url = URL(string: "\(baseURL)/api/v1/suggestions/tasks/\(suggestionId)/feedback")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let body = SuggestionFeedbackRequest(
+            suggestionId: suggestionId,
+            wasHelpful: wasHelpful,
+            feedbackText: feedbackText
+        )
+        request.httpBody = try JSONEncoder().encode(body)
+
+        print("📝 APIService: Sending feedback for suggestion \(suggestionId)")
+        let (data, response) = try await session.data(for: request)
+
+        try await validateResponse(response, data: data)
+    }
+
+    /// Mark a suggestion as shown (for analytics).
+    func markSuggestionShown(suggestionId: Int64) async throws {
+        let url = URL(string: "\(baseURL)/api/v1/suggestions/tasks/\(suggestionId)/shown")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+
+        print("👁️ APIService: Marking suggestion \(suggestionId) as shown")
+        let (data, response) = try await session.data(for: request)
+
+        try await validateResponse(response, data: data)
     }
 }

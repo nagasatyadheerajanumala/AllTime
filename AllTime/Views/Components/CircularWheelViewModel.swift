@@ -14,6 +14,7 @@ class CircularWheelViewModel: ObservableObject {
     private(set) var days: [Date] = []
     private(set) var dayPositions: [CGPoint] = []
     private(set) var eventFlags: [Bool] = []
+    private(set) var eventCounts: [Int] = []  // Number of events per day
     private(set) var angleToIndexMap: [Double: Int] = [:]
     
     private let calendar = Calendar.current
@@ -67,9 +68,12 @@ class CircularWheelViewModel: ObservableObject {
             dayPositions.append(CGPoint(x: x, y: y))
         }
         
-        // Precompute event flags
+        // Precompute event flags and counts
         eventFlags = days.map { date in
             hasEvents(for: date)
+        }
+        eventCounts = days.map { date in
+            countEvents(for: date)
         }
         
         // Precompute angle to index mapping (simplified - not needed for current implementation)
@@ -278,10 +282,24 @@ class CircularWheelViewModel: ObservableObject {
             return eventDate >= startOfDay && eventDate < endOfDay
         }
     }
-    
+
+    private func countEvents(for date: Date) -> Int {
+        let startOfDay = calendar.startOfDay(for: date)
+        let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
+        return events.filter { event in
+            guard let eventDate = event.startDate else { return false }
+            return eventDate >= startOfDay && eventDate < endOfDay
+        }.count
+    }
+
     func hasEvents(at index: Int) -> Bool {
         guard index >= 0 && index < eventFlags.count else { return false }
         return eventFlags[index]
+    }
+
+    func eventCount(at index: Int) -> Int {
+        guard index >= 0 && index < eventCounts.count else { return 0 }
+        return eventCounts[index]
     }
     
     func position(at index: Int) -> CGPoint {

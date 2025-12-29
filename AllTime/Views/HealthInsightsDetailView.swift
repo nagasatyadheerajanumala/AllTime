@@ -276,22 +276,22 @@ struct HealthSummaryStatsGrid: View {
                 .foregroundColor(DesignSystem.Colors.primaryText)
             
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: DesignSystem.Spacing.md) {
-                if let steps = stats.avgSteps {
+                if let steps = stats.avgSteps, steps > 0 {
                     HealthMetricCard(icon: "figure.walk", title: "Avg Steps", value: Int(steps).formatted(), color: .blue)
                 }
-                
-                if let sleep = stats.avgSleepMinutes {
+
+                if let sleep = stats.avgSleepMinutes, sleep > 0 {
                     let hours = Int(sleep) / 60
                     let minutes = Int(sleep) % 60
                     HealthMetricCard(icon: "moon.fill", title: "Avg Sleep", value: "\(hours)h \(minutes)m", color: .indigo)
                 }
-                
-                if let active = stats.avgActiveMinutes {
-                    HealthMetricCard(icon: "flame.fill", title: "Avg Active", value: "\(Int(active)) min", color: .orange)
+
+                if let active = stats.avgActiveMinutes, active > 0 {
+                    HealthMetricCard(icon: "flame.fill", title: "Avg Active", value: "\(Int(active).formatted()) min", color: .orange)
                 }
-                
-                if let workouts = stats.totalWorkouts {
-                    HealthMetricCard(icon: "figure.run", title: "Workouts", value: "\(workouts)", color: .green)
+
+                if let workouts = stats.totalWorkouts, workouts > 0 {
+                    HealthMetricCard(icon: "figure.run", title: "Workouts", value: workouts.formatted(), color: .green)
                 }
             }
         }
@@ -457,14 +457,14 @@ struct HealthTrendCard: View {
                 Text(trend.metric.replacingOccurrences(of: "_", with: " ").capitalized)
                     .font(DesignSystem.Typography.bodyBold)
                     .foregroundColor(DesignSystem.Colors.primaryText)
-                
-                Text(String(format: "%.1f → %.1f", trend.previousAvg, trend.currentAvg))
+
+                Text("\(formatTrendValue(trend.previousAvg)) → \(formatTrendValue(trend.currentAvg))")
                     .font(DesignSystem.Typography.subheadline)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
             }
-            
+
             Spacer()
-            
+
             HStack(spacing: 4) {
                 Image(systemName: trendIcon)
                     .font(.caption)
@@ -486,6 +486,22 @@ struct HealthTrendCard: View {
                 .fill(Color(UIColor.secondarySystemGroupedBackground))
                 .shadow(color: .black.opacity(0.05), radius: 4, y: 2)
         )
+    }
+
+    private func formatTrendValue(_ value: Double) -> String {
+        // For large values (like steps), use integer with comma formatting
+        // For small values (like HRV, sleep hours), use decimal
+        let metric = trend.metric.lowercased()
+        if metric.contains("step") || metric.contains("calorie") || metric.contains("energy") {
+            return Int(value).formatted()
+        } else if metric.contains("minute") || metric.contains("active") {
+            return Int(value).formatted()
+        } else if metric.contains("distance") {
+            return Int(value).formatted()
+        } else {
+            // For heart rate, HRV, sleep hours, etc. - use one decimal
+            return String(format: "%.1f", value)
+        }
     }
 }
 
@@ -833,11 +849,11 @@ struct WeeklyHealthChartsSection: View {
             case .steps:
                 return Int(value).formatted()
             case .activeMinutes, .sleepMinutes:
-                return "\(Int(value))\(unitSuffix)"
+                return "\(Int(value).formatted())\(unitSuffix)"
             case .activeEnergy:
-                return "\(Int(value.rounded())) \(unitSuffix)"
+                return "\(Int(value.rounded()).formatted()) \(unitSuffix)"
             case .restingHeartRate, .hrv:
-                return "\(Int(value.rounded())) \(unitSuffix)"
+                return "\(Int(value.rounded()).formatted()) \(unitSuffix)"
             }
         }
     }

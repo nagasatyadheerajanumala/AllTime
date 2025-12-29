@@ -75,6 +75,9 @@ struct AddEventView: View {
                             
                             Toggle("All Day", isOn: $isAllDay)
                                 .toggleStyle(.switch)
+                                .onChange(of: isAllDay) { _, _ in
+                                    HapticManager.shared.selectionChanged()
+                                }
                         }
                         .padding(DesignSystem.Spacing.lg)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -137,7 +140,7 @@ struct AddEventView: View {
                             Text("Description")
                                 .font(DesignSystem.Typography.subheadline)
                                 .foregroundColor(DesignSystem.Colors.secondaryText)
-                            
+
                             TextEditor(text: $viewModel.description)
                                 .font(DesignSystem.Typography.body)
                                 .foregroundColor(DesignSystem.Colors.primaryText)
@@ -167,7 +170,32 @@ struct AddEventView: View {
                                 )
                         )
                         .shadow(color: Color.black.opacity(0.08), radius: 15, x: 0, y: 5)
-                        
+
+                        // Event Color Card
+                        VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+                            InlineColorPicker(selectedColor: $viewModel.selectedColor)
+                        }
+                        .padding(DesignSystem.Spacing.lg)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(DesignSystem.Materials.cardMaterial)
+                        .background(DesignSystem.Colors.cardBackground.opacity(0.6))
+                        .clipShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg)
+                                .stroke(
+                                    LinearGradient(
+                                        colors: [
+                                            Color.white.opacity(0.3),
+                                            Color.white.opacity(0.05)
+                                        ],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    ),
+                                    lineWidth: 0.5
+                                )
+                        )
+                        .shadow(color: Color.black.opacity(0.08), radius: 15, x: 0, y: 5)
+
                         // Calendar Selection Card
                         VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
                             Text("Calendar")
@@ -375,10 +403,13 @@ struct AddEventView: View {
                                 y: 6
                             )
                         }
+                        .buttonStyle(SmoothButtonStyle(haptic: .medium))
                         .disabled(viewModel.isCreating || viewModel.title.isEmpty)
+                        .opacity(viewModel.title.isEmpty ? 0.6 : 1.0)
+                        .animation(.smoothSpring, value: viewModel.title.isEmpty)
                         .padding(.horizontal, DesignSystem.Spacing.md)
                         .padding(.top, DesignSystem.Spacing.sm)
-                        
+
                         if let errorMessage = viewModel.errorMessage {
                             VStack(alignment: .leading, spacing: 4) {
                                 HStack(spacing: 6) {
@@ -389,7 +420,7 @@ struct AddEventView: View {
                                         .fontWeight(.semibold)
                                 }
                                 .foregroundColor(.red)
-                                
+
                                 Text(errorMessage)
                                     .font(DesignSystem.Typography.caption)
                                     .foregroundColor(.red.opacity(0.9))
@@ -399,8 +430,12 @@ struct AddEventView: View {
                             .background(Color.red.opacity(0.1))
                             .clipShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.md))
                             .padding(.horizontal, DesignSystem.Spacing.md)
+                            .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                            .onAppear {
+                                HapticManager.shared.error()
+                            }
                         }
-                        
+
                         if let successMessage = viewModel.successMessage {
                             VStack(alignment: .leading, spacing: 4) {
                                 HStack(spacing: 6) {
@@ -411,7 +446,7 @@ struct AddEventView: View {
                                         .fontWeight(.semibold)
                                 }
                                 .foregroundColor(.green)
-                                
+
                                 Text(successMessage)
                                     .font(DesignSystem.Typography.caption)
                                     .foregroundColor(.green.opacity(0.9))
@@ -421,6 +456,10 @@ struct AddEventView: View {
                             .background(Color.green.opacity(0.1))
                             .clipShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.md))
                             .padding(.horizontal, DesignSystem.Spacing.md)
+                            .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                            .onAppear {
+                                HapticManager.shared.success()
+                            }
                         }
                         
                         Spacer(minLength: 110) // Reserve space for tab bar
@@ -460,6 +499,7 @@ class AddEventViewModel: ObservableObject {
     @Published var isLoadingCalendars = false
     @Published var attendees: [String] = []
     @Published var newAttendeeEmail = ""
+    @Published var selectedColor: String = "#3B82F6"  // Default blue color
     
     init(initialDate: Date = Date()) {
         self.startDate = initialDate
@@ -553,7 +593,8 @@ class AddEventViewModel: ObservableObject {
                 endDate: actualEndDate,
                 isAllDay: isAllDay,
                 provider: provider,
-                attendees: attendees.isEmpty ? nil : attendees
+                attendees: attendees.isEmpty ? nil : attendees,
+                eventColor: selectedColor
             )
             
             syncStatus = response

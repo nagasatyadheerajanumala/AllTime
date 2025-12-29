@@ -88,6 +88,11 @@ class UpNextViewModel: ObservableObject {
             summaryMessage = response.message
             print("✅ UpNextViewModel: Loaded \(upNextItems.count) intelligent suggestions")
 
+            // Debug: Log each item's details
+            for item in upNextItems {
+                print("📋 Item: '\(item.title)' type=\(item.type) primaryAction=\(item.primaryAction ?? "nil") startTime=\(String(describing: item.startTime)) timeLabel=\(item.timeLabel ?? "nil")")
+            }
+
             // NOTE: We no longer auto-sync all items to Reminders on load.
             // Items are only added when the user explicitly taps "Block Time"
         } catch {

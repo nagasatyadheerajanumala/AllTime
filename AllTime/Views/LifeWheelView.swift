@@ -464,12 +464,12 @@ struct SummaryStatsCard: View {
                         if let avgSteps = stats.avgSteps, avgSteps > 0 {
                             HealthStatCard(
                                 icon: "figure.walk",
-                                value: "\(Int(avgSteps))",
+                                value: Int(avgSteps).formatted(),
                                 label: "Avg Steps/Day",
                                 color: .blue
                             )
                         }
-                        
+
                         if let avgSleep = stats.avgSleepMinutes, avgSleep > 0 {
                             HealthStatCard(
                                 icon: "bed.double.fill",
@@ -479,22 +479,22 @@ struct SummaryStatsCard: View {
                             )
                         }
                     }
-                    
+
                     // Row 2: Active Minutes and Workouts
                     HStack(spacing: 12) {
                         if let avgActive = stats.avgActiveMinutes, avgActive > 0 {
                             HealthStatCard(
                                 icon: "flame.fill",
-                                value: "\(Int(avgActive))m",
+                                value: "\(Int(avgActive).formatted())m",
                                 label: "Avg Active/Day",
                                 color: .orange
                             )
                         }
-                        
+
                         if let totalWorkouts = stats.totalWorkouts, totalWorkouts > 0 {
                             HealthStatCard(
                                 icon: "figure.run",
-                                value: "\(totalWorkouts)",
+                                value: totalWorkouts.formatted(),
                                 label: "Total Workouts",
                                 color: .green
                             )
@@ -962,12 +962,12 @@ struct PerDayMetricsCard: View {
                         if let restingHR = metrics.restingHeartRate, restingHR > 0 {
                             HealthMetricBadge(
                                 icon: "heart.fill",
-                                value: "\(Int(restingHR))",
+                                value: Int(restingHR).formatted(),
                                 label: "Resting HR",
                                 color: .red
                             )
                         }
-                        
+
                         if let hrv = metrics.hrv, hrv > 0 {
                             HealthMetricBadge(
                                 icon: "waveform.path.ecg",
@@ -976,7 +976,7 @@ struct PerDayMetricsCard: View {
                                 color: .pink
                             )
                         }
-                        
+
                         // Distance & Energy
                         if let walkingDist = metrics.walkingDistance, walkingDist > 0 {
                             HealthMetricBadge(
@@ -986,21 +986,21 @@ struct PerDayMetricsCard: View {
                                 color: .cyan
                             )
                         }
-                        
+
                         if let energy = metrics.activeEnergyBurned, energy > 0 {
                             HealthMetricBadge(
                                 icon: "bolt.fill",
-                                value: "\(Int(energy))",
+                                value: Int(energy).formatted(),
                                 label: "Calories",
                                 color: .yellow
                             )
                         }
-                        
+
                         // Nutrition
                         if let calories = metrics.caloriesConsumed, calories > 0 {
                             HealthMetricBadge(
                                 icon: "fork.knife",
-                                value: "\(Int(calories))",
+                                value: Int(calories).formatted(),
                                 label: "Calories",
                                 color: .brown
                             )
@@ -1136,7 +1136,7 @@ struct PerDayMetricsCard: View {
         if meters >= 1000 {
             return String(format: "%.1f km", meters / 1000.0)
         } else {
-            return "\(Int(meters)) m"
+            return "\(Int(meters).formatted()) m"
         }
     }
     
@@ -1144,7 +1144,7 @@ struct PerDayMetricsCard: View {
         if liters >= 1.0 {
             return String(format: "%.1f L", liters)
         } else {
-            return "\(Int(liters * 1000)) mL"
+            return "\(Int(liters * 1000).formatted()) mL"
         }
     }
 }
@@ -1355,11 +1355,11 @@ struct TrendCard: View {
         case "sleep_minutes", "sleep":
             return formatSleep(Int(value))
         case "active_minutes", "active":
-            return "\(Int(value))m"
+            return "\(Int(value).formatted())m"
         case "resting_heart_rate", "heart_rate", "hrv":
             return String(format: "%.1f", value)
         case "active_energy_burned", "energy":
-            return "\(Int(value))"
+            return Int(value).formatted()
         default:
             return String(format: "%.1f", value)
         }
@@ -1549,7 +1549,7 @@ struct HealthCategoryCard: View {
     
     private func formatMetricValue(_ value: Double, unit: String) -> String {
         if unit == "min" || unit == "m" {
-            return "\(Int(value))"
+            return Int(value).formatted()
         } else if unit == "kg" || unit == "g" || unit == "L" || unit == "kcal" {
             return String(format: "%.1f", value)
         } else if unit == "%" || unit == "bpm" || unit == "ms" {

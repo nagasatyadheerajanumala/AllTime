@@ -2,20 +2,22 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>CFBundleDisplayName</key>
+	<string>My Clara</string>
 	<key>NSUserActivityTypes</key>
 	<array>
 		<string>INSendMessageIntent</string>
 	</array>
 	<key>NSHealthDataUsageDescription</key>
-	<string>AllTime uses your health data to provide insights.</string>
+	<string>My Clara uses your health data to provide personalized insights.</string>
 	<key>NSHealthRecordsUsageDescription</key>
-	<string>AllTime uses clinical records to improve insights.</string>
+	<string>My Clara uses clinical records to improve your health insights.</string>
 	<key>NSCalendarsUsageDescription</key>
-	<string>App needs access to your calendar.</string>
+	<string>My Clara needs access to your calendar to help you manage your time.</string>
 	<key>NSRemindersUsageDescription</key>
-	<string>App needs access to your reminders.</string>
+	<string>My Clara needs access to your reminders to help you stay organized.</string>
 	<key>NSRemindersFullAccessUsageDescription</key>
-	<string>Chrona needs full access to your reminders to sync reminders created in the app to your iOS Reminders app.</string>
+	<string>My Clara needs full access to your reminders to sync reminders created in the app to your iOS Reminders app.</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>

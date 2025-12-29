@@ -56,22 +56,22 @@ struct ReminderRowView: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            // Simple checkbox - Apple Notes style
+            // Simple checkbox
             Button(action: onComplete) {
                 Image(systemName: reminder.isCompleted ? "checkmark.circle.fill" : "circle")
                     .font(.system(size: 22, weight: .light))
-                    .foregroundColor(reminder.isCompleted ? Color(hex: "34C759") : Color(hex: "C7C7CC"))
+                    .foregroundColor(reminder.isCompleted ? Color(hex: "10B981") : DesignSystem.Colors.tertiaryText)
             }
             .buttonStyle(PlainButtonStyle())
             .padding(.top, 2)
 
             // Note content - clean and simple
             VStack(alignment: .leading, spacing: 6) {
-                // Title - prominent, like a note title
+                // Title - prominent
                 Text(reminder.title)
                     .font(.system(size: 16, weight: .regular))
-                    .strikethrough(reminder.isCompleted, color: .secondary)
-                    .foregroundColor(reminder.isCompleted ? .secondary : .primary)
+                    .strikethrough(reminder.isCompleted, color: DesignSystem.Colors.tertiaryText)
+                    .foregroundColor(reminder.isCompleted ? DesignSystem.Colors.tertiaryText : DesignSystem.Colors.primaryText)
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
 
@@ -79,7 +79,7 @@ struct ReminderRowView: View {
                 if let description = reminder.description, !description.isEmpty {
                     Text(description)
                         .font(.system(size: 14))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
                 }
@@ -89,7 +89,7 @@ struct ReminderRowView: View {
                     // Date - friendly format
                     Text(friendlyDateString)
                         .font(.system(size: 12))
-                        .foregroundColor(needsAttention ? Color(hex: "FF9500") : .secondary)
+                        .foregroundColor(needsAttention ? Color(hex: "FF9500") : DesignSystem.Colors.secondaryText)
 
                     // Priority indicator - subtle dot or text
                     if let priority = reminder.priority, priority != .low {
@@ -104,7 +104,7 @@ struct ReminderRowView: View {
                             Text("Repeats")
                                 .font(.system(size: 11))
                         }
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
                     }
 
                     Spacer()
@@ -113,14 +113,14 @@ struct ReminderRowView: View {
 
             Spacer(minLength: 0)
 
-            // Minimal action buttons - only show on hover/interaction in practice
+            // Minimal action buttons
             if !reminder.isCompleted {
                 HStack(spacing: 16) {
                     if reminder.status != .snoozed {
                         Button(action: onSnooze) {
                             Image(systemName: "clock.arrow.circlepath")
                                 .font(.system(size: 14))
-                                .foregroundColor(.secondary)
+                                .foregroundColor(DesignSystem.Colors.tertiaryText)
                         }
                         .buttonStyle(PlainButtonStyle())
                     }
@@ -129,18 +129,18 @@ struct ReminderRowView: View {
                         Button(action: onDelete) {
                             Image(systemName: "xmark")
                                 .font(.system(size: 12, weight: .medium))
-                                .foregroundColor(.secondary)
+                                .foregroundColor(DesignSystem.Colors.tertiaryText)
                         }
                         .buttonStyle(PlainButtonStyle())
                     }
                 }
             }
         }
-        .padding(.vertical, 12)
-        .padding(.horizontal, 16)
+        .padding(.vertical, DesignSystem.Spacing.sm)
+        .padding(.horizontal, DesignSystem.Spacing.md)
         .background(
-            RoundedRectangle(cornerRadius: 10)
-                .fill(Color(UIColor.systemBackground))
+            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.md)
+                .fill(DesignSystem.Colors.cardBackground)
         )
     }
 }
@@ -158,14 +158,14 @@ struct PriorityIndicator: View {
 
             Text(priority.displayName)
                 .font(.system(size: 11))
-                .foregroundColor(.secondary)
+                .foregroundColor(DesignSystem.Colors.secondaryText)
         }
     }
 
     private var priorityColor: Color {
         switch priority {
-        case .low: return Color(hex: "8E8E93")      // Gray - flexible
-        case .medium: return Color(hex: "007AFF")   // Blue - regular
+        case .low: return DesignSystem.Colors.tertiaryText
+        case .medium: return DesignSystem.Colors.primary
         case .high: return Color(hex: "5856D6")     // Indigo - important
         case .urgent: return Color(hex: "FF9500")   // Orange - time-sensitive
         }
@@ -276,5 +276,5 @@ struct PriorityBadge: View {
         )
     }
     .padding()
-    .background(Color(UIColor.systemGroupedBackground))
+    .background(DesignSystem.Colors.background)
 }

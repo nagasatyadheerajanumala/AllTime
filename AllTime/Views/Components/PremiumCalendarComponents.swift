@@ -44,9 +44,9 @@ struct PremiumCalendarHeader: View {
     }
 
     var body: some View {
-        VStack(spacing: DesignSystem.Spacing.md) {
-            // Date Range and Controls - Apple-like clean design
-            HStack {
+        VStack(spacing: DesignSystem.Spacing.sm) {
+            // Top Row: Month Navigation + Action Buttons
+            HStack(spacing: 12) {
                 // Previous Period Button
                 Button(action: {
                     withAnimation(DesignSystem.Animations.smooth) {
@@ -64,27 +64,18 @@ struct PremiumCalendarHeader: View {
                     Image(systemName: "chevron.left")
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundColor(calendarStyle == .wheel ? .white : DesignSystem.Colors.primary)
-                        .frame(width: 36, height: 36)
+                        .frame(width: 44, height: 44)
                         .background(
                             Circle()
                                 .fill(calendarStyle == .wheel ? .white.opacity(0.15) : DesignSystem.Colors.primary.opacity(0.1))
                         )
                 }
 
-                Spacer()
-
-                // Date Range Display - Cleaner typography
-                VStack(spacing: 4) {
-                    Text(dateRangeText)
-                        .font(.title3.weight(.semibold))
-                        .foregroundColor(calendarStyle == .wheel ? .white : DesignSystem.Colors.primaryText)
-
-                    Text("Tap a date for details")
-                        .font(.caption)
-                        .foregroundColor(calendarStyle == .wheel ? .white.opacity(0.6) : DesignSystem.Colors.tertiaryText)
-                }
-
-                Spacer()
+                // Date Range Display - Clean, centered
+                Text(dateRangeText)
+                    .font(.title2.weight(.semibold))
+                    .foregroundColor(calendarStyle == .wheel ? .white : DesignSystem.Colors.primaryText)
+                    .frame(maxWidth: .infinity)
 
                 // Next Period Button
                 Button(action: {
@@ -103,7 +94,7 @@ struct PremiumCalendarHeader: View {
                     Image(systemName: "chevron.right")
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundColor(calendarStyle == .wheel ? .white : DesignSystem.Colors.primary)
-                        .frame(width: 36, height: 36)
+                        .frame(width: 44, height: 44)
                         .background(
                             Circle()
                                 .fill(calendarStyle == .wheel ? .white.opacity(0.15) : DesignSystem.Colors.primary.opacity(0.1))
@@ -111,10 +102,10 @@ struct PremiumCalendarHeader: View {
                 }
             }
             .padding(.horizontal, DesignSystem.Spacing.md)
-            .padding(.top, DesignSystem.Spacing.md)
+            .padding(.top, DesignSystem.Spacing.lg)
 
-            // View Mode Selector - Apple-like segmented control style
-            HStack(spacing: DesignSystem.Spacing.xs) {
+            // Bottom Row: View Mode Selector + Style/Refresh Buttons
+            HStack(spacing: 16) {
                 // Segmented control for Month/Week/Day
                 HStack(spacing: 2) {
                     ForEach([CalendarViewMode.month, .week, .day], id: \.self) { mode in
@@ -130,8 +121,8 @@ struct PremiumCalendarHeader: View {
                                         ? .white
                                         : (calendarStyle == .wheel ? .white.opacity(0.7) : DesignSystem.Colors.secondaryText)
                                 )
-                                .padding(.horizontal, DesignSystem.Spacing.md)
-                                .padding(.vertical, 8)
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 10)
                                 .background(
                                     Group {
                                         if viewMode == mode {
@@ -145,7 +136,7 @@ struct PremiumCalendarHeader: View {
                         }
                     }
                 }
-                .padding(3)
+                .padding(4)
                 .background(
                     RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.md)
                         .fill(calendarStyle == .wheel ? .white.opacity(0.1) : DesignSystem.Colors.cardBackgroundElevated)
@@ -153,36 +144,39 @@ struct PremiumCalendarHeader: View {
 
                 Spacer()
 
-                // Calendar Style Toggle
-                Button(action: {
-                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                        calendarStyle = calendarStyle == .traditional ? .wheel : .traditional
+                // Action buttons with proper spacing
+                HStack(spacing: 12) {
+                    // Calendar Style Toggle
+                    Button(action: {
+                        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                            calendarStyle = calendarStyle == .traditional ? .wheel : .traditional
+                        }
+                    }) {
+                        Image(systemName: calendarStyle == .traditional ? "circle.dotted" : "square.grid.2x2")
+                            .font(.system(size: 18, weight: .medium))
+                            .foregroundColor(calendarStyle == .wheel ? .white : DesignSystem.Colors.primary)
+                            .frame(width: 44, height: 44)
+                            .background(
+                                Circle()
+                                    .fill(calendarStyle == .wheel ? .white.opacity(0.15) : DesignSystem.Colors.primary.opacity(0.1))
+                            )
                     }
-                }) {
-                    Image(systemName: calendarStyle == .traditional ? "circle.dotted" : "square.grid.2x2")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(calendarStyle == .wheel ? .white : DesignSystem.Colors.primary)
-                        .frame(width: 36, height: 36)
-                        .background(
-                            Circle()
-                                .fill(calendarStyle == .wheel ? .white.opacity(0.15) : DesignSystem.Colors.primary.opacity(0.1))
-                        )
-                }
 
-                // Refresh Button
-                Button(action: onRefresh) {
-                    Image(systemName: "arrow.clockwise")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(calendarStyle == .wheel ? .white : DesignSystem.Colors.primary)
-                        .frame(width: 36, height: 36)
-                        .background(
-                            Circle()
-                                .fill(calendarStyle == .wheel ? .white.opacity(0.15) : DesignSystem.Colors.primary.opacity(0.1))
-                        )
-                        .rotationEffect(.degrees(isRefreshing ? 360 : 0))
-                        .animation(isRefreshing ? Animation.linear(duration: 1).repeatForever(autoreverses: false) : .default, value: isRefreshing)
+                    // Refresh Button
+                    Button(action: onRefresh) {
+                        Image(systemName: "arrow.clockwise")
+                            .font(.system(size: 18, weight: .medium))
+                            .foregroundColor(calendarStyle == .wheel ? .white : DesignSystem.Colors.primary)
+                            .frame(width: 44, height: 44)
+                            .background(
+                                Circle()
+                                    .fill(calendarStyle == .wheel ? .white.opacity(0.15) : DesignSystem.Colors.primary.opacity(0.1))
+                            )
+                            .rotationEffect(.degrees(isRefreshing ? 360 : 0))
+                            .animation(isRefreshing ? Animation.linear(duration: 1).repeatForever(autoreverses: false) : .default, value: isRefreshing)
+                    }
+                    .disabled(isRefreshing)
                 }
-                .disabled(isRefreshing)
             }
             .padding(.horizontal, DesignSystem.Spacing.md)
             .padding(.bottom, DesignSystem.Spacing.md)
@@ -422,9 +416,9 @@ struct PremiumCalendarDayCell: View {
                         let eventsToShow = Array(events.prefix(2))
                         ForEach(eventsToShow, id: \.id) { event in
                             HStack(spacing: 3) {
-                                // Small colored dot indicator
+                                // Small colored dot indicator (uses displayColor for user-set eventColor)
                                 Circle()
-                                    .fill(event.sourceColorAsColor)
+                                    .fill(event.displayColor)
                                     .frame(width: 4, height: 4)
 
                                 // Event title bullet (truncated)

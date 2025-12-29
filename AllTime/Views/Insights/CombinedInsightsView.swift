@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Combined Insights View with Weekly Summary + Health Insights
+/// Combined Insights View with Weekly Summary + Monthly Insights + Health Insights
 /// This is the main view for the Insights/Health tab
 struct CombinedInsightsView: View {
     @State private var selectedSection: InsightsSection = .weekly
@@ -8,11 +8,13 @@ struct CombinedInsightsView: View {
 
     enum InsightsSection: String, CaseIterable {
         case weekly = "Weekly"
+        case monthly = "Monthly"
         case health = "Health"
 
         var icon: String {
             switch self {
             case .weekly: return "calendar.badge.clock"
+            case .monthly: return "calendar.circle"
             case .health: return "heart.fill"
             }
         }
@@ -29,6 +31,8 @@ struct CombinedInsightsView: View {
                     switch selectedSection {
                     case .weekly:
                         WeeklyInsightsView()
+                    case .monthly:
+                        LifeInsightsView()
                     case .health:
                         HealthInsightsTabContent()
                     }

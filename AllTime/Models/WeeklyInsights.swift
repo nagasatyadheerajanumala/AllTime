@@ -178,3 +178,214 @@ struct WeekOption: Codable, Identifiable, Hashable {
 
     var id: String { weekStart }
 }
+
+// MARK: - Weekly Narrative Response (New Calm UI)
+
+struct WeeklyNarrativeResponse: Codable {
+    let weekStart: String
+    let weekEnd: String
+    let overallTone: String // "Calm", "Balanced", "Overloaded", "Draining"
+    let weeklyOverview: String // One sentence summary
+    let timeBuckets: [TimeBucket]
+    let energyAlignment: EnergyAlignment?
+    let stressSignals: [StressSignal]
+    let suggestions: [WeeklySuggestion]
+    let aggregates: WeeklyAggregates
+
+    // Computed properties
+    var weekStartDate: Date? {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.date(from: weekStart)
+    }
+
+    var weekEndDate: Date? {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.date(from: weekEnd)
+    }
+
+    var weekLabel: String {
+        guard let start = weekStartDate, let end = weekEndDate else {
+            return "Week of \(weekStart)"
+        }
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM d"
+        return "\(formatter.string(from: start)) - \(formatter.string(from: end))"
+    }
+
+    var toneColor: Color {
+        switch overallTone.lowercased() {
+        case "calm": return Color(hex: "10B981") // Green
+        case "balanced": return Color(hex: "3B82F6") // Blue
+        case "overloaded": return Color(hex: "F59E0B") // Orange
+        case "draining": return Color(hex: "EF4444") // Red
+        default: return Color(hex: "6B7280") // Gray
+        }
+    }
+
+    var toneEmoji: String {
+        switch overallTone.lowercased() {
+        case "calm": return "🌿"
+        case "balanced": return "⚖️"
+        case "overloaded": return "📊"
+        case "draining": return "🔋"
+        default: return "📅"
+        }
+    }
+}
+
+// MARK: - Time Bucket
+
+struct TimeBucket: Codable, Identifiable {
+    let category: String
+    let hours: Double
+    let label: String
+
+    var id: String { category }
+
+    var icon: String {
+        switch category.lowercased() {
+        case "meetings": return "person.2.fill"
+        case "focus": return "brain.head.profile"
+        case "personal": return "heart.fill"
+        case "health": return "figure.walk"
+        case "sleep": return "moon.zzz.fill"
+        default: return "clock.fill"
+        }
+    }
+
+    var color: Color {
+        switch category.lowercased() {
+        case "meetings": return Color(hex: "8B5CF6") // Purple
+        case "focus": return Color(hex: "3B82F6") // Blue
+        case "personal": return Color(hex: "EC4899") // Pink
+        case "health": return Color(hex: "10B981") // Green
+        case "sleep": return Color(hex: "6366F1") // Indigo
+        default: return Color(hex: "6B7280") // Gray
+        }
+    }
+
+    var formattedHours: String {
+        if hours < 1 {
+            return "\(Int(hours * 60))m"
+        } else if hours == hours.rounded() {
+            return "\(Int(hours))h"
+        } else {
+            let wholeHours = Int(hours)
+            let minutes = Int((hours - Double(wholeHours)) * 60)
+            return minutes > 0 ? "\(wholeHours)h \(minutes)m" : "\(wholeHours)h"
+        }
+    }
+}
+
+// MARK: - Energy Alignment
+
+struct EnergyAlignment: Codable {
+    let label: String // "Well-aligned", "Partially aligned", "Misaligned"
+    let summary: String
+    let evidence: [String]
+
+    var color: Color {
+        switch label.lowercased() {
+        case "well-aligned", "aligned": return Color(hex: "10B981") // Green
+        case "partially aligned": return Color(hex: "F59E0B") // Orange
+        case "misaligned": return Color(hex: "EF4444") // Red
+        default: return Color(hex: "6B7280") // Gray
+        }
+    }
+
+    var icon: String {
+        switch label.lowercased() {
+        case "well-aligned", "aligned": return "checkmark.circle.fill"
+        case "partially aligned": return "exclamationmark.circle.fill"
+        case "misaligned": return "xmark.circle.fill"
+        default: return "circle.fill"
+        }
+    }
+}
+
+// MARK: - Stress Signal
+
+struct StressSignal: Codable, Identifiable {
+    let title: String
+    let evidence: String
+
+    var id: String { title }
+}
+
+// MARK: - Weekly Suggestion
+
+struct WeeklySuggestion: Codable, Identifiable {
+    let title: String
+    let why: String
+    let action: String
+
+    var id: String { title }
+}
+
+// MARK: - Weekly Aggregates (Raw Data)
+
+struct WeeklyAggregates: Codable {
+    let totalMeetings: Int
+    let totalMeetingMinutes: Int
+    let totalFocusMinutes: Int
+    let averageSleepHours: Double?
+    let averageSteps: Int?
+    let dayBreakdowns: [DayBreakdown]
+
+    var formattedMeetingHours: String {
+        let hours = Double(totalMeetingMinutes) / 60.0
+        if hours < 1 {
+            return "\(totalMeetingMinutes)m"
+        }
+        return String(format: "%.1fh", hours)
+    }
+
+    var formattedFocusHours: String {
+        let hours = Double(totalFocusMinutes) / 60.0
+        if hours < 1 {
+            return "\(totalFocusMinutes)m"
+        }
+        return String(format: "%.1fh", hours)
+    }
+
+    var formattedSleep: String {
+        guard let sleep = averageSleepHours else { return "—" }
+        return String(format: "%.1fh", sleep)
+    }
+
+    var formattedSteps: String {
+        guard let steps = averageSteps else { return "—" }
+        if steps >= 1000 {
+            return String(format: "%.1fk", Double(steps) / 1000.0)
+        }
+        return "\(steps)"
+    }
+}
+
+// MARK: - Day Breakdown
+
+struct DayBreakdown: Codable, Identifiable {
+    let day: String
+    let meetings: Int
+    let meetingMinutes: Int
+    let focusMinutes: Int
+    let sleepHours: Double?
+    let steps: Int?
+
+    var id: String { day }
+
+    var dayDate: Date? {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.date(from: day)
+    }
+
+    var shortDayName: String {
+        guard let date = dayDate else { return day }
+        let formatter = DateFormatter()
+        formatter.dateFormat = "EEE"
+        return formatter.string(from: date)
+    }
+}

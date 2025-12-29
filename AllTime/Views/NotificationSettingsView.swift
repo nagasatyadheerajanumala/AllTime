@@ -3,26 +3,11 @@ import UserNotifications
 
 struct NotificationSettingsView: View {
     @ObservedObject private var morningBriefingService = MorningBriefingNotificationService.shared
-    @AppStorage("daily_summary_enabled") private var dailySummaryEnabled = true
+    @ObservedObject private var eveningSummaryService = EveningSummaryNotificationService.shared
     @AppStorage("event_reminders_enabled") private var eventRemindersEnabled = true
-    @State private var reminderTime: Date
     @State private var showingPermissionAlert = false
 
-    // UserDefaults key for reminder time
-    private static let reminderTimeKey = "daily_summary_time"
-
-    init() {
-        // Load saved reminder time or default to 8:00 PM
-        if let savedTime = UserDefaults.standard.object(forKey: Self.reminderTimeKey) as? Date {
-            _reminderTime = State(initialValue: savedTime)
-        } else {
-            var components = DateComponents()
-            components.hour = 20
-            components.minute = 0
-            let defaultTime = Calendar.current.date(from: components) ?? Date()
-            _reminderTime = State(initialValue: defaultTime)
-        }
-    }
+    init() {}
 
     var body: some View {
         List {
@@ -48,25 +33,26 @@ struct NotificationSettingsView: View {
                 Text("Start your day with a preview of your schedule. Tap the notification to open your Today view.")
             }
 
+            // MARK: - Evening Summary Section
             Section {
-                Toggle("Daily Summary", isOn: $dailySummaryEnabled)
-                .onChange(of: dailySummaryEnabled) { _, enabled in
-                    if enabled {
-                        requestNotificationPermission()
-                    }
-                }
-
-                if dailySummaryEnabled {
-                    DatePicker("Time", selection: $reminderTime, displayedComponents: .hourAndMinute)
-                        .labelsHidden()
-                        .onChange(of: reminderTime) { _, newTime in
-                            UserDefaults.standard.set(newTime, forKey: Self.reminderTimeKey)
+                Toggle("Evening Summary", isOn: $eveningSummaryService.isEnabled)
+                    .onChange(of: eveningSummaryService.isEnabled) { _, enabled in
+                        if enabled {
+                            requestNotificationPermission()
                         }
+                    }
+
+                if eveningSummaryService.isEnabled {
+                    DatePicker(
+                        "Delivery Time",
+                        selection: $eveningSummaryService.scheduledTime,
+                        displayedComponents: .hourAndMinute
+                    )
                 }
             } header: {
-                Text("Daily Briefings")
+                Text("Evening Summary")
             } footer: {
-                Text("Receive AI-generated daily summaries of your calendar")
+                Text("End your day with a recap of what you accomplished. See meetings completed, focus time used, and preview tomorrow.")
             }
             
             Section {
@@ -88,10 +74,15 @@ struct NotificationSettingsView: View {
                 }
                 .disabled(!morningBriefingService.isEnabled)
 
+                Button("Test Evening Summary") {
+                    eveningSummaryService.sendTestNotification()
+                }
+                .disabled(!eveningSummaryService.isEnabled)
+
                 Button("Test General Notification") {
                     sendTestNotification()
                 }
-                .disabled(!dailySummaryEnabled && !eventRemindersEnabled)
+                .disabled(!eventRemindersEnabled)
             } header: {
                 Text("Testing")
             } footer: {
@@ -131,8 +122,8 @@ struct NotificationSettingsView: View {
                 // Only disable if notifications are not authorized
                 // Don't enable automatically - respect user's saved preference
                 if settings.authorizationStatus != .authorized {
-                    dailySummaryEnabled = false
                     eventRemindersEnabled = false
+                    // The services will handle their own state
                 }
             }
         }

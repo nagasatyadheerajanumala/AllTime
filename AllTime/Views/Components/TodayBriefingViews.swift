@@ -1362,32 +1362,32 @@ struct DetailedMetricsSection: View {
                         .foregroundColor(DesignSystem.Colors.secondaryText)
 
                     VStack(alignment: .leading, spacing: 4) {
-                        // Sleep metrics (new API fields first, then legacy)
-                        if let sleepHours = metrics.sleepHoursLastNight {
+                        // Sleep metrics - only show if > 0
+                        if let sleepHours = metrics.sleepHoursLastNight, sleepHours > 0 {
                             DetailMetricRow(label: "Sleep last night", value: String(format: "%.1fh", sleepHours))
                         }
-                        if let sleepQuality = metrics.sleepQualityScore {
+                        if let sleepQuality = metrics.sleepQualityScore, sleepQuality > 0 {
                             DetailMetricRow(label: "Sleep quality", value: "\(sleepQuality)")
-                        } else if let sleep = metrics.sleepScore {
+                        } else if let sleep = metrics.sleepScore, sleep > 0 {
                             DetailMetricRow(label: "Sleep score", value: "\(sleep)")
                         }
-                        // Steps (new API uses stepsYesterday, legacy uses stepsToday)
-                        if let steps = metrics.stepsYesterday {
+                        // Steps - only show if > 0
+                        if let steps = metrics.stepsYesterday, steps > 0 {
                             DetailMetricRow(label: "Steps yesterday", value: steps.formatted())
-                        } else if let steps = metrics.stepsToday {
+                        } else if let steps = metrics.stepsToday, steps > 0 {
                             DetailMetricRow(label: "Steps today", value: steps.formatted())
                         }
-                        // Active minutes (new API uses activeMinutesYesterday, legacy uses activeMinutes)
-                        if let active = metrics.activeMinutesYesterday {
+                        // Active minutes - only show if > 0
+                        if let active = metrics.activeMinutesYesterday, active > 0 {
                             DetailMetricRow(label: "Active minutes yesterday", value: "\(active) min")
-                        } else if let active = metrics.activeMinutes {
+                        } else if let active = metrics.activeMinutes, active > 0 {
                             DetailMetricRow(label: "Active minutes", value: "\(active) min")
                         }
-                        // Heart metrics (new API)
-                        if let rhr = metrics.restingHeartRate {
+                        // Heart metrics - only show if > 0
+                        if let rhr = metrics.restingHeartRate, rhr > 0 {
                             DetailMetricRow(label: "Resting heart rate", value: "\(rhr) BPM")
                         }
-                        if let hrv = metrics.hrvLastNight {
+                        if let hrv = metrics.hrvLastNight, hrv > 0 {
                             DetailMetricRow(label: "HRV last night", value: "\(hrv) ms")
                         }
                     }
@@ -1627,8 +1627,8 @@ struct HealthInsightsCard: View {
     @ViewBuilder
     private func healthMetricsRow(metrics: BriefingKeyMetrics) -> some View {
         HStack(spacing: DesignSystem.Spacing.sm) {
-            // Sleep metric
-            if let sleepHours = metrics.sleepHoursLastNight ?? metrics.effectiveSleepHours {
+            // Sleep metric - only show if > 0
+            if let sleepHours = metrics.sleepHoursLastNight ?? metrics.effectiveSleepHours, sleepHours > 0 {
                 healthMetricItem(
                     icon: "moon.fill",
                     value: String(format: "%.1fh", sleepHours),
@@ -1638,8 +1638,8 @@ struct HealthInsightsCard: View {
                 )
             }
 
-            // Steps metric
-            if let steps = metrics.stepsYesterday ?? metrics.stepsToday {
+            // Steps metric - only show if > 0
+            if let steps = metrics.stepsYesterday ?? metrics.stepsToday, steps > 0 {
                 healthMetricItem(
                     icon: "figure.walk",
                     value: formatNumber(steps),
@@ -1649,8 +1649,8 @@ struct HealthInsightsCard: View {
                 )
             }
 
-            // Active minutes metric
-            if let activeMin = metrics.activeMinutesYesterday ?? metrics.activeMinutes {
+            // Active minutes metric - only show if > 0
+            if let activeMin = metrics.activeMinutesYesterday ?? metrics.activeMinutes, activeMin > 0 {
                 healthMetricItem(
                     icon: "flame.fill",
                     value: "\(activeMin)m",
@@ -1757,7 +1757,7 @@ struct HealthInsightsCard: View {
         guard let avg = average, avg > 0 else { return nil }
         let percent = (Double(steps) / Double(avg)) * 100
         if percent >= 90 && percent <= 110 { return "On track" }
-        return "\(Int(percent))% of avg"
+        return "\(Int(percent).formatted())% of avg"
     }
 
     private func stepsColor(_ steps: Int, average: Int?) -> Color {
@@ -1772,7 +1772,7 @@ struct HealthInsightsCard: View {
         guard let avg = average, avg > 0 else { return nil }
         let percent = (Double(minutes) / Double(avg)) * 100
         if percent >= 90 && percent <= 110 { return "On track" }
-        return "\(Int(percent))% of avg"
+        return "\(Int(percent).formatted())% of avg"
     }
 
     private func activeMinColor(_ minutes: Int, average: Int?) -> Color {

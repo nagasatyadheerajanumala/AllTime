@@ -281,7 +281,7 @@
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = AllTime/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Clara AI Calendar";
+				INFOPLIST_KEY_CFBundleDisplayName = "My Clara";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
 				INFOPLIST_KEY_NSCalendarsUsageDescription = "App needs access to your calendar.";
 				INFOPLIST_KEY_NSHealthClinicalHealthRecordsShareUsageDescription = "Clara uses clinical records to improve health insights.";
@@ -357,7 +357,7 @@
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = AllTime/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Clara AI Calendar";
+				INFOPLIST_KEY_CFBundleDisplayName = "My Clara";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
 				INFOPLIST_KEY_NSCalendarsUsageDescription = "App needs access to your calendar.";
 				INFOPLIST_KEY_NSHealthClinicalHealthRecordsShareUsageDescription = "Clara uses clinical records to improve health insights.";

@@ -110,6 +110,7 @@ struct CalendarView: View {
                                         selectedDate: $calendarViewModel.selectedDate,
                                         events: calendarViewModel.events,
                                         onDateSelected: { date in
+                                            HapticManager.shared.selectionChanged()
                                             // Load events and show day detail sheet
                                             Task { @MainActor in
                                                 await calendarViewModel.loadEventsForSelectedDate(date)
@@ -128,6 +129,7 @@ struct CalendarView: View {
                                         selectedDate: $calendarViewModel.selectedDate,
                                         events: calendarViewModel.events,
                                         onDateSelected: { date in
+                                            HapticManager.shared.selectionChanged()
                                             // Load events and show day detail sheet
                                             Task { @MainActor in
                                                 await calendarViewModel.loadEventsForSelectedDate(date)
@@ -147,6 +149,7 @@ struct CalendarView: View {
                                         events: calendarViewModel.events,
                                         viewMode: viewMode,
                                         onDayTap: { date, events in
+                                            HapticManager.shared.selectionChanged()
                                             selectedDayForDetail = date
                                             selectedDayEvents = events
                                             useDarkThemeForSheet = true  // Day view in wheel mode
@@ -162,6 +165,7 @@ struct CalendarView: View {
                                     events: calendarViewModel.events,
                                     viewMode: viewMode,
                                     onDayTap: { date, events in
+                                        HapticManager.shared.selectionChanged()
                                         selectedDayForDetail = date
                                         selectedDayEvents = events
                                         useDarkThemeForSheet = false  // Traditional style uses light theme
@@ -191,6 +195,7 @@ struct CalendarView: View {
                         HStack {
                             Spacer()
                             Button(action: {
+                                HapticManager.shared.mediumTap()
                                 showingAddEvent = true
                             }) {
                                 Image(systemName: "plus")
@@ -212,15 +217,14 @@ struct CalendarView: View {
                                             .shadow(color: DesignSystem.Colors.primary.opacity(0.4), radius: 12, y: 6)
                                     )
                             }
-                            .hapticFeedback()
+                            .buttonStyle(SmoothButtonStyle(haptic: .medium))
                             .padding(.trailing, DesignSystem.Spacing.lg)
                             .padding(.bottom, 100) // Above tab bar
                         }
                     }
                 }
             }
-            .navigationTitle("Calendar")
-            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarHidden(true)
             .sheet(isPresented: $showingEventDetail) {
                 if let eventId = selectedEventId {
                     EventDetailView(eventId: eventId)
@@ -242,19 +246,21 @@ struct CalendarView: View {
                 .preferredColorScheme(useDarkThemeForSheet ? .dark : nil)
             }
             .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("EventCreated"))) { _ in
+                // Use fast refresh for immediate update after event creation
                 Task {
-                    await calendarViewModel.refreshEvents()
+                    await calendarViewModel.refreshEventsFromBackend()
                 }
             }
-            .onAppear {
-                Task {
-                    if !calendarViewModel.isLoading {
-                        await calendarViewModel.refreshEvents()
-                    }
+            .task {
+                // PERFORMANCE: Use fast backend refresh instead of full sync on appear
+                // Full sync happens in background, UI shows cached data immediately
+                if !calendarViewModel.isLoading && calendarViewModel.events.isEmpty {
+                    await calendarViewModel.refreshEventsFromBackend()
                 }
             }
             .onChange(of: calendarViewModel.selectedDate) { oldDate, newDate in
-                Task {
+                // Use low priority for date change loads - UI already has data
+                Task(priority: .utility) {
                     await calendarViewModel.loadEventsForSelectedDate(newDate)
                 }
             }
@@ -405,7 +411,7 @@ struct ClashCard: View {
                             .fontWeight(.medium)
                             .foregroundColor(DesignSystem.Colors.primaryText)
                         
-                        Text(clash.eventA.formattedTime)
+                        Text(clash.eventA.formattedTimeRange)
                             .font(DesignSystem.Typography.caption)
                             .foregroundColor(DesignSystem.Colors.secondaryText)
                     }
@@ -423,7 +429,7 @@ struct ClashCard: View {
                             .fontWeight(.medium)
                             .foregroundColor(DesignSystem.Colors.primaryText)
                         
-                        Text(clash.eventB.formattedTime)
+                        Text(clash.eventB.formattedTimeRange)
                             .font(DesignSystem.Typography.caption)
                             .foregroundColor(DesignSystem.Colors.secondaryText)
                     }

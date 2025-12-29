@@ -113,7 +113,8 @@ struct ConnectedCalendarsView: View {
                                         },
                                         onDisconnect: {
                                             Task {
-                                                await viewModel.disconnectProvider(provider.provider)
+                                                // Use connection ID for multi-account support
+                                                await viewModel.disconnectConnection(provider.id)
                                             }
                                         }
                                     )

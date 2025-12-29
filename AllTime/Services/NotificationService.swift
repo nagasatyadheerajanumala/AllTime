@@ -175,15 +175,52 @@ extension NotificationService: UNUserNotificationCenterDelegate {
     ) {
         // Handle notification tap
         let identifier = response.notification.request.identifier
-        
+        let userInfo = response.notification.request.content.userInfo
+
+        // Check destination from userInfo first (preferred)
+        if let destination = userInfo["destination"] as? String {
+            switch destination {
+            case "day-review":
+                NotificationCenter.default.post(name: .navigateToDayReview, object: nil)
+                completionHandler()
+                return
+            case "summary":
+                NotificationCenter.default.post(name: .navigateToEveningSummary, object: nil)
+                completionHandler()
+                return
+            default:
+                break
+            }
+        }
+
+        // Check notification type from userInfo
+        if let notificationType = userInfo["type"] as? String {
+            switch notificationType {
+            case "evening_summary":
+                // Check for day-review destination, fallback to evening summary
+                if let dest = userInfo["destination"] as? String, dest == "day-review" {
+                    NotificationCenter.default.post(name: .navigateToDayReview, object: nil)
+                } else {
+                    NotificationCenter.default.post(name: .navigateToEveningSummary, object: nil)
+                }
+            case "morning_briefing":
+                NotificationCenter.default.post(name: .navigateToToday, object: nil)
+            default:
+                break
+            }
+        }
+
+        // Fallback to identifier-based navigation
         if identifier == "daily-summary" {
-            // Navigate to daily summary tab
             NotificationCenter.default.post(name: .navigateToSummary, object: nil)
+        } else if identifier == "evening-summary" || identifier == "evening-summary-test" {
+            NotificationCenter.default.post(name: .navigateToEveningSummary, object: nil)
+        } else if identifier == "morning-briefing" || identifier == "morning-briefing-test" {
+            NotificationCenter.default.post(name: .navigateToToday, object: nil)
         } else if identifier.hasPrefix("event-reminder-") {
-            // Navigate to calendar tab
             NotificationCenter.default.post(name: .navigateToCalendar, object: nil)
         }
-        
+
         completionHandler()
     }
 }
@@ -192,5 +229,8 @@ extension NotificationService: UNUserNotificationCenterDelegate {
 extension Notification.Name {
     static let navigateToSummary = Notification.Name("navigateToSummary")
     static let navigateToCalendar = Notification.Name("navigateToCalendar")
+    static let navigateToEveningSummary = Notification.Name("navigateToEveningSummary")
+    static let navigateToToday = Notification.Name("navigateToToday")
+    static let navigateToDayReview = Notification.Name("navigateToDayReview")
 }
 

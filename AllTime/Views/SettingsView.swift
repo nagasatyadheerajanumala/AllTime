@@ -118,13 +118,6 @@ struct SettingsView: View {
                         )
                     }
 
-                    NavigationLink(destination: PlanMyDayView()) {
-                        SettingsRow(
-                            icon: "calendar.badge.plus",
-                            iconColor: .orange,
-                            title: "Plan My Day"
-                        )
-                    }
                 } header: {
                     Text("PERSONALIZATION")
                         .font(.system(size: 13, weight: .medium))

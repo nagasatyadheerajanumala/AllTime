@@ -15,13 +15,19 @@ struct CalendarEvent: Codable, Identifiable {
     let attendees: [EventAttendee]?  // Array of attendee objects
     let recurrence: EventRecurrence?  // Recurrence information
     let metadata: [String: Any]?  // Additional metadata (can contain Any type values)
-    
+    let eventType: String?  // meeting, holiday, flight, hotel, birthday, focus, travel, other
+    let calendarId: String?  // Source calendar ID for multi-calendar support
+    let eventColor: String?  // Hex color code (e.g., #3B82F6) - user customizable
+
     enum CodingKeys: String, CodingKey {
         case id, title, description, source, location, attendees, recurrence, metadata
         case startTime = "start_time"
         case endTime = "end_time"
         case allDay = "all_day"
         case sourceColor = "source_color"
+        case eventType = "event_type"
+        case calendarId = "calendar_id"
+        case eventColor = "event_color"
     }
     
     // Custom decoder to handle metadata as [String: Any] and attendees as objects or strings
@@ -45,7 +51,12 @@ struct CalendarEvent: Codable, Identifiable {
         } else {
             metadata = nil
         }
-        
+
+        // Decode eventType, calendarId, and eventColor
+        eventType = try container.decodeIfPresent(String.self, forKey: .eventType)
+        calendarId = try container.decodeIfPresent(String.self, forKey: .calendarId)
+        eventColor = try container.decodeIfPresent(String.self, forKey: .eventColor)
+
         // Handle attendees: could be array of objects, array of strings, null, or missing
         if container.contains(.attendees) {
             // Check if the value is null first
@@ -106,8 +117,13 @@ struct CalendarEvent: Codable, Identifiable {
         } else {
             try container.encodeNil(forKey: .metadata)
         }
+
+        // Encode eventType, calendarId, and eventColor
+        try container.encodeIfPresent(eventType, forKey: .eventType)
+        try container.encodeIfPresent(calendarId, forKey: .calendarId)
+        try container.encodeIfPresent(eventColor, forKey: .eventColor)
     }
-    
+
     // Convenience initializer for previews and tests
     init(
         id: Int64,
@@ -121,7 +137,10 @@ struct CalendarEvent: Codable, Identifiable {
         location: EventLocation? = nil,
         attendees: [EventAttendee]? = nil,
         recurrence: EventRecurrence? = nil,
-        metadata: [String: Any]? = nil
+        metadata: [String: Any]? = nil,
+        eventType: String? = nil,
+        calendarId: String? = nil,
+        eventColor: String? = nil
     ) {
         self.id = id
         self.title = title
@@ -135,6 +154,9 @@ struct CalendarEvent: Codable, Identifiable {
         self.attendees = attendees
         self.recurrence = recurrence
         self.metadata = metadata
+        self.eventType = eventType
+        self.calendarId = calendarId
+        self.eventColor = eventColor
     }
     
     // Static formatters (reused, thread-safe, created once)
@@ -271,6 +293,121 @@ extension CalendarEvent {
     var sourceColorAsColor: Color {
         Color(hex: sourceColorValue)
     }
+
+    // Convenience property for isAllDay (alias for allDay)
+    var isAllDay: Bool {
+        allDay
+    }
+
+    // Event type icon (SF Symbol name)
+    var eventTypeIcon: String {
+        switch eventType?.lowercased() {
+        case "flight":
+            return "airplane"
+        case "hotel":
+            return "building.2"
+        case "holiday":
+            return "gift"
+        case "birthday":
+            return "birthday.cake"
+        case "travel":
+            return "car"
+        case "focus":
+            return "moon.fill"
+        case "meeting":
+            return "person.2"
+        default:
+            return "calendar"
+        }
+    }
+
+    // Event type color
+    var eventTypeColor: Color {
+        switch eventType?.lowercased() {
+        case "flight":
+            return .blue
+        case "hotel":
+            return .orange
+        case "holiday":
+            return .purple
+        case "birthday":
+            return .pink
+        case "travel":
+            return .green
+        case "focus":
+            return .indigo
+        case "meeting":
+            return .cyan
+        default:
+            return .gray
+        }
+    }
+
+    // Whether this event is a travel-related event (flight, hotel, travel)
+    var isTravelEvent: Bool {
+        guard let type = eventType?.lowercased() else { return false }
+        return type == "flight" || type == "hotel" || type == "travel"
+    }
+
+    // Whether this event is a personal event (birthday, holiday)
+    var isPersonalEvent: Bool {
+        guard let type = eventType?.lowercased() else { return false }
+        return type == "birthday" || type == "holiday"
+    }
+
+    // Display color - uses eventColor if set, otherwise falls back to eventTypeColor
+    var displayColor: Color {
+        if let hexColor = eventColor, !hexColor.isEmpty {
+            return Color(hex: hexColor)
+        }
+        return eventTypeColor
+    }
+
+    // Display color as hex string (for consistency)
+    var displayColorHex: String {
+        if let hexColor = eventColor, !hexColor.isEmpty {
+            return hexColor
+        }
+        // Default colors for event types
+        switch eventType?.lowercased() {
+        case "flight":
+            return "#06B6D4" // Cyan
+        case "hotel":
+            return "#F59E0B" // Orange
+        case "holiday":
+            return "#8B5CF6" // Purple
+        case "birthday":
+            return "#EC4899" // Pink
+        case "travel":
+            return "#6366F1" // Indigo
+        case "focus":
+            return "#10B981" // Green
+        case "meeting":
+            return "#3B82F6" // Blue
+        default:
+            return "#3B82F6" // Default blue
+        }
+    }
+}
+
+// MARK: - Event Color Palette
+
+/// Available colors for event customization
+struct EventColorPalette {
+    static let colors: [(hex: String, name: String)] = [
+        ("#3B82F6", "Blue"),
+        ("#10B981", "Green"),
+        ("#F59E0B", "Orange"),
+        ("#8B5CF6", "Purple"),
+        ("#EC4899", "Pink"),
+        ("#06B6D4", "Cyan"),
+        ("#6366F1", "Indigo"),
+        ("#EF4444", "Red"),
+        ("#14B8A6", "Teal"),
+        ("#F97316", "Amber"),
+        ("#84CC16", "Lime"),
+        ("#6B7280", "Gray")
+    ]
 }
 
 // MARK: - Event Creation Models
@@ -284,7 +421,8 @@ struct CreateEventRequest: Codable {
     let allDay: Bool
     let provider: String?  // "google" or "microsoft" - which calendar to use. nil = local only
     let attendees: [String]?  // Array of email addresses for invites
-    
+    let eventColor: String?  // User-selected hex color code (e.g., "#3B82F6")
+
     enum CodingKeys: String, CodingKey {
         case title
         case description
@@ -294,6 +432,7 @@ struct CreateEventRequest: Codable {
         case allDay = "all_day"
         case provider
         case attendees
+        case eventColor = "event_color"
     }
 }
 

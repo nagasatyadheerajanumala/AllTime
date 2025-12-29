@@ -90,6 +90,7 @@ struct DayDetailView: View {
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("Done") {
+                        HapticManager.shared.lightTap()
                         dismiss()
                     }
                 }
@@ -150,16 +151,20 @@ struct EventCard: View {
     }()
     
     private var eventColor: Color {
-        event.sourceColorAsColor
+        event.displayColor
     }
-    
+
     var body: some View {
-        Button(action: onTap) {
+        Button(action: {
+            HapticManager.shared.lightTap()
+            onTap()
+        }) {
             HStack(alignment: .top, spacing: 12) {
-                // Color indicator
+                // Color indicator (uses displayColor which respects user-set eventColor)
                 Rectangle()
                     .fill(eventColor)
                     .frame(width: 4)
+                    .cornerRadius(2)
                 
                 VStack(alignment: .leading, spacing: 4) {
                     // Title
@@ -200,10 +205,10 @@ struct EventCard: View {
             }
             .padding()
             .background(Color(.systemGray6))
-            .cornerRadius(8)
+            .cornerRadius(12)
             .padding(.horizontal)
         }
-        .buttonStyle(PlainButtonStyle())
+        .buttonStyle(SmoothButtonStyle(haptic: .light))
     }
 }
 

@@ -11,8 +11,15 @@ struct CircularDateWheelView: View {
     private let calendar = Calendar.current
     private let containerSize: CGFloat = min(UIScreen.main.bounds.width - 40, 360)
     private let radius: CGFloat = 140
-    private let dateBubbleSize: CGFloat = 50
+    private let dateBubbleSize: CGFloat = 56  // Increased to fit day + date + event count
     private let centerCapsuleSize: CGFloat = 110
+
+    // Day abbreviation formatter
+    private var dayFormatter: DateFormatter {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "EEE"  // Mon, Tue, Wed, etc.
+        return formatter
+    }
     
     private var daysInMonth: [Date] {
         let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: selectedDate))!
@@ -34,11 +41,13 @@ struct CircularDateWheelView: View {
                 // Static date bubbles (NEVER move) - only highlighted one updates
                 ForEach(Array(viewModel.days.enumerated()), id: \.element) { index, date in
                     OptimizedDateBubble(
+                        date: date,
                         dayNumber: calendar.component(.day, from: date),
+                        dayAbbreviation: dayFormatter.string(from: date),
                         isToday: calendar.isDate(date, inSameDayAs: Date()),
                         isHighlighted: index == viewModel.highlightedIndex,
                         isSelected: calendar.isDate(date, inSameDayAs: selectedDate),
-                        hasEvents: viewModel.hasEvents(at: index),
+                        eventCount: viewModel.eventCount(at: index),
                         position: viewModel.position(at: index),
                         size: dateBubbleSize
                     )
@@ -52,21 +61,11 @@ struct CircularDateWheelView: View {
                     date: viewModel.centerDate,
                     dayNumber: calendar.component(.day, from: viewModel.centerDate),
                     isToday: calendar.isDate(viewModel.centerDate, inSameDayAs: Date()),
-                    hasEvents: viewModel.hasEvents(at: viewModel.highlightedIndex),
+                    eventCount: viewModel.eventCount(at: viewModel.highlightedIndex),
                     size: centerCapsuleSize
                 )
                 .transaction { $0.animation = nil }
                 .animation(nil, value: viewModel.highlightedIndex)
-                
-                // Event indicator dots (static, precomputed)
-                ForEach(Array(viewModel.days.enumerated()), id: \.element) { index, date in
-                    if viewModel.hasEvents(at: index) && index != viewModel.highlightedIndex {
-                        EventIndicatorDot(
-                            position: viewModel.position(at: index),
-                            radius: radius
-                        )
-                    }
-                }
                 
                 // "Today" button
                 VStack {
@@ -212,14 +211,16 @@ struct WheelBackground: View {
 
 // MARK: - Optimized Date Bubble (minimal SwiftUI)
 struct OptimizedDateBubble: View {
+    let date: Date
     let dayNumber: Int
+    let dayAbbreviation: String  // "Mon", "Tue", etc.
     let isToday: Bool
     let isHighlighted: Bool
     let isSelected: Bool
-    let hasEvents: Bool
+    let eventCount: Int
     let position: CGPoint
     let size: CGFloat
-    
+
     var body: some View {
         ZStack {
             // Liquid glass bubble
@@ -230,7 +231,7 @@ struct OptimizedDateBubble: View {
                             ? AnyShapeStyle(.ultraThinMaterial)
                             : AnyShapeStyle(.ultraThinMaterial.opacity(0.8))
                     )
-                
+
                 if isHighlighted {
                     Circle()
                         .fill(
@@ -279,12 +280,37 @@ struct OptimizedDateBubble: View {
                 x: 0,
                 y: isHighlighted ? 6 : 2
             )
-            
-            // Day number
-            Text("\(dayNumber)")
-                .font(.system(size: size * 0.42, weight: isHighlighted || isSelected ? .bold : .semibold))
-                .foregroundColor(isHighlighted || isSelected ? .white : .white.opacity(0.9))
-                .shadow(color: .black.opacity(0.4), radius: 2, x: 0, y: 1)
+
+            // Content: Day abbreviation, Date number, Event count
+            VStack(spacing: 1) {
+                // Day abbreviation (Mon, Tue, etc.)
+                Text(dayAbbreviation)
+                    .font(.system(size: size * 0.18, weight: .medium, design: .rounded))
+                    .foregroundColor(isHighlighted || isSelected ? .white.opacity(0.85) : .white.opacity(0.7))
+
+                // Day number (main focus)
+                Text("\(dayNumber)")
+                    .font(.system(size: size * 0.36, weight: isHighlighted || isSelected ? .bold : .semibold, design: .rounded))
+                    .foregroundColor(isHighlighted || isSelected ? .white : .white.opacity(0.9))
+
+                // Event count indicator
+                if eventCount > 0 {
+                    Text("\(eventCount)")
+                        .font(.system(size: size * 0.16, weight: .semibold, design: .rounded))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 1)
+                        .background(
+                            Capsule()
+                                .fill(Color.orange.opacity(0.9))
+                        )
+                } else {
+                    // Placeholder to maintain consistent spacing
+                    Color.clear
+                        .frame(height: size * 0.16 + 2)
+                }
+            }
+            .shadow(color: .black.opacity(0.4), radius: 2, x: 0, y: 1)
         }
         .offset(x: position.x, y: position.y)
         .scaleEffect(isHighlighted ? 1.2 : (isSelected ? 1.08 : 1.0))
@@ -298,23 +324,23 @@ struct CenterHighlightCapsule: View {
     let date: Date
     let dayNumber: Int
     let isToday: Bool
-    let hasEvents: Bool
+    let eventCount: Int
     let size: CGFloat
-    
+
     private var dayNameFormatter: DateFormatter {
         let formatter = DateFormatter()
         formatter.dateFormat = "EEEE"
         return formatter
     }
-    
+
     private var dayName: String {
         dayNameFormatter.string(from: date)
     }
-    
+
     var body: some View {
         ZStack {
-            // Clean capsule background
-            RoundedRectangle(cornerRadius: size / 2)
+            // Clean capsule background - increased height for better content fit
+            RoundedRectangle(cornerRadius: 24)
                 .fill(
                     LinearGradient(
                         colors: [
@@ -326,9 +352,9 @@ struct CenterHighlightCapsule: View {
                         endPoint: .bottomTrailing
                     )
                 )
-                .frame(width: size, height: size * 0.65)
+                .frame(width: size, height: size * 0.95)
                 .overlay(
-                    RoundedRectangle(cornerRadius: size / 2)
+                    RoundedRectangle(cornerRadius: 24)
                         .stroke(
                             LinearGradient(
                                 colors: [
@@ -343,32 +369,34 @@ struct CenterHighlightCapsule: View {
                 )
                 .shadow(color: Color.purple.opacity(0.6), radius: 20, x: 0, y: 8)
                 .shadow(color: Color.blue.opacity(0.4), radius: 12, x: 0, y: 4)
-            
-            // Date display
-            VStack(spacing: 4) {
+
+            // Date display with proper spacing
+            VStack(spacing: 2) {
                 Text(dayName)
-                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
                     .foregroundColor(.white.opacity(0.9))
                     .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 1)
-                
+
                 Text("\(dayNumber)")
-                    .font(.system(size: 36, weight: .bold, design: .rounded))
+                    .font(.system(size: 38, weight: .bold, design: .rounded))
                     .foregroundColor(.white)
                     .shadow(color: .black.opacity(0.4), radius: 3, x: 0, y: 2)
-                
-                if hasEvents {
-                    HStack(spacing: 4) {
-                        Circle()
-                            .fill(Color.orange.opacity(0.95))
-                            .frame(width: 6, height: 6)
-                            .shadow(color: Color.orange.opacity(0.6), radius: 3)
-                        Circle()
-                            .fill(Color.orange.opacity(0.95))
-                            .frame(width: 6, height: 6)
-                            .shadow(color: Color.orange.opacity(0.6), radius: 3)
-                    }
+
+                // Event count badge
+                if eventCount > 0 {
+                    Text("\(eventCount) event\(eventCount == 1 ? "" : "s")")
+                        .font(.system(size: 12, weight: .semibold, design: .rounded))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .background(
+                            Capsule()
+                                .fill(Color.orange.opacity(0.9))
+                        )
+                        .shadow(color: Color.orange.opacity(0.5), radius: 4)
                 }
             }
+            .padding(.vertical, 8)
         }
         .transaction { $0.animation = nil }
     }
@@ -423,20 +451,3 @@ struct TodayButton: View {
     }
 }
 
-// MARK: - Event Indicator Dot
-struct EventIndicatorDot: View {
-    let position: CGPoint
-    let radius: CGFloat
-    
-    var body: some View {
-        Circle()
-            .fill(Color.orange.opacity(0.9))
-            .frame(width: 8, height: 8)
-            .offset(
-                x: position.x * 1.12,
-                y: position.y * 1.12
-            )
-            .shadow(color: Color.orange.opacity(0.7), radius: 5, x: 0, y: 2)
-            .transaction { $0.animation = nil }
-    }
-}

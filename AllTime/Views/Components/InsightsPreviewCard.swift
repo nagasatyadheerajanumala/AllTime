@@ -247,9 +247,15 @@ class InsightsPreviewViewModel: ObservableObject {
     private let cacheService = CacheService.shared
 
     func loadData() async {
-        isLoading = true
+        // First, try loading from prefetched cache for instant display
+        loadFromCache()
 
-        // Load capacity analysis
+        // If no cached data, show loading state
+        if capacityScore == nil {
+            isLoading = true
+        }
+
+        // Fetch fresh data in background
         await loadCapacityAnalysis()
 
         // Load weekly narrative from cache
@@ -260,67 +266,90 @@ class InsightsPreviewViewModel: ObservableObject {
         isLoading = false
     }
 
+    /// Load capacity analysis from prefetched cache
+    private func loadFromCache() {
+        if let cached = cacheService.loadJSONSync(CapacityAnalysisResponse.self, filename: "capacity_analysis") {
+            print("📊 InsightsPreview: Using prefetched capacity data")
+            processCapacityAnalysis(cached)
+        }
+    }
+
     private func loadCapacityAnalysis() async {
+        // Check if cache is fresh (30 min)
+        if let metadata = cacheService.getCacheMetadataSync(filename: "capacity_analysis"),
+           Date().timeIntervalSince(metadata.lastUpdated) < 1800,
+           capacityScore != nil {
+            print("📊 InsightsPreview: Cache still fresh, skipping fetch")
+            return
+        }
+
         do {
             let analysis = try await apiService.getCapacityAnalysis()
+            processCapacityAnalysis(analysis)
 
-            // Set capacity score
-            capacityScore = analysis.summary.capacityScore
-
-            // Build insights from the analysis
-            var insights: [CapacityInsightPreview] = []
-
-            // Schedule overload
-            if analysis.summary.highIntensityDays > 2 {
-                insights.append(CapacityInsightPreview(
-                    icon: "calendar.badge.exclamationmark",
-                    title: "Schedule Overload",
-                    detail: "\(analysis.summary.highIntensityDays) high-intensity days this week",
-                    color: Color(hex: "F59E0B")
-                ))
-            }
-
-            // Back-to-back meetings
-            if let b2b = analysis.meetingPatterns.backToBackStats,
-               let count = b2b.totalBackToBackOccurrences, count > 3 {
-                insights.append(CapacityInsightPreview(
-                    icon: "arrow.left.arrow.right",
-                    title: "Back-to-Back Meetings",
-                    detail: "\(count) occurrences - consider adding buffers",
-                    color: Color(hex: "3B82F6")
-                ))
-            }
-
-            // Sleep impact from meetings
-            if let health = analysis.healthImpact,
-               let sleep = health.sleepCorrelation,
-               sleep.hasSignificantCorrelation == true {
-                insights.append(CapacityInsightPreview(
-                    icon: "bed.double.fill",
-                    title: "Meetings Affecting Sleep",
-                    detail: sleep.formattedDifference + " less on meeting days",
-                    color: Color(hex: "8B5CF6")
-                ))
-            }
-
-            // Add from API insights if we don't have enough
-            if insights.count < 3, let apiInsights = analysis.insights {
-                for insight in apiInsights.prefix(3 - insights.count) {
-                    insights.append(CapacityInsightPreview(
-                        icon: insight.severityIcon,
-                        title: insight.title,
-                        detail: insight.description,
-                        color: insight.severityColor
-                    ))
-                }
-            }
-
-            capacityInsights = insights
-
+            // Update cache
+            cacheService.saveJSONSync(analysis, filename: "capacity_analysis", expiration: 1800)
         } catch {
-            // Silently fail - we just won't show capacity score
-            print("Failed to load capacity analysis: \(error)")
+            // Only log if we don't have cached data
+            if capacityScore == nil {
+                print("Failed to load capacity analysis: \(error)")
+            }
         }
+    }
+
+    private func processCapacityAnalysis(_ analysis: CapacityAnalysisResponse) {
+        // Set capacity score
+        capacityScore = analysis.summary.capacityScore
+
+        // Build insights from the analysis
+        var insights: [CapacityInsightPreview] = []
+
+        // Schedule overload
+        if analysis.summary.highIntensityDays > 2 {
+            insights.append(CapacityInsightPreview(
+                icon: "calendar.badge.exclamationmark",
+                title: "Schedule Overload",
+                detail: "\(analysis.summary.highIntensityDays) high-intensity days this week",
+                color: Color(hex: "F59E0B")
+            ))
+        }
+
+        // Back-to-back meetings
+        if let b2b = analysis.meetingPatterns.backToBackStats,
+           let count = b2b.totalBackToBackOccurrences, count > 3 {
+            insights.append(CapacityInsightPreview(
+                icon: "arrow.left.arrow.right",
+                title: "Back-to-Back Meetings",
+                detail: "\(count) occurrences - consider adding buffers",
+                color: Color(hex: "3B82F6")
+            ))
+        }
+
+        // Sleep impact from meetings
+        if let health = analysis.healthImpact,
+           let sleep = health.sleepCorrelation,
+           sleep.hasSignificantCorrelation == true {
+            insights.append(CapacityInsightPreview(
+                icon: "bed.double.fill",
+                title: "Meetings Affecting Sleep",
+                detail: sleep.formattedDifference + " less on meeting days",
+                color: Color(hex: "8B5CF6")
+            ))
+        }
+
+        // Add from API insights if we don't have enough
+        if insights.count < 3, let apiInsights = analysis.insights {
+            for insight in apiInsights.prefix(3 - insights.count) {
+                insights.append(CapacityInsightPreview(
+                    icon: insight.severityIcon,
+                    title: insight.title,
+                    detail: insight.description,
+                    color: insight.severityColor
+                ))
+            }
+        }
+
+        capacityInsights = insights
     }
 }
 

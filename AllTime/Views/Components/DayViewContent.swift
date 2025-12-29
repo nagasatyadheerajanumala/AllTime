@@ -20,13 +20,14 @@ struct DayViewContent: View {
                 )
                 .background(DesignSystem.Colors.background)
                 .padding(.top, DesignSystem.Spacing.sm)
-                
-                // 24-hour timeline
+
+                // 24-hour timeline - fills remaining space
                 DayTimelineView(
                     selectedDate: $selectedDate,
                     events: events,
                     onEventTap: onEventTap
                 )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(DesignSystem.Colors.background)
             }
             .background(DesignSystem.Colors.background)

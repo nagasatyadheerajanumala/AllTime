@@ -5,27 +5,61 @@ struct PremiumTabView: View {
     @Namespace private var tabAnimation
     @State private var hasRequestedHealthKit = false
 
+    // Pre-create views to preserve their state across tab switches
+    // This prevents unnecessary reloading when switching tabs
+    @State private var todayViewCreated = false
+    @State private var calendarViewCreated = false
+    @State private var insightsViewCreated = false
+    @State private var remindersViewCreated = false
+    @State private var settingsViewCreated = false
+
     var body: some View {
         ZStack(alignment: .bottom) {
             // Background
             DesignSystem.Colors.background
                 .ignoresSafeArea()
 
-            // Content - using switch for proper view lifecycle
-            Group {
-                switch navigationManager.selectedTab {
-                case 0:
+            // Content - use ZStack with opacity to preserve view state
+            // This prevents views from being recreated on every tab switch
+            ZStack {
+                // Today View (Tab 0)
+                if todayViewCreated || navigationManager.selectedTab == 0 {
                     TodayView()
-                case 1:
+                        .opacity(navigationManager.selectedTab == 0 ? 1 : 0)
+                        .allowsHitTesting(navigationManager.selectedTab == 0)
+                        .onAppear { todayViewCreated = true }
+                }
+
+                // Calendar View (Tab 1)
+                if calendarViewCreated || navigationManager.selectedTab == 1 {
                     CalendarView()
-                case 2:
-                    HealthInsightsDetailView()
-                case 3:
+                        .opacity(navigationManager.selectedTab == 1 ? 1 : 0)
+                        .allowsHitTesting(navigationManager.selectedTab == 1)
+                        .onAppear { calendarViewCreated = true }
+                }
+
+                // Insights View (Tab 2)
+                if insightsViewCreated || navigationManager.selectedTab == 2 {
+                    InsightsRootView()
+                        .opacity(navigationManager.selectedTab == 2 ? 1 : 0)
+                        .allowsHitTesting(navigationManager.selectedTab == 2)
+                        .onAppear { insightsViewCreated = true }
+                }
+
+                // Reminders View (Tab 3)
+                if remindersViewCreated || navigationManager.selectedTab == 3 {
                     ReminderListView()
-                case 4:
+                        .opacity(navigationManager.selectedTab == 3 ? 1 : 0)
+                        .allowsHitTesting(navigationManager.selectedTab == 3)
+                        .onAppear { remindersViewCreated = true }
+                }
+
+                // Settings View (Tab 4)
+                if settingsViewCreated || navigationManager.selectedTab == 4 {
                     SettingsView()
-                default:
-                    TodayView()
+                        .opacity(navigationManager.selectedTab == 4 ? 1 : 0)
+                        .allowsHitTesting(navigationManager.selectedTab == 4)
+                        .onAppear { settingsViewCreated = true }
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -69,10 +103,11 @@ struct FloatingTabBar: View {
     @Binding var selectedTab: Int
     var namespace: Namespace.ID
 
+    // Tab configuration: Health renamed to Insights, icon updated to chart.bar.xaxis
     private let tabs: [(icon: String, selectedIcon: String, title: String, color: Color)] = [
         ("sun.horizon", "sun.horizon.fill", "Today", .orange),
         ("calendar", "calendar", "Calendar", .blue),
-        ("heart", "heart.fill", "Health", .pink),
+        ("chart.bar.xaxis", "chart.bar.xaxis", "Insights", .indigo),
         ("bell", "bell.fill", "Reminders", .purple),
         ("gearshape", "gearshape.fill", "Settings", .gray)
     ]

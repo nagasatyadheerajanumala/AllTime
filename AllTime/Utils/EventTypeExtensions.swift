@@ -3,8 +3,9 @@ import Foundation
 
 // MARK: - Event Type Detection
 extension Event {
-    /// Detects event type from title keywords
-    var eventType: EventType {
+    /// Detects event category from title keywords (used for UI styling)
+    /// Note: This is separate from the backend's eventType string property
+    var detectedEventCategory: EventType {
         let titleLower = title.lowercased()
         
         // Meeting keywords

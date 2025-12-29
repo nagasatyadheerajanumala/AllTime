@@ -145,25 +145,25 @@ class ConnectedCalendarsViewModel: ObservableObject {
     
     func disconnectProvider(_ provider: String) async {
         print("🗑️ ConnectedCalendarsViewModel: Disconnecting provider '\(provider)'...")
-        
+
         errorMessage = nil
         successMessage = nil
-        
+
         do {
             let response = try await apiService.disconnectProvider(provider)
             print("✅ ConnectedCalendarsViewModel: Provider disconnected successfully")
             print("   - Status: \(response.status)")
             print("   - Message: \(response.message)")
-            
+
             // Show success message
             successMessage = response.message
-            
+
             // Remove from local list
             calendars.removeAll { $0.provider.lowercased() == provider.lowercased() }
-            
+
             // Reload providers to ensure UI is in sync
             await loadProviders()
-            
+
             // Clear success message after 3 seconds
             Task {
                 try? await Task.sleep(nanoseconds: 3_000_000_000)
@@ -171,10 +171,10 @@ class ConnectedCalendarsViewModel: ObservableObject {
             }
         } catch let error as NSError {
             print("❌ ConnectedCalendarsViewModel: Failed to disconnect provider: \(error)")
-            
+
             // Provide user-friendly error messages
             var errorMsg = "Failed to disconnect calendar"
-            
+
             switch error.code {
             case 401:
                 errorMsg = "Session expired. Please sign in again."
@@ -185,10 +185,59 @@ class ConnectedCalendarsViewModel: ObservableObject {
             default:
                 errorMsg = error.localizedDescription
             }
-            
+
             errorMessage = errorMsg
         } catch {
             print("❌ ConnectedCalendarsViewModel: Failed to disconnect provider: \(error)")
+            errorMessage = "Failed to disconnect calendar: \(error.localizedDescription)"
+        }
+    }
+
+    /// Disconnect a specific calendar connection by ID (for multi-account support)
+    func disconnectConnection(_ connectionId: Int) async {
+        print("🗑️ ConnectedCalendarsViewModel: Disconnecting connection ID \(connectionId)...")
+
+        errorMessage = nil
+        successMessage = nil
+
+        do {
+            let response = try await apiService.disconnectConnection(connectionId)
+            print("✅ ConnectedCalendarsViewModel: Connection disconnected successfully")
+            print("   - Status: \(response.status)")
+            print("   - Message: \(response.message)")
+
+            // Show success message
+            successMessage = response.message
+
+            // Remove from local list
+            calendars.removeAll { $0.id == connectionId }
+
+            // Reload providers to ensure UI is in sync
+            await loadProviders()
+
+            // Clear success message after 3 seconds
+            Task {
+                try? await Task.sleep(nanoseconds: 3_000_000_000)
+                successMessage = nil
+            }
+        } catch let error as NSError {
+            print("❌ ConnectedCalendarsViewModel: Failed to disconnect connection: \(error)")
+
+            var errorMsg = "Failed to disconnect calendar"
+            switch error.code {
+            case 401:
+                errorMsg = "Session expired. Please sign in again."
+            case 404:
+                errorMsg = "Calendar connection not found. It may have already been disconnected."
+            case 403:
+                errorMsg = "You don't have permission to disconnect this calendar."
+            default:
+                errorMsg = error.localizedDescription
+            }
+
+            errorMessage = errorMsg
+        } catch {
+            print("❌ ConnectedCalendarsViewModel: Failed to disconnect connection: \(error)")
             errorMessage = "Failed to disconnect calendar: \(error.localizedDescription)"
         }
     }

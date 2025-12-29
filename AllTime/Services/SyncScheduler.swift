@@ -182,7 +182,18 @@ class SyncScheduler: ObservableObject {
             }
             
             saveLastSyncTime()
-            
+
+            // Prefetch insights data in background after calendar sync
+            // This ensures insights are ready when user navigates to Insights tab
+            Task {
+                await InsightsPrefetchService.shared.prefetchAllInsights()
+            }
+
+            // Schedule event notifications in background after sync
+            Task {
+                await scheduleEventNotificationsAfterSync()
+            }
+
             // Post notification for UI to refresh (with sync status)
             NotificationCenter.default.post(
                 name: NSNotification.Name("CalendarSynced"),
@@ -286,6 +297,27 @@ class SyncScheduler: ObservableObject {
     func forceSync() async {
         print("🔄 SyncScheduler: Force sync triggered (ignoring timing constraints)")
         await performSync(reason: "force", force: true)
+    }
+
+    // MARK: - Event Notifications
+
+    /// Schedule notifications for upcoming events after sync
+    private func scheduleEventNotificationsAfterSync() async {
+        print("🔔 SyncScheduler: Scheduling event notifications after sync...")
+
+        do {
+            // Fetch upcoming events for the next 7 days
+            let startDate = Date()
+            let endDate = Calendar.current.date(byAdding: .day, value: 7, to: startDate) ?? startDate
+
+            let response = try await apiService.getAllEvents(start: startDate, end: endDate)
+            print("🔔 SyncScheduler: Found \(response.events.count) events for notification scheduling")
+
+            // Schedule notifications using EventNotificationService
+            await EventNotificationService.shared.scheduleNotifications(for: response.events)
+        } catch {
+            print("🔔 SyncScheduler: Failed to fetch events for notifications: \(error.localizedDescription)")
+        }
     }
 }
 

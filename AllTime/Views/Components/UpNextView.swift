@@ -126,6 +126,11 @@ struct UpNextSectionView: View {
 struct UpNextItemRowView: View {
     let item: UpNextItem
 
+    init(item: UpNextItem) {
+        self.item = item
+        print("📦 UpNextItemRowView INIT for '\(item.title)' type=\(item.type) primaryAction=\(item.primaryAction ?? "nil") startTime=\(String(describing: item.startTime))")
+    }
+
     @State private var isBlockingTime = false
     @State private var showBlockTimeSuccess = false
     @State private var showBlockTimeError = false
@@ -135,6 +140,7 @@ struct UpNextItemRowView: View {
     @State private var showAddToListOptions = false
     @State private var showReminderSuccess = false
     @State private var reminderMessage = ""
+    @State private var showBlockConfirmation = false
 
     private let eventStore = EKEventStore()
 
@@ -233,6 +239,19 @@ struct UpNextItemRowView: View {
         .sheet(isPresented: $showWalkRecommendations) {
             WalkRecommendationsView()
         }
+        .confirmationDialog("Block Time", isPresented: $showBlockConfirmation, titleVisibility: .visible) {
+            Button("Add to Calendar") {
+                print("📅 CONFIRMATION: Add to Calendar tapped for '\(item.title)'")
+                blockTime()
+            }
+            Button("Add to Reminders") {
+                print("⏰ CONFIRMATION: Add to Reminders tapped for '\(item.title)'")
+                addToReminders()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Block '\(item.title)' on your calendar?")
+        }
         .alert("Added to Reminders!", isPresented: $showReminderSuccess) {
             Button("OK") {}
         } message: {
@@ -243,6 +262,8 @@ struct UpNextItemRowView: View {
     // MARK: - Action Button
     @ViewBuilder
     private var actionButton: some View {
+        let _ = print("🔵 actionButton for '\(item.title)': primaryAction=\(item.primaryAction ?? "nil"), isBlockingTime=\(isBlockingTime)")
+
         if isBlockingTime {
             ProgressView()
                 .scaleEffect(0.8)
@@ -273,31 +294,17 @@ struct UpNextItemRowView: View {
                         .cornerRadius(8)
                 }
             } else {
-                // "Add to List" menu with Calendar and Reminders options
-                Menu {
-                    Button {
-                        blockTime()
-                    } label: {
-                        Label("Add to Calendar", systemImage: "calendar.badge.plus")
-                    }
-
-                    Button {
-                        addToReminders()
-                    } label: {
-                        Label("Add to Reminders", systemImage: "bell.badge.fill")
-                    }
+                // Block Time button - same structure as View Places/View Routes
+                Button {
+                    showBlockConfirmation = true
                 } label: {
-                    HStack(spacing: 4) {
-                        Text("Add")
-                            .font(DesignSystem.Typography.caption.weight(.medium))
-                        Image(systemName: "chevron.down")
-                            .font(.system(size: 8, weight: .bold))
-                    }
-                    .foregroundColor(item.displayColor)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(item.displayColor.opacity(0.15))
-                    .cornerRadius(8)
+                    Text("Block Time")
+                        .font(DesignSystem.Typography.caption.weight(.medium))
+                        .foregroundColor(item.displayColor)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(item.displayColor.opacity(0.15))
+                        .cornerRadius(8)
                 }
             }
         }
@@ -319,16 +326,41 @@ struct UpNextItemRowView: View {
 
     // MARK: - Block Time on Calendar
     private func blockTime() {
-        guard !isBlockingTime else { return }
+        print("🔵 blockTime() CALLED for item: '\(item.title)'")
+        print("   - primaryAction: \(item.primaryAction ?? "nil")")
+        print("   - item.startTime: \(String(describing: item.startTime))")
+        print("   - item.timeLabel: \(item.timeLabel ?? "nil")")
+        print("   - isBlockingTime: \(isBlockingTime)")
 
-        // USE THE ITEM'S START AND END TIMES - THIS IS THE KEY FIX
-        guard let startTime = item.startTime else {
-            blockTimeMessage = "Could not determine the start time for this suggestion."
-            showBlockTimeError = true
+        guard !isBlockingTime else {
+            print("⚠️ blockTime() early return - isBlockingTime is true")
             return
         }
 
-        let endTime = item.endTime ?? startTime.addingTimeInterval(Double(item.durationMinutes ?? 60) * 60)
+        // Try to get start time from item, or parse from timeLabel, or use next available slot
+        let startTime: Date
+        let endTime: Date
+
+        if let itemStartTime = item.startTime {
+            startTime = itemStartTime
+            endTime = item.endTime ?? itemStartTime.addingTimeInterval(Double(item.durationMinutes ?? 60) * 60)
+        } else if let parsedTime = parseTimeFromLabel(item.timeLabel) {
+            startTime = parsedTime
+            endTime = parsedTime.addingTimeInterval(Double(item.durationMinutes ?? 60) * 60)
+        } else {
+            // Fallback: use current time rounded to next 15-minute slot
+            let now = Date()
+            let calendar = Calendar.current
+            let minute = calendar.component(.minute, from: now)
+            let roundedMinute = ((minute / 15) + 1) * 15
+            var components = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: now)
+            components.minute = roundedMinute % 60
+            if roundedMinute >= 60 {
+                components.hour = (components.hour ?? 0) + 1
+            }
+            startTime = calendar.date(from: components) ?? now
+            endTime = startTime.addingTimeInterval(Double(item.durationMinutes ?? 60) * 60)
+        }
 
         // Debug: Print detailed time info
         let debugFormatter = DateFormatter()
@@ -415,17 +447,82 @@ struct UpNextItemRowView: View {
 
         try eventStore.save(event, span: .thisEvent)
         print("✅ Created calendar event: \(title) from \(startDate) to \(endDate)")
+
+        // Notify TodayView to refresh calendar
+        await MainActor.run {
+            NotificationCenter.default.post(name: NSNotification.Name("EventCreated"), object: nil)
+        }
+    }
+
+    // MARK: - Parse Time from Label
+    private func parseTimeFromLabel(_ label: String?) -> Date? {
+        guard let label = label else { return nil }
+
+        let calendar = Calendar.current
+        let today = Date()
+
+        // Try common time formats like "10:00 AM", "2:30 PM", "10:00", "14:30"
+        let formatters: [DateFormatter] = {
+            let f1 = DateFormatter()
+            f1.dateFormat = "h:mm a"  // 10:00 AM
+            let f2 = DateFormatter()
+            f2.dateFormat = "HH:mm"   // 14:30
+            let f3 = DateFormatter()
+            f3.dateFormat = "h a"     // 10 AM
+            return [f1, f2, f3]
+        }()
+
+        // Extract just the time part (handle labels like "Best at 10:00 AM" or "10:00 AM - 11:00 AM")
+        let timePatterns = [
+            #"(\d{1,2}:\d{2}\s*(?:AM|PM|am|pm))"#,  // 10:00 AM
+            #"(\d{1,2}\s*(?:AM|PM|am|pm))"#,         // 10 AM
+            #"(\d{1,2}:\d{2})"#                       // 10:00
+        ]
+
+        for pattern in timePatterns {
+            if let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive),
+               let match = regex.firstMatch(in: label, options: [], range: NSRange(label.startIndex..., in: label)),
+               let range = Range(match.range(at: 1), in: label) {
+                let timeString = String(label[range])
+
+                for formatter in formatters {
+                    if let parsedTime = formatter.date(from: timeString) {
+                        // Combine today's date with parsed time
+                        var components = calendar.dateComponents([.year, .month, .day], from: today)
+                        let timeComponents = calendar.dateComponents([.hour, .minute], from: parsedTime)
+                        components.hour = timeComponents.hour
+                        components.minute = timeComponents.minute
+                        return calendar.date(from: components)
+                    }
+                }
+            }
+        }
+
+        return nil
     }
 
     // MARK: - Add to Reminders
     private func addToReminders() {
         guard !isBlockingTime else { return }
 
-        // Get the start time for the reminder due date
-        guard let dueDate = item.startTime else {
-            blockTimeMessage = "Could not determine the time for this suggestion."
-            showBlockTimeError = true
-            return
+        // Get the due date - try startTime, parse from label, or use fallback
+        let dueDate: Date
+        if let itemStartTime = item.startTime {
+            dueDate = itemStartTime
+        } else if let parsedTime = parseTimeFromLabel(item.timeLabel) {
+            dueDate = parsedTime
+        } else {
+            // Fallback: use current time rounded to next 15-minute slot
+            let now = Date()
+            let calendar = Calendar.current
+            let minute = calendar.component(.minute, from: now)
+            let roundedMinute = ((minute / 15) + 1) * 15
+            var components = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: now)
+            components.minute = roundedMinute % 60
+            if roundedMinute >= 60 {
+                components.hour = (components.hour ?? 0) + 1
+            }
+            dueDate = calendar.date(from: components) ?? now
         }
 
         isBlockingTime = true

@@ -20,24 +20,30 @@ struct EventRowView: View {
     }()
     
     var body: some View {
-        HStack(spacing: 12) {
-            // Time indicator
-            VStack(alignment: .leading, spacing: 2) {
-                if let startTime = event.startDate {
-                    Text(Self.timeFormatter.string(from: startTime))
-                        .font(.caption)
-                        .fontWeight(.medium)
-                        .foregroundColor(.primary)
+        HStack(spacing: 0) {
+            // Event color bar
+            EventColorBar(color: event.displayColorHex)
+                .frame(height: 50)
+                .padding(.trailing, 12)
+
+            HStack(spacing: 12) {
+                // Time indicator
+                VStack(alignment: .leading, spacing: 2) {
+                    if let startTime = event.startDate {
+                        Text(Self.timeFormatter.string(from: startTime))
+                            .font(.caption)
+                            .fontWeight(.medium)
+                            .foregroundColor(.primary)
+                    }
+
+                    if let duration = event.duration,
+                       let durationString = Self.durationFormatter.string(from: duration) {
+                        Text(durationString)
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
                 }
-                
-                if let duration = event.duration,
-                   let durationString = Self.durationFormatter.string(from: duration) {
-                    Text(durationString)
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                }
-            }
-            .frame(width: 60, alignment: .leading)
+                .frame(width: 60, alignment: .leading)
             
             // Event details
             VStack(alignment: .leading, spacing: 4) {
@@ -94,13 +100,15 @@ struct EventRowView: View {
                 }
             }
             
-            Spacer()
+                Spacer()
+            }
         }
         .padding(.vertical, 8)
         .padding(.horizontal, 12)
         .background(Color(.systemBackground))
-        .cornerRadius(8)
-        .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
+        .cornerRadius(12)
+        .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
+        .pressEffect()
     }
 }
 
@@ -164,23 +172,45 @@ struct ProviderBadge: View {
             location: EventLocation(name: "Conference Room A", address: nil, coordinates: nil),
             attendees: nil,
             recurrence: nil,
-            metadata: nil
+            metadata: nil,
+            eventType: "meeting",
+            eventColor: "#3B82F6"
         ))
-        
+
         EventRowView(event: CalendarEvent(
             id: 2,
-            title: "Doctor Appointment",
+            title: "Flight to NYC",
             description: nil,
             startTime: "2024-01-15T14:00:00Z",
-            endTime: "2024-01-15T15:00:00Z",
+            endTime: "2024-01-15T18:00:00Z",
             allDay: false,
+            source: "google",
+            sourceColor: "#4285F4",
+            location: nil,
+            attendees: nil,
+            recurrence: nil,
+            metadata: nil,
+            eventType: "flight",
+            eventColor: "#06B6D4"
+        ))
+
+        EventRowView(event: CalendarEvent(
+            id: 3,
+            title: "Mom's Birthday",
+            description: nil,
+            startTime: "2024-01-15T00:00:00Z",
+            endTime: "2024-01-16T00:00:00Z",
+            allDay: true,
             source: "apple",
             sourceColor: "#AF52DE",
             location: nil,
             attendees: nil,
             recurrence: nil,
-            metadata: nil
+            metadata: nil,
+            eventType: "birthday",
+            eventColor: "#EC4899"
         ))
     }
     .padding()
+    .background(Color(.systemGroupedBackground))
 }

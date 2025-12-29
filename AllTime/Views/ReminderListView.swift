@@ -9,16 +9,9 @@ struct ReminderListView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                // Background
-                LinearGradient(
-                    colors: [
-                        Color(UIColor.systemBackground),
-                        Color(UIColor.systemGroupedBackground)
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .ignoresSafeArea()
+                // Background - using DesignSystem for consistency
+                DesignSystem.Colors.background
+                    .ignoresSafeArea()
                 
                 if viewModel.isLoading && viewModel.reminders.isEmpty {
                     ProgressView("Loading...")
@@ -189,7 +182,7 @@ struct FilterChip: View {
     let title: String
     let isSelected: Bool
     let action: () -> Void
-    
+
     var body: some View {
         Button(action: action) {
             Text(title)
@@ -199,9 +192,9 @@ struct FilterChip: View {
                 .padding(.vertical, 8)
                 .background(
                     Capsule()
-                        .fill(isSelected ? Color.blue : Color(UIColor.secondarySystemGroupedBackground))
+                        .fill(isSelected ? DesignSystem.Colors.primary : DesignSystem.Colors.cardBackground)
                 )
-                .foregroundColor(isSelected ? .white : .primary)
+                .foregroundColor(isSelected ? .white : DesignSystem.Colors.primaryText)
         }
     }
 }
@@ -217,11 +210,11 @@ struct ReminderGroupSection: View {
     var onDelete: ((Reminder) -> Void)? = nil
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
             Text(title)
-                .font(.headline)
-                .foregroundColor(.primary)
-                .padding(.horizontal)
+                .font(.subheadline.weight(.semibold))
+                .foregroundColor(DesignSystem.Colors.secondaryText)
+                .padding(.horizontal, DesignSystem.Spacing.md)
 
             ForEach(reminders) { reminder in
                 ReminderRowView(
@@ -230,7 +223,7 @@ struct ReminderGroupSection: View {
                     onSnooze: { onSnooze(reminder) },
                     onDelete: onDelete != nil ? { onDelete?(reminder) } : nil
                 )
-                .padding(.horizontal)
+                .padding(.horizontal, DesignSystem.Spacing.md)
                 .onTapGesture {
                     onReminderTap(reminder)
                 }
@@ -243,18 +236,18 @@ struct ReminderGroupSection: View {
 
 struct EmptyRemindersView: View {
     var body: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "note.text")
+        VStack(spacing: DesignSystem.Spacing.md) {
+            Image(systemName: "bell.slash")
                 .font(.system(size: 48, weight: .light))
-                .foregroundColor(.secondary)
+                .foregroundColor(DesignSystem.Colors.tertiaryText)
 
             Text("All Clear")
-                .font(.title2)
-                .fontWeight(.medium)
+                .font(.title2.weight(.semibold))
+                .foregroundColor(DesignSystem.Colors.primaryText)
 
             Text("Tap + to jot something down")
                 .font(.subheadline)
-                .foregroundColor(.secondary)
+                .foregroundColor(DesignSystem.Colors.secondaryText)
         }
     }
 }
@@ -266,25 +259,34 @@ struct ReminderErrorView: View {
     let onRetry: () -> Void
 
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: DesignSystem.Spacing.md) {
             Image(systemName: "wifi.slash")
                 .font(.system(size: 48, weight: .light))
-                .foregroundColor(.secondary)
+                .foregroundColor(DesignSystem.Colors.tertiaryText)
 
             Text("Couldn't load")
-                .font(.title2)
-                .fontWeight(.medium)
+                .font(.title2.weight(.semibold))
+                .foregroundColor(DesignSystem.Colors.primaryText)
 
             Text("Check your connection and try again")
                 .font(.subheadline)
-                .foregroundColor(.secondary)
+                .foregroundColor(DesignSystem.Colors.secondaryText)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal)
 
-            Button("Try Again", action: onRetry)
-                .buttonStyle(.bordered)
+            Button(action: onRetry) {
+                Text("Try Again")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 10)
+                    .background(
+                        Capsule()
+                            .fill(DesignSystem.Colors.primary)
+                    )
+            }
         }
-        .padding()
+        .padding(DesignSystem.Spacing.lg)
     }
 }
 

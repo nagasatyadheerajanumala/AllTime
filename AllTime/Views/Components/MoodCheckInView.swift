@@ -1,264 +1,125 @@
 import SwiftUI
 
-/// A compact check-in card for the main view
+/// A clean, minimal check-in card for the Today view
 struct MoodCheckInCardView: View {
     @StateObject private var viewModel = CheckInViewModel()
     @State private var showCheckInSheet = false
+    @State private var selectedMoodAnimation: MoodOption? = nil
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // Header
-            HStack {
-                Image(systemName: "heart.text.square.fill")
-                    .font(.title2)
-                    .foregroundColor(.pink)
-
+        VStack(spacing: 0) {
+            // Clean header row
+            HStack(alignment: .center) {
                 Text("How are you feeling?")
-                    .font(.headline)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundColor(.primary)
 
                 Spacer()
 
+                // Streak badge (subtle)
                 if let status = viewModel.checkInStatus, status.streakDays > 0 {
-                    HStack(spacing: 4) {
+                    HStack(spacing: 3) {
                         Image(systemName: "flame.fill")
-                            .foregroundColor(.orange)
+                            .font(.caption2)
                         Text("\(status.streakDays)")
-                            .font(.subheadline.bold())
-                            .foregroundColor(.orange)
+                            .font(.caption)
+                            .fontWeight(.semibold)
                     }
-                }
-            }
-
-            // Quick mood selector
-            if !viewModel.isCheckInDoneForCurrentPeriod {
-                // Show energy prediction from HealthKit
-                if viewModel.isPredictingEnergy {
-                    HStack {
-                        ProgressView()
-                            .scaleEffect(0.8)
-                        Text("Analyzing your health data...")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                    }
-                    .padding(.vertical, 8)
-                } else if let prediction = viewModel.energyPrediction {
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack {
-                            VStack(alignment: .leading, spacing: 2) {
-                                HStack(spacing: 6) {
-                                    Image(systemName: "waveform.path.ecg")
-                                        .foregroundColor(.pink)
-                                    Text("Your Energy:")
-                                        .font(.subheadline)
-                                    Text(prediction.energyDescription)
-                                        .font(.subheadline.bold())
-                                        .foregroundColor(energyColor(prediction.predictedEnergy))
-                                }
-                                HStack(spacing: 4) {
-                                    Image(systemName: prediction.confidence.icon)
-                                        .font(.caption2)
-                                    Text(prediction.confidence.description)
-                                        .font(.caption)
-                                }
-                                .foregroundColor(.secondary)
-                            }
-
-                            Spacer()
-
-                            // Energy level bars
-                            HStack(spacing: 2) {
-                                ForEach(1...5, id: \.self) { i in
-                                    RoundedRectangle(cornerRadius: 2)
-                                        .fill(i <= prediction.predictedEnergy ? energyColor(prediction.predictedEnergy) : Color.gray.opacity(0.2))
-                                        .frame(width: 6, height: 16)
-                                }
-                            }
-                        }
-
-                        // Show factors
-                        if !prediction.factors.isEmpty {
-                            HStack(spacing: 12) {
-                                ForEach(prediction.factors.prefix(3), id: \.name) { factor in
-                                    HStack(spacing: 4) {
-                                        Image(systemName: factor.icon)
-                                            .font(.caption2)
-                                            .foregroundColor(factorColor(factor.impact))
-                                        Text(factor.name)
-                                            .font(.caption2)
-                                            .foregroundColor(.secondary)
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    .padding(10)
+                    .foregroundColor(.orange)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
                     .background(
-                        RoundedRectangle(cornerRadius: 10)
-                            .fill(Color(.systemGray6))
+                        Capsule()
+                            .fill(Color.orange.opacity(0.12))
                     )
                 }
 
-                // Mood selector
-                HStack(spacing: 12) {
+                // More options
+                Button {
+                    showCheckInSheet = true
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(.secondary)
+                        .frame(width: 28, height: 28)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 14)
+            .padding(.bottom, 12)
+
+            // Mood selector - clean horizontal row
+            if !viewModel.isCheckInDoneForCurrentPeriod {
+                HStack(spacing: 0) {
                     ForEach(MoodOption.allCases) { mood in
                         Button {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                selectedMoodAnimation = mood
+                            }
                             viewModel.selectedMood = mood
                             viewModel.energyLevel = moodToEnergy(mood)
+                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
                             Task {
                                 await viewModel.submitQuickCheckIn()
+                                withAnimation(.easeOut(duration: 0.2)) {
+                                    selectedMoodAnimation = nil
+                                }
                             }
                         } label: {
-                            VStack(spacing: 4) {
+                            VStack(spacing: 6) {
                                 Text(mood.emoji)
-                                    .font(.title)
+                                    .font(.system(size: 28))
+                                    .scaleEffect(selectedMoodAnimation == mood ? 1.2 : 1.0)
+
                                 Text(mood.displayName)
                                     .font(.caption2)
+                                    .fontWeight(.medium)
                                     .foregroundColor(.secondary)
                             }
                             .frame(maxWidth: .infinity)
-                            .padding(.vertical, 8)
+                            .padding(.vertical, 10)
                             .background(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .fill(viewModel.selectedMood == mood ?
-                                          Color.blue.opacity(0.15) : Color.clear)
+                                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                    .fill(selectedMoodAnimation == mood ? mood.color.opacity(0.15) : Color.clear)
                             )
                         }
                         .buttonStyle(.plain)
                         .disabled(viewModel.isSubmitting)
                     }
                 }
-
-                // Detailed check-in link
-                Button {
-                    showCheckInSheet = true
-                } label: {
-                    HStack {
-                        Image(systemName: "slider.horizontal.3")
-                        Text("More detailed check-in")
-                    }
-                    .font(.subheadline)
-                    .foregroundColor(.blue)
-                }
-                .padding(.top, 4)
+                .padding(.horizontal, 8)
+                .padding(.bottom, 14)
             } else {
-                // Already checked in
+                // Completed state - minimal
                 Button {
                     showCheckInSheet = true
                 } label: {
-                    HStack {
+                    HStack(spacing: 10) {
                         Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 18))
                             .foregroundColor(.green)
-                        Text("\(TimeOfDay.current.displayName) check-in complete!")
+
+                        Text("Checked in")
+                            .font(.subheadline)
                             .foregroundColor(.secondary)
+
                         Spacer()
-                        Image(systemName: "chevron.right")
+
+                        Text("View")
                             .font(.caption)
-                            .foregroundColor(.secondary)
+                            .fontWeight(.medium)
+                            .foregroundColor(.accentColor)
                     }
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 14)
                 }
                 .buttonStyle(.plain)
-                .padding(.vertical, 8)
-
-                // Show suggestions if available
-                if let suggestions = viewModel.suggestions, !suggestions.suggestions.isEmpty {
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack {
-                            Image(systemName: "lightbulb.fill")
-                                .font(.caption)
-                                .foregroundColor(.yellow)
-                            Text("Based on how you're feeling:")
-                                .font(.caption.bold())
-                                .foregroundColor(.secondary)
-                        }
-
-                        ForEach(suggestions.suggestions.prefix(2)) { suggestion in
-                            CompactSuggestionView(suggestion: suggestion)
-                        }
-                    }
-                    .padding(.top, 4)
-                } else if viewModel.isLoadingSuggestions {
-                    HStack {
-                        ProgressView()
-                            .scaleEffect(0.7)
-                        Text("Loading suggestions...")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                }
-
-                // Energy Analysis from HealthKit
-                if viewModel.isPredictingEnergy {
-                    HStack {
-                        ProgressView()
-                            .scaleEffect(0.7)
-                        Text("Analyzing health data...")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                } else if let prediction = viewModel.energyPrediction {
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack {
-                            VStack(alignment: .leading, spacing: 2) {
-                                HStack(spacing: 6) {
-                                    Image(systemName: "waveform.path.ecg")
-                                        .font(.caption)
-                                        .foregroundColor(.pink)
-                                    Text("Your Energy:")
-                                        .font(.caption)
-                                    Text(prediction.energyDescription)
-                                        .font(.caption.bold())
-                                        .foregroundColor(energyColor(prediction.predictedEnergy))
-                                }
-                                HStack(spacing: 4) {
-                                    Image(systemName: prediction.confidence.icon)
-                                        .font(.caption2)
-                                    Text(prediction.confidence.description)
-                                        .font(.caption2)
-                                }
-                                .foregroundColor(.secondary)
-                            }
-
-                            Spacer()
-
-                            // Energy level bars
-                            HStack(spacing: 2) {
-                                ForEach(1...5, id: \.self) { i in
-                                    RoundedRectangle(cornerRadius: 2)
-                                        .fill(i <= prediction.predictedEnergy ? energyColor(prediction.predictedEnergy) : Color.gray.opacity(0.2))
-                                        .frame(width: 5, height: 14)
-                                }
-                            }
-                        }
-
-                        // Show factors
-                        if !prediction.factors.isEmpty {
-                            HStack(spacing: 10) {
-                                ForEach(prediction.factors.prefix(3), id: \.name) { factor in
-                                    HStack(spacing: 3) {
-                                        Image(systemName: factor.icon)
-                                            .font(.caption2)
-                                            .foregroundColor(factorColor(factor.impact))
-                                        Text(factor.name)
-                                            .font(.caption2)
-                                            .foregroundColor(.secondary)
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    .padding(10)
-                    .background(
-                        RoundedRectangle(cornerRadius: 10)
-                            .fill(Color(.systemGray6))
-                    )
-                }
             }
         }
-        .padding()
         .background(
-            RoundedRectangle(cornerRadius: 16)
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .fill(Color(.systemBackground))
-                .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 2)
         )
         .sheet(isPresented: $showCheckInSheet) {
             MoodCheckInSheet(viewModel: viewModel)
@@ -284,23 +145,17 @@ struct MoodCheckInCardView: View {
         case .stressed: return 2
         }
     }
+}
 
-    private func energyColor(_ level: Int) -> Color {
-        switch level {
-        case 1: return .red
-        case 2: return .orange
-        case 3: return .yellow
-        case 4: return .green
-        case 5: return .blue
-        default: return .gray
-        }
-    }
-
-    private func factorColor(_ impact: EnergyImpact) -> Color {
-        switch impact {
-        case .positive: return .green
-        case .neutral: return .gray
-        case .negative: return .orange
+// MARK: - Mood Color Extension
+extension MoodOption {
+    var color: Color {
+        switch self {
+        case .great: return .green
+        case .good: return .blue
+        case .okay: return .orange
+        case .tired: return .purple
+        case .stressed: return .red
         }
     }
 }

@@ -258,13 +258,17 @@ struct TodaySummaryDetailView: View {
             DetailSectionHeader(title: "Key Metrics", icon: "chart.bar.fill")
 
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: DesignSystem.Spacing.md) {
-                if let sleep = metrics.effectiveSleepHours {
+                // Only show health metrics if they have meaningful values (> 0)
+                if let sleep = metrics.effectiveSleepHours, sleep > 0 {
                     DetailMetricCard(title: "Sleep", value: String(format: "%.1fh", sleep), icon: "moon.fill", color: Color(hex: "8B5CF6"))
                 }
-                if let steps = metrics.effectiveSteps {
+                if let steps = metrics.effectiveSteps, steps > 0 {
                     DetailMetricCard(title: "Steps", value: steps.formatted(), icon: "figure.walk", color: Color(hex: "10B981"))
                 }
-                DetailMetricCard(title: "Meetings", value: "\(metrics.effectiveMeetingsCount)", icon: "calendar", color: Color(hex: "3B82F6"))
+                // Always show meetings as it's calendar-based, not health data
+                if metrics.effectiveMeetingsCount > 0 {
+                    DetailMetricCard(title: "Meetings", value: "\(metrics.effectiveMeetingsCount)", icon: "calendar", color: Color(hex: "3B82F6"))
+                }
                 if metrics.effectiveLongestFreeBlock > 0 {
                     DetailMetricCard(title: "Longest Block", value: "\(metrics.effectiveLongestFreeBlock)m", icon: "clock.fill", color: Color(hex: "F59E0B"))
                 }
@@ -574,16 +578,16 @@ struct TodaySummaryDetailView: View {
 
     private func formatHours(_ hours: Double) -> String {
         if hours < 1 {
-            return "\(Int(hours * 60))m"
+            return "\(Int(hours * 60).formatted())m"
         } else if hours == Double(Int(hours)) {
-            return "\(Int(hours))h"
+            return "\(Int(hours).formatted())h"
         } else {
             let wholeHours = Int(hours)
             let minutes = Int((hours - Double(wholeHours)) * 60)
             if minutes == 0 {
-                return "\(wholeHours)h"
+                return "\(wholeHours.formatted())h"
             }
-            return "\(wholeHours)h \(minutes)m"
+            return "\(wholeHours.formatted())h \(minutes)m"
         }
     }
 }

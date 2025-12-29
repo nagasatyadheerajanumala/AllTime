@@ -165,8 +165,8 @@ extension View {
     }
 }
 
-// MARK: - Skeleton Loading View
-struct SkeletonView: View {
+// MARK: - Skeleton Loading View (Local version for briefing)
+private struct BriefingSkeletonBar: View {
     @State private var isAnimating = false
 
     var body: some View {
@@ -199,10 +199,10 @@ struct BriefingLoadingView: View {
             HStack(spacing: DesignSystem.Spacing.md) {
                 ForEach(0..<4, id: \.self) { _ in
                     VStack(spacing: 8) {
-                        SkeletonView()
+                        BriefingSkeletonBar()
                             .frame(width: 40, height: 40)
                             .clipShape(Circle())
-                        SkeletonView()
+                        BriefingSkeletonBar()
                             .frame(width: 60, height: 12)
                     }
                     .frame(maxWidth: .infinity)
@@ -212,11 +212,11 @@ struct BriefingLoadingView: View {
 
             // Summary card skeleton
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-                SkeletonView()
+                BriefingSkeletonBar()
                     .frame(height: 24)
-                SkeletonView()
+                BriefingSkeletonBar()
                     .frame(height: 16)
-                SkeletonView()
+                BriefingSkeletonBar()
                     .frame(width: 200, height: 16)
             }
             .briefingCard()
@@ -225,14 +225,14 @@ struct BriefingLoadingView: View {
             VStack(spacing: DesignSystem.Spacing.sm) {
                 ForEach(0..<3, id: \.self) { _ in
                     HStack(spacing: DesignSystem.Spacing.md) {
-                        SkeletonView()
+                        BriefingSkeletonBar()
                             .frame(width: 44, height: 44)
                             .clipShape(RoundedRectangle(cornerRadius: 12))
 
                         VStack(alignment: .leading, spacing: 6) {
-                            SkeletonView()
+                            BriefingSkeletonBar()
                                 .frame(height: 16)
-                            SkeletonView()
+                            BriefingSkeletonBar()
                                 .frame(width: 150, height: 12)
                         }
                     }

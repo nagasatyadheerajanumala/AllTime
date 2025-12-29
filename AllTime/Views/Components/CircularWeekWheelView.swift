@@ -11,8 +11,15 @@ struct CircularWeekWheelView: View {
     private let calendar = Calendar.current
     private let containerSize: CGFloat = min(UIScreen.main.bounds.width - 40, 360)
     private let radius: CGFloat = 140
-    private let dateBubbleSize: CGFloat = 50
+    private let dateBubbleSize: CGFloat = 56  // Increased to fit day + date + event count
     private let centerCapsuleSize: CGFloat = 110
+
+    // Day abbreviation formatter
+    private var dayFormatter: DateFormatter {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "EEE"  // Mon, Tue, Wed, etc.
+        return formatter
+    }
     
     private var weekDays: [Date] {
         guard let weekInterval = calendar.dateInterval(of: .weekOfYear, for: selectedDate) else {
@@ -39,11 +46,13 @@ struct CircularWeekWheelView: View {
                 // Static date bubbles (NEVER move) - only highlighted one updates
                 ForEach(Array(viewModel.days.enumerated()), id: \.element) { index, date in
                     OptimizedDateBubble(
+                        date: date,
                         dayNumber: calendar.component(.day, from: date),
+                        dayAbbreviation: dayFormatter.string(from: date),
                         isToday: calendar.isDate(date, inSameDayAs: Date()),
                         isHighlighted: index == viewModel.highlightedIndex,
                         isSelected: calendar.isDate(date, inSameDayAs: selectedDate),
-                        hasEvents: viewModel.hasEvents(at: index),
+                        eventCount: viewModel.eventCount(at: index),
                         position: viewModel.position(at: index),
                         size: dateBubbleSize
                     )
@@ -51,27 +60,17 @@ struct CircularWeekWheelView: View {
                     .transaction { $0.animation = nil }
                     .animation(nil, value: viewModel.highlightedIndex)
                 }
-                
+
                 // Center highlight capsule (only this updates during drag)
                 CenterHighlightCapsule(
                     date: viewModel.centerDate,
                     dayNumber: calendar.component(.day, from: viewModel.centerDate),
                     isToday: calendar.isDate(viewModel.centerDate, inSameDayAs: Date()),
-                    hasEvents: viewModel.hasEvents(at: viewModel.highlightedIndex),
+                    eventCount: viewModel.eventCount(at: viewModel.highlightedIndex),
                     size: centerCapsuleSize
                 )
                 .transaction { $0.animation = nil }
                 .animation(nil, value: viewModel.highlightedIndex)
-                
-                // Event indicator dots (static, precomputed)
-                ForEach(Array(viewModel.days.enumerated()), id: \.element) { index, date in
-                    if viewModel.hasEvents(at: index) && index != viewModel.highlightedIndex {
-                        EventIndicatorDot(
-                            position: viewModel.position(at: index),
-                            radius: radius
-                        )
-                    }
-                }
                 
                 // "Today" button
                 VStack {
