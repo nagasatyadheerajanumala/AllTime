@@ -1,13 +1,7 @@
 import SwiftUI
 
-// MARK: - Weekly Insights View (Calm Notebook Style)
+// MARK: - Weekly Insights View (Report Card Style)
 
-/// A calm, notebook-style weekly insights view that answers 5 key questions:
-/// 1. How was my week overall?
-/// 2. Where did my time go?
-/// 3. Was my schedule aligned with my energy?
-/// 4. What patterns should I watch?
-/// 5. What could I do differently?
 struct WeeklyInsightsView: View {
     @StateObject private var viewModel = WeeklyNarrativeViewModel()
     @State private var showWeekPicker = false
@@ -21,29 +15,8 @@ struct WeeklyInsightsView: View {
                 if viewModel.isLoading && viewModel.narrative == nil {
                     loadingView
                 } else if let narrative = viewModel.narrative {
-                    // Section 1: Hero Card - Overall Tone & Summary
-                    heroCard(narrative)
-
-                    // Section 2: Where Your Time Went
-                    if !narrative.timeBuckets.isEmpty {
-                        timeBucketsSection(narrative.timeBuckets)
-                    }
-
-                    // Section 3: Energy Alignment
-                    if let energy = narrative.energyAlignment {
-                        energyAlignmentSection(energy)
-                    }
-
-                    // Section 4: Areas to Watch
-                    if !narrative.stressSignals.isEmpty {
-                        stressSignalsSection(narrative.stressSignals)
-                    }
-
-                    // Section 5: Suggestions
-                    if !narrative.suggestions.isEmpty {
-                        suggestionsSection(narrative.suggestions)
-                    }
-
+                    // Report Card Sections
+                    reportCardContent(narrative)
                 } else if viewModel.hasError {
                     errorView
                 }
@@ -75,13 +48,49 @@ struct WeeklyInsightsView: View {
         }
     }
 
+    // MARK: - Report Card Content
+
+    @ViewBuilder
+    private func reportCardContent(_ narrative: WeeklyNarrativeResponse) -> some View {
+        // Section 1: Balance Score Hero
+        balanceScoreSection(narrative)
+
+        // Section 2: Week Overview Summary
+        weekOverviewCard(narrative)
+
+        // Section 3: Metrics Comparison Grid
+        if let comparison = narrative.comparison, comparison.hasPreviousWeek {
+            metricsComparisonSection(comparison)
+        }
+
+        // Section 4: Where Your Time Went
+        if !narrative.timeBuckets.isEmpty {
+            timeBucketsSection(narrative.timeBuckets)
+        }
+
+        // Section 5: Energy Alignment
+        if let energy = narrative.energyAlignment {
+            energyAlignmentSection(energy)
+        }
+
+        // Section 6: Areas to Watch
+        if !narrative.stressSignals.isEmpty {
+            stressSignalsSection(narrative.stressSignals)
+        }
+
+        // Section 7: Suggestions
+        if !narrative.suggestions.isEmpty {
+            suggestionsSection(narrative.suggestions)
+        }
+    }
+
     // MARK: - Week Picker Header
 
     private var weekPickerHeader: some View {
         Button(action: { showWeekPicker = true }) {
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Your Week")
+                    Text("Weekly Report")
                         .font(.title2.weight(.bold))
                         .foregroundColor(DesignSystem.Colors.primaryText)
 
@@ -118,10 +127,70 @@ struct WeeklyInsightsView: View {
         .buttonStyle(PlainButtonStyle())
     }
 
-    // MARK: - Hero Card (Section 1)
+    // MARK: - Balance Score Section
 
-    private func heroCard(_ narrative: WeeklyNarrativeResponse) -> some View {
-        VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+    private func balanceScoreSection(_ narrative: WeeklyNarrativeResponse) -> some View {
+        VStack(spacing: DesignSystem.Spacing.md) {
+            // Balance Score Ring
+            if let comparison = narrative.comparison {
+                BalanceScoreRing(
+                    score: comparison.balanceScore,
+                    previousScore: comparison.hasPreviousWeek ? comparison.prevBalanceScore : nil,
+                    size: 160
+                )
+                .padding(.top, DesignSystem.Spacing.md)
+
+                Text("Work-Life Balance")
+                    .font(.headline)
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+
+                if comparison.hasPreviousWeek {
+                    let trend = comparison.balanceScoreDelta
+                    HStack(spacing: 4) {
+                        if trend > 0 {
+                            Image(systemName: "arrow.up.circle.fill")
+                                .foregroundColor(Color(hex: "10B981"))
+                            Text("\(trend) points from last week")
+                                .foregroundColor(Color(hex: "10B981"))
+                        } else if trend < 0 {
+                            Image(systemName: "arrow.down.circle.fill")
+                                .foregroundColor(Color(hex: "EF4444"))
+                            Text("\(abs(trend)) points from last week")
+                                .foregroundColor(Color(hex: "EF4444"))
+                        } else {
+                            Image(systemName: "equal.circle.fill")
+                                .foregroundColor(Color(hex: "6B7280"))
+                            Text("Same as last week")
+                                .foregroundColor(Color(hex: "6B7280"))
+                        }
+                    }
+                    .font(.caption.weight(.medium))
+                }
+            } else {
+                // Fallback: Show tone-based hero when no comparison data
+                toneBasedHero(narrative)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(DesignSystem.Spacing.lg)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.xl)
+                .fill(
+                    LinearGradient(
+                        colors: [Color(hex: "1E1B4B"), Color(hex: "312E81")],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.xl)
+                .stroke(Color.white.opacity(0.1), lineWidth: 0.5)
+        )
+    }
+
+    private func toneBasedHero(_ narrative: WeeklyNarrativeResponse) -> some View {
+        VStack(spacing: DesignSystem.Spacing.md) {
             // Tone Badge
             HStack(spacing: 8) {
                 Circle()
@@ -137,15 +206,6 @@ struct WeeklyInsightsView: View {
                 Capsule()
                     .fill(narrative.toneColor.opacity(0.15))
             )
-
-            // Weekly Overview (one sentence)
-            Text(narrative.weeklyOverview)
-                .font(.title3.weight(.medium))
-                .foregroundColor(.white)
-                .fixedSize(horizontal: false, vertical: true)
-                .lineSpacing(4)
-
-            Spacer(minLength: DesignSystem.Spacing.sm)
 
             // Quick Stats Row
             HStack(spacing: 16) {
@@ -170,20 +230,196 @@ struct WeeklyInsightsView: View {
                 }
             }
         }
-        .padding(DesignSystem.Spacing.lg)
+    }
+
+    // MARK: - Week Overview Card
+
+    private func weekOverviewCard(_ narrative: WeeklyNarrativeResponse) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                Text(narrative.toneEmoji)
+                    .font(.title2)
+                Text(narrative.overallTone)
+                    .font(.headline.weight(.semibold))
+                    .foregroundColor(narrative.toneColor)
+            }
+
+            Text(narrative.weeklyOverview)
+                .font(.body)
+                .foregroundColor(DesignSystem.Colors.secondaryText)
+                .fixedSize(horizontal: false, vertical: true)
+                .lineSpacing(4)
+        }
+        .padding(DesignSystem.Spacing.md)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(
-            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.xl)
-                .fill(
-                    LinearGradient(
-                        colors: [Color(hex: "1E1B4B"), Color(hex: "312E81")],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
+            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg)
+                .fill(DesignSystem.Colors.cardBackground)
+                .overlay(
+                    RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg)
+                        .stroke(DesignSystem.Colors.calmBorder, lineWidth: 0.5)
                 )
         )
-        .overlay(
-            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.xl)
-                .stroke(Color.white.opacity(0.1), lineWidth: 0.5)
+    }
+
+    // MARK: - Metrics Comparison Section
+
+    private func metricsComparisonSection(_ comparison: WeekComparison) -> some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+            HStack(spacing: 10) {
+                ZStack {
+                    Circle()
+                        .fill(Color(hex: "8B5CF6").opacity(0.15))
+                        .frame(width: 32, height: 32)
+                    Image(systemName: "chart.bar.fill")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(Color(hex: "8B5CF6"))
+                }
+
+                Text("Week vs Week")
+                    .font(.headline)
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+            }
+
+            // 2x2 Grid of metrics
+            LazyVGrid(columns: [
+                GridItem(.flexible(), spacing: 12),
+                GridItem(.flexible(), spacing: 12)
+            ], spacing: 12) {
+                // Meetings
+                compactMetricCard(
+                    title: "Meetings",
+                    icon: "person.2.fill",
+                    current: comparison.meetingHoursThisWeek,
+                    previous: comparison.meetingHoursPrevWeek,
+                    delta: comparison.meetingHoursDelta,
+                    trend: comparison.meetingTrend,
+                    unit: "h",
+                    color: Color(hex: "8B5CF6"),
+                    higherIsBetter: false
+                )
+
+                // Focus Time
+                compactMetricCard(
+                    title: "Focus",
+                    icon: "brain.head.profile",
+                    current: comparison.focusHoursThisWeek,
+                    previous: comparison.focusHoursPrevWeek,
+                    delta: comparison.focusHoursDelta,
+                    trend: comparison.focusTrend,
+                    unit: "h",
+                    color: Color(hex: "3B82F6"),
+                    higherIsBetter: true
+                )
+
+                // Events
+                compactMetricCard(
+                    title: "Events",
+                    icon: "calendar",
+                    current: comparison.eventsThisWeek,
+                    previous: comparison.eventsPrevWeek,
+                    delta: comparison.eventsDelta,
+                    trend: comparison.eventsTrend,
+                    unit: "",
+                    color: Color(hex: "F59E0B"),
+                    higherIsBetter: false
+                )
+
+                // Free Time
+                compactMetricCard(
+                    title: "Free Time",
+                    icon: "leaf.fill",
+                    current: comparison.freeHoursThisWeek,
+                    previous: comparison.freeHoursPrevWeek,
+                    delta: comparison.freeHoursDelta,
+                    trend: comparison.freeTimeTrend,
+                    unit: "h",
+                    color: Color(hex: "10B981"),
+                    higherIsBetter: true
+                )
+            }
+        }
+        .padding(DesignSystem.Spacing.md)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg)
+                .fill(DesignSystem.Colors.cardBackground)
+                .overlay(
+                    RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg)
+                        .stroke(DesignSystem.Colors.calmBorder, lineWidth: 0.5)
+                )
+        )
+    }
+
+    private func compactMetricCard(
+        title: String,
+        icon: String,
+        current: Int,
+        previous: Int,
+        delta: Int,
+        trend: String,
+        unit: String,
+        color: Color,
+        higherIsBetter: Bool
+    ) -> some View {
+        let trendColor: Color = {
+            switch trend {
+            case "up": return higherIsBetter ? Color(hex: "10B981") : Color(hex: "EF4444")
+            case "down": return higherIsBetter ? Color(hex: "EF4444") : Color(hex: "10B981")
+            default: return Color(hex: "6B7280")
+            }
+        }()
+
+        let trendIcon: String = {
+            switch trend {
+            case "up": return "arrow.up"
+            case "down": return "arrow.down"
+            default: return "minus"
+            }
+        }()
+
+        return VStack(alignment: .leading, spacing: 8) {
+            // Header row
+            HStack(spacing: 6) {
+                Image(systemName: icon)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(color)
+                Text(title)
+                    .font(.caption.weight(.medium))
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+            }
+
+            // Value
+            HStack(alignment: .lastTextBaseline, spacing: 2) {
+                Text("\(current)")
+                    .font(.system(size: 24, weight: .bold, design: .rounded))
+                    .foregroundColor(.white)
+                if !unit.isEmpty {
+                    Text(unit)
+                        .font(.caption.weight(.medium))
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                }
+            }
+
+            // Trend
+            if delta != 0 {
+                HStack(spacing: 3) {
+                    Image(systemName: trendIcon)
+                        .font(.system(size: 9, weight: .bold))
+                    Text("\(abs(delta))\(unit)")
+                        .font(.caption2.weight(.semibold))
+                }
+                .foregroundColor(trendColor)
+            } else {
+                Text("No change")
+                    .font(.caption2)
+                    .foregroundColor(Color(hex: "6B7280"))
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.md)
+                .fill(color.opacity(0.08))
         )
     }
 
@@ -207,11 +443,10 @@ struct WeeklyInsightsView: View {
         )
     }
 
-    // MARK: - Time Buckets Section (Section 2)
+    // MARK: - Time Buckets Section
 
     private func timeBucketsSection(_ buckets: [TimeBucket]) -> some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-            // Header
             HStack(spacing: 10) {
                 ZStack {
                     Circle()
@@ -222,17 +457,17 @@ struct WeeklyInsightsView: View {
                         .foregroundColor(Color(hex: "3B82F6"))
                 }
 
-                Text("Where Your Time Went")
+                Text("Time Breakdown")
                     .font(.headline)
                     .foregroundColor(DesignSystem.Colors.primaryText)
             }
             .padding(.horizontal, DesignSystem.Spacing.md)
             .padding(.top, DesignSystem.Spacing.md)
 
-            // Time Buckets List
-            VStack(spacing: DesignSystem.Spacing.sm) {
+            // Horizontal bar chart style
+            VStack(spacing: 10) {
                 ForEach(buckets) { bucket in
-                    timeBucketRow(bucket)
+                    timeBucketBar(bucket, maxHours: buckets.map(\.hours).max() ?? 1)
                 }
             }
             .padding(.horizontal, DesignSystem.Spacing.md)
@@ -248,44 +483,59 @@ struct WeeklyInsightsView: View {
         )
     }
 
-    private func timeBucketRow(_ bucket: TimeBucket) -> some View {
-        HStack(spacing: 12) {
+    private func timeBucketBar(_ bucket: TimeBucket, maxHours: Double) -> some View {
+        let progress = maxHours > 0 ? bucket.hours / maxHours : 0
+
+        return HStack(spacing: 12) {
+            // Icon
             ZStack {
                 Circle()
                     .fill(bucket.color.opacity(0.15))
-                    .frame(width: 36, height: 36)
+                    .frame(width: 32, height: 32)
                 Image(systemName: bucket.icon)
-                    .font(.system(size: 14, weight: .medium))
+                    .font(.system(size: 13, weight: .medium))
                     .foregroundColor(bucket.color)
             }
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(bucket.category.capitalized)
-                    .font(.subheadline.weight(.medium))
-                    .foregroundColor(DesignSystem.Colors.primaryText)
-                Text(bucket.label)
-                    .font(.caption)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
+            // Label and bar
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text(bucket.category.capitalized)
+                        .font(.subheadline.weight(.medium))
+                        .foregroundColor(DesignSystem.Colors.primaryText)
+                    Spacer()
+                    Text(bucket.formattedHours)
+                        .font(.subheadline.weight(.bold))
+                        .foregroundColor(bucket.color)
+                }
+
+                // Progress bar
+                GeometryReader { geometry in
+                    ZStack(alignment: .leading) {
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(bucket.color.opacity(0.15))
+                            .frame(height: 8)
+
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(bucket.color)
+                            .frame(width: geometry.size.width * progress, height: 8)
+                            .animation(.easeInOut(duration: 0.5), value: progress)
+                    }
+                }
+                .frame(height: 8)
             }
-
-            Spacer()
-
-            Text(bucket.formattedHours)
-                .font(.system(size: 16, weight: .bold, design: .rounded))
-                .foregroundColor(bucket.color)
         }
-        .padding(12)
+        .padding(10)
         .background(
             RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.md)
-                .fill(bucket.color.opacity(0.05))
+                .fill(bucket.color.opacity(0.03))
         )
     }
 
-    // MARK: - Energy Alignment Section (Section 3)
+    // MARK: - Energy Alignment Section
 
     private func energyAlignmentSection(_ energy: EnergyAlignment) -> some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-            // Header
             HStack(spacing: 10) {
                 ZStack {
                     Circle()
@@ -310,14 +560,12 @@ struct WeeklyInsightsView: View {
             .padding(.horizontal, DesignSystem.Spacing.md)
             .padding(.top, DesignSystem.Spacing.md)
 
-            // Summary
             Text(energy.summary)
                 .font(.subheadline)
                 .foregroundColor(DesignSystem.Colors.secondaryText)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal, DesignSystem.Spacing.md)
 
-            // Evidence
             if !energy.evidence.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
                     ForEach(energy.evidence, id: \.self) { item in
@@ -353,11 +601,10 @@ struct WeeklyInsightsView: View {
         )
     }
 
-    // MARK: - Stress Signals Section (Section 4)
+    // MARK: - Stress Signals Section
 
     private func stressSignalsSection(_ signals: [StressSignal]) -> some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-            // Header
             HStack(spacing: 10) {
                 ZStack {
                     Circle()
@@ -375,7 +622,6 @@ struct WeeklyInsightsView: View {
             .padding(.horizontal, DesignSystem.Spacing.md)
             .padding(.top, DesignSystem.Spacing.md)
 
-            // Signals List
             VStack(spacing: DesignSystem.Spacing.sm) {
                 ForEach(signals) { signal in
                     stressSignalRow(signal)
@@ -420,11 +666,10 @@ struct WeeklyInsightsView: View {
         )
     }
 
-    // MARK: - Suggestions Section (Section 5)
+    // MARK: - Suggestions Section
 
     private func suggestionsSection(_ suggestions: [WeeklySuggestion]) -> some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-            // Header
             HStack(spacing: 10) {
                 ZStack {
                     Circle()
@@ -442,7 +687,6 @@ struct WeeklyInsightsView: View {
             .padding(.horizontal, DesignSystem.Spacing.md)
             .padding(.top, DesignSystem.Spacing.md)
 
-            // Suggestions List
             VStack(spacing: DesignSystem.Spacing.sm) {
                 ForEach(suggestions) { suggestion in
                     suggestionRow(suggestion)
@@ -472,7 +716,6 @@ struct WeeklyInsightsView: View {
                 .foregroundColor(DesignSystem.Colors.secondaryText)
                 .fixedSize(horizontal: false, vertical: true)
 
-            // Action chip
             HStack(spacing: 6) {
                 Image(systemName: "arrow.right.circle.fill")
                     .font(.caption)
@@ -511,7 +754,7 @@ struct WeeklyInsightsView: View {
                 ProgressView()
                     .scaleEffect(1.2)
             }
-            Text("Reflecting on your week...")
+            Text("Generating your report card...")
                 .font(.subheadline)
                 .foregroundColor(DesignSystem.Colors.secondaryText)
         }

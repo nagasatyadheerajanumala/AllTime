@@ -191,6 +191,7 @@ struct WeeklyNarrativeResponse: Codable {
     let stressSignals: [StressSignal]
     let suggestions: [WeeklySuggestion]
     let aggregates: WeeklyAggregates
+    let comparison: WeekComparison? // Week-over-week comparison for report card
 
     // Computed properties
     var weekStartDate: Date? {
@@ -387,5 +388,80 @@ struct DayBreakdown: Codable, Identifiable {
         let formatter = DateFormatter()
         formatter.dateFormat = "EEE"
         return formatter.string(from: date)
+    }
+}
+
+// MARK: - Week Comparison (Report Card)
+
+struct WeekComparison: Codable {
+    let hasPreviousWeek: Bool
+
+    // Meeting hours
+    let meetingHoursThisWeek: Int
+    let meetingHoursPrevWeek: Int
+    let meetingHoursDelta: Int
+    let meetingTrend: String // "up", "down", "same"
+
+    // Focus hours
+    let focusHoursThisWeek: Int
+    let focusHoursPrevWeek: Int
+    let focusHoursDelta: Int
+    let focusTrend: String
+
+    // Total events
+    let eventsThisWeek: Int
+    let eventsPrevWeek: Int
+    let eventsDelta: Int
+    let eventsTrend: String
+
+    // Free time hours (backend uses freeHours*)
+    let freeHoursThisWeek: Int
+    let freeHoursPrevWeek: Int
+    let freeHoursDelta: Int
+    let freeTimeTrend: String
+
+    // Balance score (0-100)
+    let balanceScore: Int
+    let prevBalanceScore: Int
+    let balanceTrend: String
+
+    // Computed property for delta
+    var balanceScoreDelta: Int {
+        balanceScore - prevBalanceScore
+    }
+
+    // Helper computed properties
+    var balanceScoreColor: Color {
+        switch balanceScore {
+        case 70...100: return Color(hex: "10B981") // Green - good balance
+        case 40...69: return Color(hex: "F59E0B") // Orange - needs attention
+        default: return Color(hex: "EF4444") // Red - poor balance
+        }
+    }
+
+    var balanceLabel: String {
+        switch balanceScore {
+        case 80...100: return "Excellent"
+        case 60...79: return "Good"
+        case 40...59: return "Fair"
+        case 20...39: return "Needs Work"
+        default: return "Critical"
+        }
+    }
+
+    func trendIcon(for trend: String) -> String {
+        switch trend {
+        case "up": return "arrow.up"
+        case "down": return "arrow.down"
+        default: return "minus"
+        }
+    }
+
+    func trendColor(for trend: String, higherIsBetter: Bool) -> Color {
+        switch trend {
+        case "up": return higherIsBetter ? Color(hex: "10B981") : Color(hex: "EF4444")
+        case "down": return higherIsBetter ? Color(hex: "EF4444") : Color(hex: "10B981")
+        default: return Color(hex: "6B7280")
+        }
     }
 }
