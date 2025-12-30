@@ -219,7 +219,13 @@ class SimilarWeekViewModel: ObservableObject {
         errorMessage = nil
 
         do {
+            print("🔍 SimilarWeekViewModel: Fetching similar week insight...")
             insight = try await apiService.getSimilarWeekInsight()
+            print("✅ SimilarWeekViewModel: Got response - hasSimilarWeek: \(insight?.hasSimilarWeek ?? false)")
+            if let insight = insight {
+                print("   - similarWeek: \(insight.similarWeek?.weekOf ?? "nil")")
+                print("   - prediction: \(insight.prediction ?? "nil")")
+            }
         } catch {
             print("❌ SimilarWeekViewModel: Failed to fetch similar week: \(error)")
             errorMessage = error.localizedDescription

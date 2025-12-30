@@ -378,7 +378,13 @@ class MeetingSpotsViewModel: ObservableObject {
         errorMessage = nil
 
         do {
+            print("📍 MeetingSpotsViewModel: Fetching meeting spots...")
             recommendations = try await apiService.getMeetingSpotRecommendations()
+            print("✅ MeetingSpotsViewModel: Got response - hasMeetingWithLocation: \(recommendations?.hasMeetingWithLocation ?? false)")
+            if let recs = recommendations {
+                print("   - meetingTitle: \(recs.meetingTitle ?? "nil")")
+                print("   - spots count: \(recs.spots?.count ?? 0)")
+            }
         } catch {
             print("❌ MeetingSpotsViewModel: Failed to fetch spots: \(error)")
             errorMessage = error.localizedDescription

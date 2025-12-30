@@ -257,10 +257,15 @@ class EnergyPatternsViewModel: ObservableObject {
         errorMessage = nil
 
         do {
+            print("🔋 EnergyPatternsViewModel: Fetching energy patterns...")
             let response = try await apiService.fetchEnergyPatterns()
             patterns = response.patterns
             hasEnoughData = response.hasEnoughData
             analysisWindow = response.analysisWindow
+            print("✅ EnergyPatternsViewModel: Got response - patterns count: \(patterns.count), hasEnoughData: \(hasEnoughData)")
+            for pattern in patterns.prefix(3) {
+                print("   - \(pattern.pattern): \(pattern.impact) on \(pattern.metric)")
+            }
         } catch {
             print("❌ EnergyPatternsViewModel: Failed to fetch patterns: \(error)")
             errorMessage = error.localizedDescription
