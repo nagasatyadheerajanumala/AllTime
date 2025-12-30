@@ -10,7 +10,11 @@ class ConnectedCalendarsViewModel: ObservableObject {
     @Published var isSyncing = false
     @Published var errorMessage: String?
     @Published var successMessage: String?
-    
+
+    // Holiday sync preference
+    @Published var syncHolidays: Bool = true
+    @Published var isLoadingHolidayPreference = false
+
     private let apiService = APIService()
     
     // Legacy compatibility - providers with calculated event counts
@@ -239,6 +243,55 @@ class ConnectedCalendarsViewModel: ObservableObject {
         } catch {
             print("❌ ConnectedCalendarsViewModel: Failed to disconnect connection: \(error)")
             errorMessage = "Failed to disconnect calendar: \(error.localizedDescription)"
+        }
+    }
+
+    // MARK: - Holiday Sync Preference
+
+    /// Load the holiday sync preference from the server
+    func loadHolidaySyncPreference() async {
+        print("🎄 ConnectedCalendarsViewModel: Loading holiday sync preference...")
+        isLoadingHolidayPreference = true
+
+        do {
+            let preference = try await apiService.getHolidaySyncPreference()
+            syncHolidays = preference
+            print("✅ ConnectedCalendarsViewModel: Holiday sync preference: \(preference ? "enabled" : "disabled")")
+        } catch {
+            print("❌ ConnectedCalendarsViewModel: Failed to load holiday sync preference: \(error)")
+            // Default to true if we can't load the preference
+            syncHolidays = true
+        }
+
+        isLoadingHolidayPreference = false
+    }
+
+    /// Update the holiday sync preference
+    /// When disabled, existing holiday events will be deleted on the server
+    func updateHolidaySyncPreference(_ enabled: Bool) async {
+        print("🎄 ConnectedCalendarsViewModel: Updating holiday sync preference to: \(enabled ? "enabled" : "disabled")...")
+
+        do {
+            let updated = try await apiService.updateHolidaySyncPreference(syncHolidays: enabled)
+            syncHolidays = updated
+
+            if enabled {
+                successMessage = "Holidays will be synced on next calendar sync"
+            } else {
+                successMessage = "Holidays have been removed from your calendar"
+            }
+            print("✅ ConnectedCalendarsViewModel: Holiday sync preference updated to: \(updated ? "enabled" : "disabled")")
+
+            // Clear success message after 3 seconds
+            Task {
+                try? await Task.sleep(nanoseconds: 3_000_000_000)
+                successMessage = nil
+            }
+        } catch {
+            print("❌ ConnectedCalendarsViewModel: Failed to update holiday sync preference: \(error)")
+            // Revert the toggle
+            syncHolidays = !enabled
+            errorMessage = "Failed to update holiday preference: \(error.localizedDescription)"
         }
     }
 }

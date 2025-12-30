@@ -80,7 +80,9 @@ class EveningSummaryNotificationService: ObservableObject {
     // MARK: - Initialization
 
     private init() {
-        self.isEnabled = UserDefaults.standard.bool(forKey: Keys.enabled)
+        // Load saved enabled state, default to true for new users
+        let hasBeenConfigured = UserDefaults.standard.object(forKey: Keys.enabled) != nil
+        self.isEnabled = hasBeenConfigured ? UserDefaults.standard.bool(forKey: Keys.enabled) : true
 
         if let savedTime = UserDefaults.standard.object(forKey: Keys.time) as? Date {
             self.scheduledTime = savedTime
@@ -90,6 +92,18 @@ class EveningSummaryNotificationService: ObservableObject {
             components.hour = 20
             components.minute = 0
             self.scheduledTime = Calendar.current.date(from: components) ?? Date()
+        }
+
+        // Save default enabled state for new users
+        if !hasBeenConfigured {
+            UserDefaults.standard.set(true, forKey: Keys.enabled)
+        }
+
+        // Schedule notification on init if enabled (didSet doesn't fire during init)
+        if self.isEnabled {
+            Task { @MainActor in
+                self.scheduleNotification()
+            }
         }
     }
 

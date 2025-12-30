@@ -185,6 +185,12 @@ struct AllTimeApp: App {
                     // Set up notification delegate
                     UNUserNotificationCenter.current().delegate = pushManager
                     // HealthKit permissions are requested automatically in HealthKitManager.init()
+
+                    // Initialize notification services to schedule daily notifications
+                    // These are singletons, accessing .shared triggers their init and schedules notifications
+                    _ = MorningBriefingNotificationService.shared
+                    _ = EveningSummaryNotificationService.shared
+                    print("🔔 AllTimeApp: Morning and Evening notification services initialized")
                 }
         }
     }

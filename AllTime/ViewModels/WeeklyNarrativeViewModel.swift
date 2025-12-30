@@ -102,6 +102,7 @@ class WeeklyNarrativeViewModel: ObservableObject {
     func fetchNarrative(weekStart: String? = nil, forceRefresh: Bool = false) async {
         let targetWeek = weekStart ?? currentWeekStart
         let memCacheKey = "mem_weekly_narrative_\(targetWeek)"
+        let diskFilename = "weekly_narrative_\(targetWeek)"
 
         // 1. Try memory cache first (instant)
         if !forceRefresh {
@@ -116,17 +117,27 @@ class WeeklyNarrativeViewModel: ObservableObject {
             }
         }
 
-        // 2. Check disk cache freshness
-        if !forceRefresh, let cachedNarrative = narrative, cachedNarrative.weekStart == targetWeek {
-            if let metadata = cacheService.getCacheMetadataSync(filename: "weekly_narrative_\(targetWeek)"),
-               Date().timeIntervalSince(metadata.lastUpdated) < 1800 {
-                // Stale - refresh in background
-                refreshInBackgroundNonBlocking(weekStart: targetWeek)
+        // 2. Try disk cache for the target week (instant UI when switching weeks)
+        if !forceRefresh {
+            if let diskCached = cacheService.loadJSONSync(WeeklyNarrativeResponse.self, filename: diskFilename) {
+                print("WeeklyNarrative: Loaded \(targetWeek) from disk cache")
+                narrative = diskCached
+
+                // Populate memory cache
+                Task {
+                    await memoryCache.set(memCacheKey, value: diskCached, ttl: 300)
+                }
+
+                // Check if disk cache is stale and needs background refresh
+                if let metadata = cacheService.getCacheMetadataSync(filename: diskFilename),
+                   Date().timeIntervalSince(metadata.lastUpdated) > 900 { // Refresh after 15 min
+                    refreshInBackgroundNonBlocking(weekStart: targetWeek)
+                }
                 return
             }
         }
 
-        // 3. Show loading only if we don't have data
+        // 3. Show loading only if we don't have data for target week
         if narrative == nil || narrative?.weekStart != targetWeek {
             isLoading = true
         }

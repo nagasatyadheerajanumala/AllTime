@@ -122,7 +122,51 @@ struct ConnectedCalendarsView: View {
                                 }
                             }
                             .padding(.top, 20)
-                            
+
+                            // Sync Settings Section
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text("Sync Settings")
+                                    .font(.headline)
+                                    .padding(.horizontal)
+
+                                VStack(spacing: 0) {
+                                    // Holiday Sync Toggle
+                                    HStack {
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text("Sync Holidays")
+                                                .font(.system(size: 17, weight: .regular))
+
+                                            Text("Show public holidays from your calendar")
+                                                .font(.system(size: 13))
+                                                .foregroundColor(.secondary)
+                                        }
+
+                                        Spacer()
+
+                                        if viewModel.isLoadingHolidayPreference {
+                                            ProgressView()
+                                                .scaleEffect(0.8)
+                                        } else {
+                                            Toggle("", isOn: Binding(
+                                                get: { viewModel.syncHolidays },
+                                                set: { newValue in
+                                                    Task {
+                                                        await viewModel.updateHolidaySyncPreference(newValue)
+                                                    }
+                                                }
+                                            ))
+                                            .labelsHidden()
+                                        }
+                                    }
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 14)
+                                }
+                                .background(Color(.systemBackground))
+                                .cornerRadius(12)
+                                .padding(.horizontal)
+                            }
+                            .padding(.top, 20)
+
                             // Extra padding at bottom to prevent content from being obscured by tab bar
                             Spacer()
                                 .frame(height: 120) // Increased padding for tab bar + safe area
@@ -181,6 +225,7 @@ struct ConnectedCalendarsView: View {
         .onAppear {
             Task {
                 await viewModel.loadProviders()
+                await viewModel.loadHolidaySyncPreference()
             }
         }
     }

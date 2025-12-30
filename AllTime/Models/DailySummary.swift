@@ -199,7 +199,7 @@ struct LunchRecommendation: Codable {
     let recommendationTime: String?
     let minutesUntilLunch: Int?
     let message: String?
-    let nearbySpots: [NearbySpot]?
+    let nearbySpots: [SimpleLunchSpot]?
 
     enum CodingKeys: String, CodingKey {
         case recommendationTime = "recommendation_time"
@@ -209,7 +209,8 @@ struct LunchRecommendation: Codable {
     }
 }
 
-struct NearbySpot: Codable, Identifiable {
+/// Simple lunch spot model for DailySummary (different from LocationModels.LunchSpot)
+struct SimpleLunchSpot: Codable, Identifiable {
     let name: String
     let cuisine: String?
     let distance: String?

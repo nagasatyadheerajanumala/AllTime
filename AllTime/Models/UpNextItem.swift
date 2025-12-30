@@ -99,6 +99,7 @@ extension UpNextItem {
 
 enum UpNextItemType: String, Codable, CaseIterable {
     case lunch = "LUNCH"
+    case meetingLunch = "MEETING_LUNCH"
     case gym = "GYM"
     case walk = "WALK"
     case focusWork = "FOCUS_WORK"
@@ -109,6 +110,7 @@ enum UpNextItemType: String, Codable, CaseIterable {
     var displayName: String {
         switch self {
         case .lunch: return "Lunch"
+        case .meetingLunch: return "Lunch Near Meeting"
         case .gym: return "Workout"
         case .walk: return "Walk"
         case .focusWork: return "Focus Time"
@@ -121,6 +123,7 @@ enum UpNextItemType: String, Codable, CaseIterable {
     var defaultIcon: String {
         switch self {
         case .lunch: return "fork.knife"
+        case .meetingLunch: return "mappin.and.ellipse"
         case .gym: return "figure.run"
         case .walk: return "figure.walk"
         case .focusWork: return "brain.head.profile"
@@ -133,6 +136,7 @@ enum UpNextItemType: String, Codable, CaseIterable {
     var defaultColor: Color {
         switch self {
         case .lunch: return .orange
+        case .meetingLunch: return .orange
         case .gym: return .green
         case .walk: return .green
         case .focusWork: return .purple
@@ -172,5 +176,87 @@ struct UpNextItemsResponse: Codable {
         case totalFreeMinutes = "totalFreeMinutes"
         case meetingCount = "meetingCount"
         case message
+    }
+}
+
+// MARK: - Meeting Spot Recommendations
+
+/// Response from GET /api/v1/recommendations/near-meeting
+struct MeetingSpotRecommendations: Codable {
+    let hasMeetingWithLocation: Bool
+    let meetingTitle: String?
+    let meetingTime: String?
+    let meetingStart: Date?
+    let meetingLocation: String?
+    let meetingLat: Double?
+    let meetingLng: Double?
+    let contextMessage: String?
+    let suggestionType: String?
+    let spots: [NearbySpot]?
+    let message: String?
+
+    enum CodingKeys: String, CodingKey {
+        case hasMeetingWithLocation = "has_meeting_with_location"
+        case meetingTitle = "meeting_title"
+        case meetingTime = "meeting_time"
+        case meetingStart = "meeting_start"
+        case meetingLocation = "meeting_location"
+        case meetingLat = "meeting_lat"
+        case meetingLng = "meeting_lng"
+        case contextMessage = "context_message"
+        case suggestionType = "suggestion_type"
+        case spots, message
+    }
+}
+
+/// Individual spot from Google Places
+struct NearbySpot: Codable, Identifiable {
+    let placeId: String
+    let name: String
+    let address: String?
+    let latitude: Double?
+    let longitude: Double?
+    let distanceKm: Double?
+    let walkingMinutes: Int?
+    let rating: Double?
+    let userRatingsTotal: Int?
+    let priceLevel: Int?
+    let priceLevelDisplay: String?
+    let openNow: Bool?
+    let photoUrl: String?
+    let primaryType: String?
+
+    var id: String { placeId }
+
+    enum CodingKeys: String, CodingKey {
+        case placeId = "place_id"
+        case name, address, latitude, longitude
+        case distanceKm = "distance_km"
+        case walkingMinutes = "walking_minutes"
+        case rating
+        case userRatingsTotal = "user_ratings_total"
+        case priceLevel = "price_level"
+        case priceLevelDisplay = "price_level_display"
+        case openNow = "open_now"
+        case photoUrl = "photo_url"
+        case primaryType = "primary_type"
+    }
+
+    var displayDistance: String {
+        if let km = distanceKm {
+            let miles = km * 0.621371
+            return String(format: "%.1f mi", miles)
+        }
+        return ""
+    }
+
+    var displayWalkingTime: String {
+        guard let mins = walkingMinutes else { return "" }
+        return "\(mins) min walk"
+    }
+
+    var displayRating: String {
+        guard let r = rating else { return "" }
+        return String(format: "%.1f", r)
     }
 }

@@ -58,27 +58,43 @@ struct WeeklyInsightsView: View {
         // Section 2: Week Overview Summary
         weekOverviewCard(narrative)
 
-        // Section 3: Metrics Comparison Grid
+        // Section 3: Week Highlights (specific interesting tidbits)
+        if let highlights = narrative.weekHighlights, highlights.hasAnyHighlights {
+            weekHighlightsSection(highlights)
+        }
+
+        // Section 4: Metrics Comparison Grid
         if let comparison = narrative.comparison, comparison.hasPreviousWeek {
             metricsComparisonSection(comparison)
         }
 
-        // Section 4: Where Your Time Went
+        // Section 5: Health Goals Achievement
+        if let healthGoals = narrative.healthGoals, healthGoals.hasGoals && healthGoals.hasData {
+            healthGoalsSection(healthGoals)
+        }
+
+        // Section 5.5: Energy Patterns (meeting/health correlations)
+        EnergyPatternsSection()
+
+        // Section 5.6: Similar Week Alert (pattern matching with historical weeks)
+        SimilarWeekSection()
+
+        // Section 6: Where Your Time Went
         if !narrative.timeBuckets.isEmpty {
             timeBucketsSection(narrative.timeBuckets)
         }
 
-        // Section 5: Energy Alignment
+        // Section 7: Energy Alignment
         if let energy = narrative.energyAlignment {
             energyAlignmentSection(energy)
         }
 
-        // Section 6: Areas to Watch
+        // Section 8: Areas to Watch
         if !narrative.stressSignals.isEmpty {
             stressSignalsSection(narrative.stressSignals)
         }
 
-        // Section 7: Suggestions
+        // Section 9: Suggestions
         if !narrative.suggestions.isEmpty {
             suggestionsSection(narrative.suggestions)
         }
@@ -262,6 +278,133 @@ struct WeeklyInsightsView: View {
         )
     }
 
+    // MARK: - Week Highlights Section
+
+    private func weekHighlightsSection(_ highlights: WeekHighlights) -> some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+            HStack(spacing: 10) {
+                ZStack {
+                    Circle()
+                        .fill(Color(hex: "F59E0B").opacity(0.15))
+                        .frame(width: 32, height: 32)
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(Color(hex: "F59E0B"))
+                }
+
+                Text("Week Highlights")
+                    .font(.headline)
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+
+                if let collabs = highlights.totalCollaborators, collabs > 0 {
+                    Spacer()
+                    HStack(spacing: 4) {
+                        Image(systemName: "person.2.fill")
+                            .font(.caption2)
+                        Text("\(collabs) people")
+                            .font(.caption.weight(.medium))
+                    }
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(
+                        Capsule()
+                            .fill(Color(hex: "6B7280").opacity(0.1))
+                    )
+                }
+            }
+            .padding(.horizontal, DesignSystem.Spacing.md)
+            .padding(.top, DesignSystem.Spacing.md)
+
+            // Horizontal scrolling highlights
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 12) {
+                    // Longest meeting
+                    if let longest = highlights.longestMeeting {
+                        highlightCard(longest)
+                    }
+
+                    // Early bird
+                    if let earliest = highlights.earliestMeeting {
+                        highlightCard(earliest)
+                    }
+
+                    // Night owl
+                    if let latest = highlights.latestMeeting {
+                        highlightCard(latest)
+                    }
+
+                    // Meals
+                    if let meals = highlights.meals {
+                        ForEach(meals) { meal in
+                            highlightCard(meal)
+                        }
+                    }
+
+                    // Travel
+                    if let travel = highlights.travel {
+                        ForEach(travel) { trip in
+                            highlightCard(trip)
+                        }
+                    }
+                }
+                .padding(.horizontal, DesignSystem.Spacing.md)
+            }
+            .padding(.bottom, DesignSystem.Spacing.md)
+        }
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg)
+                .fill(DesignSystem.Colors.cardBackground)
+                .overlay(
+                    RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg)
+                        .stroke(DesignSystem.Colors.calmBorder, lineWidth: 0.5)
+                )
+        )
+    }
+
+    private func highlightCard(_ item: WeekHighlightDetail) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            // Icon and label
+            HStack(spacing: 6) {
+                ZStack {
+                    Circle()
+                        .fill(item.iconColor.opacity(0.15))
+                        .frame(width: 28, height: 28)
+                    Image(systemName: item.sfSymbol)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(item.iconColor)
+                }
+
+                Text(item.label)
+                    .font(.caption.weight(.medium))
+                    .foregroundColor(item.iconColor)
+            }
+
+            // Title
+            Text(item.title)
+                .font(.subheadline.weight(.semibold))
+                .foregroundColor(DesignSystem.Colors.primaryText)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+
+            // Detail
+            Text(item.detail)
+                .font(.caption)
+                .foregroundColor(DesignSystem.Colors.secondaryText)
+                .lineLimit(1)
+        }
+        .padding(12)
+        .frame(width: 160, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.md)
+                .fill(item.iconColor.opacity(0.05))
+                .overlay(
+                    RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.md)
+                        .stroke(item.iconColor.opacity(0.15), lineWidth: 0.5)
+                )
+        )
+    }
+
     // MARK: - Metrics Comparison Section
 
     private func metricsComparisonSection(_ comparison: WeekComparison) -> some View {
@@ -440,6 +583,141 @@ struct WeeklyInsightsView: View {
         .background(
             Capsule()
                 .fill(Color.white.opacity(0.1))
+        )
+    }
+
+    // MARK: - Health Goals Section
+
+    private func healthGoalsSection(_ healthGoals: HealthGoalSummary) -> some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+            // Header with overall percentage
+            HStack(spacing: 10) {
+                ZStack {
+                    Circle()
+                        .fill(healthGoals.overallProgressColor.opacity(0.15))
+                        .frame(width: 32, height: 32)
+                    Image(systemName: "heart.fill")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(healthGoals.overallProgressColor)
+                }
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Health Goals")
+                        .font(.headline)
+                        .foregroundColor(DesignSystem.Colors.primaryText)
+                    Text(healthGoals.overallLabel)
+                        .font(.caption.weight(.medium))
+                        .foregroundColor(healthGoals.overallProgressColor)
+                }
+
+                Spacer()
+
+                // Overall percentage ring
+                ZStack {
+                    Circle()
+                        .stroke(healthGoals.overallProgressColor.opacity(0.2), lineWidth: 4)
+                        .frame(width: 44, height: 44)
+                    Circle()
+                        .trim(from: 0, to: min(Double(healthGoals.overallPercentage) / 100, 1))
+                        .stroke(healthGoals.overallProgressColor, style: StrokeStyle(lineWidth: 4, lineCap: .round))
+                        .rotationEffect(.degrees(-90))
+                        .frame(width: 44, height: 44)
+                    Text("\(healthGoals.overallPercentage)%")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(healthGoals.overallProgressColor)
+                }
+            }
+            .padding(.horizontal, DesignSystem.Spacing.md)
+            .padding(.top, DesignSystem.Spacing.md)
+
+            // Individual goals
+            VStack(spacing: DesignSystem.Spacing.sm) {
+                if let sleepGoal = healthGoals.sleepGoal {
+                    goalProgressRow(sleepGoal)
+                }
+                if let stepsGoal = healthGoals.stepsGoal {
+                    goalProgressRow(stepsGoal)
+                }
+                if let activeGoal = healthGoals.activeMinutesGoal {
+                    goalProgressRow(activeGoal)
+                }
+            }
+            .padding(.horizontal, DesignSystem.Spacing.md)
+            .padding(.bottom, DesignSystem.Spacing.md)
+        }
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg)
+                .fill(DesignSystem.Colors.cardBackground)
+                .overlay(
+                    RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg)
+                        .stroke(DesignSystem.Colors.calmBorder, lineWidth: 0.5)
+                )
+        )
+    }
+
+    private func goalProgressRow(_ goal: GoalProgress) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                // Icon
+                Image(systemName: goal.icon)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(goal.progressColor)
+                    .frame(width: 20)
+
+                Text(goal.name)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+
+                Spacer()
+
+                // Actual vs Target
+                HStack(spacing: 4) {
+                    Text(goal.actual)
+                        .font(.subheadline.weight(.bold))
+                        .foregroundColor(goal.progressColor)
+                    Text("/")
+                        .font(.caption)
+                        .foregroundColor(DesignSystem.Colors.tertiaryText)
+                    Text(goal.target)
+                        .font(.caption)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                }
+
+                // Days met badge
+                HStack(spacing: 2) {
+                    Text("\(goal.daysMet)/\(goal.totalDays)")
+                        .font(.caption2.weight(.semibold))
+                    Text("days")
+                        .font(.caption2)
+                }
+                .foregroundColor(goal.progressColor)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(
+                    Capsule()
+                        .fill(goal.progressColor.opacity(0.15))
+                )
+            }
+
+            // Progress bar
+            GeometryReader { geometry in
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(goal.progressColor.opacity(0.15))
+                        .frame(height: 6)
+
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(goal.progressColor)
+                        .frame(width: geometry.size.width * min(Double(goal.percentage) / 100, 1), height: 6)
+                        .animation(.easeInOut(duration: 0.5), value: goal.percentage)
+                }
+            }
+            .frame(height: 6)
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.md)
+                .fill(goal.progressColor.opacity(0.03))
         )
     }
 

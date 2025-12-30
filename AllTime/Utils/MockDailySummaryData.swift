@@ -95,9 +95,9 @@ struct MockDailySummaryData {
                     minutesUntilLunch: 45,
                     message: "Time to start thinking about lunch!",
                     nearbySpots: [
-                        NearbySpot(name: "Sweetgreen", cuisine: "Healthy", distance: "0.2 miles", rating: 4.5),
-                        NearbySpot(name: "Chipotle", cuisine: "Mexican", distance: "0.3 miles", rating: 4.2),
-                        NearbySpot(name: "Panda Express", cuisine: "Chinese", distance: "0.4 miles", rating: 4.0)
+                        SimpleLunchSpot(name: "Sweetgreen", cuisine: "Healthy", distance: "0.2 miles", rating: 4.5),
+                        SimpleLunchSpot(name: "Chipotle", cuisine: "Mexican", distance: "0.3 miles", rating: 4.2),
+                        SimpleLunchSpot(name: "Panda Express", cuisine: "Chinese", distance: "0.4 miles", rating: 4.0)
                     ]
                 ),
                 walkRoutes: [

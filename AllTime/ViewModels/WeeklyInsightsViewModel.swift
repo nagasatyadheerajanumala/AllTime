@@ -106,6 +106,7 @@ class WeeklyInsightsViewModel: ObservableObject {
     func fetchInsights(weekStart: String? = nil, forceRefresh: Bool = false) async {
         let targetWeek = weekStart ?? currentWeekStart
         let cacheKey = "mem_weekly_insights_\(targetWeek)"
+        let diskFilename = targetWeek == currentWeekStart ? "weekly_insights_current" : "weekly_insights_\(targetWeek)"
 
         // 1. Try memory cache first (instant)
         if !forceRefresh {
@@ -120,17 +121,27 @@ class WeeklyInsightsViewModel: ObservableObject {
             }
         }
 
-        // 2. Check disk cache freshness
-        if !forceRefresh, let cachedInsights = insights, cachedInsights.weekStart == targetWeek {
-            if let metadata = cacheService.getCacheMetadataSync(filename: "weekly_insights_\(targetWeek)"),
-               Date().timeIntervalSince(metadata.lastUpdated) < 1800 {
-                // Stale - refresh in background
-                refreshInBackgroundNonBlocking(weekStart: targetWeek)
+        // 2. Try disk cache for the target week (instant UI when switching weeks)
+        if !forceRefresh {
+            if let diskCached = cacheService.loadJSONSync(WeeklyInsightsSummaryResponse.self, filename: diskFilename) {
+                print("WeeklyInsights: Loaded \(targetWeek) from disk cache")
+                insights = diskCached
+
+                // Populate memory cache
+                Task {
+                    await memoryCache.set(cacheKey, value: diskCached, ttl: 300)
+                }
+
+                // Check if disk cache is stale and needs background refresh
+                if let metadata = cacheService.getCacheMetadataSync(filename: diskFilename),
+                   Date().timeIntervalSince(metadata.lastUpdated) > 900 { // Refresh after 15 min
+                    refreshInBackgroundNonBlocking(weekStart: targetWeek)
+                }
                 return
             }
         }
 
-        // 3. Show loading only if we don't have data
+        // 3. Show loading only if we don't have data for target week
         if insights == nil || insights?.weekStart != targetWeek {
             isLoading = true
         }

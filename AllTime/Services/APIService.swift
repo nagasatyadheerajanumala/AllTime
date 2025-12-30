@@ -726,13 +726,60 @@ class APIService: ObservableObject {
         let url = URL(string: "\(baseURL)/api/user/preferences")!
         var request = URLRequest(url: url)
         request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
-        
+
         let (data, response) = try await session.data(for: request)
         try await validateResponse(response, data: data)
-        
+
         return String(data: data, encoding: .utf8) ?? "{}"
     }
-    
+
+    // MARK: - Holiday Sync Preference
+
+    /// Get the user's holiday sync preference
+    func getHolidaySyncPreference() async throws -> Bool {
+        let url = URL(string: "\(baseURL)/api/user/preferences/holidays")!
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+        request.timeoutInterval = Constants.API.timeout
+
+        let (data, response) = try await session.data(for: request)
+        try await validateResponse(response, data: data)
+
+        struct HolidayPreferenceResponse: Codable {
+            let syncHolidays: Bool
+            let message: String?
+        }
+
+        let decoded = try JSONDecoder().decode(HolidayPreferenceResponse.self, from: data)
+        return decoded.syncHolidays
+    }
+
+    /// Update the user's holiday sync preference
+    /// When disabled, also deletes existing holiday events on the backend
+    func updateHolidaySyncPreference(syncHolidays: Bool) async throws -> Bool {
+        let url = URL(string: "\(baseURL)/api/user/preferences/holidays")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "PUT"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+        request.timeoutInterval = Constants.API.timeout
+
+        let body: [String: Bool] = ["syncHolidays": syncHolidays]
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+
+        let (data, response) = try await session.data(for: request)
+        try await validateResponse(response, data: data)
+
+        struct HolidayPreferenceResponse: Codable {
+            let syncHolidays: Bool
+            let message: String?
+            let holidaysDeleted: Bool?
+        }
+
+        let decoded = try JSONDecoder().decode(HolidayPreferenceResponse.self, from: data)
+        return decoded.syncHolidays
+    }
+
     // MARK: - Calendar Sync
     func syncEvents(events: [EKEvent]) async throws {
         let url = URL(string: "\(baseURL)/eventkit/import")!
@@ -2997,6 +3044,187 @@ class APIService: ObservableObject {
         }
     }
 
+    // MARK: - Meeting Spot Recommendations API
+
+    /// Get spot recommendations near user's next meeting with a location
+    /// GET /api/v1/recommendations/near-meeting
+    func getMeetingSpotRecommendations(timezone: String = TimeZone.current.identifier) async throws -> MeetingSpotRecommendations {
+        guard let token = accessToken else {
+            throw NSError(
+                domain: "AllTime",
+                code: 401,
+                userInfo: [NSLocalizedDescriptionKey: "Authentication required. Please sign in again."]
+            )
+        }
+
+        var urlComponents = URLComponents(string: "\(baseURL)/api/v1/recommendations/near-meeting")!
+        urlComponents.queryItems = [URLQueryItem(name: "timezone", value: timezone)]
+
+        guard let url = urlComponents.url else {
+            throw NSError(
+                domain: "AllTime",
+                code: 400,
+                userInfo: [NSLocalizedDescriptionKey: "Invalid URL"]
+            )
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.timeoutInterval = Constants.API.timeout
+
+        print("📍 APIService: ===== FETCHING SPOTS NEAR MEETING =====")
+        print("📍 APIService: URL: \(url)")
+
+        do {
+            let (data, response) = try await session.data(for: request)
+
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw NSError(
+                    domain: "AllTime",
+                    code: 500,
+                    userInfo: [NSLocalizedDescriptionKey: "Invalid response from server"]
+                )
+            }
+
+            print("📍 APIService: Response status: \(httpResponse.statusCode)")
+
+            switch httpResponse.statusCode {
+            case 200:
+                let decoder = JSONDecoder()
+                decoder.dateDecodingStrategy = .iso8601
+                do {
+                    let result = try decoder.decode(MeetingSpotRecommendations.self, from: data)
+                    if result.hasMeetingWithLocation {
+                        print("✅ APIService: Found \(result.spots?.count ?? 0) spots near meeting '\(result.meetingTitle ?? "")'")
+                    } else {
+                        print("ℹ️ APIService: No meetings with physical locations")
+                    }
+                    return result
+                } catch let decodingError {
+                    let responseString = String(data: data, encoding: .utf8) ?? "Unable to decode response"
+                    print("❌ APIService: Failed to decode meeting spots: \(decodingError)")
+                    print("❌ APIService: Response was: \(responseString.prefix(500))")
+                    throw NSError(
+                        domain: "AllTime",
+                        code: 1002,
+                        userInfo: [NSLocalizedDescriptionKey: "Failed to decode meeting spots"]
+                    )
+                }
+
+            case 401:
+                throw NSError(
+                    domain: "AllTime",
+                    code: 401,
+                    userInfo: [NSLocalizedDescriptionKey: "Authentication failed. Please sign in again."]
+                )
+
+            default:
+                let responseString = String(data: data, encoding: .utf8) ?? "Unable to decode response"
+                print("❌ APIService: Server error \(httpResponse.statusCode): \(responseString)")
+                throw NSError(
+                    domain: "AllTime",
+                    code: httpResponse.statusCode,
+                    userInfo: [NSLocalizedDescriptionKey: "Server error (code: \(httpResponse.statusCode))"]
+                )
+            }
+        } catch {
+            print("❌ APIService: Network error: \(error.localizedDescription)")
+            throw error
+        }
+    }
+
+    // MARK: - Similar Week Insight API
+
+    /// Find similar historical weeks and compare health outcomes
+    /// GET /api/v1/health/similar-week
+    func getSimilarWeekInsight(timezone: String = TimeZone.current.identifier) async throws -> SimilarWeekInsight {
+        guard let token = accessToken else {
+            throw NSError(
+                domain: "AllTime",
+                code: 401,
+                userInfo: [NSLocalizedDescriptionKey: "Authentication required. Please sign in again."]
+            )
+        }
+
+        var urlComponents = URLComponents(string: "\(baseURL)/api/v1/health/similar-week")!
+        urlComponents.queryItems = [URLQueryItem(name: "timezone", value: timezone)]
+
+        guard let url = urlComponents.url else {
+            throw NSError(
+                domain: "AllTime",
+                code: 400,
+                userInfo: [NSLocalizedDescriptionKey: "Invalid URL"]
+            )
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.timeoutInterval = Constants.API.timeout
+
+        print("🔍 APIService: ===== FETCHING SIMILAR WEEK INSIGHT =====")
+        print("🔍 APIService: URL: \(url)")
+
+        do {
+            let (data, response) = try await session.data(for: request)
+
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw NSError(
+                    domain: "AllTime",
+                    code: 500,
+                    userInfo: [NSLocalizedDescriptionKey: "Invalid response from server"]
+                )
+            }
+
+            print("🔍 APIService: Response status: \(httpResponse.statusCode)")
+
+            switch httpResponse.statusCode {
+            case 200:
+                let decoder = JSONDecoder()
+                do {
+                    let result = try decoder.decode(SimilarWeekInsight.self, from: data)
+                    if result.hasSimilarWeek {
+                        print("✅ APIService: Found similar week: \(result.similarWeek?.weekOf ?? "")")
+                    } else {
+                        print("ℹ️ APIService: No similar weeks found")
+                    }
+                    return result
+                } catch let decodingError {
+                    let responseString = String(data: data, encoding: .utf8) ?? "Unable to decode response"
+                    print("❌ APIService: Failed to decode similar week: \(decodingError)")
+                    print("❌ APIService: Response was: \(responseString.prefix(500))")
+                    throw NSError(
+                        domain: "AllTime",
+                        code: 1002,
+                        userInfo: [NSLocalizedDescriptionKey: "Failed to decode similar week insight"]
+                    )
+                }
+
+            case 401:
+                throw NSError(
+                    domain: "AllTime",
+                    code: 401,
+                    userInfo: [NSLocalizedDescriptionKey: "Authentication failed. Please sign in again."]
+                )
+
+            default:
+                let responseString = String(data: data, encoding: .utf8) ?? "Unable to decode response"
+                print("❌ APIService: Server error \(httpResponse.statusCode): \(responseString)")
+                throw NSError(
+                    domain: "AllTime",
+                    code: httpResponse.statusCode,
+                    userInfo: [NSLocalizedDescriptionKey: "Server error (code: \(httpResponse.statusCode))"]
+                )
+            }
+        } catch {
+            print("❌ APIService: Network error: \(error.localizedDescription)")
+            throw error
+        }
+    }
+
     // MARK: - Walk Recommendations API
 
     /// Get walk route recommendations near user's location
@@ -3741,7 +3969,93 @@ class APIService: ObservableObject {
             throw error
         }
     }
-    
+
+    /// Fetch energy patterns - correlations between meeting patterns and health metrics
+    /// GET /api/v1/health/energy-patterns
+    func fetchEnergyPatterns(timezone: String = TimeZone.current.identifier) async throws -> EnergyPatternsResponse {
+        guard let token = accessToken else {
+            throw NSError(
+                domain: "AllTime",
+                code: 401,
+                userInfo: [NSLocalizedDescriptionKey: "Authentication required. Please sign in again."]
+            )
+        }
+
+        var urlComponents = URLComponents(string: "\(baseURL)/api/v1/health/energy-patterns")!
+        urlComponents.queryItems = [URLQueryItem(name: "timezone", value: timezone)]
+
+        guard let url = urlComponents.url else {
+            throw NSError(
+                domain: "AllTime",
+                code: 400,
+                userInfo: [NSLocalizedDescriptionKey: "Invalid URL"]
+            )
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.timeoutInterval = Constants.API.timeout
+
+        print("🔋 APIService: ===== FETCHING ENERGY PATTERNS =====")
+        print("🔋 APIService: URL: \(url)")
+
+        do {
+            let (data, response) = try await session.data(for: request)
+
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw NSError(
+                    domain: "AllTime",
+                    code: 500,
+                    userInfo: [NSLocalizedDescriptionKey: "Invalid response from server"]
+                )
+            }
+
+            print("🔋 APIService: Response status: \(httpResponse.statusCode)")
+
+            switch httpResponse.statusCode {
+            case 200:
+                let decoder = JSONDecoder()
+                do {
+                    let patterns = try decoder.decode(EnergyPatternsResponse.self, from: data)
+                    print("✅ APIService: Successfully decoded energy patterns")
+                    print("✅ APIService: Found \(patterns.patterns.count) patterns")
+                    print("✅ APIService: Data points analyzed: \(patterns.dataPoints)")
+                    return patterns
+                } catch let decodingError {
+                    let responseString = String(data: data, encoding: .utf8) ?? "Unable to decode response"
+                    print("❌ APIService: Failed to decode energy patterns: \(decodingError)")
+                    print("❌ APIService: Response was: \(responseString.prefix(500))")
+                    throw NSError(
+                        domain: "AllTime",
+                        code: 1002,
+                        userInfo: [NSLocalizedDescriptionKey: "Failed to decode energy patterns: \(decodingError.localizedDescription)"]
+                    )
+                }
+
+            case 401:
+                throw NSError(
+                    domain: "AllTime",
+                    code: 401,
+                    userInfo: [NSLocalizedDescriptionKey: "Authentication failed. Please sign in again."]
+                )
+
+            default:
+                let responseString = String(data: data, encoding: .utf8) ?? "Unable to decode response"
+                print("❌ APIService: Server error \(httpResponse.statusCode): \(responseString)")
+                throw NSError(
+                    domain: "AllTime",
+                    code: httpResponse.statusCode,
+                    userInfo: [NSLocalizedDescriptionKey: "Server error (code: \(httpResponse.statusCode))"]
+                )
+            }
+        } catch {
+            print("❌ APIService: Network error: \(error.localizedDescription)")
+            throw error
+        }
+    }
+
     // MARK: - Reminders API
     
     /// Create a new reminder

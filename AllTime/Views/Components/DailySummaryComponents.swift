@@ -819,7 +819,7 @@ struct LunchRecommendationView: View {
 
             if let spots = recommendation.nearbySpots, !spots.isEmpty {
                 ForEach(spots) { spot in
-                    NearbySpotRow(spot: spot)
+                    SimpleLunchSpotRow(spot: spot)
                 }
             }
         }
@@ -831,8 +831,8 @@ struct LunchRecommendationView: View {
     }
 }
 
-struct NearbySpotRow: View {
-    let spot: NearbySpot
+struct SimpleLunchSpotRow: View {
+    let spot: SimpleLunchSpot
 
     var body: some View {
         HStack {

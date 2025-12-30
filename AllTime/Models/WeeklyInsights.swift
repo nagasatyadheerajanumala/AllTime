@@ -192,6 +192,8 @@ struct WeeklyNarrativeResponse: Codable {
     let suggestions: [WeeklySuggestion]
     let aggregates: WeeklyAggregates
     let comparison: WeekComparison? // Week-over-week comparison for report card
+    let healthGoals: HealthGoalSummary? // Health goal achievement tracking
+    let weekHighlights: WeekHighlights? // Specific interesting highlights
 
     // Computed properties
     var weekStartDate: Date? {
@@ -462,6 +464,125 @@ struct WeekComparison: Codable {
         case "up": return higherIsBetter ? Color(hex: "10B981") : Color(hex: "EF4444")
         case "down": return higherIsBetter ? Color(hex: "EF4444") : Color(hex: "10B981")
         default: return Color(hex: "6B7280")
+        }
+    }
+}
+
+// MARK: - Health Goal Summary
+
+struct HealthGoalSummary: Codable {
+    let hasGoals: Bool
+    let hasData: Bool
+    let daysTracked: Int
+    let overallPercentage: Int // 0-100
+    let sleepGoal: GoalProgress?
+    let stepsGoal: GoalProgress?
+    let activeMinutesGoal: GoalProgress?
+
+    var overallProgressColor: Color {
+        switch overallPercentage {
+        case 80...100: return Color(hex: "10B981") // Green - excellent
+        case 60...79: return Color(hex: "3B82F6") // Blue - good
+        case 40...59: return Color(hex: "F59E0B") // Orange - fair
+        default: return Color(hex: "EF4444") // Red - needs work
+        }
+    }
+
+    var overallLabel: String {
+        switch overallPercentage {
+        case 90...100: return "Crushing it!"
+        case 75...89: return "Great week"
+        case 50...74: return "Making progress"
+        case 25...49: return "Room to grow"
+        default: return "Let's improve"
+        }
+    }
+}
+
+struct GoalProgress: Codable, Identifiable {
+    let name: String
+    let actual: String
+    let target: String
+    let percentage: Int // 0-100+
+    let daysMet: Int
+    let totalDays: Int
+
+    var id: String { name }
+
+    var progressColor: Color {
+        switch percentage {
+        case 90...Int.max: return Color(hex: "10B981") // Green - exceeded
+        case 70...89: return Color(hex: "3B82F6") // Blue - on track
+        case 50...69: return Color(hex: "F59E0B") // Orange - partial
+        default: return Color(hex: "EF4444") // Red - needs work
+        }
+    }
+
+    var icon: String {
+        switch name.lowercased() {
+        case "sleep": return "moon.zzz.fill"
+        case "steps": return "figure.walk"
+        case "active minutes": return "flame.fill"
+        default: return "heart.fill"
+        }
+    }
+
+    var achievementBadge: String? {
+        if percentage >= 100 { return "Goal Achieved" }
+        if daysMet == totalDays { return "Perfect Week" }
+        return nil
+    }
+}
+
+// MARK: - Week Highlights
+
+struct WeekHighlights: Codable {
+    let longestMeeting: WeekHighlightDetail?
+    let earliestMeeting: WeekHighlightDetail?
+    let latestMeeting: WeekHighlightDetail?
+    let meals: [WeekHighlightDetail]?
+    let travel: [WeekHighlightDetail]?
+    let totalCollaborators: Int?
+
+    var hasAnyHighlights: Bool {
+        longestMeeting != nil || earliestMeeting != nil || latestMeeting != nil ||
+        (meals != nil && !meals!.isEmpty) || (travel != nil && !travel!.isEmpty)
+    }
+}
+
+struct WeekHighlightDetail: Codable, Identifiable {
+    let label: String
+    let title: String
+    let detail: String
+    let icon: String
+
+    var id: String { label + title }
+
+    var sfSymbol: String {
+        // Map backend icons to SF Symbols
+        switch icon {
+        case "clock.fill": return "clock.fill"
+        case "sunrise.fill": return "sunrise.fill"
+        case "moon.fill": return "moon.fill"
+        case "sun.max.fill": return "sun.max.fill"
+        case "moon.stars.fill": return "moon.stars.fill"
+        case "cup.and.saucer.fill": return "cup.and.saucer.fill"
+        case "wineglass.fill": return "wineglass.fill"
+        case "fork.knife": return "fork.knife"
+        case "airplane": return "airplane"
+        case "building.2.fill": return "building.2.fill"
+        default: return "star.fill"
+        }
+    }
+
+    var iconColor: Color {
+        switch label.lowercased() {
+        case "longest meeting": return Color(hex: "8B5CF6") // Purple
+        case "early bird": return Color(hex: "F59E0B") // Orange
+        case "night owl": return Color(hex: "6366F1") // Indigo
+        case "breakfast", "lunch", "dinner", "coffee", "drinks", "snack": return Color(hex: "10B981") // Green
+        case "flight", "travel": return Color(hex: "3B82F6") // Blue
+        default: return Color(hex: "6B7280") // Gray
         }
     }
 }

@@ -87,6 +87,16 @@ struct TodayView: View {
                         )
                         .padding(.horizontal, DesignSystem.Spacing.md)
 
+                        // SECTION 1.5: Similar Week Alert (pattern prediction)
+                        // Shows when this week matches a historical week pattern
+                        SimilarWeekSection()
+                            .padding(.horizontal, DesignSystem.Spacing.md)
+
+                        // SECTION 1.6: Meeting Spots (lunch/coffee near upcoming meeting)
+                        // Shows spots near your next meeting with a location
+                        MeetingSpotsSection()
+                            .padding(.horizontal, DesignSystem.Spacing.md)
+
                         // SECTION 2: Actions Row (SECONDARY)
                         // Compact suggestions + todo counts
                         ActionsRow(
