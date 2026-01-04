@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import os.log
 
 @MainActor
 class CalendarViewModel: ObservableObject {
@@ -11,7 +12,7 @@ class CalendarViewModel: ObservableObject {
     @Published var syncSuccessMessage: String?
     @Published var showReconnectAlert = false
     @Published var reconnectAlertMessage = ""
-    
+
     // Sync status indicators
     @Published var isSyncing = false
     @Published var syncError: String?
@@ -20,10 +21,13 @@ class CalendarViewModel: ObservableObject {
 
     // Auto-reconnect flag to prevent duplicate OAuth attempts
     private var isAutoReconnecting = false
-    
+
     private let apiService = APIService()
     private let cacheManager = EventCacheManager.shared
     private let cacheService = CacheService.shared
+    private let retryManager = CalendarSyncRetryManager.shared
+    private let diagnostics = AuthDiagnostics.shared
+    private let log = OSLog(subsystem: "com.alltime.clara", category: "SYNC")
     private var cancellables = Set<AnyCancellable>()
     private var connectedProviders: Set<String> = [] // Track connected calendar providers
     
@@ -84,67 +88,96 @@ class CalendarViewModel: ObservableObject {
                }
                
                // Listen for Google Calendar token expiry notifications
-               // Show error message instead of auto-triggering OAuth (which causes popup loops)
+               // Use retry manager to attempt retries before showing reconnect prompt
                NotificationCenter.default.addObserver(
                    forName: NSNotification.Name("GoogleCalendarTokenExpired"),
                    object: nil,
                    queue: .main
                ) { [weak self] notification in
                    Task { @MainActor [weak self] in
-                       print("📅 CalendarViewModel: Received Google Calendar token expiry notification")
-                       if let userInfo = notification.userInfo,
-                          let errorMessage = userInfo["error"] as? String {
-                           print("📅 CalendarViewModel: Token expiry error: \(errorMessage)")
-                       }
-
                        guard let self = self else { return }
 
-                       // Prevent duplicate notifications from triggering multiple alerts
+                       let errorMessage = (notification.userInfo?["error"] as? String) ?? "Token expired"
+                       os_log("[SYNC] Google Calendar token expiry notification: %{public}@", log: self.log, type: .error, errorMessage)
+                       self.diagnostics.logSyncFailure(provider: "google", error: errorMessage, isTransient: false, retryCount: 0)
+
+                       // Prevent duplicate handling
                        guard !self.isAutoReconnecting else {
-                           print("📅 CalendarViewModel: Already handling token expiry, skipping...")
+                           os_log("[SYNC] Already handling Google token expiry, skipping duplicate", log: self.log, type: .info)
                            return
                        }
 
                        self.isAutoReconnecting = true
                        self.reconnectProvider = "google"
 
-                       // Show reconnect alert instead of auto-triggering OAuth
-                       // This prevents the popup loop issue
-                       print("📅 CalendarViewModel: Showing reconnect prompt for Google Calendar")
-                       self.reconnectAlertMessage = "Your Google Calendar connection has expired. Please reconnect to continue syncing events."
-                       self.showReconnectAlert = true
+                       // Attempt retry with backoff before showing reconnect prompt
+                       os_log("[SYNC] Attempting Google Calendar sync with retry...", log: self.log, type: .info)
+                       let success = await self.retryManager.attemptSyncWithRetry(provider: "google") {
+                           _ = try await self.apiService.syncGoogleCalendar()
+                       }
 
-                       // Reset flag after a delay to allow retry if user dismisses
-                       DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
+                       if success {
+                           os_log("[SYNC] Google Calendar sync succeeded after retry", log: self.log, type: .info)
+                           await self.refreshEvents()
+                       } else if self.retryManager.needsReconnection(provider: "google") {
+                           // Only show reconnect after all retries exhausted
+                           os_log("[SYNC] All Google retries failed, showing reconnect prompt", log: self.log, type: .fault)
+                           self.diagnostics.logSyncReconnectRequired(provider: "google", reason: "All retry attempts failed")
+                           self.reconnectAlertMessage = "Your Google Calendar connection has expired. Please reconnect to continue syncing events."
+                           self.showReconnectAlert = true
+                       }
+
+                       // Reset flag after handling
+                       DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
                            self.isAutoReconnecting = false
                        }
                    }
                }
 
                // Listen for Microsoft Calendar token expiry notifications
-               // Auto-reconnect: Automatically trigger OAuth flow instead of showing alert
+               // Use retry manager to attempt retries before showing reconnect prompt
                NotificationCenter.default.addObserver(
                    forName: NSNotification.Name("MicrosoftCalendarTokenExpired"),
                    object: nil,
                    queue: .main
                ) { [weak self] notification in
                    Task { @MainActor [weak self] in
-                       print("📅 CalendarViewModel: Received Microsoft Calendar token expiry notification")
-                       if let userInfo = notification.userInfo,
-                          let errorMessage = userInfo["error"] as? String {
-                           print("📅 CalendarViewModel: Token expiry error: \(errorMessage)")
+                       guard let self = self else { return }
+
+                       let errorMessage = (notification.userInfo?["error"] as? String) ?? "Token expired"
+                       os_log("[SYNC] Microsoft Calendar token expiry notification: %{public}@", log: self.log, type: .error, errorMessage)
+                       self.diagnostics.logSyncFailure(provider: "microsoft", error: errorMessage, isTransient: false, retryCount: 0)
+
+                       // Prevent duplicate handling
+                       guard !self.isAutoReconnecting else {
+                           os_log("[SYNC] Already handling Microsoft token expiry, skipping duplicate", log: self.log, type: .info)
+                           return
                        }
 
-                       // AUTO-RECONNECT: Directly trigger OAuth flow for seamless UX
-                       guard let self = self else { return }
-                       print("📅 CalendarViewModel: Auto-triggering Microsoft OAuth reconnection flow...")
+                       self.isAutoReconnecting = true
                        self.reconnectProvider = "microsoft"
 
-                       // Automatically start the OAuth flow - no user action required
-                       // TODO: Add MicrosoftAuthManager.shared.startMicrosoftOAuth() when Microsoft OAuth is implemented
-                       // For now, show alert as fallback for Microsoft
-                       self.reconnectAlertMessage = "Your Microsoft Calendar connection has expired. Please reconnect to continue syncing events."
-                       self.showReconnectAlert = true
+                       // Attempt retry with backoff before showing reconnect prompt
+                       os_log("[SYNC] Attempting Microsoft Calendar sync with retry...", log: self.log, type: .info)
+                       let success = await self.retryManager.attemptSyncWithRetry(provider: "microsoft") {
+                           _ = try await self.apiService.syncMicrosoftCalendar()
+                       }
+
+                       if success {
+                           os_log("[SYNC] Microsoft Calendar sync succeeded after retry", log: self.log, type: .info)
+                           await self.refreshEvents()
+                       } else if self.retryManager.needsReconnection(provider: "microsoft") {
+                           // Only show reconnect after all retries exhausted
+                           os_log("[SYNC] All Microsoft retries failed, showing reconnect prompt", log: self.log, type: .fault)
+                           self.diagnostics.logSyncReconnectRequired(provider: "microsoft", reason: "All retry attempts failed")
+                           self.reconnectAlertMessage = "Your Microsoft Calendar connection has expired. Please reconnect to continue syncing events."
+                           self.showReconnectAlert = true
+                       }
+
+                       // Reset flag after handling
+                       DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                           self.isAutoReconnecting = false
+                       }
                    }
                }
                
@@ -806,23 +839,27 @@ class CalendarViewModel: ObservableObject {
     @Published var reconnectProvider: String = "google" // Track which provider to reconnect
     
     func reconnectGoogleCalendar() {
-        print("📅 CalendarViewModel: User requested to reconnect Google Calendar")
+        os_log("[SYNC] User requested to reconnect Google Calendar", log: log, type: .info)
         reconnectProvider = "google"
         showReconnectAlert = false
+        // Reset retry state for clean slate after reconnection
+        retryManager.resetRetryState(for: "google")
         Task {
             await GoogleAuthManager.shared.startGoogleOAuth()
         }
     }
-    
+
     func reconnectMicrosoftCalendar() {
-        print("📅 CalendarViewModel: User requested to reconnect Microsoft Calendar")
+        os_log("[SYNC] User requested to reconnect Microsoft Calendar", log: log, type: .info)
         reconnectProvider = "microsoft"
         showReconnectAlert = false
+        // Reset retry state for clean slate after reconnection
+        retryManager.resetRetryState(for: "microsoft")
         Task {
             await MicrosoftAuthManager.shared.startMicrosoftOAuth()
         }
     }
-    
+
     func reconnectCalendar() {
         // Reconnect based on which provider expired
         if reconnectProvider == "microsoft" {

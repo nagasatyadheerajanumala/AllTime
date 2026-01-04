@@ -1,6 +1,7 @@
 import Foundation
 import AuthenticationServices
 import Combine
+import os.log
 
 @MainActor
 class AuthenticationService: NSObject, ObservableObject {
@@ -12,12 +13,16 @@ class AuthenticationService: NSObject, ObservableObject {
 
     private let apiService = APIService()
     private let keychainManager = KeychainManager.shared
+    private let diagnostics = AuthDiagnostics.shared
     private var cancellables = Set<AnyCancellable>()
+    private var proactiveRefreshTask: Task<Void, Never>?
+
+    // OSLog for auth operations
+    private let log = OSLog(subsystem: "com.alltime.clara", category: "AUTH")
 
     override init() {
         super.init()
-        print("🔐 AuthenticationService: Initializing...")
-        print("🔐 AuthenticationService: Backend URL: \(Constants.API.baseURL)")
+        os_log("[AUTH] Initializing AuthenticationService, Backend URL: %{public}@", log: log, type: .info, Constants.API.baseURL)
 
         // Test backend connection
         Task {
@@ -29,9 +34,11 @@ class AuthenticationService: NSObject, ObservableObject {
             forName: NSNotification.Name("ForceSignOut"),
             object: nil,
             queue: .main
-        ) { [weak self] _ in
+        ) { [weak self] notification in
             Task { @MainActor in
-                print("🔐 AuthenticationService: Received force sign-out notification")
+                let reason = (notification.userInfo?["reason"] as? String) ?? "ForceSignOut notification"
+                self?.diagnostics.logLogout(reason: reason)
+                os_log("[AUTH] Force sign-out triggered: %{public}@", log: self?.log ?? .default, type: .fault, reason)
                 self?.signOut()
             }
         }
@@ -40,20 +47,57 @@ class AuthenticationService: NSObject, ObservableObject {
     }
     
     // MARK: - Session Management
-    
+
     private func checkExistingSession() {
-        print("🔐 AuthenticationService: Checking existing session...")
+        os_log("[AUTH] Checking existing session...", log: log, type: .info)
+        diagnostics.logSessionRestoreStart()
 
         if keychainManager.hasValidTokens() {
-            print("🔐 AuthenticationService: Found stored tokens, restoring session...")
+            os_log("[AUTH] Found stored tokens, restoring session...", log: log, type: .info)
             // Try to fetch user profile to validate tokens
             Task {
                 await fetchUserProfile()
                 isCheckingSession = false
+
+                if isAuthenticated {
+                    diagnostics.logSessionRestoreComplete(success: true)
+                    // Start proactive token refresh
+                    startProactiveTokenRefresh()
+                } else {
+                    diagnostics.logSessionRestoreComplete(success: false, reason: "Profile fetch failed")
+                }
             }
         } else {
-            print("🔐 AuthenticationService: No stored tokens found")
+            os_log("[AUTH] No stored tokens found", log: log, type: .info)
+            diagnostics.logSessionRestoreComplete(success: false, reason: "No tokens in keychain")
             isCheckingSession = false
+        }
+    }
+
+    /// Proactively refresh token before it expires (5 minutes before expiry)
+    private func startProactiveTokenRefresh() {
+        proactiveRefreshTask?.cancel()
+
+        proactiveRefreshTask = Task {
+            while !Task.isCancelled && isAuthenticated {
+                // Check token expiry every 60 seconds
+                try? await Task.sleep(nanoseconds: 60_000_000_000) // 60 seconds
+
+                guard !Task.isCancelled else { break }
+
+                // Refresh if token expires within 5 minutes
+                if diagnostics.tokenExpiresWithin(seconds: 300) {
+                    os_log("[AUTH] Token expires soon, proactively refreshing...", log: log, type: .info)
+                    diagnostics.logTokenRefreshAttempt()
+
+                    let success = await refreshTokenIfNeeded()
+                    if success {
+                        os_log("[AUTH] Proactive token refresh succeeded", log: log, type: .info)
+                    } else {
+                        os_log("[AUTH] Proactive token refresh failed", log: log, type: .error)
+                    }
+                }
+            }
         }
     }
     
@@ -71,8 +115,13 @@ class AuthenticationService: NSObject, ObservableObject {
         authorizationController.performRequests()
     }
     
-    func signOut() {
-        print("🔐 AuthenticationService: Signing out user...")
+    func signOut(reason: String = "User initiated", file: String = #file, line: Int = #line) {
+        os_log("[AUTH] Signing out user, reason: %{public}@", log: log, type: .info, reason)
+        diagnostics.logLogout(reason: reason, file: file, line: line)
+
+        // Stop proactive refresh
+        proactiveRefreshTask?.cancel()
+        proactiveRefreshTask = nil
 
         // Clear all stored data
         _ = keychainManager.clearTokens()
@@ -84,7 +133,7 @@ class AuthenticationService: NSObject, ObservableObject {
         isAuthenticated = false
         errorMessage = nil
 
-        print("🔐 AuthenticationService: User signed out successfully")
+        os_log("[AUTH] User signed out successfully", log: log, type: .info)
     }
     
     // MARK: - Backend Communication
@@ -182,23 +231,30 @@ class AuthenticationService: NSObject, ObservableObject {
             // Set authentication state
             isAuthenticated = true
             isLoading = false
-            
+
+            // Log successful login with diagnostics
+            diagnostics.logLoginSuccess(expiresIn: authResponse.expiresIn)
+            os_log("[AUTH] Login successful - token expires in %{public}d seconds", log: log, type: .info, authResponse.expiresIn)
+
+            // Start proactive token refresh
+            startProactiveTokenRefresh()
+
             // Preload caches for instant UI
             Task {
                 await preloadEventsCache()
                 await InsightsPrefetchService.shared.prefetchAllInsights()
             }
-            
+
+            // Process any pending deep link destination (e.g., from notification tap)
+            NavigationManager.shared.processPendingDestination()
+
             // Log profile completion status
             if let profileCompleted = authResponse.profileCompleted {
-                print("🍎 Apple Sign-In: Profile completed: \(profileCompleted)")
-            } else {
-                print("🍎 Apple Sign-In: Profile completion status not provided by backend")
+                os_log("[AUTH] Profile completed: %{public}@", log: log, type: .info, profileCompleted ? "true" : "false")
             }
-            
-            print("🍎 Apple Sign-In: Authentication successful!")
-            print("🍎 Apple Sign-In: Access token expires in: \(authResponse.expiresIn) seconds")
-            print("🍎 Apple Sign-In: Refresh token expires in: \(authResponse.refreshExpiresIn) seconds")
+
+            os_log("[AUTH] Authentication successful! Access token expires in %{public}d seconds, Refresh token expires in %{public}d seconds",
+                   log: log, type: .info, authResponse.expiresIn, authResponse.refreshExpiresIn)
             
         } catch {
             print("🍎 Apple Sign-In: Error occurred: \(error.localizedDescription)")
@@ -284,9 +340,48 @@ class AuthenticationService: NSObject, ObservableObject {
             }
 
             if is401Error {
-                print("🔐 AuthenticationService: User profile fetch failed with 401 - tokens are invalid")
-                print("🔐 AuthenticationService: Signing out...")
-                signOut()
+                print("🔐 AuthenticationService: User profile fetch failed with 401 - access token may be expired")
+                print("🔐 AuthenticationService: Attempting to refresh token...")
+
+                // Try to refresh the token before signing out
+                let refreshSuccess = await refreshTokenIfNeeded()
+
+                if refreshSuccess {
+                    print("🔐 AuthenticationService: Token refreshed successfully, retrying profile fetch...")
+                    // Retry fetching profile with the new token
+                    do {
+                        let user = try await apiService.fetchUserProfile()
+                        currentUser = user
+                        isAuthenticated = true
+                        UserDefaults.standard.set(user.id, forKey: "userId")
+                        print("🔐 AuthenticationService: User profile fetched successfully after token refresh")
+
+                        // Preload caches
+                        await preloadEventsCache()
+                        await InsightsPrefetchService.shared.prefetchAllInsights()
+                        return
+                    } catch {
+                        print("🔐 AuthenticationService: Profile fetch failed even after token refresh: \(error.localizedDescription)")
+                        // Fall through to use cached profile
+                    }
+                } else {
+                    print("🔐 AuthenticationService: Token refresh failed - refresh token may be expired")
+                }
+
+                // If refresh failed or retry failed, try to use cached profile before signing out
+                if let userData = UserDefaults.standard.data(forKey: "user_profile"),
+                   let cachedUser = try? JSONDecoder().decode(User.self, from: userData),
+                   keychainManager.hasValidTokens() {
+                    // We have cached profile and tokens exist - stay logged in but warn
+                    currentUser = cachedUser
+                    isAuthenticated = true
+                    print("🔐 AuthenticationService: Using cached user profile (ID: \(cachedUser.id)) - token refresh failed but staying logged in")
+                    print("⚠️ AuthenticationService: Next API call will trigger another refresh attempt")
+                } else {
+                    // No cached profile or no tokens - must sign out
+                    print("🔐 AuthenticationService: No cached profile available - signing out...")
+                    signOut()
+                }
             } else {
                 // For other errors (network, server issues), keep user authenticated
                 // They have valid tokens, just couldn't fetch profile right now
@@ -312,30 +407,44 @@ class AuthenticationService: NSObject, ObservableObject {
     }
     
     func refreshTokenIfNeeded() async -> Bool {
+        diagnostics.logTokenRefreshAttempt()
+
         guard let refreshToken = keychainManager.getRefreshToken() else {
-            print("❌ AuthenticationService: No refresh token available")
+            os_log("[AUTH] No refresh token available for refresh", log: log, type: .error)
+            diagnostics.logTokenRefreshFailure(reason: "No refresh token in keychain")
             return false
         }
-        
-        print("🔄 AuthenticationService: Refreshing access token...")
-        
+
+        os_log("[AUTH] Refreshing access token...", log: log, type: .info)
+
         do {
             let refreshResponse = try await apiService.refreshToken(refreshToken: refreshToken)
-            
+
             // Store new access token
             let success = keychainManager.store(key: "access_token", value: refreshResponse.accessToken)
-            
+
+            // Also store new refresh token if provided
+            if let newRefreshToken = refreshResponse.refreshToken {
+                _ = keychainManager.store(key: "refresh_token", value: newRefreshToken)
+                os_log("[AUTH] New refresh token also stored", log: log, type: .info)
+            }
+
             if success {
-                print("✅ AuthenticationService: Token refreshed successfully")
+                // Get expiry from response if available, default to 24 hours
+                let expiresIn = refreshResponse.expiresIn ?? 86400
+                diagnostics.logTokenRefreshSuccess(expiresIn: expiresIn)
+                os_log("[AUTH] Token refreshed successfully, expires in %{public}d seconds", log: log, type: .info, expiresIn)
                 return true
             } else {
-                print("❌ AuthenticationService: Failed to store refreshed token")
+                os_log("[AUTH] Failed to store refreshed token in keychain", log: log, type: .error)
+                diagnostics.logTokenRefreshFailure(reason: "Keychain store failed")
                 return false
             }
         } catch {
-            print("❌ AuthenticationService: Token refresh failed: \(error.localizedDescription)")
-            // If refresh fails, sign out the user
-            signOut()
+            os_log("[AUTH] Token refresh failed: %{public}@", log: log, type: .error, error.localizedDescription)
+            diagnostics.logTokenRefreshFailure(reason: error.localizedDescription)
+            // Don't sign out here - let the caller decide based on context
+            // The caller (fetchUserProfile) will handle sign out if needed
             return false
         }
     }

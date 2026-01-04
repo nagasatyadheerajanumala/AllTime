@@ -1,11 +1,19 @@
 import Foundation
 import Security
+import os.log
 
 class KeychainManager {
     static let shared = KeychainManager()
 
     // Service identifier - scopes keychain items to this app
     private let service = "com.alltime.clara"
+
+    // OSLog for keychain operations
+    private let log = OSLog(subsystem: "com.alltime.clara", category: "KEYCHAIN")
+
+    // Retry configuration for transient Keychain failures
+    private let maxRetries = 5
+    private let retryDelayMs: UInt64 = 200_000_000 // 200ms
 
     private init() {
         // Migrate old tokens without service identifier (one-time migration)
@@ -53,6 +61,11 @@ class KeychainManager {
     }
 
     func retrieve(key: String) -> String? {
+        // Synchronous retrieval with internal retry
+        return retrieveWithRetry(key: key, attempt: 1)
+    }
+
+    private func retrieveWithRetry(key: String, attempt: Int) -> String? {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
@@ -64,16 +77,88 @@ class KeychainManager {
         var dataTypeRef: AnyObject?
         let status = SecItemCopyMatching(query as CFDictionary, &dataTypeRef)
 
-        guard status == errSecSuccess,
-              let data = dataTypeRef as? Data,
-              let value = String(data: data, encoding: .utf8) else {
-            if status != errSecItemNotFound {
-                print("🔑 KeychainManager: Failed to retrieve \(key), status: \(status)")
+        if status == errSecSuccess,
+           let data = dataTypeRef as? Data,
+           let value = String(data: data, encoding: .utf8) {
+            if attempt > 1 {
+                os_log("[KEYCHAIN] Retrieved %{public}@ on attempt %{public}d", log: log, type: .info, key, attempt)
             }
-            return nil
+            return value
         }
 
-        return value
+        // Handle different error codes
+        switch status {
+        case errSecItemNotFound:
+            // Item genuinely doesn't exist - don't retry
+            return nil
+
+        case errSecInteractionNotAllowed:
+            // Device locked - retry with delay
+            os_log("[KEYCHAIN] %{public}@ errSecInteractionNotAllowed (device locked?) - attempt %{public}d/%{public}d",
+                   log: log, type: .error, key, attempt, maxRetries)
+
+        case errSecAuthFailed:
+            // Auth failed - retry
+            os_log("[KEYCHAIN] %{public}@ errSecAuthFailed - attempt %{public}d/%{public}d",
+                   log: log, type: .error, key, attempt, maxRetries)
+
+        default:
+            // Other error - log and retry
+            os_log("[KEYCHAIN] %{public}@ failed with status %{public}d - attempt %{public}d/%{public}d",
+                   log: log, type: .error, key, status, attempt, maxRetries)
+        }
+
+        // Retry if we haven't exceeded max attempts
+        if attempt < maxRetries {
+            // Synchronous sleep for retry
+            Thread.sleep(forTimeInterval: Double(retryDelayMs) / 1_000_000_000)
+            return retrieveWithRetry(key: key, attempt: attempt + 1)
+        }
+
+        os_log("[KEYCHAIN] CRITICAL: Failed to retrieve %{public}@ after %{public}d attempts, final status: %{public}d",
+               log: log, type: .fault, key, maxRetries, status)
+        print("🔑 KeychainManager: CRITICAL - Failed to retrieve \(key) after \(maxRetries) attempts, status: \(status)")
+        return nil
+    }
+
+    /// Async version with proper retry delays
+    func retrieveAsync(key: String) async -> String? {
+        for attempt in 1...maxRetries {
+            let query: [String: Any] = [
+                kSecClass as String: kSecClassGenericPassword,
+                kSecAttrService as String: service,
+                kSecAttrAccount as String: key,
+                kSecReturnData as String: true,
+                kSecMatchLimit as String: kSecMatchLimitOne
+            ]
+
+            var dataTypeRef: AnyObject?
+            let status = SecItemCopyMatching(query as CFDictionary, &dataTypeRef)
+
+            if status == errSecSuccess,
+               let data = dataTypeRef as? Data,
+               let value = String(data: data, encoding: .utf8) {
+                if attempt > 1 {
+                    os_log("[KEYCHAIN] Retrieved %{public}@ on async attempt %{public}d", log: log, type: .info, key, attempt)
+                }
+                return value
+            }
+
+            if status == errSecItemNotFound {
+                return nil
+            }
+
+            os_log("[KEYCHAIN] Async retrieve %{public}@ failed, status %{public}d, attempt %{public}d/%{public}d",
+                   log: log, type: .error, key, status, attempt, maxRetries)
+
+            if attempt < maxRetries {
+                try? await Task.sleep(nanoseconds: retryDelayMs)
+            }
+        }
+
+        os_log("[KEYCHAIN] CRITICAL: Async retrieve %{public}@ failed after %{public}d attempts",
+               log: log, type: .fault, key, maxRetries)
+        return nil
     }
 
     func delete(key: String) -> Bool {

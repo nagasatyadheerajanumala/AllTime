@@ -1,18 +1,21 @@
 import Foundation
 import UserNotifications
 import Combine
+import os.log
 
 @MainActor
 class PushNotificationManager: NSObject, ObservableObject {
     @Published var isRegistered = false
     @Published var isLoading = false
     @Published var errorMessage: String?
-    
+
     private let apiService = APIService()
     private var cancellables = Set<AnyCancellable>()
-    
+    private let diagnostics = AuthDiagnostics.shared
+    private let log = OSLog(subsystem: "com.alltime.clara", category: "DEEPLINK")
+
     static let shared = PushNotificationManager()
-    
+
     override init() {
         super.init()
         checkRegistrationStatus()
@@ -139,28 +142,88 @@ extension PushNotificationManager: UNUserNotificationCenterDelegate {
     func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
         // Handle notification tap
         let userInfo = response.notification.request.content.userInfo
-        print("🔔 PushNotificationManager: Notification tapped: \(response.notification.request.identifier)")
-        print("🔔 PushNotificationManager: User info: \(userInfo)")
+        let type = userInfo["type"] as? String
+        let destination = userInfo["destination"] as? String
+
+        diagnostics.logDeepLinkReceived(url: nil, type: type, destination: destination)
+        os_log("[DEEPLINK] Notification tapped: type=%{public}@, destination=%{public}@",
+               log: log, type: .info, type ?? "nil", destination ?? "nil")
 
         // Handle morning briefing notifications
-        if let type = userInfo["type"] as? String, type == "morning_briefing" {
-            print("🔔 PushNotificationManager: Morning briefing notification tapped - navigating to Today")
+        if type == "morning_briefing" {
+            os_log("[DEEPLINK] Morning briefing notification - navigating to Today", log: log, type: .info)
             Task { @MainActor in
-                NavigationManager.shared.navigateToToday()
+                await handleAuthenticatedNavigation(destination: "today") {
+                    NavigationManager.shared.navigateToToday()
+                }
+            }
+            completionHandler()
+            return
+        }
+
+        // Handle evening summary notifications
+        if type == "evening_summary" {
+            os_log("[DEEPLINK] Evening summary notification - navigating to Day Review", log: log, type: .info)
+            Task { @MainActor in
+                await handleAuthenticatedNavigation(destination: "day-review") {
+                    NavigationManager.shared.navigateToDayReview()
+                }
             }
             completionHandler()
             return
         }
 
         // Handle reminder notifications
-        if let reminderId = userInfo["reminder_id"] as? Int64,
-           let type = userInfo["type"] as? String,
-           type == "reminder" {
-            print("🔔 PushNotificationManager: Reminder notification tapped - ID: \(reminderId)")
+        if let reminderId = userInfo["reminder_id"] as? Int64, type == "reminder" {
+            os_log("[DEEPLINK] Reminder notification tapped - ID: %{public}lld", log: log, type: .info, reminderId)
             handleReminderNotification(reminderId: reminderId, actionIdentifier: response.actionIdentifier)
+            completionHandler()
+            return
+        }
+
+        // Handle generic destination-based navigation
+        if let destination = destination {
+            os_log("[DEEPLINK] Generic notification with destination: %{public}@", log: log, type: .info, destination)
+            Task { @MainActor in
+                await handleAuthenticatedNavigation(destination: destination) {
+                    NavigationManager.shared.handleDestination(destination)
+                }
+            }
         }
 
         completionHandler()
+    }
+
+    /// Handle navigation that requires authentication, waiting for session restoration if needed
+    private func handleAuthenticatedNavigation(destination: String, action: @escaping () -> Void) async {
+        // If session is being restored, wait for it to complete
+        if diagnostics.shouldWaitForSessionRestoration {
+            os_log("[DEEPLINK] Session restoring, waiting before navigation to %{public}@", log: log, type: .info, destination)
+            diagnostics.logDeepLinkPending(destination: destination, reason: "Session restoring")
+
+            // Wait up to 5 seconds for session restoration
+            for _ in 0..<50 {
+                try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
+                if !diagnostics.shouldWaitForSessionRestoration {
+                    break
+                }
+            }
+
+            os_log("[DEEPLINK] Session restoration complete, isLoggedIn=%{public}@",
+                   log: log, type: .info, diagnostics.isLoggedIn ? "true" : "false")
+        }
+
+        // Now check if user is authenticated
+        if diagnostics.isLoggedIn || KeychainManager.shared.hasValidTokens() {
+            os_log("[DEEPLINK] User authenticated, navigating to %{public}@", log: log, type: .info, destination)
+            diagnostics.logDeepLinkProcessed(destination: destination)
+            action()
+        } else {
+            // Store pending destination for after sign-in
+            os_log("[DEEPLINK] User not authenticated, storing pending destination: %{public}@", log: log, type: .info, destination)
+            diagnostics.logDeepLinkPending(destination: destination, reason: "Not authenticated")
+            NavigationManager.shared.setPendingDestination(destination)
+        }
     }
     
     // MARK: - Reminder Notification Handling

@@ -1137,6 +1137,128 @@ class APIService: ObservableObject {
         return ProvidersResponse(providers: calendarResponse.calendars, count: calendarResponse.count)
     }
 
+    // MARK: - Multi-Calendar Support (Discovered Calendars)
+
+    /// Get all discovered calendars for the user (from all providers)
+    func getDiscoveredCalendars() async throws -> DiscoveredCalendarsResponse {
+        guard let token = accessToken, !token.isEmpty else {
+            throw NSError(domain: "AllTime", code: 401,
+                          userInfo: [NSLocalizedDescriptionKey: "Authentication required"])
+        }
+
+        let url = URL(string: "\(baseURL)/calendars/discovered")!
+        print("📅 APIService: Fetching discovered calendars")
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.timeoutInterval = Constants.API.timeout
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+
+        let (data, response) = try await session.data(for: request)
+        try await validateResponse(response, data: data)
+
+        let result = try JSONDecoder().decode(DiscoveredCalendarsResponse.self, from: data)
+        print("✅ APIService: Found \(result.count) discovered calendars")
+        return result
+    }
+
+    /// Discover all Microsoft calendars
+    func discoverMicrosoftCalendars() async throws -> DiscoveryResponse {
+        guard let token = accessToken, !token.isEmpty else {
+            throw NSError(domain: "AllTime", code: 401,
+                          userInfo: [NSLocalizedDescriptionKey: "Authentication required"])
+        }
+
+        let url = URL(string: "\(baseURL)/calendars/discover/microsoft")!
+        print("📅 APIService: Discovering Microsoft calendars")
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.timeoutInterval = 30  // Discovery may take longer
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let (data, response) = try await session.data(for: request)
+        try await validateResponse(response, data: data)
+
+        let result = try JSONDecoder().decode(DiscoveryResponse.self, from: data)
+        print("✅ APIService: Discovered \(result.count ?? 0) Microsoft calendars")
+        return result
+    }
+
+    /// Toggle a calendar's enabled state
+    func toggleCalendarEnabled(calendarId: Int, enabled: Bool) async throws -> ToggleCalendarResponse {
+        guard let token = accessToken, !token.isEmpty else {
+            throw NSError(domain: "AllTime", code: 401,
+                          userInfo: [NSLocalizedDescriptionKey: "Authentication required"])
+        }
+
+        let url = URL(string: "\(baseURL)/calendars/discovered/\(calendarId)/toggle")!
+        print("📅 APIService: Toggling calendar \(calendarId) to \(enabled)")
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "PUT"
+        request.timeoutInterval = Constants.API.timeout
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let body = ["enabled": enabled]
+        request.httpBody = try JSONEncoder().encode(body)
+
+        let (data, response) = try await session.data(for: request)
+        try await validateResponse(response, data: data)
+
+        let result = try JSONDecoder().decode(ToggleCalendarResponse.self, from: data)
+        print("✅ APIService: Calendar toggle result: \(result.success)")
+        return result
+    }
+
+    /// Sync all enabled Microsoft calendars (multi-calendar delta sync)
+    func syncMicrosoftMultiCalendar() async throws -> MultiCalendarSyncResponse {
+        guard let token = accessToken, !token.isEmpty else {
+            throw NSError(domain: "AllTime", code: 401,
+                          userInfo: [NSLocalizedDescriptionKey: "Authentication required"])
+        }
+
+        let url = URL(string: "\(baseURL)/calendars/sync/microsoft/multi")!
+        print("🔄 APIService: Starting multi-calendar Microsoft sync")
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.timeoutInterval = 60  // Sync may take longer
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+
+        let (data, response) = try await session.data(for: request)
+        try await validateResponse(response, data: data)
+
+        let result = try JSONDecoder().decode(MultiCalendarSyncResponse.self, from: data)
+        print("✅ APIService: Synced \(result.calendarsProcessed) calendars, \(result.eventsProcessed) events")
+        return result
+    }
+
+    /// Get discovered calendars for a specific provider
+    func getDiscoveredCalendarsForProvider(_ provider: String) async throws -> DiscoveredCalendarsResponse {
+        guard let token = accessToken, !token.isEmpty else {
+            throw NSError(domain: "AllTime", code: 401,
+                          userInfo: [NSLocalizedDescriptionKey: "Authentication required"])
+        }
+
+        let url = URL(string: "\(baseURL)/calendars/discovered/\(provider)")!
+        print("📅 APIService: Fetching discovered calendars for \(provider)")
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.timeoutInterval = Constants.API.timeout
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+
+        let (data, response) = try await session.data(for: request)
+        try await validateResponse(response, data: data)
+
+        let result = try JSONDecoder().decode(DiscoveredCalendarsResponse.self, from: data)
+        print("✅ APIService: Found \(result.count) \(provider) calendars")
+        return result
+    }
+
     // MARK: - Meeting Clashes
 
     /// Fetch meeting clashes for a date range
@@ -1180,7 +1302,7 @@ class APIService: ObservableObject {
         try await validateResponse(response, data: data)
 
         let clashResponse = try JSONDecoder().decode(ClashResponse.self, from: data)
-        print("✅ APIService: Found \(clashResponse.totalClashes) clashes")
+        print("✅ APIService: Found \(clashResponse.effectiveTotalClashes) clashes")
 
         return clashResponse
     }
@@ -2183,10 +2305,11 @@ class APIService: ObservableObject {
                 print("✅ APIService: Token refreshed successfully")
                 return true
             } else {
-                print("❌ APIService: Failed to store refreshed token after 3 attempts")
-                // Trigger sign out
-                NotificationCenter.default.post(name: NSNotification.Name("ForceSignOut"), object: nil)
-                return false
+                // Don't force sign out - keychain issue doesn't mean auth is invalid
+                // The token refresh succeeded, just storage failed
+                // User can continue with in-memory token for this session
+                print("⚠️ APIService: Failed to store refreshed token - continuing with in-memory token")
+                return true  // Return true since refresh itself succeeded
             }
         } catch {
             print("❌ APIService: Token refresh failed: \(error.localizedDescription)")
@@ -2249,7 +2372,7 @@ class APIService: ObservableObject {
                     // Only attempt JWT token refresh if this is NOT a calendar token issue
                     if !isCalendarTokenIssue {
                         print("🔄 APIService: Received 401 - attempting JWT token refresh...")
-                        
+
                         // Attempt to refresh token
                         if await attemptTokenRefresh() {
                             print("✅ APIService: Token refreshed successfully - throwing special error for retry")
@@ -2257,9 +2380,10 @@ class APIService: ObservableObject {
                             // The caller should retry the request
                             throw APIError(message: "Token expired - refreshed, please retry", code: "401_REFRESHED", details: nil)
                         } else {
-                            print("❌ APIService: JWT token refresh failed - signing out")
-                            // JWT token refresh failed - trigger sign out
-                            NotificationCenter.default.post(name: NSNotification.Name("ForceSignOut"), object: nil)
+                            // Don't force sign out here - the refreshToken() method already handles
+                            // ForceSignOut when refresh token is truly invalid (401 from /auth/refresh)
+                            // If we failed for other reasons (network), user can retry later
+                            print("⚠️ APIService: JWT token refresh failed - will retry on next request")
                         }
                     } else {
                         print("🔄 APIService: Calendar token expiry detected - NOT refreshing JWT token")
@@ -4752,7 +4876,7 @@ class APIService: ObservableObject {
         do {
             let result = try decoder.decode(ClashResponse.self, from: data)
             print("✅ APIService: Successfully fetched meeting clashes")
-            print("✅ APIService: Total clashes: \(result.totalClashes)")
+            print("✅ APIService: Total clashes: \(result.effectiveTotalClashes)")
             
             // Log clash details
             for (date, clashes) in result.clashesByDate {
@@ -4958,20 +5082,31 @@ class APIService: ObservableObject {
 
     /// Get intelligent "Up Next" suggestions based on calendar gaps and context.
     /// This analyzes your calendar to find free time slots and suggests contextual activities:
-    /// - Lunch during 11:30 AM - 2:30 PM gaps
-    /// - Gym/workout after 5 PM
+    /// - Lunch during 11:30 AM - 2:30 PM gaps (with weather-aware outdoor dining suggestions)
+    /// - Gym/workout after 5 PM (outdoor workout if nice weather)
     /// - Focus work during morning/afternoon gaps
-    /// - Walking breaks for short gaps
-    func getIntelligentUpNext(timezone: String = TimeZone.current.identifier) async throws -> UpNextItemsResponse {
+    /// - Walking breaks for short gaps (weather-dependent)
+    /// - Parameters:
+    ///   - timezone: User's timezone
+    ///   - lat: Optional latitude for weather-aware suggestions
+    ///   - lng: Optional longitude for weather-aware suggestions
+    func getIntelligentUpNext(timezone: String = TimeZone.current.identifier, lat: Double? = nil, lng: Double? = nil) async throws -> UpNextItemsResponse {
         var components = URLComponents(string: "\(baseURL)/api/v1/today/upnext")!
-        components.queryItems = [
+        var queryItems = [
             URLQueryItem(name: "timezone", value: timezone)
         ]
+
+        // Add location for weather-aware suggestions
+        if let lat = lat, let lng = lng {
+            queryItems.append(URLQueryItem(name: "lat", value: String(lat)))
+            queryItems.append(URLQueryItem(name: "lng", value: String(lng)))
+        }
+        components.queryItems = queryItems
 
         var request = URLRequest(url: components.url!)
         request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
 
-        print("🎯 APIService: Fetching intelligent Up Next")
+        print("🎯 APIService: Fetching intelligent Up Next (lat: \(lat ?? 0), lng: \(lng ?? 0))")
         let (data, response) = try await session.data(for: request)
         try await validateResponse(response, data: data)
 
@@ -5210,6 +5345,26 @@ class APIService: ObservableObject {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .custom(flexibleDateDecoder)
         return try decoder.decode([UserTask].self, from: data)
+    }
+
+    /// Get ALL tasks with categorization (Open, Catch Up, Done)
+    /// This is the main endpoint for the Tasks screen
+    func fetchAllTasks(timezone: String = TimeZone.current.identifier) async throws -> TaskListResponse {
+        var components = URLComponents(string: "\(baseURL)/api/v1/tasks/all")!
+        components.queryItems = [
+            URLQueryItem(name: "timezone", value: timezone)
+        ]
+
+        var request = URLRequest(url: components.url!)
+        request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+
+        print("📋 APIService: Fetching all tasks (categorized)")
+        let (data, response) = try await session.data(for: request)
+        try await validateResponse(response, data: data)
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .custom(flexibleDateDecoder)
+        return try decoder.decode(TaskListResponse.self, from: data)
     }
 
     /// Auto-schedule pending tasks
