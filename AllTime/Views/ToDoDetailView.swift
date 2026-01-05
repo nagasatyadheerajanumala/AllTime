@@ -53,12 +53,13 @@ struct ToDoDetailView: View {
                 }
             }
             .sheet(isPresented: $showingAddTask) {
-                AddTaskView(onTaskAdded: {
-                    Task { await viewModel.loadTasks() }
-                })
+                AddTaskSheet()
             }
             .task {
                 await viewModel.loadTasks()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("TaskCreated"))) { _ in
+                Task { await viewModel.loadTasks() }
             }
         }
         .presentationDragIndicator(.visible)
@@ -67,13 +68,13 @@ struct ToDoDetailView: View {
     private var filteredTasks: [UserTask] {
         switch selectedFilter {
         case .all:
-            return viewModel.tasks
+            return viewModel.tasks // All active tasks (open + catch up)
         case .pending:
-            return viewModel.tasks.filter { $0.status != .completed && !($0.isOverdue ?? false) }
+            return viewModel.openTasks // Open tasks (not overdue)
         case .overdue:
-            return viewModel.tasks.filter { $0.isOverdue ?? false }
+            return viewModel.catchUpTasks // Catch up tasks (overdue)
         case .completed:
-            return viewModel.tasks.filter { $0.status == .completed }
+            return viewModel.doneTasks // Completed tasks (today)
         }
     }
 
@@ -81,17 +82,17 @@ struct ToDoDetailView: View {
     private var statsHeader: some View {
         HStack(spacing: 12) {
             TaskStatCard(
-                value: "\(todoTile?.pendingCount ?? viewModel.pendingCount)",
+                value: "\(viewModel.openCount)",
                 label: "Open",
                 color: DesignSystem.Colors.primary
             )
             TaskStatCard(
-                value: "\(todoTile?.overdueCount ?? viewModel.overdueCount)",
+                value: "\(viewModel.catchUpCount)",
                 label: "Catch Up",
                 color: Color(hex: "FF9500")
             )
             TaskStatCard(
-                value: "\(todoTile?.completedTodayCount ?? viewModel.completedCount)",
+                value: "\(viewModel.doneToday)",
                 label: "Done",
                 color: Color(hex: "10B981")
             )
@@ -488,28 +489,51 @@ struct AddTaskView: View {
 // MARK: - ToDo Detail ViewModel
 @MainActor
 class ToDoDetailViewModel: ObservableObject {
+    // All tasks combined
     @Published var tasks: [UserTask] = []
+
+    // Categorized task lists from API
+    @Published var openTasks: [UserTask] = []
+    @Published var catchUpTasks: [UserTask] = []
+    @Published var doneTasks: [UserTask] = []
+
     @Published var isLoading = false
     @Published var errorMessage: String?
 
-    var pendingCount: Int {
-        tasks.filter { $0.status != .completed }.count
-    }
+    // Counts from API
+    @Published var openCount: Int = 0
+    @Published var catchUpCount: Int = 0
+    @Published var doneToday: Int = 0
 
-    var overdueCount: Int {
-        tasks.filter { $0.isOverdue ?? false }.count
-    }
-
-    var completedCount: Int {
-        tasks.filter { $0.status == .completed }.count
-    }
+    // Computed properties for backward compatibility
+    var pendingCount: Int { openCount }
+    var overdueCount: Int { catchUpCount }
+    var completedCount: Int { doneToday }
 
     func loadTasks() async {
         isLoading = true
+        errorMessage = nil
+
         do {
-            tasks = try await APIService.shared.fetchTodaysTasks()
+            print("📋 ToDoDetailViewModel: Calling fetchAllTasks...")
+            let response = try await APIService.shared.fetchAllTasks()
+            print("📋 ToDoDetailViewModel: Got response - tasks: \(response.tasks.count), openTasks: \(response.openTasks.count), catchUpTasks: \(response.catchUpTasks.count), doneTasks: \(response.doneTasks.count)")
+            print("📋 ToDoDetailViewModel: Counts from API - openCount: \(response.openCount), catchUpCount: \(response.catchUpCount), doneToday: \(response.doneToday)")
+
+            // Update all data from API response
+            tasks = response.tasks
+            openTasks = response.openTasks
+            catchUpTasks = response.catchUpTasks
+            doneTasks = response.doneTasks
+
+            openCount = response.openCount
+            catchUpCount = response.catchUpCount
+            doneToday = response.doneToday
+
+            print("📋 ToDoDetailViewModel: Updated ViewModel - openCount: \(openCount), catchUpCount: \(catchUpCount), doneToday: \(doneToday)")
         } catch {
             errorMessage = error.localizedDescription
+            print("❌ ToDoDetailViewModel: Failed to load tasks: \(error)")
         }
         isLoading = false
     }
@@ -517,21 +541,31 @@ class ToDoDetailViewModel: ObservableObject {
     func toggleTask(_ task: UserTask) async {
         guard let taskId = task.id else { return }
         let newStatus: TaskStatus = task.status == .completed ? .pending : .completed
+
         do {
             _ = try await APIService.shared.updateTaskStatus(taskId: Int(taskId), status: newStatus.rawValue)
-            await loadTasks()
+            await loadTasks() // Reload to get proper categorization
+            print("✅ ToDoDetailViewModel: Toggled task \(taskId) to \(newStatus.rawValue)")
         } catch {
             errorMessage = error.localizedDescription
+            print("❌ ToDoDetailViewModel: Failed to toggle task: \(error)")
         }
     }
 
     func deleteTask(_ task: UserTask) async {
         guard let taskId = task.id else { return }
+
         do {
             try await APIService.shared.deleteTask(taskId: Int(taskId))
+            // Remove from local lists
             tasks.removeAll { $0.id == task.id }
+            openTasks.removeAll { $0.id == task.id }
+            catchUpTasks.removeAll { $0.id == task.id }
+            doneTasks.removeAll { $0.id == task.id }
+            print("✅ ToDoDetailViewModel: Deleted task \(taskId)")
         } catch {
             errorMessage = error.localizedDescription
+            print("❌ ToDoDetailViewModel: Failed to delete task: \(error)")
         }
     }
 }

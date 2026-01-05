@@ -32,15 +32,19 @@ struct DayDetailView: View {
                         .padding(.top)
                     
                     if events.isEmpty {
-                        // Empty state
-                        VStack(spacing: 16) {
-                            Image(systemName: "calendar")
-                                .font(.system(size: 48))
-                                .foregroundColor(.gray)
-                            
-                            Text("No events")
+                        // Empty state - actionable framing
+                        VStack(spacing: 12) {
+                            Image(systemName: "calendar.badge.plus")
+                                .font(.system(size: 40))
+                                .foregroundColor(DesignSystem.Colors.primary.opacity(0.7))
+
+                            Text("Unscheduled day")
                                 .font(.headline)
-                                .foregroundColor(.gray)
+                                .foregroundColor(DesignSystem.Colors.primaryText)
+
+                            Text("Protect this time intentionally")
+                                .font(.subheadline)
+                                .foregroundColor(DesignSystem.Colors.secondaryText)
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.top, 100)
@@ -73,7 +77,7 @@ struct DayDetailView: View {
                                         .font(.caption)
                                         .foregroundColor(.gray)
                                         .padding(.leading)
-                                    
+
                                     ForEach(group.value) { event in
                                         EventCard(event: event, onTap: {
                                             selectedEventId = Int64(event.id)
@@ -83,6 +87,12 @@ struct DayDetailView: View {
                             }
                         }
                     }
+
+                    // Mood Check-In at the bottom
+                    MoodCheckInCardView()
+                        .padding(.horizontal)
+                        .padding(.top, 20)
+                        .padding(.bottom, 40)
                 }
             }
             .navigationTitle("")

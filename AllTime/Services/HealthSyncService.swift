@@ -84,7 +84,11 @@ class HealthSyncService: ObservableObject {
             let endDate = today
             
             os_log("Syncing health metrics from %@ to %@", log: Self.logger, type: .info, Self.dateFormatter.string(from: startDate), Self.dateFormatter.string(from: endDate))
-            
+
+            // CRITICAL: Clear the cache to ensure we get fresh data from HealthKit
+            // This fixes stale sleep data issues
+            healthMetricsService.clearCache()
+
             // Fetch metrics for date range using HealthMetricsService
             let metrics = try await healthMetricsService.fetchDailyMetrics(for: startDate, endDate: endDate)
             
@@ -138,7 +142,10 @@ class HealthSyncService: ObservableObject {
             }
             
             os_log("Syncing last %d days to backend", log: Self.logger, type: .info, n)
-            
+
+            // CRITICAL: Clear the cache to ensure we get fresh data from HealthKit
+            healthMetricsService.clearCache()
+
             // Fetch metrics using HealthMetricsService
             let calendar = Calendar.current
             let today = calendar.startOfDay(for: Date())

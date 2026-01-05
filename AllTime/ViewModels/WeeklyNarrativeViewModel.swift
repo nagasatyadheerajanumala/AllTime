@@ -14,15 +14,22 @@ class WeeklyNarrativeViewModel: ObservableObject {
     @Published var hasError = false
     @Published var errorMessage: String?
 
+    // Next Week Forecast (predictive intelligence)
+    @Published var nextWeekForecast: NextWeekForecastResponse?
+    @Published var isLoadingForecast = false
+
     private let apiService = APIService.shared
     private let cacheService = CacheService.shared
     private let memoryCache = InMemoryCache.shared
     private var currentTask: Task<Void, Never>?
+    private var forecastTask: Task<Void, Never>?
 
     // MARK: - Cache Keys
     private var memoryCacheKey: String { "mem_weekly_narrative_\(selectedWeek?.weekStart ?? currentWeekStart)" }
     private var diskCacheKey: String { "weekly_narrative_\(selectedWeek?.weekStart ?? currentWeekStart)" }
     private var weeksCacheKey: String { "mem_available_weeks" }
+    private let forecastMemCacheKey = "mem_next_week_forecast"
+    private let forecastDiskCacheKey = "next_week_forecast"
 
     init() {
         loadCachedData()
@@ -33,10 +40,13 @@ class WeeklyNarrativeViewModel: ObservableObject {
     func cancelPendingRequests() {
         currentTask?.cancel()
         currentTask = nil
+        forecastTask?.cancel()
+        forecastTask = nil
     }
 
     deinit {
         currentTask?.cancel()
+        forecastTask?.cancel()
     }
 
     // MARK: - Cache Loading (Instant UI)
@@ -52,11 +62,18 @@ class WeeklyNarrativeViewModel: ObservableObject {
 
         // Fall back to disk cache
         if let cached = cacheService.loadJSONSync(WeeklyNarrativeResponse.self, filename: diskCacheKey) {
-            print("WeeklyNarrative: Loaded from disk cache")
-            narrative = cached
-            // Populate memory cache
-            Task {
-                await memoryCache.set(memoryCacheKey, value: cached, ttl: 300) // 5 min
+            // Check if cached data is outdated (missing scoreBreakdown when comparison exists)
+            let needsUpdate = cached.comparison != nil && cached.comparison?.scoreBreakdown == nil
+
+            if !needsUpdate {
+                print("WeeklyNarrative: Loaded from disk cache")
+                narrative = cached
+                // Populate memory cache
+                Task {
+                    await memoryCache.set(memoryCacheKey, value: cached, ttl: 300) // 5 min
+                }
+            } else {
+                print("WeeklyNarrative: Disk cache outdated (missing scoreBreakdown), will fetch fresh")
             }
         }
 
@@ -121,19 +138,29 @@ class WeeklyNarrativeViewModel: ObservableObject {
         if !forceRefresh {
             if let diskCached = cacheService.loadJSONSync(WeeklyNarrativeResponse.self, filename: diskFilename) {
                 print("WeeklyNarrative: Loaded \(targetWeek) from disk cache")
-                narrative = diskCached
 
-                // Populate memory cache
-                Task {
-                    await memoryCache.set(memCacheKey, value: diskCached, ttl: 300)
-                }
+                // Check if cached data is outdated (missing scoreBreakdown when comparison exists)
+                let needsUpdate = diskCached.comparison != nil &&
+                                  diskCached.comparison?.scoreBreakdown == nil
 
-                // Check if disk cache is stale and needs background refresh
-                if let metadata = cacheService.getCacheMetadataSync(filename: diskFilename),
-                   Date().timeIntervalSince(metadata.lastUpdated) > 900 { // Refresh after 15 min
-                    refreshInBackgroundNonBlocking(weekStart: targetWeek)
+                if needsUpdate {
+                    print("WeeklyNarrative: Cache outdated (missing scoreBreakdown), fetching fresh data")
+                    // Don't use stale cache, fetch fresh data instead
+                } else {
+                    narrative = diskCached
+
+                    // Populate memory cache
+                    Task {
+                        await memoryCache.set(memCacheKey, value: diskCached, ttl: 300)
+                    }
+
+                    // Check if disk cache is stale and needs background refresh
+                    if let metadata = cacheService.getCacheMetadataSync(filename: diskFilename),
+                       Date().timeIntervalSince(metadata.lastUpdated) > 900 { // Refresh after 15 min
+                        refreshInBackgroundNonBlocking(weekStart: targetWeek)
+                    }
+                    return
                 }
-                return
             }
         }
 
@@ -300,23 +327,83 @@ class WeeklyNarrativeViewModel: ObservableObject {
     }
 
     /// Select a week and fetch its narrative
+    /// Uses instant cache lookup for immediate UI update
     func selectWeek(_ week: WeekOption) async {
+        // Check if we're switching to a different week
+        let isSwitchingWeek = selectedWeek?.weekStart != week.weekStart
         selectedWeek = week
+
+        let memCacheKey = "mem_weekly_narrative_\(week.weekStart)"
+        let diskFilename = "weekly_narrative_\(week.weekStart)"
+
+        // 1. Try memory cache first - INSTANT
+        if let memCached: WeeklyNarrativeResponse = await memoryCache.get(memCacheKey) {
+            narrative = memCached
+            isLoading = false
+            print("WeeklyNarrative: Week \(week.weekStart) loaded instantly from memory cache")
+
+            // Background refresh if stale (don't change isLoading)
+            if await memoryCache.needsRefresh(memCacheKey) {
+                refreshInBackgroundNonBlocking(weekStart: week.weekStart)
+            }
+            return
+        }
+
+        // 2. Try disk cache - still very fast
+        if let diskCached = cacheService.loadJSONSync(WeeklyNarrativeResponse.self, filename: diskFilename) {
+            // Check if cached data is outdated (missing scoreBreakdown when comparison exists)
+            let needsUpdate = diskCached.comparison != nil &&
+                              diskCached.comparison?.scoreBreakdown == nil
+
+            if needsUpdate {
+                print("WeeklyNarrative: Cache outdated (missing scoreBreakdown), fetching fresh data")
+                // Fall through to fetch fresh data
+            } else {
+                narrative = diskCached
+                isLoading = false
+                print("WeeklyNarrative: Week \(week.weekStart) loaded instantly from disk cache")
+
+                // Populate memory cache for next time
+                Task {
+                    await memoryCache.set(memCacheKey, value: diskCached, ttl: 300)
+                }
+
+                // Background refresh if stale (don't change isLoading)
+                if let metadata = cacheService.getCacheMetadataSync(filename: diskFilename),
+                   Date().timeIntervalSince(metadata.lastUpdated) > 900 {
+                    refreshInBackgroundNonBlocking(weekStart: week.weekStart)
+                }
+                return
+            }
+        }
+
+        // 3. No cache - clear old data and show loading state
+        if isSwitchingWeek {
+            narrative = nil  // Clear old week's data to prevent showing stale content
+            isLoading = true
+        }
         await fetchNarrative(weekStart: week.weekStart)
     }
 
     // MARK: - Computed Properties for UI
 
-    /// Greeting based on time of day
+    /// Greeting based on time of day, personalized with user's name
     var greeting: String {
         let hour = Calendar.current.component(.hour, from: Date())
+        let timeGreeting: String
         if hour < 12 {
-            return "Good morning"
+            timeGreeting = "Good morning"
         } else if hour < 17 {
-            return "Good afternoon"
+            timeGreeting = "Good afternoon"
         } else {
-            return "Good evening"
+            timeGreeting = "Good evening"
         }
+
+        // Add user's first name if available
+        if let firstName = UserDefaults.standard.string(forKey: "user_first_name"), !firstName.isEmpty {
+            return "\(timeGreeting), \(firstName)"
+        }
+        return timeGreeting
     }
 
     /// Formatted week range for display
@@ -330,11 +417,132 @@ class WeeklyNarrativeViewModel: ObservableObject {
     /// Whether we have meaningful data to display
     var hasData: Bool {
         guard let n = narrative else { return false }
-        return n.aggregates.totalMeetings > 0 || n.aggregates.totalFocusMinutes > 0
+        // Check aggregates if available, otherwise check if we have any time buckets or overview
+        if let agg = n.aggregates {
+            return agg.totalMeetings > 0 || agg.totalFocusMinutes > 0
+        }
+        // Fallback: check if we have any content
+        return !n.weeklyOverview.isEmpty || (n.timeBuckets?.isEmpty == false)
     }
 
     /// Check if this is current week
     var isCurrentWeek: Bool {
         return selectedWeek?.weekStart == currentWeekStart || selectedWeek == nil
+    }
+
+    /// Check if narrative matches the selected week (prevents showing stale data)
+    var hasNarrativeForSelectedWeek: Bool {
+        guard let narrative = narrative else { return false }
+        let targetWeek = selectedWeek?.weekStart ?? currentWeekStart
+        return narrative.weekStart == targetWeek
+    }
+
+    // MARK: - Next Week Forecast (Predictive Intelligence)
+
+    /// Fetch next week's forecast - predictive, forward-looking data
+    func fetchNextWeekForecast(forceRefresh: Bool = false) async {
+        // 1. Try memory cache first (instant)
+        if !forceRefresh {
+            if let memCached: NextWeekForecastResponse = await memoryCache.get(forecastMemCacheKey) {
+                nextWeekForecast = memCached
+                print("NextWeekForecast: Loaded from memory cache")
+
+                // Background refresh if stale
+                if await memoryCache.needsRefresh(forecastMemCacheKey) {
+                    refreshForecastInBackground()
+                }
+                return
+            }
+        }
+
+        // 2. Try disk cache
+        if !forceRefresh {
+            if let diskCached = cacheService.loadJSONSync(NextWeekForecastResponse.self, filename: forecastDiskCacheKey) {
+                nextWeekForecast = diskCached
+                print("NextWeekForecast: Loaded from disk cache")
+
+                // Populate memory cache
+                Task {
+                    await memoryCache.set(forecastMemCacheKey, value: diskCached, ttl: 300)
+                }
+
+                // Background refresh if stale (after 15 min)
+                if let metadata = cacheService.getCacheMetadataSync(filename: forecastDiskCacheKey),
+                   Date().timeIntervalSince(metadata.lastUpdated) > 900 {
+                    refreshForecastInBackground()
+                }
+                return
+            }
+        }
+
+        // 3. Show loading if no cached data
+        if nextWeekForecast == nil {
+            isLoadingForecast = true
+        }
+
+        // 4. Fetch from API
+        do {
+            let response = try await RequestDeduplicator.shared.dedupe(key: "next_week_forecast") {
+                try await self.apiService.getNextWeekForecast()
+            }
+
+            guard !Task.isCancelled else { return }
+
+            nextWeekForecast = response
+            isLoadingForecast = false
+
+            // Cache to memory
+            await memoryCache.set(forecastMemCacheKey, value: response, ttl: 300)
+
+            // Cache to disk in background
+            Task.detached(priority: .utility) {
+                CacheService.shared.saveJSONSync(response, filename: self.forecastDiskCacheKey, expiration: 1800)
+            }
+
+            print("NextWeekForecast: Fetched successfully - \(response.headline)")
+        } catch {
+            if Task.isCancelled { return }
+
+            print("NextWeekForecast: Error - \(error.localizedDescription)")
+            isLoadingForecast = false
+        }
+    }
+
+    /// Background refresh for forecast
+    private func refreshForecastInBackground() {
+        forecastTask?.cancel()
+        forecastTask = Task.detached(priority: .utility) { [weak self] in
+            guard let self = self, !Task.isCancelled else { return }
+
+            do {
+                let response = try await self.apiService.getNextWeekForecast()
+                guard !Task.isCancelled else { return }
+
+                await self.memoryCache.set(self.forecastMemCacheKey, value: response, ttl: 300)
+
+                await MainActor.run {
+                    self.nextWeekForecast = response
+                }
+
+                CacheService.shared.saveJSONSync(response, filename: self.forecastDiskCacheKey, expiration: 1800)
+            } catch {
+                #if DEBUG
+                if !Task.isCancelled {
+                    print("NextWeekForecast: Background refresh failed: \(error.localizedDescription)")
+                }
+                #endif
+            }
+        }
+    }
+
+    /// Whether forecast is for a meaningful future (has data)
+    var hasForecastData: Bool {
+        guard let forecast = nextWeekForecast else { return false }
+        return !forecast.dailyForecasts.isEmpty
+    }
+
+    /// Whether to show forecast (only for current week view)
+    var shouldShowForecast: Bool {
+        isCurrentWeek && hasForecastData
     }
 }

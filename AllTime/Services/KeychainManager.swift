@@ -245,29 +245,127 @@ class KeychainManager {
     }
     
     // MARK: - Token Management
-    
-    func storeTokens(accessToken: String, refreshToken: String) -> Bool {
+
+    /// Store tokens with metadata (expiry times)
+    func storeTokens(accessToken: String, refreshToken: String, accessExpiresIn: Int? = nil, refreshExpiresIn: Int? = nil) -> Bool {
         let accessSuccess = store(key: "access_token", value: accessToken)
         let refreshSuccess = store(key: "refresh_token", value: refreshToken)
+
+        // Store expiry timestamps if provided
+        if let expiresIn = accessExpiresIn {
+            let expiryTimestamp = Date().addingTimeInterval(TimeInterval(expiresIn)).timeIntervalSince1970
+            _ = store(key: "access_token_expires_at", value: String(expiryTimestamp))
+            os_log("[KEYCHAIN] Stored access token expiry: %{public}d seconds from now", log: log, type: .info, expiresIn)
+        }
+
+        if let refreshExpiresIn = refreshExpiresIn {
+            let refreshExpiryTimestamp = Date().addingTimeInterval(TimeInterval(refreshExpiresIn)).timeIntervalSince1970
+            _ = store(key: "refresh_token_expires_at", value: String(refreshExpiryTimestamp))
+            os_log("[KEYCHAIN] Stored refresh token expiry: %{public}d seconds from now", log: log, type: .info, refreshExpiresIn)
+        }
+
         return accessSuccess && refreshSuccess
     }
-    
+
     func getAccessToken() -> String? {
         return retrieve(key: "access_token")
     }
-    
+
     func getRefreshToken() -> String? {
         return retrieve(key: "refresh_token")
     }
-    
+
+    /// Get access token expiry date
+    func getAccessTokenExpiry() -> Date? {
+        guard let timestampStr = retrieve(key: "access_token_expires_at"),
+              let timestamp = Double(timestampStr) else {
+            return nil
+        }
+        return Date(timeIntervalSince1970: timestamp)
+    }
+
+    /// Get refresh token expiry date
+    func getRefreshTokenExpiry() -> Date? {
+        guard let timestampStr = retrieve(key: "refresh_token_expires_at"),
+              let timestamp = Double(timestampStr) else {
+            return nil
+        }
+        return Date(timeIntervalSince1970: timestamp)
+    }
+
+    /// Check if access token is expired or will expire within given seconds
+    func isAccessTokenExpired(buffer: TimeInterval = 0) -> Bool {
+        guard let expiry = getAccessTokenExpiry() else {
+            // No expiry stored - DON'T assume expired
+            // The token might still be valid, let the API call determine
+            // This prevents unnecessary refresh attempts and sign-outs
+            return false
+        }
+        return expiry.timeIntervalSinceNow <= buffer
+    }
+
+    /// Check if refresh token is expired
+    func isRefreshTokenExpired() -> Bool {
+        guard let expiry = getRefreshTokenExpiry() else {
+            // No expiry stored - assume NOT expired (refresh tokens are long-lived)
+            return false
+        }
+        return expiry.timeIntervalSinceNow <= 0
+    }
+
     func clearTokens() -> Bool {
         let accessDeleted = delete(key: "access_token")
         let refreshDeleted = delete(key: "refresh_token")
+        _ = delete(key: "access_token_expires_at")
+        _ = delete(key: "refresh_token_expires_at")
         return accessDeleted && refreshDeleted
     }
-    
-    func hasValidTokens() -> Bool {
+
+    /// Check if tokens exist in Keychain
+    func hasStoredTokens() -> Bool {
         return getAccessToken() != nil && getRefreshToken() != nil
+    }
+
+    /// Check if we have valid (non-expired) tokens for session restoration
+    /// Returns true if tokens exist and refresh token is not expired
+    /// Note: Access token can be expired - we'll refresh it silently
+    func hasValidTokens() -> Bool {
+        guard hasStoredTokens() else {
+            os_log("[KEYCHAIN] hasValidTokens: No stored tokens", log: log, type: .info)
+            return false
+        }
+
+        // Check if refresh token is expired
+        if isRefreshTokenExpired() {
+            os_log("[KEYCHAIN] hasValidTokens: Refresh token is expired", log: log, type: .error)
+            return false
+        }
+
+        os_log("[KEYCHAIN] hasValidTokens: Tokens valid (access expired: %{public}@, refresh expired: %{public}@)",
+               log: log, type: .info,
+               isAccessTokenExpired() ? "YES" : "NO",
+               isRefreshTokenExpired() ? "YES" : "NO")
+        return true
+    }
+
+    /// Update only the access token (used after refresh)
+    func updateAccessToken(_ token: String, expiresIn: Int? = nil) -> Bool {
+        let success = store(key: "access_token", value: token)
+        if let expiresIn = expiresIn {
+            let expiryTimestamp = Date().addingTimeInterval(TimeInterval(expiresIn)).timeIntervalSince1970
+            _ = store(key: "access_token_expires_at", value: String(expiryTimestamp))
+        }
+        return success
+    }
+
+    /// Update refresh token (used when backend rotates refresh tokens)
+    func updateRefreshToken(_ token: String, expiresIn: Int? = nil) -> Bool {
+        let success = store(key: "refresh_token", value: token)
+        if let expiresIn = expiresIn {
+            let expiryTimestamp = Date().addingTimeInterval(TimeInterval(expiresIn)).timeIntervalSince1970
+            _ = store(key: "refresh_token_expires_at", value: String(expiryTimestamp))
+        }
+        return success
     }
 }
 

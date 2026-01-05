@@ -146,7 +146,7 @@ class ClashesViewModel: ObservableObject {
 
         do {
             let response = try await apiService.getMeetingClashes()
-            totalClashes = response.totalClashes
+            totalClashes = response.effectiveTotalClashes
 
             // Convert to ClashDay array, sorted by date
             clashDays = response.clashesByDate.map { date, clashes in

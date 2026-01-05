@@ -318,3 +318,80 @@ extension DateFormatter {
     }()
 }
 
+// MARK: - Prioritized Reminders Response
+
+struct PrioritizedRemindersResponse: Codable {
+    let doThisFirst: DoThisFirstRecommendation?
+    let prioritized: [PrioritizedReminder]
+    let summary: PrioritizationSummary
+
+    enum CodingKeys: String, CodingKey {
+        case doThisFirst = "do_this_first"
+        case prioritized
+        case summary
+    }
+}
+
+struct DoThisFirstRecommendation: Codable {
+    let reminder: Reminder
+    let reason: String
+}
+
+struct PrioritizedReminder: Codable, Identifiable {
+    let reminder: Reminder
+    let reason: String
+    let category: String
+
+    var id: Int64 { reminder.id }
+
+    /// Category display name
+    var categoryLabel: String {
+        switch category {
+        case "quick_win": return "Quick win"
+        case "needs_attention": return "Needs attention"
+        case "deep_work": return "Deep focus"
+        default: return ""
+        }
+    }
+
+    /// Category icon
+    var categoryIcon: String {
+        switch category {
+        case "quick_win": return "bolt.fill"
+        case "needs_attention": return "exclamationmark.circle.fill"
+        case "deep_work": return "brain.head.profile"
+        default: return "circle.fill"
+        }
+    }
+}
+
+struct PrioritizationSummary: Codable {
+    let totalPending: Int
+    let quickWins: Int
+    let beingAvoided: Int
+    let overdue: Int
+    let totalEstimatedMinutes: Int
+
+    enum CodingKeys: String, CodingKey {
+        case totalPending = "total_pending"
+        case quickWins = "quick_wins"
+        case beingAvoided = "being_avoided"
+        case overdue
+        case totalEstimatedMinutes = "total_estimated_minutes"
+    }
+
+    /// Formatted estimated time
+    var formattedEstimatedTime: String {
+        if totalEstimatedMinutes < 60 {
+            return "\(totalEstimatedMinutes)min"
+        } else {
+            let hours = totalEstimatedMinutes / 60
+            let mins = totalEstimatedMinutes % 60
+            if mins == 0 {
+                return "\(hours)h"
+            }
+            return "\(hours)h \(mins)m"
+        }
+    }
+}
+

@@ -32,53 +32,81 @@ struct ReminderListView: View {
                             }
                             .padding(.horizontal)
                             .padding(.top, 8)
-                            
+
+                            // "Do this first" card - opinionated prioritization
+                            if let doFirst = viewModel.doThisFirst {
+                                DoThisFirstCard(
+                                    recommendation: doFirst,
+                                    onTap: {
+                                        selectedReminder = doFirst.reminder
+                                        showingDetail = true
+                                    },
+                                    onComplete: {
+                                        Task {
+                                            do {
+                                                _ = try await viewModel.completeReminder(id: doFirst.reminder.id)
+                                            } catch {
+                                                print("Error completing reminder: \(error)")
+                                            }
+                                        }
+                                    }
+                                )
+                                .padding(.horizontal)
+                            }
+
                             // Grouped reminders
                             let groups = viewModel.groupedReminders()
                             let groupOrder = ["Catch Up", "Today", "Tomorrow", "This Week", "Coming Up"]
-                            
+
                             ForEach(groupOrder, id: \.self) { groupName in
                                 if let reminders = groups[groupName], !reminders.isEmpty {
-                                    ReminderGroupSection(
-                                        title: groupName,
-                                        reminders: reminders,
-                                        onReminderTap: { reminder in
-                                            selectedReminder = reminder
-                                            showingDetail = true
-                                        },
-                                        onComplete: { reminder in
-                                            Task {
-                                                do {
-                                                    _ = try await viewModel.completeReminder(id: reminder.id)
-                                                } catch {
-                                                    print("Error completing reminder: \(error)")
+                                    // Filter out the "do this first" reminder from regular groups
+                                    let filteredReminders = reminders.filter { reminder in
+                                        viewModel.doThisFirst?.reminder.id != reminder.id
+                                    }
+
+                                    if !filteredReminders.isEmpty {
+                                        ReminderGroupSection(
+                                            title: groupName,
+                                            reminders: filteredReminders,
+                                            onReminderTap: { reminder in
+                                                selectedReminder = reminder
+                                                showingDetail = true
+                                            },
+                                            onComplete: { reminder in
+                                                Task {
+                                                    do {
+                                                        _ = try await viewModel.completeReminder(id: reminder.id)
+                                                    } catch {
+                                                        print("Error completing reminder: \(error)")
+                                                    }
+                                                }
+                                            },
+                                            onSnooze: { reminder in
+                                                Task {
+                                                    do {
+                                                        let snoozeDate = Date().addingTimeInterval(30 * 60) // 30 minutes
+                                                        _ = try await viewModel.snoozeReminder(id: reminder.id, until: snoozeDate)
+                                                    } catch {
+                                                        print("Error snoozing reminder: \(error)")
+                                                    }
+                                                }
+                                            },
+                                            onDelete: { reminder in
+                                                Task {
+                                                    do {
+                                                        try await viewModel.deleteReminder(id: reminder.id)
+                                                    } catch {
+                                                        print("Error deleting reminder: \(error)")
+                                                    }
                                                 }
                                             }
-                                        },
-                                        onSnooze: { reminder in
-                                            Task {
-                                                do {
-                                                    let snoozeDate = Date().addingTimeInterval(30 * 60) // 30 minutes
-                                                    _ = try await viewModel.snoozeReminder(id: reminder.id, until: snoozeDate)
-                                                } catch {
-                                                    print("Error snoozing reminder: \(error)")
-                                                }
-                                            }
-                                        },
-                                        onDelete: { reminder in
-                                            Task {
-                                                do {
-                                                    try await viewModel.deleteReminder(id: reminder.id)
-                                                } catch {
-                                                    print("Error deleting reminder: \(error)")
-                                                }
-                                            }
-                                        }
-                                    )
+                                        )
+                                    }
                                 }
                             }
-                            
-                            if groups.isEmpty {
+
+                            if groups.isEmpty && viewModel.doThisFirst == nil {
                                 EmptyRemindersView()
                                     .padding(.top, 50)
                             }
@@ -121,8 +149,11 @@ struct ReminderListView: View {
                             print("⚠️ ReminderListView: EventKit permission denied")
                         }
                     }
-                    
-                    await viewModel.loadReminders()
+
+                    // Fetch reminders and prioritization in parallel
+                    async let remindersTask: () = viewModel.loadReminders()
+                    async let prioritizationTask: () = viewModel.loadPrioritizedReminders()
+                    _ = await (remindersTask, prioritizationTask)
                 }
             }
             .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("OpenReminder"))) { notification in
@@ -287,6 +318,90 @@ struct ReminderErrorView: View {
             }
         }
         .padding(DesignSystem.Spacing.lg)
+    }
+}
+
+// MARK: - Do This First Card
+
+struct DoThisFirstCard: View {
+    let recommendation: DoThisFirstRecommendation
+    let onTap: () -> Void
+    let onComplete: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Header
+            HStack(spacing: 8) {
+                Image(systemName: "target")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(DesignSystem.Colors.primary)
+
+                Text("Do this first")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primary)
+
+                Spacer()
+            }
+
+            // Task content
+            Button(action: {
+                HapticManager.shared.lightTap()
+                onTap()
+            }) {
+                HStack(alignment: .top, spacing: 12) {
+                    // Completion button
+                    Button(action: {
+                        HapticManager.shared.mediumTap()
+                        onComplete()
+                    }) {
+                        Image(systemName: "circle")
+                            .font(.system(size: 22))
+                            .foregroundColor(DesignSystem.Colors.primary)
+                    }
+                    .buttonStyle(.plain)
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(recommendation.reminder.title)
+                            .font(.headline)
+                            .foregroundColor(DesignSystem.Colors.primaryText)
+                            .lineLimit(2)
+
+                        Text(recommendation.reason)
+                            .font(.subheadline)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
+                            .lineLimit(2)
+
+                        // Due date if available
+                        if recommendation.reminder.dueDate > Date() {
+                            let formatter = RelativeDateTimeFormatter()
+                            Text("Due \(formatter.localizedString(for: recommendation.reminder.dueDate, relativeTo: Date()))")
+                                .font(.caption)
+                                .foregroundColor(DesignSystem.Colors.tertiaryText)
+                        } else {
+                            Text("Overdue")
+                                .font(.caption)
+                                .foregroundColor(.orange)
+                        }
+                    }
+
+                    Spacer()
+
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(DesignSystem.Colors.tertiaryText)
+                }
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(DesignSystem.Colors.primary.opacity(0.08))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .strokeBorder(DesignSystem.Colors.primary.opacity(0.2), lineWidth: 1)
+                )
+        )
     }
 }
 

@@ -62,7 +62,7 @@ class MeetingClashesViewModel: ObservableObject {
             )
             
             print("✅ MeetingClashesViewModel: Fetched clashes from API")
-            print("✅ MeetingClashesViewModel: Total clashes: \(response.totalClashes)")
+            print("✅ MeetingClashesViewModel: Total clashes: \(response.effectiveTotalClashes)")
             
             clashes = response
             
@@ -91,7 +91,7 @@ class MeetingClashesViewModel: ObservableObject {
     /// Check if there are any clashes
     var hasClashes: Bool {
         guard let clashes = clashes else { return false }
-        return clashes.totalClashes > 0
+        return clashes.effectiveTotalClashes > 0
     }
     
     /// Get all clash dates

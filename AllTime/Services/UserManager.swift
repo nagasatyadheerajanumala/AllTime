@@ -21,11 +21,17 @@ class UserManager: ObservableObject {
         print("👤 UserManager: Loading user profile...")
         isLoading = true
         errorMessage = nil
-        
+
         Task {
             do {
                 let user = try await apiService.fetchUserProfile()
                 self.user = user
+                // Cache user's first name for personalized notifications
+                if let fullName = user.fullName, !fullName.isEmpty {
+                    let firstName = fullName.components(separatedBy: " ").first ?? fullName
+                    UserDefaults.standard.set(firstName, forKey: "user_first_name")
+                    print("👤 UserManager: Cached user first name: \(firstName)")
+                }
                 isLoading = false
                 print("👤 UserManager: User profile loaded successfully")
             } catch {
@@ -67,6 +73,11 @@ class UserManager: ObservableObject {
                 )
                 // Update user profile with response
                 self.user = updatedUser
+                // Update cached first name if fullName changed
+                if let fullName = updatedUser.fullName, !fullName.isEmpty {
+                    let firstName = fullName.components(separatedBy: " ").first ?? fullName
+                    UserDefaults.standard.set(firstName, forKey: "user_first_name")
+                }
                 isLoading = false
                 print("👤 UserManager: User profile updated successfully")
             } catch {

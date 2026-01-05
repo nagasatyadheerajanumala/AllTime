@@ -397,3 +397,31 @@ struct ScheduleResponse: Codable {
         case message
     }
 }
+
+// MARK: - Task List Response (for /tasks/all endpoint)
+
+/// Response containing categorized tasks for the Tasks screen
+struct TaskListResponse: Codable {
+    // All active tasks (Open + Catch Up)
+    let tasks: [UserTask]
+
+    // Categorized task lists
+    let openTasks: [UserTask]      // Open: Not yet overdue
+    let catchUpTasks: [UserTask]   // Catch Up: Overdue but not completed
+    let doneTasks: [UserTask]      // Done: Completed (today)
+
+    // Counts for header/summary
+    let openCount: Int
+    let catchUpCount: Int
+    let doneToday: Int
+
+    enum CodingKeys: String, CodingKey {
+        case tasks
+        case openTasks = "openTasks"
+        case catchUpTasks = "catchUpTasks"
+        case doneTasks = "doneTasks"
+        case openCount = "openCount"
+        case catchUpCount = "catchUpCount"
+        case doneToday = "doneToday"
+    }
+}

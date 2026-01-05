@@ -16,6 +16,11 @@ class PlanMyDayViewModel: ObservableObject {
     @Published var weekendPlan: WeekendPlanResponse?
     @Published var isGeneratingWeekendPlan = false
 
+    // Focus Windows & Lunch Break from Briefing
+    @Published var focusWindows: [FocusWindow] = []
+    @Published var lunchBreakSuggestion: BriefingSuggestion?
+    @Published var isLoadingBriefing = false
+
     @Published var isLoadingSuggestions = false
     @Published var isLoadingTaskSuggestions = false
     @Published var isGeneratingItinerary = false
@@ -264,7 +269,231 @@ class PlanMyDayViewModel: ObservableObject {
             group.addTask { await self.loadSuggestions() }
             group.addTask { await self.loadTaskSuggestions() }
             group.addTask { await self.loadUserInterests() }
+            group.addTask { await self.loadBriefingData() }
         }
+    }
+
+    // MARK: - Load Briefing Data (Focus Windows & Lunch Break)
+
+    /// Load focus windows and lunch break suggestions from the daily briefing
+    func loadBriefingData() async {
+        guard let userId = UserDefaults.standard.value(forKey: "userId") as? Int64 else { return }
+        guard let token = KeychainManager.shared.getAccessToken() else { return }
+
+        // Only load for today
+        let calendar = Calendar.current
+        guard calendar.isDateInToday(selectedDate) else {
+            // For future dates, clear briefing data
+            self.focusWindows = []
+            self.lunchBreakSuggestion = nil
+            return
+        }
+
+        isLoadingBriefing = true
+
+        do {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "yyyy-MM-dd"
+            let dateString = formatter.string(from: selectedDate)
+
+            guard let url = URL(string: "\(Constants.API.baseURL)/api/v1/today/briefing?date=\(dateString)") else {
+                throw URLError(.badURL)
+            }
+
+            var request = URLRequest(url: url)
+            request.httpMethod = "GET"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            request.setValue(String(userId), forHTTPHeaderField: "X-User-ID")
+            request.setValue(TimeZone.current.identifier, forHTTPHeaderField: "X-Timezone")
+
+            let (data, response) = try await URLSession.shared.data(for: request)
+
+            guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
+                throw URLError(.badServerResponse)
+            }
+
+            let briefing = try JSONDecoder().decode(DailyBriefingResponse.self, from: data)
+
+            // Extract focus windows
+            self.focusWindows = briefing.focusWindows ?? []
+
+            // Extract lunch break suggestion (look for meal/food/lunch category)
+            self.lunchBreakSuggestion = briefing.suggestions?.first { suggestion in
+                let category = (suggestion.category ?? "").lowercased()
+                let title = suggestion.title.lowercased()
+                return category.contains("meal") || category.contains("food") ||
+                       category.contains("lunch") || category.contains("nutrition") ||
+                       title.contains("lunch") || title.contains("meal")
+            }
+
+            print("📅 Loaded \(focusWindows.count) focus windows, lunch: \(lunchBreakSuggestion?.title ?? "none")")
+
+        } catch {
+            print("Failed to load briefing data: \(error)")
+        }
+
+        isLoadingBriefing = false
+    }
+
+    // MARK: - Add to Calendar
+
+    /// Add a focus window to the calendar
+    func addFocusWindowToCalendar(_ window: FocusWindow) async -> Bool {
+        guard let startDate = window.startDate, let endDate = window.endDate else {
+            print("❌ Cannot add focus window - missing dates")
+            return false
+        }
+
+        do {
+            let title = window.suggestedActivity ?? "Focus Time"
+            let success = try await CalendarService.shared.createEvent(
+                title: title,
+                startDate: startDate,
+                endDate: endDate,
+                notes: window.reason
+            )
+
+            if success {
+                let generator = UINotificationFeedbackGenerator()
+                generator.notificationOccurred(.success)
+                print("✅ Added focus window to calendar: \(title)")
+            }
+
+            return success
+        } catch {
+            print("❌ Failed to add focus window to calendar: \(error)")
+            errorMessage = "Failed to add to calendar"
+            return false
+        }
+    }
+
+    /// Add lunch break to the calendar
+    func addLunchToCalendar() async -> Bool {
+        guard let lunch = lunchBreakSuggestion else { return false }
+
+        // Parse times from suggestion
+        let now = Date()
+        let calendar = Calendar.current
+
+        // Default lunch time: 12:00 PM - 1:00 PM
+        var startDate = calendar.date(bySettingHour: 12, minute: 0, second: 0, of: now) ?? now
+        var endDate = calendar.date(bySettingHour: 13, minute: 0, second: 0, of: now) ?? now
+
+        // Try to parse from suggestion
+        if let recommendedStart = lunch.recommendedStart {
+            if let parsed = parseTime(recommendedStart) {
+                startDate = parsed
+            }
+        }
+        if let recommendedEnd = lunch.recommendedEnd {
+            if let parsed = parseTime(recommendedEnd) {
+                endDate = parsed
+            }
+        } else if let duration = lunch.durationMinutes {
+            endDate = calendar.date(byAdding: .minute, value: duration, to: startDate) ?? endDate
+        }
+
+        do {
+            let success = try await CalendarService.shared.createEvent(
+                title: lunch.title,
+                startDate: startDate,
+                endDate: endDate,
+                notes: lunch.description
+            )
+
+            if success {
+                let generator = UINotificationFeedbackGenerator()
+                generator.notificationOccurred(.success)
+                print("✅ Added lunch to calendar: \(lunch.title)")
+            }
+
+            return success
+        } catch {
+            print("❌ Failed to add lunch to calendar: \(error)")
+            errorMessage = "Failed to add to calendar"
+            return false
+        }
+    }
+
+    /// Set a reminder for lunch break
+    func setLunchReminder() async -> Bool {
+        guard let lunch = lunchBreakSuggestion else { return false }
+
+        // Default reminder 15 minutes before lunch
+        let now = Date()
+        let calendar = Calendar.current
+        var reminderTime = calendar.date(bySettingHour: 11, minute: 45, second: 0, of: now) ?? now
+
+        // Try to parse from suggestion
+        if let recommendedStart = lunch.recommendedStart {
+            if let parsed = parseTime(recommendedStart) {
+                reminderTime = calendar.date(byAdding: .minute, value: -15, to: parsed) ?? reminderTime
+            }
+        }
+
+        do {
+            let success = try await ReminderService.shared.createReminder(
+                title: lunch.title,
+                notes: lunch.description,
+                dueDate: reminderTime
+            )
+
+            if success {
+                let generator = UINotificationFeedbackGenerator()
+                generator.notificationOccurred(.success)
+                print("✅ Set lunch reminder: \(lunch.title)")
+            }
+
+            return success
+        } catch {
+            print("❌ Failed to set lunch reminder: \(error)")
+            errorMessage = "Failed to set reminder"
+            return false
+        }
+    }
+
+    private func parseTime(_ timeString: String) -> Date? {
+        let formatters: [DateFormatter] = [
+            {
+                let f = DateFormatter()
+                f.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
+                f.timeZone = TimeZone.current
+                return f
+            }(),
+            {
+                let f = DateFormatter()
+                f.dateFormat = "HH:mm:ss"
+                f.timeZone = TimeZone.current
+                return f
+            }(),
+            {
+                let f = DateFormatter()
+                f.dateFormat = "HH:mm"
+                f.timeZone = TimeZone.current
+                return f
+            }(),
+            {
+                let f = DateFormatter()
+                f.dateFormat = "h:mm a"
+                f.timeZone = TimeZone.current
+                return f
+            }()
+        ]
+
+        for formatter in formatters {
+            if let date = formatter.date(from: timeString) {
+                // Combine with today's date
+                let calendar = Calendar.current
+                let now = Date()
+                let components = calendar.dateComponents([.hour, .minute, .second], from: date)
+                return calendar.date(bySettingHour: components.hour ?? 0,
+                                     minute: components.minute ?? 0,
+                                     second: components.second ?? 0,
+                                     of: now)
+            }
+        }
+        return nil
     }
 
     // MARK: - Load User Interests

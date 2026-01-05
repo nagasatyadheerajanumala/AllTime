@@ -18,6 +18,9 @@ struct CalendarEvent: Codable, Identifiable {
     let eventType: String?  // meeting, holiday, flight, hotel, birthday, focus, travel, other
     let calendarId: String?  // Source calendar ID for multi-calendar support
     let eventColor: String?  // Hex color code (e.g., #3B82F6) - user customizable
+    let meetingLink: String?  // Video conferencing link (Google Meet, Teams, Zoom)
+    let htmlLink: String?  // Link to open event in calendar provider web UI
+    let organizerEmail: String?  // Email of the event organizer
 
     enum CodingKeys: String, CodingKey {
         case id, title, description, source, location, attendees, recurrence, metadata
@@ -28,6 +31,9 @@ struct CalendarEvent: Codable, Identifiable {
         case eventType = "event_type"
         case calendarId = "calendar_id"
         case eventColor = "event_color"
+        case meetingLink = "meeting_link"
+        case htmlLink = "html_link"
+        case organizerEmail = "organizer_email"
     }
     
     // Custom decoder to handle metadata as [String: Any] and attendees as objects or strings
@@ -52,10 +58,13 @@ struct CalendarEvent: Codable, Identifiable {
             metadata = nil
         }
 
-        // Decode eventType, calendarId, and eventColor
+        // Decode eventType, calendarId, eventColor, and meeting fields
         eventType = try container.decodeIfPresent(String.self, forKey: .eventType)
         calendarId = try container.decodeIfPresent(String.self, forKey: .calendarId)
         eventColor = try container.decodeIfPresent(String.self, forKey: .eventColor)
+        meetingLink = try container.decodeIfPresent(String.self, forKey: .meetingLink)
+        htmlLink = try container.decodeIfPresent(String.self, forKey: .htmlLink)
+        organizerEmail = try container.decodeIfPresent(String.self, forKey: .organizerEmail)
 
         // Handle attendees: could be array of objects, array of strings, null, or missing
         if container.contains(.attendees) {
@@ -118,10 +127,13 @@ struct CalendarEvent: Codable, Identifiable {
             try container.encodeNil(forKey: .metadata)
         }
 
-        // Encode eventType, calendarId, and eventColor
+        // Encode eventType, calendarId, eventColor, and meeting fields
         try container.encodeIfPresent(eventType, forKey: .eventType)
         try container.encodeIfPresent(calendarId, forKey: .calendarId)
         try container.encodeIfPresent(eventColor, forKey: .eventColor)
+        try container.encodeIfPresent(meetingLink, forKey: .meetingLink)
+        try container.encodeIfPresent(htmlLink, forKey: .htmlLink)
+        try container.encodeIfPresent(organizerEmail, forKey: .organizerEmail)
     }
 
     // Convenience initializer for previews and tests
@@ -140,7 +152,10 @@ struct CalendarEvent: Codable, Identifiable {
         metadata: [String: Any]? = nil,
         eventType: String? = nil,
         calendarId: String? = nil,
-        eventColor: String? = nil
+        eventColor: String? = nil,
+        meetingLink: String? = nil,
+        htmlLink: String? = nil,
+        organizerEmail: String? = nil
     ) {
         self.id = id
         self.title = title
@@ -157,6 +172,9 @@ struct CalendarEvent: Codable, Identifiable {
         self.eventType = eventType
         self.calendarId = calendarId
         self.eventColor = eventColor
+        self.meetingLink = meetingLink
+        self.htmlLink = htmlLink
+        self.organizerEmail = organizerEmail
     }
     
     // Static formatters (reused, thread-safe, created once)
@@ -355,6 +373,40 @@ extension CalendarEvent {
         return type == "birthday" || type == "holiday"
     }
 
+    // Whether this event has a video meeting link (Google Meet, Teams, Zoom)
+    var hasMeetingLink: Bool {
+        guard let link = meetingLink, !link.isEmpty else { return false }
+        return true
+    }
+
+    // Meeting type based on the link URL
+    var meetingType: String? {
+        guard let link = meetingLink?.lowercased() else { return nil }
+        if link.contains("meet.google.com") {
+            return "Google Meet"
+        } else if link.contains("teams.microsoft.com") || link.contains("teams.live.com") {
+            return "Microsoft Teams"
+        } else if link.contains("zoom.us") {
+            return "Zoom"
+        } else if link.contains("webex") {
+            return "Webex"
+        }
+        return "Video Call"
+    }
+
+    // Meeting icon based on the type
+    var meetingIcon: String {
+        guard let link = meetingLink?.lowercased() else { return "video" }
+        if link.contains("meet.google.com") {
+            return "video.fill"  // Google Meet
+        } else if link.contains("teams.microsoft.com") || link.contains("teams.live.com") {
+            return "person.2.fill"  // Teams
+        } else if link.contains("zoom.us") {
+            return "video.circle.fill"  // Zoom
+        }
+        return "video.fill"
+    }
+
     // Display color - uses eventColor if set, otherwise falls back to eventTypeColor
     var displayColor: Color {
         if let hexColor = eventColor, !hexColor.isEmpty {
@@ -421,6 +473,7 @@ struct CreateEventRequest: Codable {
     let allDay: Bool
     let provider: String?  // "google" or "microsoft" - which calendar to use. nil = local only
     let attendees: [String]?  // Array of email addresses for invites
+    let addGoogleMeet: Bool?  // Whether to add a Google Meet video conferencing link
     let eventColor: String?  // User-selected hex color code (e.g., "#3B82F6")
 
     enum CodingKeys: String, CodingKey {
@@ -432,6 +485,7 @@ struct CreateEventRequest: Codable {
         case allDay = "all_day"
         case provider
         case attendees
+        case addGoogleMeet = "add_google_meet"
         case eventColor = "event_color"
     }
 }
@@ -500,7 +554,10 @@ struct EventDetails: Codable, Identifiable {
     let isCancelled: Bool
     let createdAt: String
     let userId: Int64
-    
+    let meetingLink: String?  // Video conferencing link (Google Meet, Teams, Zoom)
+    let htmlLink: String?  // Link to open event in calendar provider web UI
+    let organizerEmail: String?  // Email of the event organizer
+
     enum CodingKeys: String, CodingKey {
         case id
         case title
@@ -515,6 +572,9 @@ struct EventDetails: Codable, Identifiable {
         case isCancelled = "is_cancelled"
         case createdAt = "created_at"
         case userId = "user_id"
+        case meetingLink = "meeting_link"
+        case htmlLink = "html_link"
+        case organizerEmail = "organizer_email"
     }
     
     // Custom decoder to handle attendees as either objects or strings
@@ -533,7 +593,10 @@ struct EventDetails: Codable, Identifiable {
         isCancelled = try container.decode(Bool.self, forKey: .isCancelled)
         createdAt = try container.decode(String.self, forKey: .createdAt)
         userId = try container.decode(Int64.self, forKey: .userId)
-        
+        meetingLink = try container.decodeIfPresent(String.self, forKey: .meetingLink)
+        htmlLink = try container.decodeIfPresent(String.self, forKey: .htmlLink)
+        organizerEmail = try container.decodeIfPresent(String.self, forKey: .organizerEmail)
+
         // Handle attendees: could be array of objects, array of strings, null, or missing
         if container.contains(.attendees) {
             // Check if the value is null first
@@ -626,17 +689,51 @@ struct EventDetails: Codable, Identifiable {
     
     var duration: String {
         guard let start = startDate, let end = endDate else { return "" }
-        
+
         if allDay {
             let calendar = Calendar.current
             let days = calendar.dateComponents([.day], from: start, to: end).day ?? 0
             return days == 1 ? "All Day" : "\(days) days"
         }
-        
+
         let formatter = DateComponentsFormatter()
         formatter.allowedUnits = [.hour, .minute]
         formatter.unitsStyle = .abbreviated
         return formatter.string(from: start, to: end) ?? ""
+    }
+
+    // Whether this event has a video meeting link (Google Meet, Teams, Zoom)
+    var hasMeetingLink: Bool {
+        guard let link = meetingLink, !link.isEmpty else { return false }
+        return true
+    }
+
+    // Meeting type based on the link URL
+    var meetingTypeLabel: String {
+        guard let link = meetingLink?.lowercased() else { return "Video Call" }
+        if link.contains("meet.google.com") {
+            return "Google Meet"
+        } else if link.contains("teams.microsoft.com") || link.contains("teams.live.com") {
+            return "Microsoft Teams"
+        } else if link.contains("zoom.us") {
+            return "Zoom"
+        } else if link.contains("webex") {
+            return "Webex"
+        }
+        return "Video Call"
+    }
+
+    // Meeting icon based on the type
+    var meetingIcon: String {
+        guard let link = meetingLink?.lowercased() else { return "video.fill" }
+        if link.contains("meet.google.com") {
+            return "video.fill"  // Google Meet
+        } else if link.contains("teams.microsoft.com") || link.contains("teams.live.com") {
+            return "person.2.fill"  // Teams
+        } else if link.contains("zoom.us") {
+            return "video.circle.fill"  // Zoom
+        }
+        return "video.fill"
     }
 }
 

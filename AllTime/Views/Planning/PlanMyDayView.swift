@@ -6,6 +6,9 @@ struct PlanMyDayView: View {
     @State private var showingItinerary = false
     @State private var showingInterestsSetup = false
     @State private var showingWeekendPlan = false
+    @State private var addedFocusWindows: Set<String> = []
+    @State private var lunchAddedToCalendar = false
+    @State private var lunchReminderSet = false
 
     var body: some View {
         NavigationStack {
@@ -37,6 +40,16 @@ struct PlanMyDayView: View {
                     // Weekend Plan Results
                     if let plan = viewModel.weekendPlan {
                         weekendPlanResults(plan: plan)
+                    }
+
+                    // Focus Blocks Section (from briefing)
+                    if !viewModel.focusWindows.isEmpty && !viewModel.isFreeDayOff {
+                        focusBlocksSection
+                    }
+
+                    // Lunch Break Section (from briefing)
+                    if viewModel.lunchBreakSuggestion != nil && !viewModel.isFreeDayOff {
+                        lunchBreakSection
                     }
 
                     // Task Suggestions Section (AI-suggested tasks with + button)
@@ -211,6 +224,154 @@ struct PlanMyDayView: View {
                 ActivitySuggestionCard(suggestion: suggestion)
             }
         }
+    }
+
+    // MARK: - Focus Blocks Section
+    private var focusBlocksSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Image(systemName: "brain.head.profile")
+                    .font(.headline)
+                    .foregroundColor(Color(hex: "8B5CF6"))
+                Text("Focus Blocks")
+                    .font(.headline)
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                Spacer()
+                Text("\(viewModel.focusWindows.count) available")
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(Color(hex: "8B5CF6"))
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(Capsule().fill(Color(hex: "8B5CF6").opacity(0.15)))
+            }
+
+            Text("Block uninterrupted time for deep work")
+                .font(.caption)
+                .foregroundColor(DesignSystem.Colors.secondaryText)
+
+            ForEach(viewModel.focusWindows, id: \.windowId) { window in
+                FocusBlockCard(
+                    window: window,
+                    isAdded: addedFocusWindows.contains(window.windowId),
+                    onAddToCalendar: {
+                        Task {
+                            let success = await viewModel.addFocusWindowToCalendar(window)
+                            if success {
+                                withAnimation {
+                                    addedFocusWindows.insert(window.windowId)
+                                }
+                            }
+                        }
+                    }
+                )
+            }
+        }
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(DesignSystem.Colors.cardBackground)
+        )
+    }
+
+    // MARK: - Lunch Break Section
+    private var lunchBreakSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Image(systemName: "fork.knife")
+                    .font(.headline)
+                    .foregroundColor(Color(hex: "F59E0B"))
+                Text("Lunch Break")
+                    .font(.headline)
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                Spacer()
+            }
+
+            if let lunch = viewModel.lunchBreakSuggestion {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text(lunch.title)
+                        .font(.subheadline.weight(.medium))
+                        .foregroundColor(DesignSystem.Colors.primaryText)
+
+                    if let desc = lunch.description {
+                        Text(desc)
+                            .font(.caption)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
+                    }
+
+                    if let time = lunch.effectiveTimeLabel {
+                        HStack(spacing: 4) {
+                            Image(systemName: "clock")
+                                .font(.caption)
+                            Text(time)
+                                .font(.caption)
+                        }
+                        .foregroundColor(DesignSystem.Colors.tertiaryText)
+                    }
+
+                    // Action Buttons
+                    HStack(spacing: 12) {
+                        // Add to Calendar Button
+                        Button(action: {
+                            Task {
+                                let success = await viewModel.addLunchToCalendar()
+                                if success {
+                                    withAnimation {
+                                        lunchAddedToCalendar = true
+                                    }
+                                }
+                            }
+                        }) {
+                            HStack(spacing: 6) {
+                                Image(systemName: lunchAddedToCalendar ? "checkmark.circle.fill" : "calendar.badge.plus")
+                                    .font(.caption)
+                                Text(lunchAddedToCalendar ? "Added" : "Add to Calendar")
+                                    .font(.caption.weight(.medium))
+                            }
+                            .foregroundColor(lunchAddedToCalendar ? .white : Color(hex: "F59E0B"))
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(
+                                Capsule()
+                                    .fill(lunchAddedToCalendar ? Color.green : Color(hex: "F59E0B").opacity(0.15))
+                            )
+                        }
+                        .disabled(lunchAddedToCalendar)
+
+                        // Set Reminder Button
+                        Button(action: {
+                            Task {
+                                let success = await viewModel.setLunchReminder()
+                                if success {
+                                    withAnimation {
+                                        lunchReminderSet = true
+                                    }
+                                }
+                            }
+                        }) {
+                            HStack(spacing: 6) {
+                                Image(systemName: lunchReminderSet ? "checkmark.circle.fill" : "bell.badge")
+                                    .font(.caption)
+                                Text(lunchReminderSet ? "Reminder Set" : "Set Reminder")
+                                    .font(.caption.weight(.medium))
+                            }
+                            .foregroundColor(lunchReminderSet ? .white : DesignSystem.Colors.primary)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(
+                                Capsule()
+                                    .fill(lunchReminderSet ? Color.green : DesignSystem.Colors.primary.opacity(0.15))
+                            )
+                        }
+                        .disabled(lunchReminderSet)
+                    }
+                }
+            }
+        }
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(DesignSystem.Colors.cardBackground)
+        )
     }
 
     // MARK: - Plan Button
@@ -959,6 +1120,124 @@ struct MealRow: View {
             }
         }
         .padding(.vertical, 4)
+    }
+}
+
+// MARK: - Focus Block Card (for Plan My Day)
+struct FocusBlockCard: View {
+    let window: FocusWindow
+    let isAdded: Bool
+    let onAddToCalendar: () -> Void
+
+    var body: some View {
+        HStack(spacing: 14) {
+            // Time indicator
+            VStack(spacing: 2) {
+                Text(formatTime(window.startTime))
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(Color(hex: "8B5CF6"))
+                Text(formatTime(window.endTime))
+                    .font(.caption2)
+                    .foregroundColor(DesignSystem.Colors.tertiaryText)
+            }
+            .frame(width: 55)
+
+            // Divider line
+            Rectangle()
+                .fill(Color(hex: "8B5CF6").opacity(0.3))
+                .frame(width: 2)
+                .frame(maxHeight: .infinity)
+
+            // Content
+            VStack(alignment: .leading, spacing: 4) {
+                Text(window.suggestedActivity ?? "Focus Time")
+                    .font(.subheadline.weight(.medium))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+
+                HStack(spacing: 8) {
+                    Label("\(window.durationMinutes) min", systemImage: "timer")
+                        .font(.caption2)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+
+                    if let quality = window.qualityScore {
+                        Text("Quality: \(quality)%")
+                            .font(.caption2)
+                            .foregroundColor(Color(hex: "8B5CF6"))
+                    }
+                }
+
+                if let reason = window.reason {
+                    Text(reason)
+                        .font(.caption2)
+                        .foregroundColor(DesignSystem.Colors.tertiaryText)
+                        .lineLimit(2)
+                }
+            }
+
+            Spacer()
+
+            // Add to Calendar Button
+            Button(action: onAddToCalendar) {
+                Image(systemName: isAdded ? "checkmark.circle.fill" : "plus.circle.fill")
+                    .font(.title2)
+                    .foregroundColor(isAdded ? .green : Color(hex: "8B5CF6"))
+            }
+            .disabled(isAdded)
+        }
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color(hex: "8B5CF6").opacity(0.08))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(isAdded ? Color.green.opacity(0.3) : Color(hex: "8B5CF6").opacity(0.2), lineWidth: 1)
+                )
+        )
+    }
+
+    private func formatTime(_ timeString: String) -> String {
+        // Try to parse and format the time
+        let formatters: [DateFormatter] = [
+            {
+                let f = DateFormatter()
+                f.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
+                return f
+            }(),
+            {
+                let f = DateFormatter()
+                f.dateFormat = "HH:mm:ss"
+                return f
+            }(),
+            {
+                let f = DateFormatter()
+                f.dateFormat = "HH:mm"
+                return f
+            }()
+        ]
+
+        let outputFormatter = DateFormatter()
+        outputFormatter.dateFormat = "h:mm a"
+
+        for formatter in formatters {
+            if let date = formatter.date(from: timeString) {
+                return outputFormatter.string(from: date)
+            }
+        }
+
+        // Fallback: try to extract just the time part
+        if timeString.contains("T") {
+            let parts = timeString.components(separatedBy: "T")
+            if parts.count > 1 {
+                let timePart = parts[1].prefix(5)
+                if let hour = Int(timePart.prefix(2)), let minute = Int(timePart.suffix(2)) {
+                    let ampm = hour >= 12 ? "PM" : "AM"
+                    let hour12 = hour > 12 ? hour - 12 : (hour == 0 ? 12 : hour)
+                    return "\(hour12):\(String(format: "%02d", minute)) \(ampm)"
+                }
+            }
+        }
+
+        return timeString
     }
 }
 

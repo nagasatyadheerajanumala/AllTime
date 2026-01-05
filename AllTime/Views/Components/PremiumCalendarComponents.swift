@@ -517,22 +517,22 @@ struct PremiumEventsSection: View {
             
             // Events List (no nested ScrollView - parent handles scrolling)
             if events.isEmpty {
-                // Empty State
+                // Empty State - actionable framing
                 VStack(spacing: DesignSystem.Spacing.md) {
-                    Image(systemName: "calendar.badge.clock")
-                        .font(.system(size: 56))
-                        .foregroundColor(DesignSystem.Colors.tertiaryText.opacity(0.5))
-                    
-                    Text("No events scheduled")
-                        .font(DesignSystem.Typography.body)
-                        .foregroundColor(DesignSystem.Colors.secondaryText)
-                    
-                    Text("Tap + to add a new event")
+                    Image(systemName: "shield.fill")
+                        .font(.system(size: 48))
+                        .foregroundColor(DesignSystem.Colors.primary.opacity(0.6))
+
+                    Text("Day is unprotected")
+                        .font(DesignSystem.Typography.body.weight(.semibold))
+                        .foregroundColor(DesignSystem.Colors.primaryText)
+
+                    Text("Block focus time before meetings fill it")
                         .font(DesignSystem.Typography.caption)
-                        .foregroundColor(DesignSystem.Colors.tertiaryText)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
                 }
                 .frame(maxWidth: .infinity)
-                .frame(minHeight: 200) // Ensure minimum height for visibility
+                .frame(minHeight: 200)
                 .padding(.vertical, DesignSystem.Spacing.xxl)
             } else {
                 // Events list (no ScrollView - parent CalendarView handles scrolling)

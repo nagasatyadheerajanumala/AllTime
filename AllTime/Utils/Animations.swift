@@ -125,15 +125,119 @@ struct HapticFeedback {
         let generator = UIImpactFeedbackGenerator(style: style)
         generator.impactOccurred()
     }
-    
+
     static func selection() {
         let generator = UISelectionFeedbackGenerator()
         generator.selectionChanged()
     }
-    
+
     static func notification(_ type: UINotificationFeedbackGenerator.FeedbackType) {
         let generator = UINotificationFeedbackGenerator()
         generator.notificationOccurred(type)
+    }
+}
+
+// MARK: - Motion Accessibility Support
+/// Respects user's "Reduce Motion" accessibility setting
+struct MotionManager {
+    /// Returns the animation if motion is enabled, nil if reduced motion is preferred
+    static func animation(_ animation: Animation, reducedMotion: Bool) -> Animation? {
+        reducedMotion ? nil : animation
+    }
+
+    /// Returns a simple opacity transition if reduced motion is enabled
+    static func transition(_ transition: AnyTransition, reducedMotion: Bool) -> AnyTransition {
+        reducedMotion ? .opacity : transition
+    }
+
+    /// Returns appropriate spring animation based on motion preference
+    static func spring(response: Double = 0.4, dampingFraction: Double = 0.8, reducedMotion: Bool) -> Animation? {
+        reducedMotion ? nil : .spring(response: response, dampingFraction: dampingFraction)
+    }
+}
+
+// MARK: - Motion-Aware View Modifier
+/// Applies animation only when user hasn't enabled "Reduce Motion"
+struct MotionAwareAnimationModifier<V: Equatable>: ViewModifier {
+    @Environment(\.accessibilityReduceMotion) var reduceMotion
+    let animation: Animation
+    let value: V
+
+    func body(content: Content) -> some View {
+        content.animation(reduceMotion ? nil : animation, value: value)
+    }
+}
+
+/// Applies transition only when user hasn't enabled "Reduce Motion"
+struct MotionAwareTransitionModifier: ViewModifier {
+    @Environment(\.accessibilityReduceMotion) var reduceMotion
+    let transition: AnyTransition
+
+    func body(content: Content) -> some View {
+        content.transition(reduceMotion ? .opacity : transition)
+    }
+}
+
+extension View {
+    /// Apply animation that respects "Reduce Motion" accessibility setting
+    func motionAwareAnimation<V: Equatable>(_ animation: Animation, value: V) -> some View {
+        modifier(MotionAwareAnimationModifier(animation: animation, value: value))
+    }
+
+    /// Apply transition that respects "Reduce Motion" accessibility setting
+    func motionAwareTransition(_ transition: AnyTransition) -> some View {
+        modifier(MotionAwareTransitionModifier(transition: transition))
+    }
+}
+
+// MARK: - Counting Animation for Numbers
+/// Animates a number counting up from 0 to target value
+struct CountingAnimation: Animatable, View {
+    var value: Double
+    let formatter: (Double) -> String
+
+    var animatableData: Double {
+        get { value }
+        set { value = newValue }
+    }
+
+    init(value: Double, formatter: @escaping (Double) -> String = { String(format: "%.0f", $0) }) {
+        self.value = value
+        self.formatter = formatter
+    }
+
+    var body: some View {
+        Text(formatter(value))
+    }
+}
+
+extension View {
+    /// Animate a number counting up with the specified duration
+    func countingAnimation(from: Double = 0, to: Double, duration: Double = 0.8) -> some View {
+        self.modifier(CountingModifier(from: from, to: to, duration: duration))
+    }
+}
+
+struct CountingModifier: ViewModifier {
+    let from: Double
+    let to: Double
+    let duration: Double
+    @State private var currentValue: Double
+
+    init(from: Double, to: Double, duration: Double) {
+        self.from = from
+        self.to = to
+        self.duration = duration
+        self._currentValue = State(initialValue: from)
+    }
+
+    func body(content: Content) -> some View {
+        content
+            .onAppear {
+                withAnimation(.easeOut(duration: duration)) {
+                    currentValue = to
+                }
+            }
     }
 }
 

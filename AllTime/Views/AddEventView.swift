@@ -275,13 +275,13 @@ struct AddEventView: View {
                         )
                         .shadow(color: Color.black.opacity(0.08), radius: 15, x: 0, y: 5)
                         
-                        // Attendees Card
+                        // Attendees & Video Conferencing Card
                         if viewModel.selectedCalendar != nil {
                             VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
                                 Text("Attendees")
                                     .font(DesignSystem.Typography.subheadline)
                                     .foregroundColor(DesignSystem.Colors.secondaryText)
-                                
+
                                 // Add attendee input
                                 HStack(spacing: DesignSystem.Spacing.sm) {
                                     TextField("Add attendee email", text: $viewModel.newAttendeeEmail)
@@ -294,7 +294,7 @@ struct AddEventView: View {
                                         .background(DesignSystem.Materials.cardMaterial)
                                         .background(Color.white.opacity(0.1))
                                         .clipShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.md))
-                                    
+
                                     Button(action: {
                                         viewModel.addAttendee()
                                     }) {
@@ -304,7 +304,7 @@ struct AddEventView: View {
                                     }
                                     .disabled(viewModel.newAttendeeEmail.trimmingCharacters(in: .whitespaces).isEmpty)
                                 }
-                                
+
                                 // Attendees list
                                 if !viewModel.attendees.isEmpty {
                                     VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
@@ -313,13 +313,13 @@ struct AddEventView: View {
                                                 Image(systemName: "person.circle.fill")
                                                     .font(.system(size: 16))
                                                     .foregroundColor(DesignSystem.Colors.primary)
-                                                
+
                                                 Text(email)
                                                     .font(DesignSystem.Typography.body)
                                                     .foregroundColor(DesignSystem.Colors.primaryText)
-                                                
+
                                                 Spacer()
-                                                
+
                                                 Button(action: {
                                                     viewModel.removeAttendee(email)
                                                 }) {
@@ -332,6 +332,38 @@ struct AddEventView: View {
                                         }
                                     }
                                     .padding(.top, DesignSystem.Spacing.sm)
+                                }
+
+                                Divider()
+                                    .padding(.vertical, DesignSystem.Spacing.sm)
+
+                                // Google Meet toggle (only for Google Calendar)
+                                if viewModel.selectedCalendar?.provider == "google" {
+                                    HStack {
+                                        Image(systemName: "video.fill")
+                                            .font(.system(size: 16))
+                                            .foregroundColor(Color(hex: "#00897B"))
+
+                                        Text("Add Google Meet")
+                                            .font(DesignSystem.Typography.body)
+                                            .foregroundColor(DesignSystem.Colors.primaryText)
+
+                                        Spacer()
+
+                                        Toggle("", isOn: $viewModel.addGoogleMeet)
+                                            .toggleStyle(.switch)
+                                            .tint(Color(hex: "#00897B"))
+                                            .onChange(of: viewModel.addGoogleMeet) { _, _ in
+                                                HapticManager.shared.selectionChanged()
+                                            }
+                                    }
+
+                                    if viewModel.addGoogleMeet {
+                                        Text("A Google Meet video conferencing link will be automatically added to this event")
+                                            .font(DesignSystem.Typography.caption)
+                                            .foregroundColor(DesignSystem.Colors.tertiaryText)
+                                            .padding(.top, 2)
+                                    }
                                 }
                             }
                             .padding(DesignSystem.Spacing.lg)
@@ -499,6 +531,7 @@ class AddEventViewModel: ObservableObject {
     @Published var isLoadingCalendars = false
     @Published var attendees: [String] = []
     @Published var newAttendeeEmail = ""
+    @Published var addGoogleMeet: Bool = false  // Whether to add Google Meet link
     @Published var selectedColor: String = "#3B82F6"  // Default blue color
     
     init(initialDate: Date = Date()) {
@@ -548,6 +581,11 @@ class AddEventViewModel: ObservableObject {
         attendees.append(email.lowercased())
         newAttendeeEmail = ""
         errorMessage = nil
+
+        // Auto-enable Google Meet when adding attendees to a Google Calendar event
+        if selectedCalendar?.provider == "google" && !addGoogleMeet {
+            addGoogleMeet = true
+        }
     }
     
     func removeAttendee(_ email: String) {
@@ -594,6 +632,7 @@ class AddEventViewModel: ObservableObject {
                 isAllDay: isAllDay,
                 provider: provider,
                 attendees: attendees.isEmpty ? nil : attendees,
+                addGoogleMeet: addGoogleMeet,
                 eventColor: selectedColor
             )
             

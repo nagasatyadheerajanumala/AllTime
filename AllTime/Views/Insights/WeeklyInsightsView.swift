@@ -15,10 +15,12 @@ struct WeeklyInsightsView: View {
                 if viewModel.isLoading && viewModel.narrative == nil {
                     loadingView
                 } else if let narrative = viewModel.narrative {
-                    // Report Card Sections
+                    // Report Card Sections - show narrative if we have one
                     reportCardContent(narrative)
                 } else if viewModel.hasError {
                     errorView
+                } else if viewModel.isLoading {
+                    loadingView
                 }
 
                 Spacer(minLength: DesignSystem.Spacing.xl)
@@ -33,7 +35,8 @@ struct WeeklyInsightsView: View {
         .task {
             async let weeksTask: () = viewModel.fetchAvailableWeeks()
             async let narrativeTask: () = viewModel.fetchNarrative()
-            _ = await (weeksTask, narrativeTask)
+            async let forecastTask: () = viewModel.fetchNextWeekForecast()
+            _ = await (weeksTask, narrativeTask, forecastTask)
         }
         .onDisappear {
             viewModel.cancelPendingRequests()
@@ -52,6 +55,12 @@ struct WeeklyInsightsView: View {
 
     @ViewBuilder
     private func reportCardContent(_ narrative: WeeklyNarrativeResponse) -> some View {
+        // Section 0: Next Week Forecast (Predictive Intelligence - show first!)
+        // Only show when viewing current week
+        if viewModel.isCurrentWeek {
+            nextWeekForecastSection
+        }
+
         // Section 1: Balance Score Hero
         balanceScoreSection(narrative)
 
@@ -80,8 +89,8 @@ struct WeeklyInsightsView: View {
         SimilarWeekSection()
 
         // Section 6: Where Your Time Went
-        if !narrative.timeBuckets.isEmpty {
-            timeBucketsSection(narrative.timeBuckets)
+        if let timeBuckets = narrative.timeBuckets, !timeBuckets.isEmpty {
+            timeBucketsSection(timeBuckets)
         }
 
         // Section 7: Energy Alignment
@@ -90,13 +99,13 @@ struct WeeklyInsightsView: View {
         }
 
         // Section 8: Areas to Watch
-        if !narrative.stressSignals.isEmpty {
-            stressSignalsSection(narrative.stressSignals)
+        if let stressSignals = narrative.stressSignals, !stressSignals.isEmpty {
+            stressSignalsSection(stressSignals)
         }
 
         // Section 9: Suggestions
-        if !narrative.suggestions.isEmpty {
-            suggestionsSection(narrative.suggestions)
+        if let suggestions = narrative.suggestions, !suggestions.isEmpty {
+            suggestionsSection(suggestions)
         }
     }
 
@@ -182,6 +191,11 @@ struct WeeklyInsightsView: View {
                     }
                     .font(.caption.weight(.medium))
                 }
+
+                // Score Drivers - show what's driving the score
+                if let breakdown = comparison.scoreBreakdown, !breakdown.significantDrivers.isEmpty {
+                    scoreDriversSection(breakdown)
+                }
             } else {
                 // Fallback: Show tone-based hero when no comparison data
                 toneBasedHero(narrative)
@@ -224,28 +238,123 @@ struct WeeklyInsightsView: View {
             )
 
             // Quick Stats Row
-            HStack(spacing: 16) {
-                statPill(
-                    icon: "person.2.fill",
-                    value: "\(narrative.aggregates.totalMeetings)",
-                    label: "meetings"
-                )
-
-                statPill(
-                    icon: "brain.head.profile",
-                    value: narrative.aggregates.formattedFocusHours,
-                    label: "focus"
-                )
-
-                if narrative.aggregates.averageSleepHours != nil {
+            if let aggregates = narrative.aggregates {
+                HStack(spacing: 16) {
                     statPill(
-                        icon: "moon.zzz.fill",
-                        value: narrative.aggregates.formattedSleep,
-                        label: "avg sleep"
+                        icon: "person.2.fill",
+                        value: "\(aggregates.totalMeetings)",
+                        label: "meetings"
                     )
+
+                    statPill(
+                        icon: "brain.head.profile",
+                        value: aggregates.formattedFocusHours,
+                        label: "focus"
+                    )
+
+                    if aggregates.averageSleepHours != nil {
+                        statPill(
+                            icon: "moon.zzz.fill",
+                            value: aggregates.formattedSleep,
+                            label: "avg sleep"
+                        )
+                    }
                 }
             }
         }
+    }
+
+    // MARK: - Score Drivers Section
+
+    private func scoreDriversSection(_ breakdown: ScoreBreakdown) -> some View {
+        VStack(spacing: DesignSystem.Spacing.sm) {
+            // Divider
+            Rectangle()
+                .fill(Color.white.opacity(0.1))
+                .frame(height: 1)
+                .padding(.horizontal, 20)
+                .padding(.top, DesignSystem.Spacing.sm)
+
+            // Drivers label
+            Text("Driven by")
+                .font(.caption.weight(.medium))
+                .foregroundColor(.white.opacity(0.5))
+                .padding(.top, 4)
+
+            // Show top 3 most significant drivers
+            let topDrivers = Array(breakdown.significantDrivers.prefix(3))
+            FlexibleDriversView(drivers: topDrivers)
+                .padding(.horizontal, DesignSystem.Spacing.sm)
+
+            // Show improvement levers if available
+            if breakdown.hasLevers, let levers = breakdown.levers, !levers.isEmpty {
+                scoreLeversSection(levers)
+            }
+        }
+    }
+
+    // MARK: - Score Levers Section
+
+    private func scoreLeversSection(_ levers: [ScoreLever]) -> some View {
+        VStack(spacing: DesignSystem.Spacing.xs) {
+            // Divider
+            Rectangle()
+                .fill(Color.white.opacity(0.1))
+                .frame(height: 1)
+                .padding(.horizontal, 20)
+                .padding(.top, DesignSystem.Spacing.xs)
+
+            // Levers label
+            Text("Quick wins")
+                .font(.caption.weight(.medium))
+                .foregroundColor(Color(hex: "10B981").opacity(0.8))
+                .padding(.top, 4)
+
+            // Show levers as tappable rows
+            ForEach(levers.prefix(2)) { lever in
+                Button(action: {
+                    HapticManager.shared.mediumTap()
+                    NavigationManager.shared.handleDestination(lever.deepLink)
+                }) {
+                    HStack(alignment: .center, spacing: 8) {
+                        Image(systemName: lever.sfSymbol)
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(Color(hex: "10B981"))
+                            .frame(width: 16)
+
+                        Text(lever.action)
+                            .font(.caption.weight(.medium))
+                            .foregroundColor(.white.opacity(0.9))
+                            .fixedSize(horizontal: false, vertical: true)
+                            .multilineTextAlignment(.leading)
+
+                        Spacer(minLength: 8)
+
+                        Text(lever.formattedGain)
+                            .font(.system(size: 10, weight: .bold, design: .rounded))
+                            .foregroundColor(Color(hex: "10B981"))
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(
+                                Capsule()
+                                    .fill(Color(hex: "10B981").opacity(0.2))
+                            )
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color(hex: "10B981").opacity(0.1))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(Color(hex: "10B981").opacity(0.2), lineWidth: 0.5)
+                            )
+                    )
+                }
+                .buttonStyle(PlainButtonStyle())
+            }
+        }
+        .padding(.horizontal, DesignSystem.Spacing.sm)
     }
 
     // MARK: - Week Overview Card
@@ -319,6 +428,21 @@ struct WeeklyInsightsView: View {
             // Horizontal scrolling highlights
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 12) {
+                    // Busiest day - most meaningful
+                    if let busiest = highlights.busiestDay {
+                        highlightCard(busiest)
+                    }
+
+                    // Key collaborator
+                    if let collaborator = highlights.keyCollaborator {
+                        highlightCard(collaborator)
+                    }
+
+                    // Marathon day (back-to-back meetings)
+                    if let marathon = highlights.marathonDay {
+                        highlightCard(marathon)
+                    }
+
                     // Longest meeting
                     if let longest = highlights.longestMeeting {
                         highlightCard(longest)
@@ -332,13 +456,6 @@ struct WeeklyInsightsView: View {
                     // Night owl
                     if let latest = highlights.latestMeeting {
                         highlightCard(latest)
-                    }
-
-                    // Meals
-                    if let meals = highlights.meals {
-                        ForEach(meals) { meal in
-                            highlightCard(meal)
-                        }
                     }
 
                     // Travel
@@ -1130,6 +1247,330 @@ struct WeekPickerSheet: View {
             }
         }
         .presentationDetents([.medium])
+    }
+}
+
+// MARK: - Flexible Drivers View
+
+/// Displays score drivers as rows (vertical layout for full visibility)
+struct FlexibleDriversView: View {
+    let drivers: [ScoreDriver]
+
+    var body: some View {
+        VStack(spacing: 6) {
+            ForEach(drivers) { driver in
+                driverRow(driver)
+            }
+        }
+    }
+
+    private func driverRow(_ driver: ScoreDriver) -> some View {
+        HStack(spacing: 8) {
+            // Icon
+            Image(systemName: driver.sfSymbol)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundColor(driver.color)
+                .frame(width: 16)
+
+            // Label - full text, no truncation
+            Text(driver.label)
+                .font(.caption.weight(.medium))
+                .foregroundColor(.white.opacity(0.9))
+
+            Spacer()
+
+            // Delta badge
+            Text(driver.formattedDelta)
+                .font(.system(size: 10, weight: .bold, design: .rounded))
+                .foregroundColor(driver.color)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .background(
+                    Capsule()
+                        .fill(driver.color.opacity(0.2))
+                )
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(driver.color.opacity(0.08))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(driver.color.opacity(0.15), lineWidth: 0.5)
+                )
+        )
+    }
+}
+
+// MARK: - Next Week Forecast Section
+
+extension WeeklyInsightsView {
+
+    @ViewBuilder
+    private var nextWeekForecastSection: some View {
+        if viewModel.isLoadingForecast && viewModel.nextWeekForecast == nil {
+            // Loading state
+            VStack(spacing: 12) {
+                HStack(spacing: 10) {
+                    ZStack {
+                        Circle()
+                            .fill(Color(hex: "6366F1").opacity(0.15))
+                            .frame(width: 32, height: 32)
+                        Image(systemName: "arrow.forward.circle.fill")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(Color(hex: "6366F1"))
+                    }
+
+                    Text("Next Week Forecast")
+                        .font(.headline)
+                        .foregroundColor(DesignSystem.Colors.primaryText)
+
+                    Spacer()
+                }
+
+                ProgressView()
+                    .scaleEffect(0.9)
+            }
+            .padding(DesignSystem.Spacing.md)
+            .background(
+                RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg)
+                    .fill(DesignSystem.Colors.cardBackground)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg)
+                            .stroke(DesignSystem.Colors.calmBorder, lineWidth: 0.5)
+                    )
+            )
+        } else if let forecast = viewModel.nextWeekForecast {
+            // Forecast content
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+                // Header
+                HStack(spacing: 10) {
+                    ZStack {
+                        Circle()
+                            .fill(Color(hex: "6366F1").opacity(0.15))
+                            .frame(width: 32, height: 32)
+                        Image(systemName: "arrow.forward.circle.fill")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(Color(hex: "6366F1"))
+                    }
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Next Week Forecast")
+                            .font(.headline)
+                            .foregroundColor(DesignSystem.Colors.primaryText)
+                        Text(forecast.weekLabel)
+                            .font(.caption.weight(.medium))
+                            .foregroundColor(Color(hex: "6366F1"))
+                    }
+
+                    Spacer()
+
+                    // Density badge
+                    Text(forecast.weekMetrics.densityLabel)
+                        .font(.caption.weight(.semibold))
+                        .foregroundColor(forecast.weekMetrics.densityColor)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .background(
+                            Capsule()
+                                .fill(forecast.weekMetrics.densityColor.opacity(0.15))
+                        )
+                }
+
+                // Headline & Subheadline
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(forecast.headline)
+                        .font(.title3.weight(.semibold))
+                        .foregroundColor(DesignSystem.Colors.primaryText)
+
+                    Text(forecast.subheadline)
+                        .font(.subheadline)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                // Daily Forecast Pills
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(forecast.dailyForecasts) { day in
+                            dayForecastPill(day)
+                        }
+                    }
+                }
+
+                // Risk Signals (if any)
+                if forecast.hasRisks {
+                    VStack(spacing: 8) {
+                        ForEach(forecast.riskSignals) { risk in
+                            riskSignalRow(risk)
+                        }
+                    }
+                }
+
+                // Interventions (actions to take)
+                if !forecast.interventions.isEmpty {
+                    VStack(spacing: 8) {
+                        Text("Take action now")
+                            .font(.caption.weight(.semibold))
+                            .foregroundColor(Color(hex: "10B981"))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+
+                        ForEach(forecast.interventions) { intervention in
+                            interventionRow(intervention)
+                        }
+                    }
+                }
+            }
+            .padding(DesignSystem.Spacing.md)
+            .background(
+                RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg)
+                    .fill(
+                        LinearGradient(
+                            colors: [Color(hex: "1E1B4B").opacity(0.3), Color(hex: "312E81").opacity(0.3)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg)
+                            .stroke(Color(hex: "6366F1").opacity(0.3), lineWidth: 0.5)
+                    )
+            )
+        }
+    }
+
+    private func dayForecastPill(_ day: DayForecast) -> some View {
+        VStack(spacing: 6) {
+            Text(day.shortDayName)
+                .font(.caption2.weight(.bold))
+                .foregroundColor(DesignSystem.Colors.secondaryText)
+
+            ZStack {
+                Circle()
+                    .fill(day.intensityColor.opacity(0.15))
+                    .frame(width: 36, height: 36)
+
+                Image(systemName: day.intensityIcon)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(day.intensityColor)
+            }
+
+            Text("\(day.meetingCount)")
+                .font(.system(size: 12, weight: .bold, design: .rounded))
+                .foregroundColor(day.intensityColor)
+
+            Text("mtgs")
+                .font(.system(size: 9))
+                .foregroundColor(DesignSystem.Colors.tertiaryText)
+        }
+        .padding(.vertical, 8)
+        .padding(.horizontal, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(day.intensityColor.opacity(0.05))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(day.intensityColor.opacity(0.15), lineWidth: 0.5)
+                )
+        )
+    }
+
+    private func riskSignalRow(_ risk: ForecastRiskSignal) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            ZStack {
+                Circle()
+                    .fill(risk.severityColor.opacity(0.15))
+                    .frame(width: 28, height: 28)
+                Image(systemName: risk.sfSymbol)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(risk.severityColor)
+            }
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(risk.title)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+
+                Text(risk.detail)
+                    .font(.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer()
+
+            // Severity badge
+            Text(risk.severityLabel)
+                .font(.system(size: 9, weight: .bold))
+                .foregroundColor(risk.severityColor)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .background(
+                    Capsule()
+                        .fill(risk.severityColor.opacity(0.15))
+                )
+        }
+        .padding(10)
+        .background(
+            RoundedRectangle(cornerRadius: 10)
+                .fill(risk.severityColor.opacity(0.05))
+        )
+    }
+
+    private func interventionRow(_ intervention: ForecastIntervention) -> some View {
+        Button(action: {
+            HapticManager.shared.mediumTap()
+            NavigationManager.shared.handleDestination(intervention.deepLink)
+        }) {
+            HStack(spacing: 10) {
+                Image(systemName: intervention.sfSymbol)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(Color(hex: "10B981"))
+                    .frame(width: 20)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(intervention.action)
+                        .font(.subheadline.weight(.medium))
+                        .foregroundColor(DesignSystem.Colors.primaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .multilineTextAlignment(.leading)
+
+                    Text(intervention.detail)
+                        .font(.caption)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .multilineTextAlignment(.leading)
+                }
+
+                Spacer()
+
+                // Impact badge
+                Text(intervention.impactLabel)
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundColor(intervention.impactColor)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(
+                        Capsule()
+                            .fill(intervention.impactColor.opacity(0.15))
+                    )
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundColor(DesignSystem.Colors.tertiaryText)
+            }
+            .padding(12)
+            .background(
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(Color(hex: "10B981").opacity(0.05))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(Color(hex: "10B981").opacity(0.15), lineWidth: 0.5)
+                    )
+            )
+        }
+        .buttonStyle(PlainButtonStyle())
     }
 }
 

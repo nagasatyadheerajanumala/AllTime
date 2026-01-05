@@ -186,6 +186,108 @@ struct SlideUpModifier: ViewModifier {
     }
 }
 
+// MARK: - Enhanced Staggered Appear Animation
+
+/// Comprehensive staggered appear animation with accessibility support
+/// Use this for choreographed content reveals where items appear sequentially
+struct StaggeredAppearModifier: ViewModifier {
+    @Environment(\.accessibilityReduceMotion) var reduceMotion
+    let index: Int
+    let baseDelay: Double
+    let duration: Double
+    let offset: CGFloat
+    let scale: CGFloat
+    @State private var isVisible = false
+
+    init(index: Int, baseDelay: Double = 0.1, duration: Double = 0.05, offset: CGFloat = 20, scale: CGFloat = 0.95) {
+        self.index = index
+        self.baseDelay = baseDelay
+        self.duration = duration
+        self.offset = offset
+        self.scale = scale
+    }
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(isVisible ? 1 : 0)
+            .offset(y: reduceMotion ? 0 : (isVisible ? 0 : offset))
+            .scaleEffect(reduceMotion ? 1 : (isVisible ? 1 : scale))
+            .animation(
+                reduceMotion ? .none : .spring(response: 0.4, dampingFraction: 0.8)
+                    .delay(baseDelay + Double(index) * duration),
+                value: isVisible
+            )
+            .onAppear {
+                // Small dispatch to ensure animation triggers after view layout
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.01) {
+                    isVisible = true
+                }
+            }
+            .onDisappear {
+                isVisible = false
+            }
+    }
+}
+
+/// Card-specific staggered animation with more pronounced effect
+struct CardStaggerModifier: ViewModifier {
+    @Environment(\.accessibilityReduceMotion) var reduceMotion
+    let index: Int
+    @State private var isVisible = false
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(isVisible ? 1 : 0)
+            .offset(y: reduceMotion ? 0 : (isVisible ? 0 : 30))
+            .scaleEffect(reduceMotion ? 1 : (isVisible ? 1 : 0.92))
+            .animation(
+                reduceMotion ? .none : .spring(response: 0.5, dampingFraction: 0.75)
+                    .delay(0.15 + Double(index) * 0.08),
+                value: isVisible
+            )
+            .onAppear {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.01) {
+                    isVisible = true
+                }
+            }
+            .onDisappear {
+                isVisible = false
+            }
+    }
+}
+
+/// Grid item staggered animation (for LazyVGrid patterns)
+struct GridStaggerModifier: ViewModifier {
+    @Environment(\.accessibilityReduceMotion) var reduceMotion
+    let row: Int
+    let column: Int
+    let totalColumns: Int
+    @State private var isVisible = false
+
+    private var index: Int {
+        row * totalColumns + column
+    }
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(isVisible ? 1 : 0)
+            .scaleEffect(reduceMotion ? 1 : (isVisible ? 1 : 0.9))
+            .animation(
+                reduceMotion ? .none : .spring(response: 0.35, dampingFraction: 0.8)
+                    .delay(0.1 + Double(index) * 0.04),
+                value: isVisible
+            )
+            .onAppear {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.01) {
+                    isVisible = true
+                }
+            }
+            .onDisappear {
+                isVisible = false
+            }
+    }
+}
+
 // MARK: - View Extensions
 
 extension View {
@@ -209,7 +311,7 @@ extension View {
         modifier(SlideUpModifier(delay: delay))
     }
 
-    /// Staggered animation for list items
+    /// Staggered animation for list items (legacy - use staggeredAppear instead)
     func staggeredAnimation(index: Int, baseDelay: Double = 0.05) -> some View {
         self
             .opacity(0)
@@ -218,6 +320,24 @@ extension View {
                     // Animation handled by modifier
                 }
             }
+    }
+
+    /// Enhanced staggered appear animation with accessibility support
+    /// Use for choreographed content reveals where items appear sequentially
+    func staggeredAppear(index: Int, baseDelay: Double = 0.1) -> some View {
+        modifier(StaggeredAppearModifier(index: index, baseDelay: baseDelay))
+    }
+
+    /// Card-specific staggered animation with more pronounced effect
+    /// Use for hero cards, insights cards, and featured content
+    func cardStagger(index: Int) -> some View {
+        modifier(CardStaggerModifier(index: index))
+    }
+
+    /// Grid item staggered animation
+    /// Use for LazyVGrid layouts where items appear in a wave pattern
+    func gridStagger(row: Int, column: Int, totalColumns: Int = 2) -> some View {
+        modifier(GridStaggerModifier(row: row, column: column, totalColumns: totalColumns))
     }
 
     /// Smooth transition for content changes

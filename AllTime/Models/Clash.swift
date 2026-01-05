@@ -4,11 +4,19 @@ import SwiftUI
 /// Response from the clashes API
 struct ClashResponse: Codable {
     let clashesByDate: [String: [ClashInfo]]
-    let totalClashes: Int
+    let totalClashes: Int?
 
     enum CodingKeys: String, CodingKey {
         case clashesByDate = "clashes_by_date"
         case totalClashes = "total_clashes"
+    }
+
+    /// Computed total if not provided by API
+    var effectiveTotalClashes: Int {
+        if let total = totalClashes {
+            return total
+        }
+        return clashesByDate.values.reduce(0) { $0 + $1.count }
     }
 }
 

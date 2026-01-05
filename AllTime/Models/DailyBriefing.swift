@@ -16,6 +16,12 @@ struct DailyBriefingResponse: Codable, Identifiable {
     let suggestions: [BriefingSuggestion]?
     let quickStats: QuickStats?
     let dataSources: [String: String]?
+    let dayNarrative: DayNarrative?
+
+    // New fields for Clara's opinionated intelligence
+    let primaryRecommendation: PrimaryRecommendation?  // THE one thing to do today
+    let energyBudget: EnergyBudget?                    // Time → Energy transformation
+    let claraPrompts: [ClaraPrompt]?                   // Contextual prompts for Clara
 
     var id: String { date }
 
@@ -33,6 +39,10 @@ struct DailyBriefingResponse: Codable, Identifiable {
         case suggestions
         case quickStats = "quick_stats"
         case dataSources = "data_sources"
+        case dayNarrative = "day_narrative"
+        case primaryRecommendation = "primary_recommendation"
+        case energyBudget = "energy_budget"
+        case claraPrompts = "clara_prompts"
     }
 }
 
@@ -370,6 +380,50 @@ struct BriefingSuggestion: Codable, Identifiable {
     }
 }
 
+// MARK: - Day Narrative (Plain-English story about the day/week)
+struct DayNarrative: Codable {
+    let type: String // "daily" or "weekly"
+    let headline: String
+    let story: String
+    let keyObservations: [String]?
+    let healthConnection: String?
+    let lookingAhead: String?
+    let tone: String // "positive", "neutral", "cautionary"
+    let icon: String?
+
+    enum CodingKeys: String, CodingKey {
+        case type
+        case headline
+        case story
+        case keyObservations = "key_observations"
+        case healthConnection = "health_connection"
+        case lookingAhead = "looking_ahead"
+        case tone
+        case icon
+    }
+
+    // Tone-based styling
+    var toneColor: Color {
+        switch tone.lowercased() {
+        case "positive": return Color(hex: "10B981") // Green
+        case "cautionary": return Color(hex: "F59E0B") // Amber
+        default: return DesignSystem.Colors.secondaryText // Neutral
+        }
+    }
+
+    var toneIcon: String {
+        if let icon = icon, !icon.isEmpty { return icon }
+        switch tone.lowercased() {
+        case "positive": return "sun.max.fill"
+        case "cautionary": return "exclamationmark.triangle.fill"
+        default: return "text.quote"
+        }
+    }
+
+    var isDaily: Bool { type.lowercased() == "daily" }
+    var isWeekly: Bool { type.lowercased() == "weekly" }
+}
+
 // MARK: - Quick Stats (Updated to match new API spec)
 struct QuickStats: Codable {
     let meetingsCount: Int?
@@ -687,3 +741,272 @@ extension FocusWindow {
 }
 
 // AnyCodable is defined in AnyCodable.swift
+
+// MARK: - Primary Recommendation (THE one non-negotiable recommendation)
+/// Clara's Philosophy: Clara does not just "surface options" - it makes ONE recommendation.
+/// If the user does one thing today, do THIS.
+struct PrimaryRecommendation: Codable, Identifiable {
+    let rawId: String?
+    let action: String                    // "Block 90 minutes for deep work"
+    let reason: String?                   // "Low external demand + high flexibility..."
+    let urgency: String?                  // "now", "today", "this_week"
+    let impact: String?                   // "high", "medium"
+    let category: String?                 // "protect_time", "reduce_load", "health", "catch_up"
+    let icon: String?
+    let deepLink: String?
+    let confidence: Int?                  // 0-100 how confident Clara is
+    let ignoredConsequence: String?       // What happens if they ignore this
+
+    // Identifiable conformance - non-optional id
+    var id: String { rawId ?? action }
+    var recommendationId: String { id }
+
+    enum CodingKeys: String, CodingKey {
+        case rawId = "id"
+        case action, reason, urgency, impact, category, icon
+        case deepLink = "deep_link"
+        case confidence
+        case ignoredConsequence = "ignored_consequence"
+    }
+
+    // Urgency styling
+    var urgencyColor: Color {
+        switch (urgency ?? "").lowercased() {
+        case "now": return Color(hex: "EF4444")      // Red - urgent
+        case "today": return Color(hex: "F59E0B")   // Amber - important
+        case "this_week": return Color(hex: "3B82F6") // Blue - can wait
+        default: return DesignSystem.Colors.secondaryText
+        }
+    }
+
+    var urgencyLabel: String {
+        switch (urgency ?? "").lowercased() {
+        case "now": return "Do now"
+        case "today": return "Today"
+        case "this_week": return "This week"
+        default: return "Recommended"
+        }
+    }
+
+    var impactColor: Color {
+        switch (impact ?? "").lowercased() {
+        case "high": return Color(hex: "10B981")    // Green
+        case "medium": return Color(hex: "F59E0B") // Amber
+        default: return DesignSystem.Colors.secondaryText
+        }
+    }
+
+    var displayIcon: String {
+        icon ?? categoryIcon
+    }
+
+    var categoryIcon: String {
+        switch (category ?? "").lowercased() {
+        case "protect_time": return "shield.fill"
+        case "reduce_load": return "minus.circle.fill"
+        case "health": return "heart.fill"
+        case "catch_up": return "checkmark.circle.fill"
+        case "movement": return "figure.walk"
+        default: return "star.fill"
+        }
+    }
+
+    var isHighConfidence: Bool {
+        (confidence ?? 0) >= 75
+    }
+}
+
+// MARK: - Energy Budget (Time → Energy Transformation)
+/// Clara's Philosophy: Time is not neutral. A meeting-free day can still be draining.
+/// This model shows how today's inputs transform into energy capacity.
+struct EnergyBudget: Codable {
+    let currentLevel: Int?                // 0-100 current energy estimate
+    let predictedEndOfDay: Int?           // 0-100 where energy will be at end of day
+    let trajectory: String?               // "rising", "stable", "declining", "recovering"
+    let trajectoryLabel: String?          // "Energy likely to decline by evening"
+    let capacityLabel: String?            // "High capacity", "Moderate capacity", etc.
+    let energyDrains: [BriefingEnergyFactor]?     // What's consuming energy
+    let energyDeposits: [BriefingEnergyFactor]?   // What's restoring energy
+    let netEnergyChange: Int?             // Predicted change from now to end of day
+    let peakWindow: EnergyWindow?         // When energy will be highest
+    let lowWindow: EnergyWindow?          // When energy will be lowest
+    let recoveryNeeded: Bool?
+    let recoveryRecommendation: String?
+
+    enum CodingKeys: String, CodingKey {
+        case currentLevel = "current_level"
+        case predictedEndOfDay = "predicted_end_of_day"
+        case trajectory
+        case trajectoryLabel = "trajectory_label"
+        case capacityLabel = "capacity_label"
+        case energyDrains = "energy_drains"
+        case energyDeposits = "energy_deposits"
+        case netEnergyChange = "net_energy_change"
+        case peakWindow = "peak_window"
+        case lowWindow = "low_window"
+        case recoveryNeeded = "recovery_needed"
+        case recoveryRecommendation = "recovery_recommendation"
+    }
+
+    // Trajectory styling
+    var trajectoryColor: Color {
+        switch (trajectory ?? "").lowercased() {
+        case "rising": return Color(hex: "10B981")       // Green
+        case "stable": return Color(hex: "3B82F6")      // Blue
+        case "declining": return Color(hex: "F59E0B")   // Amber
+        case "recovering": return Color(hex: "8B5CF6")  // Purple
+        default: return DesignSystem.Colors.secondaryText
+        }
+    }
+
+    var trajectoryIcon: String {
+        switch (trajectory ?? "").lowercased() {
+        case "rising": return "arrow.up.right"
+        case "stable": return "arrow.right"
+        case "declining": return "arrow.down.right"
+        case "recovering": return "arrow.counterclockwise"
+        default: return "minus"
+        }
+    }
+
+    var capacityColor: Color {
+        guard let level = currentLevel else { return DesignSystem.Colors.secondaryText }
+        if level >= 80 { return Color(hex: "10B981") }      // Green
+        if level >= 60 { return Color(hex: "3B82F6") }      // Blue
+        if level >= 40 { return Color(hex: "F59E0B") }      // Amber
+        return Color(hex: "EF4444")                          // Red
+    }
+
+    var levelPercentage: Double {
+        Double(currentLevel ?? 50) / 100.0
+    }
+
+    var needsRecovery: Bool {
+        recoveryNeeded ?? false
+    }
+}
+
+// MARK: - Briefing Energy Factor (Drains or Deposits)
+/// Named BriefingEnergyFactor to avoid conflict with EnergyFactor in EnergyPredictor.swift
+struct BriefingEnergyFactor: Codable, Identifiable {
+    let id: String?
+    let label: String?
+    let impact: Int?                      // -30 to +30
+    let category: String?                 // "sleep", "meetings", "activity", etc.
+    let icon: String?
+    let detail: String?
+
+    var factorId: String { id ?? label ?? UUID().uuidString }
+
+    enum CodingKeys: String, CodingKey {
+        case id, label, impact, category, icon, detail
+    }
+
+    var isDrain: Bool {
+        (impact ?? 0) < 0
+    }
+
+    var isDeposit: Bool {
+        (impact ?? 0) > 0
+    }
+
+    var impactColor: Color {
+        guard let impact = impact else { return DesignSystem.Colors.secondaryText }
+        if impact > 0 { return Color(hex: "10B981") }  // Green for deposits
+        if impact < 0 { return Color(hex: "EF4444") }  // Red for drains
+        return DesignSystem.Colors.secondaryText
+    }
+
+    var displayIcon: String {
+        if let icon = icon, !icon.isEmpty { return icon }
+        switch (category ?? "").lowercased() {
+        case "sleep": return "moon.zzz.fill"
+        case "meetings": return "calendar.badge.exclamationmark"
+        case "activity": return "figure.walk"
+        case "recovery": return "heart.fill"
+        case "stress": return "exclamationmark.triangle.fill"
+        default: return "bolt.fill"
+        }
+    }
+
+    var formattedImpact: String {
+        guard let impact = impact else { return "" }
+        if impact > 0 { return "+\(impact)" }
+        return "\(impact)"
+    }
+}
+
+// MARK: - Energy Window (Peak/Low periods)
+struct EnergyWindow: Codable {
+    let startTime: String?
+    let endTime: String?
+    let label: String?                    // "9:00 AM - 11:30 AM"
+    let energyLevel: Int?                 // 0-100
+    let reason: String?
+
+    enum CodingKeys: String, CodingKey {
+        case startTime = "start_time"
+        case endTime = "end_time"
+        case label
+        case energyLevel = "energy_level"
+        case reason
+    }
+
+    var displayLabel: String {
+        label ?? TimeRangeFormatter.format(start: startTime ?? "", end: endTime ?? "", compact: true)
+    }
+}
+
+// MARK: - Clara Prompt (Contextual prompts for Clara interaction)
+/// Clara's Philosophy: Instead of a generic AI entry point, provide SPECIFIC prompts.
+/// "Ask Clara why this day matters" - not open-ended chat.
+struct ClaraPrompt: Codable, Identifiable {
+    let rawId: String?
+    let label: String?                    // "Why is today high-leverage?"
+    let fullPrompt: String?               // "Ask Clara why this is a high-leverage day"
+    let description: String?              // Tooltip/description
+    let icon: String?
+    let category: String?                 // "insight", "action", "planning", "health"
+    let priority: Int?                    // Lower = shown first
+    let contextSpecific: Bool?            // True if based on today's specific context
+
+    // Identifiable conformance - non-optional id
+    var id: String { rawId ?? label ?? UUID().uuidString }
+    var promptId: String { id }
+
+    enum CodingKeys: String, CodingKey {
+        case rawId = "id"
+        case label
+        case fullPrompt = "full_prompt"
+        case description
+        case icon
+        case category
+        case priority
+        case contextSpecific = "context_specific"
+    }
+
+    var displayIcon: String {
+        if let icon = icon, !icon.isEmpty { return icon }
+        switch (category ?? "").lowercased() {
+        case "insight": return "lightbulb.fill"
+        case "action": return "bolt.fill"
+        case "planning": return "calendar"
+        case "health": return "heart.fill"
+        default: return "bubble.left.fill"
+        }
+    }
+
+    var categoryColor: Color {
+        switch (category ?? "").lowercased() {
+        case "insight": return Color(hex: "8B5CF6")     // Purple
+        case "action": return Color(hex: "F59E0B")     // Amber
+        case "planning": return Color(hex: "3B82F6")   // Blue
+        case "health": return Color(hex: "10B981")     // Green
+        default: return DesignSystem.Colors.primary
+        }
+    }
+
+    var isContextSpecific: Bool {
+        contextSpecific ?? false
+    }
+}

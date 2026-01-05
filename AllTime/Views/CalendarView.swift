@@ -180,7 +180,11 @@ struct CalendarView: View {
                                 selectedDate: calendarViewModel.selectedDate
                             )
                             .padding(.horizontal, DesignSystem.Spacing.md)
-                            .padding(.bottom, 100) // Space for FAB + tab bar
+
+                            // Mood Check-In (moved from Today for less clutter)
+                            MoodCheckInCardView()
+                                .padding(.horizontal, DesignSystem.Spacing.md)
+                                .padding(.bottom, 100) // Space for FAB + tab bar
                         }
                     }
                     .refreshable {
@@ -301,7 +305,7 @@ struct MeetingClashesSection: View {
                         .foregroundColor(DesignSystem.Colors.secondaryText)
                 }
                 .padding(DesignSystem.Spacing.md)
-            } else if let clashes = viewModel.clashes, clashes.totalClashes > 0 {
+            } else if let clashes = viewModel.clashes, clashes.effectiveTotalClashes > 0 {
                 // Show clashes for selected date
                 let dateClashes = viewModel.clashesForDate(selectedDate)
                 

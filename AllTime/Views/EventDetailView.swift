@@ -132,10 +132,15 @@ struct EventDetailView: View {
                 
                 // Main Content Cards
                 VStack(spacing: 12) {
+                    // Join Meeting button (prominent if meeting link exists)
+                    if event.hasMeetingLink, let meetingLink = event.meetingLink {
+                        joinMeetingSection(event, meetingLink: meetingLink)
+                    }
+
                     if let startDate = event.startDate {
                         dateTimeSection(event, startDate: startDate)
                     }
-                    
+
                     if let location = event.location, !location.isEmpty {
                         locationSection(location)
                     }
@@ -214,6 +219,61 @@ struct EventDetailView: View {
         }
     }
     
+    // MARK: - Join Meeting Section
+    @ViewBuilder
+    private func joinMeetingSection(_ event: EventDetails, meetingLink: String) -> some View {
+        Button(action: {
+            openMeetingLink(meetingLink)
+        }) {
+            HStack(spacing: 16) {
+                // Meeting icon with gradient background
+                ZStack {
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                colors: [Color.green, Color.green.opacity(0.7)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 44, height: 44)
+
+                    Image(systemName: event.meetingIcon)
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundColor(.white)
+                }
+
+                // Text content
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Join \(event.meetingTypeLabel)")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundColor(.primary)
+
+                    Text("Tap to join the video call")
+                        .font(.system(size: 13, weight: .regular))
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                }
+
+                Spacer()
+
+                Image(systemName: "arrow.up.right.square.fill")
+                    .font(.system(size: 22))
+                    .foregroundColor(.green)
+            }
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color.green.opacity(0.1))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(Color.green.opacity(0.3), lineWidth: 1)
+            )
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+
     // MARK: - Date & Time Section
     @ViewBuilder
     private func dateTimeSection(_ event: EventDetails, startDate: Date) -> some View {
@@ -502,6 +562,11 @@ struct EventDetailView: View {
         if let url = URL(string: "http://maps.apple.com/?q=\(encodedLocation)") {
             UIApplication.shared.open(url)
         }
+    }
+
+    private func openMeetingLink(_ link: String) {
+        guard let url = URL(string: link) else { return }
+        UIApplication.shared.open(url)
     }
     
     private func sourceIcon(_ source: String) -> String {

@@ -6,7 +6,6 @@ import Charts
 struct HealthInsightsDetailView: View {
     @StateObject private var viewModel = HealthInsightsDetailViewModel()
     @State private var selectedRange: DateRange = .last7Days
-    @State private var showingHealthGoals = false
     @ObservedObject private var healthMetricsService = HealthMetricsService.shared
     @ObservedObject private var healthSyncService = HealthSyncService.shared
     
@@ -31,166 +30,145 @@ struct HealthInsightsDetailView: View {
     }
     
     var body: some View {
-        NavigationView {
-            ScrollView {
-                VStack(spacing: DesignSystem.Spacing.lg) {
-                    // Date Range Picker
-                    Picker("Range", selection: $selectedRange) {
-                        ForEach(DateRange.allCases, id: \.self) { range in
-                            Text(range.rawValue).tag(range)
-                        }
+        ScrollView {
+            VStack(spacing: DesignSystem.Spacing.lg) {
+                // Date Range Picker
+                Picker("Range", selection: $selectedRange) {
+                    ForEach(DateRange.allCases, id: \.self) { range in
+                        Text(range.rawValue).tag(range)
                     }
-                    .pickerStyle(.segmented)
-                    .padding(.horizontal, DesignSystem.Spacing.md)
-                    .padding(.top, DesignSystem.Spacing.sm)
-                    .onChange(of: selectedRange) { oldValue, newValue in
-                        print("📊 HealthInsightsView: Date range changed from '\(oldValue.rawValue)' to '\(newValue.rawValue)'")
-                        print("📊 HealthInsightsView: New range: \(newValue.days) days (from \(newValue.startDate))")
-                        Task {
-                            await viewModel.loadInsights(startDate: newValue.startDate, endDate: Date(), forceRefresh: false)
-                        }
+                }
+                .pickerStyle(.segmented)
+                .padding(.horizontal, DesignSystem.Spacing.md)
+                .padding(.top, DesignSystem.Spacing.sm)
+                .onChange(of: selectedRange) { oldValue, newValue in
+                    print("📊 HealthInsightsView: Date range changed from '\(oldValue.rawValue)' to '\(newValue.rawValue)'")
+                    print("📊 HealthInsightsView: New range: \(newValue.days) days (from \(newValue.startDate))")
+                    Task {
+                        await viewModel.loadInsights(startDate: newValue.startDate, endDate: Date(), forceRefresh: false)
                     }
-                    
-                    // Check HealthKit authorization status
-                    if !healthMetricsService.isAuthorized {
-                        HealthInsightsPermissionRequiredView(
-                            onPermissionGranted: {
-                                Task {
-                                    await viewModel.loadInsights(startDate: selectedRange.startDate, endDate: Date(), forceRefresh: false)
-                                    await viewModel.refreshLocalChart(rangeDays: selectedRange.days)
-                                }
-                            }
-                        )
-                        .padding(.horizontal, DesignSystem.Spacing.md)
-                        .padding(.top, 50)
-                    } else if viewModel.isLoading && viewModel.insights == nil {
-                        // Only show loading if we don't have any data (including cached)
-                        ProgressView("Loading insights...")
-                            .padding(.top, 100)
-                    } else if let error = viewModel.errorMessage {
-                        HealthInsightsErrorView(message: error) {
+                }
+
+                // Check HealthKit authorization status
+                if !healthMetricsService.isAuthorized {
+                    HealthInsightsPermissionRequiredView(
+                        onPermissionGranted: {
                             Task {
                                 await viewModel.loadInsights(startDate: selectedRange.startDate, endDate: Date(), forceRefresh: false)
                                 await viewModel.refreshLocalChart(rangeDays: selectedRange.days)
                             }
                         }
-                    } else if let insights = viewModel.insights {
-                        // AI Narrative
-                        AIWeeklyOverviewCard(narrative: insights.aiNarrative)
-                            .padding(.horizontal, DesignSystem.Spacing.md)
-                        
-                        // Summary Stats
-                        HealthSummaryStatsGrid(stats: insights.summaryStats)
-                            .padding(.horizontal, DesignSystem.Spacing.md)
-                        
-                        // Insights Alerts
-                        if !insights.insights.isEmpty {
-                            HealthInsightsAlertsGrid(insights: insights.insights)
-                                .padding(.horizontal, DesignSystem.Spacing.md)
+                    )
+                    .padding(.horizontal, DesignSystem.Spacing.md)
+                    .padding(.top, 50)
+                } else if viewModel.isLoading && viewModel.insights == nil {
+                    // Only show loading if we don't have any data (including cached)
+                    ProgressView("Loading insights...")
+                        .padding(.top, 100)
+                } else if let error = viewModel.errorMessage {
+                    HealthInsightsErrorView(message: error) {
+                        Task {
+                            await viewModel.loadInsights(startDate: selectedRange.startDate, endDate: Date(), forceRefresh: false)
+                            await viewModel.refreshLocalChart(rangeDays: selectedRange.days)
                         }
-                        
-                        // Trend Analysis
-                        if let trends = insights.trendAnalysis, !trends.isEmpty {
-                            HealthTrendsSection(trends: trends)
-                                .padding(.horizontal, DesignSystem.Spacing.md)
-                        }
-                        
-                        // Health Breakdown
-                        if let breakdown = insights.healthBreakdown {
-                            ComprehensiveHealthBreakdown(breakdown: breakdown)
-                                .padding(.horizontal, DesignSystem.Spacing.md)
-                        }
-                        
-                        // Daily Metrics Chart
-                        WeeklyHealthChartsSection(metrics: viewModel.chartMetrics)
-                            .padding(.horizontal, DesignSystem.Spacing.md)
-                            .padding(.bottom, 100)
-                    } else {
-                        HealthInsightsEmptyState()
                     }
+                } else if let insights = viewModel.insights {
+                    // AI Narrative
+                    AIWeeklyOverviewCard(narrative: insights.aiNarrative)
+                        .padding(.horizontal, DesignSystem.Spacing.md)
+
+                    // Summary Stats
+                    HealthSummaryStatsGrid(stats: insights.summaryStats)
+                        .padding(.horizontal, DesignSystem.Spacing.md)
+
+                    // Insights Alerts
+                    if !insights.insights.isEmpty {
+                        HealthInsightsAlertsGrid(insights: insights.insights)
+                            .padding(.horizontal, DesignSystem.Spacing.md)
+                    }
+
+                    // Trend Analysis
+                    if let trends = insights.trendAnalysis, !trends.isEmpty {
+                        HealthTrendsSection(trends: trends)
+                            .padding(.horizontal, DesignSystem.Spacing.md)
+                    }
+
+                    // Health Breakdown
+                    if let breakdown = insights.healthBreakdown {
+                        ComprehensiveHealthBreakdown(breakdown: breakdown)
+                            .padding(.horizontal, DesignSystem.Spacing.md)
+                    }
+
+                    // Daily Metrics Chart
+                    WeeklyHealthChartsSection(metrics: viewModel.chartMetrics)
+                        .padding(.horizontal, DesignSystem.Spacing.md)
+                        .padding(.bottom, 100)
+                } else {
+                    HealthInsightsEmptyState()
                 }
             }
-            .navigationTitle("Health Insights")
-            .navigationBarTitleDisplayMode(.large)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: {
-                        showingHealthGoals = true
-                    }) {
-                        Image(systemName: "target")
-                            .foregroundColor(DesignSystem.Colors.primary)
-                    }
-                }
-            }
-            .sheet(isPresented: $showingHealthGoals) {
-                HealthGoalsView()
-            }
-            .refreshable {
-                await viewModel.loadInsights(startDate: selectedRange.startDate, endDate: Date())
+        }
+        .background(DesignSystem.Colors.background)
+        .refreshable {
+            // User explicitly pulled to refresh - force refresh
+            if healthMetricsService.isAuthorized {
+                await viewModel.loadInsights(startDate: selectedRange.startDate, endDate: Date(), forceRefresh: true)
                 await viewModel.refreshLocalChart(rangeDays: selectedRange.days)
             }
-            .onAppear {
-                // Always re-check authorization when view appears (user may have enabled in Settings)
-                Task {
-                    await healthMetricsService.checkAuthorizationStatus()
-                    await viewModel.refreshLocalChart(rangeDays: selectedRange.days)
-                    
-                    // ALWAYS try to load from cache first (even if insights exist in memory)
-                    // This ensures we show cached data immediately after tab switches
-                    if healthMetricsService.isAuthorized {
-                        // Load from cache first - this will populate insights if cache exists
-                        await viewModel.loadInsights(startDate: selectedRange.startDate, endDate: Date(), forceRefresh: false)
-                    }
-                }
-            }
-            .refreshable {
-                // User explicitly pulled to refresh - force refresh
+        }
+        .onAppear {
+            // Always re-check authorization when view appears (user may have enabled in Settings)
+            Task {
+                await healthMetricsService.checkAuthorizationStatus()
+                await viewModel.refreshLocalChart(rangeDays: selectedRange.days)
+
+                // ALWAYS try to load from cache first (even if insights exist in memory)
+                // This ensures we show cached data immediately after tab switches
                 if healthMetricsService.isAuthorized {
-                    await viewModel.loadInsights(startDate: selectedRange.startDate, endDate: Date(), forceRefresh: true)
-                    await viewModel.refreshLocalChart(rangeDays: selectedRange.days)
-                }
-            }
-            .onChange(of: healthMetricsService.isAuthorized) { oldValue, newValue in
-                // When authorization changes from false to true, automatically load insights
-                if !oldValue && newValue {
-                    Task {
-                        // Small delay to ensure sync completes
-                        try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
-                        await viewModel.loadInsights(startDate: selectedRange.startDate, endDate: Date(), forceRefresh: false)
-                        await viewModel.refreshLocalChart(rangeDays: selectedRange.days)
-                    }
-                }
-            }
-            .onChange(of: healthSyncService.lastSyncDate) { _, _ in
-                Task {
-                    await viewModel.refreshLocalChart(rangeDays: selectedRange.days)
-                }
-            }
-            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("HealthGoalsUpdated"))) { _ in
-                // Regenerate insights when goals are updated (invalidate cache first)
-                print("📊 HealthInsightsView: Health goals updated, invalidating cache and regenerating insights...")
-                Task {
-                    // Invalidate cache by clearing it, then reload
-                    await viewModel.invalidateCache()
+                    // Load from cache first - this will populate insights if cache exists
                     await viewModel.loadInsights(startDate: selectedRange.startDate, endDate: Date(), forceRefresh: false)
                 }
+            }
+        }
+        .onChange(of: healthMetricsService.isAuthorized) { oldValue, newValue in
+            // When authorization changes from false to true, automatically load insights
+            if !oldValue && newValue {
+                Task {
+                    // Small delay to ensure sync completes
+                    try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
+                    await viewModel.loadInsights(startDate: selectedRange.startDate, endDate: Date(), forceRefresh: false)
+                    await viewModel.refreshLocalChart(rangeDays: selectedRange.days)
+                }
+            }
+        }
+        .onChange(of: healthSyncService.lastSyncDate) { _, _ in
+            Task {
+                await viewModel.refreshLocalChart(rangeDays: selectedRange.days)
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("HealthGoalsUpdated"))) { _ in
+            // Regenerate insights when goals are updated (invalidate cache first)
+            print("📊 HealthInsightsView: Health goals updated, invalidating cache and regenerating insights...")
+            Task {
+                // Invalidate cache by clearing it, then reload
+                await viewModel.invalidateCache()
+                await viewModel.loadInsights(startDate: selectedRange.startDate, endDate: Date(), forceRefresh: false)
             }
         }
     }
 }
 
-// MARK: - AI Narrative Card
+// MARK: - Health Narrative Card (Personalized Story)
 struct AIWeeklyOverviewCard: View {
     let narrative: AINarrative
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-            HStack {
-                Image(systemName: "brain.head.profile")
+            HStack(spacing: 8) {
+                Text("💜")
                     .font(.title2)
-                    .foregroundColor(DesignSystem.Colors.primary)
-                
-                Text("AI Analysis")
+
+                Text("Your Health Story")
                     .font(DesignSystem.Typography.title3)
                     .fontWeight(.bold)
                     .foregroundColor(DesignSystem.Colors.primaryText)
@@ -202,7 +180,7 @@ struct AIWeeklyOverviewCard: View {
             
             if !narrative.keyTakeaways.isEmpty {
                 VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                    Text("Key Takeaways")
+                    Text("What Stood Out")
                         .font(DesignSystem.Typography.subheadline)
                         .fontWeight(.semibold)
                         .foregroundColor(DesignSystem.Colors.primaryText)
@@ -225,7 +203,7 @@ struct AIWeeklyOverviewCard: View {
             
             if !narrative.suggestions.isEmpty {
                 VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                    Text("Suggestions")
+                    Text("Ideas for You")
                         .font(DesignSystem.Typography.subheadline)
                         .fontWeight(.semibold)
                         .foregroundColor(DesignSystem.Colors.primaryText)

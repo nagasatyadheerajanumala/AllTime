@@ -32,22 +32,22 @@ class PushNotificationManager: NSObject, ObservableObject {
     }
     
     // MARK: - Request Permission
-    
+
     func registerForPushNotifications() {
         print("🔔 PushNotificationManager: Requesting push notification permission...")
         isLoading = true
         errorMessage = nil
-        
+
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
             DispatchQueue.main.async {
                 self.isLoading = false
-                
+
                 if let error = error {
                     self.errorMessage = error.localizedDescription
                     print("🔔 PushNotificationManager: Permission request failed: \(error.localizedDescription)")
                     return
                 }
-                
+
                 if granted {
                     print("🔔 PushNotificationManager: Permission granted, registering device token...")
                     self.registerDeviceToken()
@@ -60,17 +60,17 @@ class PushNotificationManager: NSObject, ObservableObject {
     }
     
     // MARK: - Device Token Registration
-    
+
     private func registerDeviceToken() {
         guard let deviceToken = getDeviceToken() else {
             print("🔔 PushNotificationManager: No device token available")
             errorMessage = "Unable to get device token. Please try again."
             return
         }
-        
+
         print("🔔 PushNotificationManager: Registering device token with backend...")
         isLoading = true
-        
+
         Task {
             do {
                 try await apiService.registerDeviceToken(deviceToken)
@@ -84,7 +84,7 @@ class PushNotificationManager: NSObject, ObservableObject {
             }
         }
     }
-    
+
     private func getDeviceToken() -> String? {
         // In a real implementation, this would get the actual device token from APNs
         // For now, we'll use a placeholder or stored token
@@ -167,6 +167,30 @@ extension PushNotificationManager: UNUserNotificationCenterDelegate {
             Task { @MainActor in
                 await handleAuthenticatedNavigation(destination: "day-review") {
                     NavigationManager.shared.navigateToDayReview()
+                }
+            }
+            completionHandler()
+            return
+        }
+
+        // Handle proactive nudge notifications
+        if type == "nudge" {
+            let nudgeType = userInfo["nudge_type"] as? String ?? "unknown"
+            let actionUrl = userInfo["action_url"] as? String
+            os_log("[DEEPLINK] Nudge notification tapped - type: %{public}@", log: log, type: .info, nudgeType)
+
+            Task { @MainActor in
+                // Track nudge engagement
+                print("📱 Nudge opened: \(nudgeType)")
+
+                await handleAuthenticatedNavigation(destination: actionUrl ?? destination ?? "today") {
+                    if let actionUrl = actionUrl {
+                        NavigationManager.shared.handleDestination(actionUrl)
+                    } else if let destination = destination {
+                        NavigationManager.shared.handleDestination(destination)
+                    } else {
+                        NavigationManager.shared.navigateToToday()
+                    }
                 }
             }
             completionHandler()

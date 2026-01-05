@@ -340,39 +340,127 @@ class HealthMetricsService: ObservableObject {
             return (nil, nil)
         }
 
-        // FIXED: For sleep, we need to query for sleep that ENDED on this date
-        // Sleep spans midnight (e.g., 11 PM to 7 AM), so using .strictStartDate would miss overnight sleep
-        // Using .strictEndDate ensures we capture sleep that ended during this day (i.e., "last night's sleep")
         let calendar = Calendar.current
-        let sleepQueryStart = calendar.date(byAdding: .hour, value: -12, to: start) ?? start // Look back 12 hours for sleep start
-        let predicate = HKQuery.predicateForSamples(withStart: sleepQueryStart, end: end, options: .strictEndDate)
-        
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd HH:mm"
+
+        // Query for overnight sleep that ended on this date
+        // Sleep window: 6 PM yesterday to 2 PM today
+        let sleepQueryStart = calendar.date(byAdding: .hour, value: -6, to: start) ?? start
+        let sleepQueryEnd = calendar.date(byAdding: .hour, value: 14, to: start) ?? end
+
+        print("🛏️ Sleep Query Debug:")
+        print("   Query date (start of day): \(dateFormatter.string(from: start))")
+        print("   Query window: \(dateFormatter.string(from: sleepQueryStart)) to \(dateFormatter.string(from: sleepQueryEnd))")
+
+        // Use strictEndDate to match Apple Health's behavior - sleep is attributed to the day it ENDS
+        let predicate = HKQuery.predicateForSamples(withStart: sleepQueryStart, end: sleepQueryEnd, options: .strictEndDate)
+
         return try await withCheckedThrowingContinuation { continuation in
-            let query = HKSampleQuery(sampleType: type, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: nil) { _, samples, error in
+            let query = HKSampleQuery(sampleType: type, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)]) { _, samples, error in
                 if let error = error {
+                    print("❌ Sleep query error: \(error.localizedDescription)")
                     continuation.resume(throwing: error)
                     return
                 }
-                
+
                 guard let samples = samples as? [HKCategorySample] else {
+                    print("⚠️ Sleep query: no samples returned")
                     continuation.resume(returning: (nil, nil))
                     return
                 }
-                
-                // Calculate total sleep minutes
-                var totalMinutes: Double = 0
-                for sample in samples {
-                    // Check for all sleep types
-                    if sample.value == HKCategoryValueSleepAnalysis.asleepUnspecified.rawValue ||
-                       sample.value == HKCategoryValueSleepAnalysis.asleepCore.rawValue ||
-                       sample.value == HKCategoryValueSleepAnalysis.asleepDeep.rawValue ||
-                       sample.value == HKCategoryValueSleepAnalysis.asleepREM.rawValue {
-                        totalMinutes += sample.endDate.timeIntervalSince(sample.startDate) / 60.0
+
+                print("🛏️ Total sleep samples found: \(samples.count)")
+
+                // Filter to only asleep categories (not "In Bed")
+                let asleepSamples = samples.filter { sample in
+                    sample.value == HKCategoryValueSleepAnalysis.asleepUnspecified.rawValue ||
+                    sample.value == HKCategoryValueSleepAnalysis.asleepCore.rawValue ||
+                    sample.value == HKCategoryValueSleepAnalysis.asleepDeep.rawValue ||
+                    sample.value == HKCategoryValueSleepAnalysis.asleepREM.rawValue
+                }
+
+                print("🛏️ Asleep samples (excluding In Bed): \(asleepSamples.count)")
+
+                // Debug: Print all samples to see what we're getting
+                for (index, sample) in asleepSamples.prefix(10).enumerated() {
+                    let sleepType: String
+                    switch sample.value {
+                    case HKCategoryValueSleepAnalysis.asleepUnspecified.rawValue: sleepType = "Asleep"
+                    case HKCategoryValueSleepAnalysis.asleepCore.rawValue: sleepType = "Core"
+                    case HKCategoryValueSleepAnalysis.asleepDeep.rawValue: sleepType = "Deep"
+                    case HKCategoryValueSleepAnalysis.asleepREM.rawValue: sleepType = "REM"
+                    default: sleepType = "Unknown(\(sample.value))"
+                    }
+                    let duration = sample.endDate.timeIntervalSince(sample.startDate) / 60.0
+                    let source = sample.sourceRevision.source.name
+                    print("   [\(index)] \(sleepType): \(dateFormatter.string(from: sample.startDate)) - \(dateFormatter.string(from: sample.endDate)) (\(String(format: "%.0f", duration)) min) from \(source)")
+                }
+
+                // CRITICAL FIX: Deduplicate overlapping samples from different sources
+                // Apple Watch and iPhone can both record overlapping sleep data
+                let deduplicatedSamples = deduplicateSleepSamples(asleepSamples)
+                print("🛏️ After deduplication: \(deduplicatedSamples.count) samples")
+
+                // Group into sessions (gaps > 30 min = new session)
+                var sessions: [[HKCategorySample]] = []
+                var currentSession: [HKCategorySample] = []
+
+                let sortedSamples = deduplicatedSamples.sorted { $0.startDate < $1.startDate }
+
+                for sample in sortedSamples {
+                    if let lastSample = currentSession.last {
+                        let gap = sample.startDate.timeIntervalSince(lastSample.endDate)
+                        // Use 30 min gap threshold (1800 seconds) - more accurate session detection
+                        if gap > 30 * 60 {
+                            if !currentSession.isEmpty {
+                                sessions.append(currentSession)
+                            }
+                            currentSession = [sample]
+                        } else {
+                            currentSession.append(sample)
+                        }
+                    } else {
+                        currentSession.append(sample)
                     }
                 }
-                
-                // Simple quality score based on sleep duration (7-9 hours = 100, less/more = lower)
-                let hours = totalMinutes / 60.0
+                if !currentSession.isEmpty {
+                    sessions.append(currentSession)
+                }
+
+                print("🛏️ Found \(sessions.count) sleep sessions")
+
+                // Find the longest session (main overnight sleep)
+                var longestSessionMinutes: Double = 0
+                var longestSessionIndex = -1
+
+                for (index, session) in sessions.enumerated() {
+                    var sessionMinutes: Double = 0
+                    var sessionStart: Date?
+                    var sessionEnd: Date?
+
+                    for sample in session {
+                        sessionMinutes += sample.endDate.timeIntervalSince(sample.startDate) / 60.0
+                        if sessionStart == nil || sample.startDate < sessionStart! {
+                            sessionStart = sample.startDate
+                        }
+                        if sessionEnd == nil || sample.endDate > sessionEnd! {
+                            sessionEnd = sample.endDate
+                        }
+                    }
+
+                    print("   Session \(index + 1): \(String(format: "%.0f", sessionMinutes)) min (\(String(format: "%.1f", sessionMinutes/60))h) - \(session.count) samples")
+                    if let start = sessionStart, let end = sessionEnd {
+                        print("      \(dateFormatter.string(from: start)) to \(dateFormatter.string(from: end))")
+                    }
+
+                    if sessionMinutes > longestSessionMinutes {
+                        longestSessionMinutes = sessionMinutes
+                        longestSessionIndex = index
+                    }
+                }
+
+                let hours = longestSessionMinutes / 60.0
                 let qualityScore: Double
                 if hours >= 7 && hours <= 9 {
                     qualityScore = 100.0
@@ -383,12 +471,62 @@ class HealthMetricsService: ObservableObject {
                 } else {
                     qualityScore = max(0, 100.0 - abs(hours - 8) * 15)
                 }
-                
-                let minutes = totalMinutes > 0 ? Int(totalMinutes) : nil
+
+                let minutes = longestSessionMinutes > 0 ? Int(longestSessionMinutes) : nil
+                print("🛏️ RESULT: Longest session = \(longestSessionMinutes) min (\(String(format: "%.1f", hours))h)")
                 continuation.resume(returning: (minutes, qualityScore > 0 ? qualityScore : nil))
             }
             healthStore.execute(query)
         }
+    }
+
+    /// Deduplicate overlapping sleep samples from different sources (e.g., iPhone + Apple Watch)
+    /// Takes the longer sample when two samples overlap significantly
+    private static func deduplicateSleepSamples(_ samples: [HKCategorySample]) -> [HKCategorySample] {
+        guard !samples.isEmpty else { return [] }
+
+        // Sort by start date
+        let sorted = samples.sorted { $0.startDate < $1.startDate }
+        var result: [HKCategorySample] = []
+
+        for sample in sorted {
+            // Check if this sample significantly overlaps with any existing sample
+            var shouldAdd = true
+            var indexToReplace: Int?
+
+            for (index, existing) in result.enumerated() {
+                let overlapStart = max(sample.startDate, existing.startDate)
+                let overlapEnd = min(sample.endDate, existing.endDate)
+
+                if overlapStart < overlapEnd {
+                    // There's overlap - calculate how much
+                    let overlapDuration = overlapEnd.timeIntervalSince(overlapStart)
+                    let sampleDuration = sample.endDate.timeIntervalSince(sample.startDate)
+                    let existingDuration = existing.endDate.timeIntervalSince(existing.startDate)
+
+                    // If overlap is >50% of either sample, they're duplicates
+                    let overlapRatio = overlapDuration / min(sampleDuration, existingDuration)
+
+                    if overlapRatio > 0.5 {
+                        // Keep the longer one
+                        if sampleDuration > existingDuration {
+                            indexToReplace = index
+                        } else {
+                            shouldAdd = false
+                        }
+                        break
+                    }
+                }
+            }
+
+            if let replaceIndex = indexToReplace {
+                result[replaceIndex] = sample
+            } else if shouldAdd {
+                result.append(sample)
+            }
+        }
+
+        return result
     }
     
     private static func queryWorkouts(healthStore: HKHealthStore, start: Date, end: Date) async throws -> Int? {

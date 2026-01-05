@@ -240,11 +240,7 @@ struct ItineraryRequest: Codable {
     let endDate: String?
     let preferences: ItineraryPreferences?
 
-    enum CodingKeys: String, CodingKey {
-        case startDate = "start_date"
-        case endDate = "end_date"
-        case preferences
-    }
+    // Note: Backend expects camelCase keys (startDate, endDate), not snake_case
 }
 
 struct ItineraryPreferences: Codable {

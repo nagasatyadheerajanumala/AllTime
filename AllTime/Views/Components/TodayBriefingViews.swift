@@ -4,11 +4,18 @@ import SwiftUI
 struct GreetingHeaderView: View {
     private var greetingText: String {
         let hour = Calendar.current.component(.hour, from: Date())
+        let timeGreeting: String
         switch hour {
-        case 0..<12: return "Good morning"
-        case 12..<17: return "Good afternoon"
-        default: return "Good evening"
+        case 0..<12: timeGreeting = "Good morning"
+        case 12..<17: timeGreeting = "Good afternoon"
+        default: timeGreeting = "Good evening"
         }
+
+        // Add user's first name if available
+        if let firstName = UserDefaults.standard.string(forKey: "user_first_name"), !firstName.isEmpty {
+            return "\(timeGreeting), \(firstName)"
+        }
+        return timeGreeting
     }
 
     private var dateText: String {

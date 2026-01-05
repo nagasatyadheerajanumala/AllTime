@@ -6,14 +6,27 @@ import SwiftUI
 /// Optimized with task cancellation and proper ViewModel lifecycle management
 struct InsightsRootView: View {
     @State private var selectedSection: InsightsSection = .weekly
+    @State private var previousSection: InsightsSection = .weekly
     @StateObject private var weeklyNarrativeViewModel = WeeklyNarrativeViewModel()
     @ObservedObject private var healthMetricsService = HealthMetricsService.shared
     @State private var loadTask: Task<Void, Never>?
+    @State private var showingHealthGoals = false
+    @Environment(\.accessibilityReduceMotion) var reduceMotion
 
     // Track which views have been loaded to preserve their state
     @State private var weeklyViewLoaded = false
     @State private var monthlyViewLoaded = false
     @State private var healthViewLoaded = false
+
+    // Direction of tab switch (for animation)
+    private var isForwardTransition: Bool {
+        let sections = InsightsSection.allCases
+        guard let currentIndex = sections.firstIndex(of: selectedSection),
+              let previousIndex = sections.firstIndex(of: previousSection) else {
+            return true
+        }
+        return currentIndex > previousIndex
+    }
 
     enum InsightsSection: String, CaseIterable {
         case weekly = "Weekly"
@@ -37,33 +50,31 @@ struct InsightsRootView: View {
             // Section Picker
             sectionPicker
 
-            // Content - use ZStack with opacity for instant switching
+            // Content - direction-aware transitions for smooth tab switching
             ZStack {
                 // Weekly View
-                if weeklyViewLoaded || selectedSection == .weekly {
+                if selectedSection == .weekly {
                     WeeklyInsightsView()
-                        .opacity(selectedSection == .weekly ? 1 : 0)
-                        .allowsHitTesting(selectedSection == .weekly)
+                        .transition(contentTransition)
                         .onAppear { weeklyViewLoaded = true }
                 }
 
                 // Monthly View
-                if monthlyViewLoaded || selectedSection == .monthly {
+                if selectedSection == .monthly {
                     LifeInsightsView()
-                        .opacity(selectedSection == .monthly ? 1 : 0)
-                        .allowsHitTesting(selectedSection == .monthly)
+                        .transition(contentTransition)
                         .onAppear { monthlyViewLoaded = true }
                 }
 
                 // Health View
-                if healthViewLoaded || selectedSection == .health {
+                if selectedSection == .health {
                     HealthInsightsDetailView()
-                        .opacity(selectedSection == .health ? 1 : 0)
-                        .allowsHitTesting(selectedSection == .health)
+                        .transition(contentTransition)
                         .onAppear { healthViewLoaded = true }
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .animation(reduceMotion ? nil : .spring(response: 0.35, dampingFraction: 0.85), value: selectedSection)
         }
         .background(DesignSystem.Colors.background)
         .task {
@@ -128,20 +139,43 @@ struct InsightsRootView: View {
                 ForEach(InsightsSection.allCases, id: \.self) { section in
                     sectionButton(section)
                 }
+
+                // Health Goals button - shown inline with tabs when Health is selected
+                if selectedSection == .health {
+                    Button(action: {
+                        showingHealthGoals = true
+                        let impact = UIImpactFeedbackGenerator(style: .light)
+                        impact.impactOccurred()
+                    }) {
+                        Image(systemName: "target")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(DesignSystem.Colors.primary)
+                            .frame(width: 36, height: 36)
+                            .background(
+                                Circle()
+                                    .fill(DesignSystem.Colors.primary.opacity(0.15))
+                            )
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    .transition(.opacity.combined(with: .scale))
+                }
             }
             .padding(.horizontal, DesignSystem.Spacing.screenMargin)
+            .animation(.easeInOut(duration: 0.2), value: selectedSection)
         }
         .padding(.vertical, DesignSystem.Spacing.sm)
         .background(DesignSystem.Colors.background)
+        .sheet(isPresented: $showingHealthGoals) {
+            HealthGoalsView()
+        }
     }
 
     private func sectionButton(_ section: InsightsSection) -> some View {
         Button(action: {
-            withAnimation(.easeInOut(duration: 0.2)) {
-                selectedSection = section
-            }
-            let impact = UIImpactFeedbackGenerator(style: .light)
-            impact.impactOccurred()
+            // Track previous section for direction-aware transition
+            previousSection = selectedSection
+            selectedSection = section
+            HapticManager.shared.lightTap()
         }) {
             HStack(spacing: 4) {
                 Image(systemName: section.icon)
@@ -156,8 +190,24 @@ struct InsightsRootView: View {
                 RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.md)
                     .fill(selectedSection == section ? Color.indigo : DesignSystem.Colors.cardBackground)
             )
+            .scaleEffect(selectedSection == section ? 1.0 : 0.98)
+            .animation(.spring(response: 0.25, dampingFraction: 0.75), value: selectedSection)
         }
         .buttonStyle(PlainButtonStyle())
+    }
+
+    // MARK: - Content Transition
+
+    /// Direction-aware transition for tab content
+    private var contentTransition: AnyTransition {
+        if reduceMotion {
+            return .opacity
+        }
+
+        return .asymmetric(
+            insertion: .opacity.combined(with: .offset(x: isForwardTransition ? 30 : -30)),
+            removal: .opacity.combined(with: .offset(x: isForwardTransition ? -30 : 30))
+        )
     }
 
     // MARK: - Helper Functions

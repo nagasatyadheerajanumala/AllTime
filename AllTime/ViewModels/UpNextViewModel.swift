@@ -2,6 +2,7 @@ import Foundation
 import SwiftUI
 import Combine
 import EventKit
+import CoreLocation
 
 @MainActor
 class UpNextViewModel: ObservableObject {
@@ -40,6 +41,7 @@ class UpNextViewModel: ObservableObject {
     private let apiService = APIService()
     private let reminderManager = EventKitReminderManager.shared
     private var cancellables = Set<AnyCancellable>()
+    private let locationManager = UpNextLocationManager()
 
     // MARK: - Computed Properties
 
@@ -71,6 +73,7 @@ class UpNextViewModel: ObservableObject {
 
     /// Load intelligent suggestions based on calendar gaps and context.
     /// This is the primary method for the Up Next section.
+    /// Uses device location for weather-aware suggestions.
     func loadUpNext() async {
         isLoading = true
         error = nil
@@ -80,13 +83,18 @@ class UpNextViewModel: ObservableObject {
             await checkRemindersAuthorization()
         }
 
+        // Get user's current location for weather-aware suggestions
+        let location = await locationManager.getCurrentLocation()
+        let lat = location?.coordinate.latitude
+        let lng = location?.coordinate.longitude
+
         do {
-            let response = try await apiService.getIntelligentUpNext()
+            let response = try await apiService.getIntelligentUpNext(lat: lat, lng: lng)
             upNextItems = response.items
             totalFreeMinutes = response.totalFreeMinutes ?? 0
             meetingCount = response.meetingCount ?? 0
             summaryMessage = response.message
-            print("✅ UpNextViewModel: Loaded \(upNextItems.count) intelligent suggestions")
+            print("✅ UpNextViewModel: Loaded \(upNextItems.count) intelligent suggestions (location: \(lat ?? 0), \(lng ?? 0))")
 
             // Debug: Log each item's details
             for item in upNextItems {
@@ -449,5 +457,85 @@ class UpNextViewModel: ObservableObject {
             await syncTaskToReminders(task)
         }
         print("✅ UpNextViewModel: Synced \(pendingTasks.count) tasks to iOS Reminders")
+    }
+}
+
+// MARK: - Location Manager Helper
+
+/// Simple location manager to get current location for weather-aware suggestions
+class UpNextLocationManager: NSObject, CLLocationManagerDelegate {
+    private let manager = CLLocationManager()
+    private var continuation: CheckedContinuation<CLLocation?, Never>?
+
+    override init() {
+        super.init()
+        manager.delegate = self
+        manager.desiredAccuracy = kCLLocationAccuracyKilometer // City-level accuracy is enough for weather
+    }
+
+    /// Get the current location (async)
+    /// Returns nil if location services are disabled or denied
+    func getCurrentLocation() async -> CLLocation? {
+        // Check authorization status
+        let status = manager.authorizationStatus
+
+        switch status {
+        case .notDetermined:
+            // Request permission
+            manager.requestWhenInUseAuthorization()
+            // Wait a moment for user to respond (or return nil)
+            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
+            return await requestLocation()
+
+        case .authorizedWhenInUse, .authorizedAlways:
+            return await requestLocation()
+
+        case .denied, .restricted:
+            print("📍 UpNextLocationManager: Location access denied")
+            return nil
+
+        @unknown default:
+            return nil
+        }
+    }
+
+    private func requestLocation() async -> CLLocation? {
+        // If we already have a recent location, use it
+        if let location = manager.location,
+           Date().timeIntervalSince(location.timestamp) < 300 { // 5 minutes
+            print("📍 UpNextLocationManager: Using cached location")
+            return location
+        }
+
+        // Request a new location
+        return await withCheckedContinuation { continuation in
+            self.continuation = continuation
+            manager.requestLocation()
+
+            // Timeout after 5 seconds
+            DispatchQueue.main.asyncAfter(deadline: .now() + 5) { [weak self] in
+                if self?.continuation != nil {
+                    print("📍 UpNextLocationManager: Location request timed out")
+                    self?.continuation?.resume(returning: self?.manager.location)
+                    self?.continuation = nil
+                }
+            }
+        }
+    }
+
+    // MARK: - CLLocationManagerDelegate
+
+    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        if let location = locations.last {
+            print("📍 UpNextLocationManager: Got location: \(location.coordinate.latitude), \(location.coordinate.longitude)")
+            continuation?.resume(returning: location)
+            continuation = nil
+        }
+    }
+
+    func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        print("📍 UpNextLocationManager: Location error: \(error.localizedDescription)")
+        continuation?.resume(returning: manager.location) // Return cached location if available
+        continuation = nil
     }
 }

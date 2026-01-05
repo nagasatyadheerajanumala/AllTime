@@ -53,11 +53,11 @@ struct FullName: Codable {
 
 struct RefreshTokenResponse: Codable {
     let accessToken: String
-    let refreshToken: String
-    let tokenType: String
-    let expiresIn: Int
-    let refreshExpiresIn: Int
-    
+    let refreshToken: String?  // Optional - some refresh endpoints only return access token
+    let tokenType: String?
+    let expiresIn: Int?
+    let refreshExpiresIn: Int?
+
     enum CodingKeys: String, CodingKey {
         case accessToken = "access_token"
         case refreshToken = "refresh_token"
@@ -77,16 +77,17 @@ struct ProviderLinkRequest: Codable {
     }
 }
 
-struct APIError: Codable, Error {
+struct APIError: Codable, LocalizedError {
     let message: String
     let code: String?
     let details: String?
     var userInfo: [String: Any]? = nil // For transient failures and additional metadata
-    
-    var localizedDescription: String {
+
+    // LocalizedError conformance - this is what error.localizedDescription uses
+    var errorDescription: String? {
         return message
     }
-    
+
     // Custom initializer to support userInfo
     init(message: String, code: String? = nil, details: String? = nil, userInfo: [String: Any]? = nil) {
         self.message = message
@@ -94,7 +95,7 @@ struct APIError: Codable, Error {
         self.details = details
         self.userInfo = userInfo
     }
-    
+
     // Codable conformance - userInfo is not encoded/decoded (runtime only)
     enum CodingKeys: String, CodingKey {
         case message, code, details

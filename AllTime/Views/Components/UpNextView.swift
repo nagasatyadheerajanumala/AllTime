@@ -50,6 +50,11 @@ struct UpNextSectionView: View {
         .refreshable {
             await viewModel.refresh()
         }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("TaskCreated"))) { _ in
+            Task {
+                await viewModel.refresh()
+            }
+        }
     }
 
     // MARK: - Header
@@ -376,40 +381,86 @@ struct UpNextItemRowView: View {
 
         isBlockingTime = true
 
-        // Request calendar access and create event
+        // Use FocusTimeService to create event on Google Calendar (syncs with app)
         Task {
             do {
-                let granted = await requestCalendarAccess()
-                guard granted else {
-                    await MainActor.run {
-                        isBlockingTime = false
-                        blockTimeMessage = "Calendar access is required to block time. Please enable it in Settings."
-                        showBlockTimeError = true
-                    }
-                    return
-                }
-
-                // Create the calendar event
-                try await createCalendarEvent(
+                let response = try await FocusTimeService.shared.blockFocusTime(
+                    start: startTime,
+                    end: endTime,
                     title: item.title,
-                    startDate: startTime,
-                    endDate: endTime,
-                    notes: item.description
+                    description: item.description,
+                    enableFocusMode: false,
+                    calendarProvider: "google"
                 )
 
                 await MainActor.run {
                     isBlockingTime = false
                     let formatter = DateFormatter()
                     formatter.timeStyle = .short
-                    blockTimeMessage = "Blocked \(formatter.string(from: startTime)) - \(formatter.string(from: endTime)) on your calendar."
-                    showBlockTimeSuccess = true
+
+                    if response.success {
+                        blockTimeMessage = "Blocked \(formatter.string(from: startTime)) - \(formatter.string(from: endTime)) on your Google Calendar."
+                        showBlockTimeSuccess = true
+
+                        // Notify calendar to refresh
+                        NotificationCenter.default.post(name: NSNotification.Name("EventCreated"), object: nil)
+                    } else {
+                        blockTimeMessage = response.message ?? "Failed to block time on calendar."
+                        showBlockTimeError = true
+                    }
                 }
-            } catch {
+            } catch let error as FocusTimeError {
                 await MainActor.run {
                     isBlockingTime = false
-                    blockTimeMessage = error.localizedDescription
+
+                    // If Google Calendar fails, fall back to local calendar
+                    if case .unauthorized = error {
+                        blockTimeMessage = "Please connect your Google Calendar first."
+                    } else {
+                        blockTimeMessage = error.localizedDescription
+                    }
                     showBlockTimeError = true
                 }
+            } catch {
+                // Fallback to local iOS calendar if backend fails
+                print("⚠️ FocusTimeService failed, falling back to local calendar: \(error)")
+                await createLocalCalendarEventFallback(startTime: startTime, endTime: endTime)
+            }
+        }
+    }
+
+    // MARK: - Fallback to Local Calendar
+    private func createLocalCalendarEventFallback(startTime: Date, endTime: Date) async {
+        do {
+            let granted = await requestCalendarAccess()
+            guard granted else {
+                await MainActor.run {
+                    isBlockingTime = false
+                    blockTimeMessage = "Calendar access is required to block time. Please enable it in Settings."
+                    showBlockTimeError = true
+                }
+                return
+            }
+
+            try await createCalendarEvent(
+                title: item.title,
+                startDate: startTime,
+                endDate: endTime,
+                notes: item.description
+            )
+
+            await MainActor.run {
+                isBlockingTime = false
+                let formatter = DateFormatter()
+                formatter.timeStyle = .short
+                blockTimeMessage = "Blocked \(formatter.string(from: startTime)) - \(formatter.string(from: endTime)) on your local calendar."
+                showBlockTimeSuccess = true
+            }
+        } catch {
+            await MainActor.run {
+                isBlockingTime = false
+                blockTimeMessage = error.localizedDescription
+                showBlockTimeError = true
             }
         }
     }

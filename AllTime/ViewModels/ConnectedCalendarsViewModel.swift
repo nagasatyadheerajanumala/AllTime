@@ -15,6 +15,11 @@ class ConnectedCalendarsViewModel: ObservableObject {
     @Published var syncHolidays: Bool = true
     @Published var isLoadingHolidayPreference = false
 
+    // Discovered calendars (multi-calendar support)
+    @Published var discoveredCalendars: [DiscoveredCalendar] = []
+    @Published var isDiscovering = false
+    @Published var isTogglingCalendar: Int? = nil  // Calendar ID being toggled
+
     private let apiService = APIService()
     
     // Legacy compatibility - providers with calculated event counts
@@ -293,6 +298,136 @@ class ConnectedCalendarsViewModel: ObservableObject {
             syncHolidays = !enabled
             errorMessage = "Failed to update holiday preference: \(error.localizedDescription)"
         }
+    }
+
+    // MARK: - Discovered Calendars (Multi-Calendar Support)
+
+    /// Group discovered calendars by provider
+    var discoveredCalendarsByProvider: [String: [DiscoveredCalendar]] {
+        Dictionary(grouping: discoveredCalendars, by: { $0.provider })
+    }
+
+    /// Check if there are any Microsoft calendars connected
+    var hasMicrosoftConnection: Bool {
+        calendars.contains { $0.provider.lowercased() == "microsoft" }
+    }
+
+    /// Check if there are any Google calendars connected
+    var hasGoogleConnection: Bool {
+        calendars.contains { $0.provider.lowercased() == "google" }
+    }
+
+    /// Load discovered calendars from the server
+    func loadDiscoveredCalendars() async {
+        print("📅 ConnectedCalendarsViewModel: Loading discovered calendars...")
+
+        do {
+            let response = try await apiService.getDiscoveredCalendars()
+            discoveredCalendars = response.calendars
+            print("✅ ConnectedCalendarsViewModel: Loaded \(response.count) discovered calendars")
+        } catch {
+            print("❌ ConnectedCalendarsViewModel: Failed to load discovered calendars: \(error)")
+            // Don't show error to user - discovered calendars are optional
+        }
+    }
+
+    /// Trigger calendar discovery for Microsoft
+    func discoverMicrosoftCalendars() async {
+        print("🔍 ConnectedCalendarsViewModel: Discovering Microsoft calendars...")
+        isDiscovering = true
+        errorMessage = nil
+
+        do {
+            let response = try await apiService.discoverMicrosoftCalendars()
+
+            if response.success {
+                if let calendars = response.calendars {
+                    discoveredCalendars = calendars
+                    successMessage = "Found \(response.count ?? 0) calendar(s)"
+                    print("✅ ConnectedCalendarsViewModel: Discovered \(response.count ?? 0) Microsoft calendars")
+                }
+            } else {
+                errorMessage = response.error ?? "Failed to discover calendars"
+                print("❌ ConnectedCalendarsViewModel: Discovery failed: \(response.error ?? "unknown")")
+            }
+
+            // Clear success message after 3 seconds
+            if successMessage != nil {
+                Task {
+                    try? await Task.sleep(nanoseconds: 3_000_000_000)
+                    successMessage = nil
+                }
+            }
+        } catch {
+            print("❌ ConnectedCalendarsViewModel: Failed to discover calendars: \(error)")
+            errorMessage = "Failed to discover calendars: \(error.localizedDescription)"
+        }
+
+        isDiscovering = false
+    }
+
+    /// Toggle a discovered calendar's enabled state
+    func toggleCalendarEnabled(_ calendarId: Int, enabled: Bool) async {
+        print("🔄 ConnectedCalendarsViewModel: Toggling calendar \(calendarId) to \(enabled ? "enabled" : "disabled")...")
+        isTogglingCalendar = calendarId
+
+        do {
+            let response = try await apiService.toggleCalendarEnabled(calendarId: calendarId, enabled: enabled)
+
+            if response.success {
+                // Update local state
+                if let index = discoveredCalendars.firstIndex(where: { $0.id == calendarId }) {
+                    // Create updated calendar with new enabled state
+                    let oldCalendar = discoveredCalendars[index]
+                    let newEnabled = response.enabled ?? enabled
+
+                    // We need to recreate the calendar since it's a struct
+                    // For now, reload from server to get fresh state
+                    await loadDiscoveredCalendars()
+                }
+                print("✅ ConnectedCalendarsViewModel: Calendar \(calendarId) toggled successfully")
+            } else {
+                errorMessage = response.error ?? "Failed to toggle calendar"
+                print("❌ ConnectedCalendarsViewModel: Toggle failed: \(response.error ?? "unknown")")
+            }
+        } catch {
+            print("❌ ConnectedCalendarsViewModel: Failed to toggle calendar: \(error)")
+            errorMessage = "Failed to toggle calendar: \(error.localizedDescription)"
+        }
+
+        isTogglingCalendar = nil
+    }
+
+    /// Sync all enabled Microsoft calendars using multi-calendar sync
+    func syncMicrosoftMultiCalendar() async {
+        print("🔄 ConnectedCalendarsViewModel: Syncing Microsoft multi-calendar...")
+        isSyncing = true
+
+        do {
+            let response = try await apiService.syncMicrosoftMultiCalendar()
+
+            if response.success {
+                successMessage = "Synced \(response.eventsProcessed) events from \(response.calendarsProcessed) calendar(s)"
+                print("✅ ConnectedCalendarsViewModel: Multi-calendar sync complete - \(response.calendarsProcessed) calendars, \(response.eventsProcessed) events")
+
+                // Reload events
+                await loadUpcomingEvents()
+
+                // Clear success message after 3 seconds
+                Task {
+                    try? await Task.sleep(nanoseconds: 3_000_000_000)
+                    successMessage = nil
+                }
+            } else {
+                errorMessage = response.error ?? "Failed to sync calendars"
+                print("❌ ConnectedCalendarsViewModel: Multi-calendar sync failed: \(response.error ?? "unknown")")
+            }
+        } catch {
+            print("❌ ConnectedCalendarsViewModel: Failed to sync multi-calendar: \(error)")
+            errorMessage = "Failed to sync calendars: \(error.localizedDescription)"
+        }
+
+        isSyncing = false
     }
 }
 

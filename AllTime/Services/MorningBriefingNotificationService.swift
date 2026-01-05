@@ -8,6 +8,8 @@ import Combine
 class MorningBriefingNotificationService: ObservableObject {
     static let shared = MorningBriefingNotificationService()
 
+    private let historyService = NotificationHistoryService.shared
+
     // MARK: - Published Properties
 
     @Published var isEnabled: Bool {
@@ -40,6 +42,41 @@ class MorningBriefingNotificationService: ObservableObject {
     private let notificationIdentifier = "morning-briefing"
 
     // MARK: - Engaging Copy Templates
+
+    /// Generate a personalized title using the user's first name
+    private func getPersonalizedTitle() -> String {
+        let firstName = UserDefaults.standard.string(forKey: "user_first_name")
+        let hour = Calendar.current.component(.hour, from: Date())
+
+        let timeGreeting: String
+        if hour < 12 {
+            timeGreeting = "Good morning"
+        } else if hour < 17 {
+            timeGreeting = "Good afternoon"
+        } else {
+            timeGreeting = "Good evening"
+        }
+
+        if let name = firstName, !name.isEmpty {
+            // Personalized greetings with name
+            let personalizedOptions = [
+                "\(timeGreeting), \(name)!",
+                "Rise and shine, \(name)!",
+                "Ready for today, \(name)?",
+                "\(name), your day awaits"
+            ]
+            return personalizedOptions.randomElement() ?? "\(timeGreeting), \(name)!"
+        } else {
+            // Fallback to generic titles
+            let genericOptions = [
+                "Rise and shine!",
+                "\(timeGreeting)!",
+                "Ready for today?",
+                "Your day awaits"
+            ]
+            return genericOptions.randomElement() ?? "\(timeGreeting)!"
+        }
+    }
 
     private let titles = [
         "Rise and shine!",
@@ -75,6 +112,45 @@ class MorningBriefingNotificationService: ObservableObject {
             "Good mix today - meetings and focus time in harmony."
         ]
     ]
+
+    /// Generate personalized fallback messages
+    private func getPersonalizedFallbackMessage() -> String {
+        let firstName = UserDefaults.standard.string(forKey: "user_first_name")
+        let dayOfWeek = Calendar.current.component(.weekday, from: Date())
+
+        // Weekend-specific messages
+        if dayOfWeek == 1 || dayOfWeek == 7 {
+            if let name = firstName, !name.isEmpty {
+                let weekendMessages = [
+                    "\(name), enjoy your weekend! Here's what's on your radar.",
+                    "Weekend vibes, \(name)! See your day ahead.",
+                    "Happy weekend, \(name)! Your day is looking good."
+                ]
+                return weekendMessages.randomElement() ?? "Your weekend briefing is ready."
+            }
+            return "Weekend mode activated! Here's your day."
+        }
+
+        // Weekday personalized messages
+        if let name = firstName, !name.isEmpty {
+            let personalizedMessages = [
+                "\(name), here's your day at a glance.",
+                "Ready to make today great, \(name)?",
+                "\(name), let's see what's ahead today.",
+                "Your day is planned and ready, \(name)!"
+            ]
+            return personalizedMessages.randomElement() ?? "Your briefing is ready, \(name)."
+        }
+
+        // Generic fallback
+        let genericMessages = [
+            "Tap to see what's on your agenda today.",
+            "Your daily briefing is ready.",
+            "See how your day looks at a glance.",
+            "Ready to take on the day? Here's your plan."
+        ]
+        return genericMessages.randomElement() ?? "Your daily briefing is ready."
+    }
 
     private let fallbackMessages = [
         "Tap to see what's on your agenda today.",
@@ -123,8 +199,8 @@ class MorningBriefingNotificationService: ObservableObject {
 
         // Create notification content
         let content = UNMutableNotificationContent()
-        content.title = titles.randomElement() ?? "Good morning!"
-        content.body = fallbackMessages.randomElement() ?? "Your daily briefing is ready."
+        content.title = getPersonalizedTitle()
+        content.body = getPersonalizedFallbackMessage()
         content.sound = .default
         content.userInfo = [
             "type": "morning_briefing",
@@ -168,9 +244,12 @@ class MorningBriefingNotificationService: ObservableObject {
     func updateNotificationContent(briefing: DailyBriefingResponse) {
         guard isEnabled else { return }
 
+        let title = getPersonalizedTitle()
+        let body = generateNotificationBody(from: briefing)
+
         let content = UNMutableNotificationContent()
-        content.title = titles.randomElement() ?? "Good morning!"
-        content.body = generateNotificationBody(from: briefing)
+        content.title = title
+        content.body = body
         content.sound = .default
         content.userInfo = [
             "type": "morning_briefing",
@@ -202,12 +281,25 @@ class MorningBriefingNotificationService: ObservableObject {
                 print("Morning briefing notification updated with fresh content")
             }
         }
+
+        // Save to notification history
+        let meetingsCount = briefing.quickStats?.meetingsCount ?? briefing.keyMetrics?.effectiveMeetingsCount
+        let focusTime = briefing.quickStats?.focusTimeAvailable
+        let mood = briefing.mood
+
+        historyService.addMorningBriefing(
+            title: title,
+            body: body,
+            meetingsCount: meetingsCount,
+            focusTime: focusTime,
+            mood: mood
+        )
     }
 
     /// Send a test notification immediately (for debugging/preview)
     func sendTestNotification() {
         let content = UNMutableNotificationContent()
-        content.title = titles.randomElement() ?? "Good morning!"
+        content.title = getPersonalizedTitle()
         content.body = "3 meetings, 2h focus time available. Let's do this!"
         content.sound = .default
         content.userInfo = [
@@ -258,7 +350,7 @@ class MorningBriefingNotificationService: ObservableObject {
         }
 
         // Final fallback
-        return fallbackMessages.randomElement() ?? "Your daily briefing is ready."
+        return getPersonalizedFallbackMessage()
     }
 
     private func formattedTime(_ date: Date) -> String {

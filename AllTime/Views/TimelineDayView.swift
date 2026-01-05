@@ -25,13 +25,13 @@ struct TimelineDayView: View {
                 } else if let timeline = viewModel.timeline {
                     if timeline.items.isEmpty {
                         VStack(spacing: 16) {
-                            Image(systemName: "clock")
+                            Image(systemName: "calendar.badge.plus")
                                 .font(.system(size: 48))
-                                .foregroundColor(DesignSystem.Colors.secondaryText)
-                            Text("No events today")
+                                .foregroundColor(DesignSystem.Colors.primary)
+                            Text("Open day ahead")
                                 .font(DesignSystem.Typography.title3)
                                 .foregroundColor(DesignSystem.Colors.primaryText)
-                            Text("Your timeline will appear here when you have events scheduled.")
+                            Text("This is rare. Block focus time before it fills with reactive work.")
                                 .font(DesignSystem.Typography.body)
                                 .foregroundColor(DesignSystem.Colors.secondaryText)
                                 .multilineTextAlignment(.center)

@@ -31,24 +31,34 @@ class DaySummaryViewModel: ObservableObject {
     private let apiService = APIService.shared
     private let calendar = Calendar.current
 
-    // MARK: - Greetings
+    // MARK: - Forward-Looking Headlines
+    // Philosophy: Clara is not here to congratulate. It's here to prepare you for tomorrow.
 
-    private let eveningGreetings = [
-        "Great work today!",
-        "Another day done!",
-        "Well done today!",
-        "Day complete!",
-        "That's a wrap!"
-    ]
+    private func generateHeadline(tomorrowMeetingCount: Int, todayWasHeavy: Bool) -> String {
+        if tomorrowMeetingCount == 0 {
+            return "Tomorrow is open."
+        } else if tomorrowMeetingCount >= 6 {
+            return "Heavy day ahead."
+        } else if todayWasHeavy && tomorrowMeetingCount <= 3 {
+            return "Recovery day tomorrow."
+        } else if tomorrowMeetingCount >= 4 {
+            return "Full day tomorrow."
+        } else {
+            return "Balanced day ahead."
+        }
+    }
 
-    private let closingMessages = [
-        "Rest well, you've earned it!",
-        "Take some time to recharge tonight.",
-        "Tomorrow is a fresh start!",
-        "You did your best today.",
-        "Enjoy your evening!",
-        "Time to unwind and relax."
-    ]
+    private func generateClosingAction(tomorrowMeetingCount: Int, todayWasHeavy: Bool) -> String {
+        if todayWasHeavy {
+            return "Protect your sleep tonight — tomorrow needs you rested."
+        } else if tomorrowMeetingCount >= 5 {
+            return "Review tomorrow's meetings now. Identify one you can shorten or skip."
+        } else if tomorrowMeetingCount == 0 {
+            return "Block focus time for tomorrow before the day fills up."
+        } else {
+            return "Tomorrow's first meeting: prepare tonight to start strong."
+        }
+    }
 
     // MARK: - Load Summary
 
@@ -60,9 +70,6 @@ class DaySummaryViewModel: ObservableObject {
         let formatter = DateFormatter()
         formatter.dateFormat = "EEEE, MMMM d"
         dateString = formatter.string(from: now)
-
-        // Set greeting based on time
-        greeting = eveningGreetings.randomElement() ?? "Day complete!"
 
         // Process events
         let todayEvents = events.filter { event in
@@ -95,8 +102,10 @@ class DaySummaryViewModel: ObservableObject {
         // Load tomorrow's preview
         await loadTomorrowPreview()
 
-        // Set closing message
-        closingMessage = closingMessages.randomElement() ?? "Rest well!"
+        // Set forward-looking headline and action (not congratulatory)
+        let todayWasHeavy = totalMeetings >= 5
+        greeting = generateHeadline(tomorrowMeetingCount: tomorrowMeetings, todayWasHeavy: todayWasHeavy)
+        closingMessage = generateClosingAction(tomorrowMeetingCount: tomorrowMeetings, todayWasHeavy: todayWasHeavy)
 
         isLoading = false
     }
@@ -151,42 +160,43 @@ class DaySummaryViewModel: ObservableObject {
     }
 
     private func determineMood() {
+        // Philosophy: Don't celebrate the past. Frame it in terms of what it means for tomorrow.
         let completionRate = totalMeetings > 0 ? Double(meetingsCompleted) / Double(totalMeetings) : 1.0
 
         if totalMeetings == 0 {
             moodEmoji = "..."
-            moodTitle = "Quiet Day"
-            summaryLine = "No meetings scheduled today. Hope you used the time well!"
+            moodTitle = "Open Day"
+            summaryLine = "No external demands today. Check: did you use it, or did it slip away?"
             moodGradient = [Color.teal.opacity(0.3), Color.blue.opacity(0.3)]
         } else if totalMeetings >= 6 && completionRate >= 0.8 {
             moodEmoji = "..."
-            moodTitle = "Power Day"
-            summaryLine = "You crushed \(meetingsCompleted) meetings today! That's impressive dedication."
+            moodTitle = "Heavy Load"
+            summaryLine = "\(meetingsCompleted) meetings today. Your capacity is depleted — protect tonight."
             moodGradient = [Color.orange.opacity(0.3), Color.red.opacity(0.3)]
         } else if totalMeetings >= 6 {
             moodEmoji = "..."
-            moodTitle = "Marathon Day"
-            summaryLine = "Busy day with \(totalMeetings) meetings. Make sure to rest tonight!"
+            moodTitle = "High Demand"
+            summaryLine = "\(totalMeetings) meetings scheduled. This pace isn't sustainable without recovery."
             moodGradient = [Color.purple.opacity(0.3), Color.pink.opacity(0.3)]
         } else if completionRate >= 0.9 {
             moodEmoji = "..."
-            moodTitle = "Great Day"
-            summaryLine = "All meetings done! You stayed on top of everything today."
+            moodTitle = "Full Day"
+            summaryLine = "All \(meetingsCompleted) meetings completed. Energy spent — plan accordingly."
             moodGradient = [Color.green.opacity(0.3), Color.teal.opacity(0.3)]
         } else if completionRate >= 0.7 {
             moodEmoji = "..."
-            moodTitle = "Good Day"
-            summaryLine = "Solid day with \(meetingsCompleted) of \(totalMeetings) meetings completed."
+            moodTitle = "Active Day"
+            summaryLine = "\(meetingsCompleted) of \(totalMeetings) meetings done. Check what carried over."
             moodGradient = [Color.blue.opacity(0.3), Color.cyan.opacity(0.3)]
         } else if totalMeetings <= 3 {
             moodEmoji = "..."
             moodTitle = "Light Day"
-            summaryLine = "Easy schedule today with just \(totalMeetings) meetings."
+            summaryLine = "Only \(totalMeetings) meetings. Did you use the space, or did tasks expand?"
             moodGradient = [Color.mint.opacity(0.3), Color.teal.opacity(0.3)]
         } else {
             moodEmoji = "..."
-            moodTitle = "Balanced Day"
-            summaryLine = "A mix of meetings and focus time. Well balanced!"
+            moodTitle = "Mixed Day"
+            summaryLine = "Meetings and gaps. The question: was the gap time intentional?"
             moodGradient = [Color.indigo.opacity(0.3), Color.purple.opacity(0.3)]
         }
     }

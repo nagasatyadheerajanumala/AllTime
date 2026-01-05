@@ -154,6 +154,7 @@ struct TodaySummaryDetailView: View {
     let briefing: DailyBriefingResponse?
     let summaryTile: SummaryTileData?
     @Environment(\.dismiss) private var dismiss
+    @State private var addedFocusWindowIds: Set<String> = []
 
     var body: some View {
         NavigationView {
@@ -161,6 +162,11 @@ struct TodaySummaryDetailView: View {
                 VStack(alignment: .leading, spacing: DesignSystem.Today.sectionSpacing) {
                     // Header card with mood gradient
                     headerCard
+
+                    // Day Narrative (plain-English story about the day)
+                    if let narrative = briefing?.dayNarrative {
+                        dayNarrativeSection(narrative: narrative)
+                    }
 
                     // Key Metrics (above Health Insights)
                     if let metrics = briefing?.keyMetrics {
@@ -277,6 +283,91 @@ struct TodaySummaryDetailView: View {
         .sectionCardStyle()
     }
 
+    // MARK: - Day Narrative Section
+    private func dayNarrativeSection(narrative: DayNarrative) -> some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+            // Header with tone icon
+            HStack(spacing: DesignSystem.Spacing.sm) {
+                Image(systemName: narrative.toneIcon)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(narrative.toneColor)
+
+                Text(narrative.headline)
+                    .font(.headline.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+
+                Spacer()
+            }
+
+            // Main story
+            Text(narrative.story)
+                .font(.body)
+                .lineSpacing(4)
+                .foregroundColor(DesignSystem.Colors.primaryText)
+                .fixedSize(horizontal: false, vertical: true)
+
+            // Key observations (bullet points)
+            if let observations = narrative.keyObservations, !observations.isEmpty {
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                    ForEach(observations, id: \.self) { observation in
+                        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
+                            Circle()
+                                .fill(narrative.toneColor.opacity(0.6))
+                                .frame(width: 6, height: 6)
+                                .padding(.top, 6)
+
+                            Text(observation)
+                                .font(.subheadline)
+                                .foregroundColor(DesignSystem.Colors.secondaryText)
+                        }
+                    }
+                }
+                .padding(.top, DesignSystem.Spacing.xs)
+            }
+
+            // Health connection
+            if let healthConnection = narrative.healthConnection, !healthConnection.isEmpty {
+                HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
+                    Image(systemName: "heart.fill")
+                        .font(.caption)
+                        .foregroundColor(Color(hex: "EF4444"))
+                        .frame(width: 16)
+
+                    Text(healthConnection)
+                        .font(.subheadline)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(DesignSystem.Spacing.sm)
+                .background(
+                    RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.sm)
+                        .fill(Color(hex: "EF4444").opacity(0.08))
+                )
+            }
+
+            // Looking ahead
+            if let lookingAhead = narrative.lookingAhead, !lookingAhead.isEmpty {
+                HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
+                    Image(systemName: "arrow.forward.circle.fill")
+                        .font(.caption)
+                        .foregroundColor(DesignSystem.Colors.primary)
+                        .frame(width: 16)
+
+                    Text(lookingAhead)
+                        .font(.subheadline.italic())
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(DesignSystem.Spacing.sm)
+                .background(
+                    RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.sm)
+                        .fill(DesignSystem.Colors.primary.opacity(0.08))
+                )
+            }
+        }
+        .sectionCardStyle()
+    }
+
     // MARK: - Summary Section
     private func summarySection(summary: String) -> some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
@@ -294,13 +385,59 @@ struct TodaySummaryDetailView: View {
     // MARK: - Focus Windows Section
     private func focusWindowsSection(windows: [FocusWindow]) -> some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-            DetailSectionHeader(title: "Focus Windows", icon: "brain.head.profile")
+            HStack {
+                DetailSectionHeader(title: "Focus Windows", icon: "brain.head.profile")
+                Spacer()
+                Text("Tap + to block time")
+                    .font(.caption2)
+                    .foregroundColor(DesignSystem.Colors.tertiaryText)
+            }
 
             ForEach(windows, id: \.windowId) { window in
-                FocusWindowRow(window: window)
+                ActionableFocusWindowRow(
+                    window: window,
+                    isAdded: addedFocusWindowIds.contains(window.windowId),
+                    onAddToCalendar: {
+                        addFocusWindowToCalendar(window)
+                    }
+                )
             }
         }
         .sectionCardStyle()
+    }
+
+    // Add focus window to calendar
+    private func addFocusWindowToCalendar(_ window: FocusWindow) {
+        Task {
+            guard let startDate = window.startDate, let endDate = window.endDate else {
+                print("Cannot add focus window - missing dates")
+                return
+            }
+
+            do {
+                let title = window.suggestedActivity ?? "Focus Time"
+                let success = try await CalendarService.shared.createEvent(
+                    title: title,
+                    startDate: startDate,
+                    endDate: endDate,
+                    notes: window.reason
+                )
+
+                if success {
+                    await MainActor.run {
+                        withAnimation {
+                            addedFocusWindowIds.insert(window.windowId)
+                        }
+                        // Haptic feedback
+                        let generator = UINotificationFeedbackGenerator()
+                        generator.notificationOccurred(.success)
+                    }
+                    print("Added focus window to calendar: \(title)")
+                }
+            } catch {
+                print("Failed to add focus window to calendar: \(error)")
+            }
+        }
     }
 
     // MARK: - Energy Dips Section
@@ -740,6 +877,110 @@ struct InsightMetricChip: View {
         .background(
             RoundedRectangle(cornerRadius: 8)
                 .fill(Color.white.opacity(0.12))
+        )
+    }
+}
+
+// MARK: - Actionable Focus Window Row (with Add to Calendar)
+struct ActionableFocusWindowRow: View {
+    let window: FocusWindow
+    let isAdded: Bool
+    let onAddToCalendar: () -> Void
+
+    @State private var isExpanded = false
+
+    var body: some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+            // Time indicator
+            VStack(spacing: 2) {
+                Circle()
+                    .fill(Color(hex: "8B5CF6"))
+                    .frame(width: 8, height: 8)
+                Rectangle()
+                    .fill(Color(hex: "8B5CF6").opacity(0.3))
+                    .frame(width: 2, height: 20)
+                Circle()
+                    .stroke(Color(hex: "8B5CF6"), lineWidth: 2)
+                    .frame(width: 8, height: 8)
+            }
+
+            // Content
+            VStack(alignment: .leading, spacing: 4) {
+                Text(TimeRangeFormatter.format(start: window.startTime, end: window.endTime, compact: true))
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                HStack(spacing: 8) {
+                    Text(TimeRangeFormatter.formatDuration(minutes: window.durationMinutes))
+                        .font(.caption)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+
+                    if let quality = window.qualityScore {
+                        Text("Quality: \(quality)%")
+                            .font(.caption2)
+                            .foregroundColor(Color(hex: "8B5CF6"))
+                    }
+                }
+
+                // Suggested activity if available
+                if let activity = window.suggestedActivity, !activity.isEmpty {
+                    HStack(spacing: 4) {
+                        Image(systemName: "sparkles")
+                            .font(.system(size: 10))
+                        Text(activity)
+                            .font(.caption)
+                    }
+                    .foregroundColor(Color(hex: "8B5CF6"))
+                    .fixedSize(horizontal: false, vertical: true)
+                }
+
+                // Reason - expandable for long text
+                if let reason = window.reason, !reason.isEmpty {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(reason)
+                            .font(.caption)
+                            .foregroundColor(DesignSystem.Colors.tertiaryText)
+                            .lineSpacing(2)
+                            .lineLimit(isExpanded ? nil : 2)
+                            .fixedSize(horizontal: false, vertical: true)
+
+                        if reason.count > 80 {
+                            Button(action: {
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    isExpanded.toggle()
+                                }
+                            }) {
+                                Text(isExpanded ? "Show less" : "Show more")
+                                    .font(.caption2)
+                                    .foregroundColor(DesignSystem.Colors.primary)
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer()
+
+            // Add to Calendar Button
+            Button(action: onAddToCalendar) {
+                HStack(spacing: 4) {
+                    Image(systemName: isAdded ? "checkmark.circle.fill" : "plus.circle.fill")
+                        .font(.system(size: 20))
+                }
+                .foregroundColor(isAdded ? .green : Color(hex: "8B5CF6"))
+            }
+            .disabled(isAdded)
+            .padding(.top, 2)
+        }
+        .padding(DesignSystem.Spacing.sm)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.sm)
+                .fill(isAdded ? Color.green.opacity(0.08) : Color(hex: "8B5CF6").opacity(0.08))
+                .overlay(
+                    RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.sm)
+                        .stroke(isAdded ? Color.green.opacity(0.2) : Color(hex: "8B5CF6").opacity(0.15), lineWidth: 1)
+                )
         )
     }
 }

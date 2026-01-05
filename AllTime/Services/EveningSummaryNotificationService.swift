@@ -8,6 +8,9 @@ import Combine
 class EveningSummaryNotificationService: ObservableObject {
     static let shared = EveningSummaryNotificationService()
 
+    private let apiService = APIService()
+    private let historyService = NotificationHistoryService.shared
+
     // MARK: - Published Properties
 
     @Published var isEnabled: Bool {
@@ -41,6 +44,31 @@ class EveningSummaryNotificationService: ObservableObject {
 
     // MARK: - Engaging Copy Templates
 
+    /// Generate a personalized evening title using the user's first name
+    private func getPersonalizedTitle() -> String {
+        let firstName = UserDefaults.standard.string(forKey: "user_first_name")
+
+        if let name = firstName, !name.isEmpty {
+            // Personalized greetings with name
+            let personalizedOptions = [
+                "How was your day, \(name)?",
+                "\(name)'s day in review",
+                "Time to reflect, \(name)",
+                "\(name), your day is done!"
+            ]
+            return personalizedOptions.randomElement() ?? "How was your day, \(name)?"
+        } else {
+            // Fallback to generic titles
+            let genericOptions = [
+                "Day in review",
+                "How was your day?",
+                "Daily wrap-up",
+                "End of day recap"
+            ]
+            return genericOptions.randomElement() ?? "Day in review"
+        }
+    }
+
     private let titles = [
         "Day in review",
         "How was your day?",
@@ -69,6 +97,45 @@ class EveningSummaryNotificationService: ObservableObject {
         "Light schedule wrapped up nicely.",
         "Peaceful day done. Well deserved!"
     ]
+
+    /// Generate personalized fallback messages for evening summary
+    private func getPersonalizedFallbackMessage() -> String {
+        let firstName = UserDefaults.standard.string(forKey: "user_first_name")
+        let dayOfWeek = Calendar.current.component(.weekday, from: Date())
+
+        // Weekend-specific messages
+        if dayOfWeek == 1 || dayOfWeek == 7 {
+            if let name = firstName, !name.isEmpty {
+                let weekendMessages = [
+                    "How was your weekend day, \(name)?",
+                    "\(name), time to reflect on your day.",
+                    "Rest up, \(name)! See how today went."
+                ]
+                return weekendMessages.randomElement() ?? "Your weekend recap is ready."
+            }
+            return "Weekend day wrapped up! See how it went."
+        }
+
+        // Weekday personalized messages
+        if let name = firstName, !name.isEmpty {
+            let personalizedMessages = [
+                "\(name), take a moment to reflect.",
+                "Another day done, \(name)! How did it go?",
+                "\(name), see what you accomplished today.",
+                "Time to unwind, \(name). Review your day."
+            ]
+            return personalizedMessages.randomElement() ?? "Your day review is ready, \(name)."
+        }
+
+        // Generic fallback
+        let genericMessages = [
+            "See how your day went and reflect.",
+            "Your day review is ready.",
+            "Review your day and rate how it went.",
+            "Time to reflect on your day."
+        ]
+        return genericMessages.randomElement() ?? "Your day review is ready."
+    }
 
     private let fallbackMessages = [
         "See how your day went and reflect.",
@@ -103,6 +170,7 @@ class EveningSummaryNotificationService: ObservableObject {
         if self.isEnabled {
             Task { @MainActor in
                 self.scheduleNotification()
+                self.scheduleContentRefresh()
             }
         }
     }
@@ -118,8 +186,8 @@ class EveningSummaryNotificationService: ObservableObject {
 
         // Create notification content
         let content = UNMutableNotificationContent()
-        content.title = titles.randomElement() ?? "Day in review"
-        content.body = fallbackMessages.randomElement() ?? "Your daily recap is ready."
+        content.title = getPersonalizedTitle()
+        content.body = getPersonalizedFallbackMessage()
         content.sound = .default
         content.userInfo = [
             "type": "evening_summary",
@@ -168,7 +236,7 @@ class EveningSummaryNotificationService: ObservableObject {
         guard isEnabled else { return }
 
         let content = UNMutableNotificationContent()
-        content.title = titles.randomElement() ?? "Day in review"
+        content.title = getPersonalizedTitle()
         content.body = generateNotificationBody(
             meetingsCompleted: meetingsCompleted,
             totalMeetings: totalMeetings,
@@ -211,7 +279,7 @@ class EveningSummaryNotificationService: ObservableObject {
     /// Send a test notification immediately (for debugging/preview)
     func sendTestNotification() {
         let content = UNMutableNotificationContent()
-        content.title = titles.randomElement() ?? "Day in review"
+        content.title = getPersonalizedTitle()
         content.body = "See how your day went and reflect on it."
         content.sound = .default
         content.userInfo = [
@@ -232,6 +300,101 @@ class EveningSummaryNotificationService: ObservableObject {
                 print("Failed to send test notification: \(error.localizedDescription)")
             } else {
                 print("Test evening summary notification sent")
+            }
+        }
+    }
+
+    /// Fetch today's summary data and update notification content
+    /// Call this before the scheduled notification time (e.g., 30 min before)
+    func refreshNotificationWithSummaryData() async {
+        guard isEnabled else { return }
+
+        do {
+            // Fetch today's day review data
+            let review = try await DayReviewService.shared.getDayReview(date: Date())
+
+            let meetingsCompleted = review.totalCompleted
+            let totalMeetings = review.totalPlanned
+            let completionPercentage = review.completionPercentage
+
+            // Generate engaging notification content
+            let title = getPersonalizedTitle()
+            let body = generateSummaryBody(
+                meetingsCompleted: meetingsCompleted,
+                totalMeetings: totalMeetings,
+                completionPercentage: completionPercentage
+            )
+
+            // Update the scheduled notification
+            updateNotificationContent(
+                meetingsCompleted: meetingsCompleted,
+                totalMeetings: totalMeetings,
+                focusTimeUsed: nil,
+                mood: nil
+            )
+
+            // Save to notification history
+            historyService.addEveningSummary(
+                title: title,
+                body: body,
+                meetingsCompleted: meetingsCompleted,
+                totalMeetings: totalMeetings,
+                completionPercentage: completionPercentage
+            )
+
+            print("[EveningSummary] Updated notification with summary: \(meetingsCompleted)/\(totalMeetings) completed (\(completionPercentage)%)")
+        } catch {
+            print("[EveningSummary] Failed to fetch summary data: \(error.localizedDescription)")
+            // Keep fallback notification content
+        }
+    }
+
+    /// Generate a summary-specific notification body
+    private func generateSummaryBody(meetingsCompleted: Int, totalMeetings: Int, completionPercentage: Int) -> String {
+        if totalMeetings == 0 {
+            return "Quiet day today! Take a moment to reflect on how you spent your time."
+        }
+
+        if completionPercentage >= 80 {
+            return "Great day! You completed \(meetingsCompleted) of \(totalMeetings) planned activities (\(completionPercentage)%). How did it feel?"
+        } else if completionPercentage >= 50 {
+            return "You completed \(meetingsCompleted) of \(totalMeetings) activities today (\(completionPercentage)%). Tap to reflect on your day."
+        } else if totalMeetings >= 6 {
+            return "Busy day with \(totalMeetings) meetings! You got through \(meetingsCompleted). Time to unwind and reflect."
+        } else {
+            return "You completed \(meetingsCompleted) of \(totalMeetings) planned activities. How did your day go?"
+        }
+    }
+
+    /// Schedule a background task to refresh notification content before it fires
+    func scheduleContentRefresh() {
+        // Calculate time 30 minutes before the notification
+        let calendar = Calendar.current
+        var dateComponents = calendar.dateComponents([.hour, .minute], from: scheduledTime)
+
+        // Subtract 30 minutes for refresh
+        if let hour = dateComponents.hour, let minute = dateComponents.minute {
+            var refreshMinute = minute - 30
+            var refreshHour = hour
+            if refreshMinute < 0 {
+                refreshMinute += 60
+                refreshHour -= 1
+                if refreshHour < 0 { refreshHour = 23 }
+            }
+
+            // Schedule the refresh
+            let now = Date()
+            var refreshComponents = calendar.dateComponents([.year, .month, .day], from: now)
+            refreshComponents.hour = refreshHour
+            refreshComponents.minute = refreshMinute
+
+            if let refreshDate = calendar.date(from: refreshComponents), refreshDate > now {
+                let delay = refreshDate.timeIntervalSince(now)
+                Task { @MainActor in
+                    try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+                    await refreshNotificationWithSummaryData()
+                }
+                print("[EveningSummary] Scheduled content refresh for \(refreshHour):\(refreshMinute)")
             }
         }
     }
@@ -278,7 +441,7 @@ class EveningSummaryNotificationService: ObservableObject {
             }
         }
 
-        return fallbackMessages.randomElement() ?? "Your daily recap is ready."
+        return getPersonalizedFallbackMessage()
     }
 
     private func formattedTime(_ date: Date) -> String {
