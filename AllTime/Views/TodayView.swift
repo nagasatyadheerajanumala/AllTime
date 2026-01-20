@@ -1,55 +1,47 @@
 import SwiftUI
 
-// MARK: - Redesigned Today View
-/// A calm, focused Today screen that reduces cognitive load through:
-/// - Progressive disclosure (expand to see more)
-/// - Information hierarchy (one hero, one action)
-/// - Visual calm (minimal colors, subtle animations)
-/// - Intentional friction (insights hidden by default)
-
 struct TodayView: View {
-    // MARK: - Environment & State
     @EnvironmentObject var calendarViewModel: CalendarViewModel
     @StateObject private var briefingViewModel = TodayBriefingViewModel()
     @StateObject private var overviewViewModel = TodayOverviewViewModel()
+    @State private var selectedEvent: Event?
+    @State private var showingAddEvent = false
     @ObservedObject private var healthMetricsService = HealthMetricsService.shared
     @ObservedObject private var navigationManager = NavigationManager.shared
-    @ObservedObject private var notificationHistory = NotificationHistoryService.shared
 
-    // Week Drift - forward-looking intelligence
+    // Sheet presentation states
+    @State private var showingSummaryDetail = false
+    @State private var showingSuggestionsDetail = false
+    @State private var showingTodoDetail = false
+    @State private var showingPlanMyDay = false
+    @State private var showingNotificationHistory = false
+    @State private var selectedClaraPrompt: ClaraPrompt? = nil
+    @State private var selectedPrimaryRecommendation: PrimaryRecommendation? = nil
+
+    // Week Drift - the killer feature
     @State private var weekDriftStatus: WeekDriftStatus?
     @State private var weekDriftLoading = false
 
-    // UI State
-    @State private var isBriefExpanded = false
-    @State private var isInsightsExpanded = false
-    @State private var selectedEvent: Event?
-    @State private var showingEventSheet = false
-    @State private var showingClaraChat = false
-    @State private var showingAddEvent = false
-    @State private var showingAddTask = false
-    @State private var showFABMenu = false
-    @State private var showingNotificationHistory = false
-    @State private var showingSummaryDetail = false
-    @State private var selectedPrimaryRecommendation: PrimaryRecommendation?
+    // Notification history
+    @ObservedObject private var notificationHistory = NotificationHistoryService.shared
 
-    // Task management
+    // PROGRESSIVE DISCLOSURE: Single-tile expansion manager
+    // Only one tile can be expanded at a time, reducing cognitive overload
+    @StateObject private var tileExpansionManager = TileExpansionManager()
+
+    // TILE ORDERING: User-customizable tile order with persistence
+    @ObservedObject private var tileOrderManager = TodayTileOrderManager.shared
+
+    // Accordion expansion states (kept for compatibility with insights section)
+    @State private var expandedSections: Set<String> = []
+
+    // Task management for cancellation
     @State private var loadTask: Task<Void, Never>?
-
-    // MARK: - Computed Properties
 
     private var todayEvents: [Event] {
         calendarViewModel.eventsForToday().sorted { event1, event2 in
             guard let start1 = event1.startDate, let start2 = event2.startDate else { return false }
             return start1 < start2
-        }
-    }
-
-    private var currentEvent: Event? {
-        let now = Date()
-        return todayEvents.first { event in
-            guard let start = event.startDate, let end = event.endDate else { return false }
-            return now >= start && now <= end
         }
     }
 
@@ -61,618 +53,449 @@ struct TodayView: View {
         }
     }
 
-    private var isLoading: Bool {
-        weekDriftLoading || overviewViewModel.isLoading || briefingViewModel.isLoading
+    private var currentEvent: Event? {
+        let now = Date()
+        return todayEvents.first { event in
+            guard let start = event.startDate, let end = event.endDate else { return false }
+            return now >= start && now <= end
+        }
     }
 
-    // MARK: - Body
+    /// Check if today is a weekend or has a holiday
+    private var isWeekendOrHoliday: Bool {
+        Calendar.current.isDateInWeekend(Date()) || todayHolidayName != nil
+    }
+
+    /// Get the name of today's holiday (if any)
+    private var todayHolidayName: String? {
+        todayEvents.first { event in
+            event.title.lowercased().contains("holiday") ||
+            event.allDay && (
+                event.title.lowercased().contains("christmas") ||
+                event.title.lowercased().contains("thanksgiving") ||
+                event.title.lowercased().contains("new year") ||
+                event.title.lowercased().contains("independence") ||
+                event.title.lowercased().contains("memorial") ||
+                event.title.lowercased().contains("labor day") ||
+                event.title.lowercased().contains("veterans")
+            )
+        }?.title
+    }
 
     var body: some View {
-        ZStack(alignment: .bottom) {
-            // Background - Near black for visual calm
-            DesignSystem.Colors.background
-                .ignoresSafeArea()
+        NavigationView {
+            ZStack(alignment: .bottomTrailing) {
+                // Background
+                DesignSystem.Colors.background
+                    .ignoresSafeArea()
 
-            // Main Content
-            ScrollView(.vertical, showsIndicators: false) {
-                VStack(spacing: 0) {
-                    // A. Sticky Header spacer (actual header is in overlay)
-                    Color.clear.frame(height: 60)
+                // Main scrollable content
+                ScrollView {
+                    VStack(spacing: DesignSystem.Spacing.md) {
+                        // Safe area padding
+                        Color.clear.frame(height: 8)
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                // Collapse all tiles when tapping empty space
+                                tileExpansionManager.collapseAll()
+                                if tileOrderManager.isReorderModeActive {
+                                    tileOrderManager.exitReorderMode()
+                                }
+                            }
 
-                    // Content with proper spacing
-                    VStack(spacing: DesignSystem.Spacing.lg) {
-                        // B. Daily Brief (Hero Card)
-                        DailyBriefCard(
-                            driftStatus: weekDriftStatus,
-                            briefing: briefingViewModel.briefing,
+                        // Reorder mode header (appears when active)
+                        ReorderModeHeader()
+
+                        // FIXED: Hero Summary Card (always at top)
+                        HeroSummaryCard(
                             overview: overviewViewModel.overview,
-                            freshHealthMetrics: briefingViewModel.freshHealthMetrics,
-                            isLoading: isLoading,
-                            isExpanded: $isBriefExpanded,
-                            onTap: { showingSummaryDetail = true }
+                            briefing: briefingViewModel.briefing,
+                            driftStatus: weekDriftStatus,
+                            isLoading: weekDriftLoading || overviewViewModel.isLoading || briefingViewModel.isLoading,
+                            onTap: { showingSummaryDetail = true },
+                            onInterventionTap: handleInterventionTap
                         )
                         .padding(.horizontal, DesignSystem.Spacing.md)
-                        .padding(.top, DesignSystem.Spacing.sm)
+                        .cardStagger(index: 0)
 
-                        // C. Primary Action Card (ONE action only)
-                        if let primaryRec = briefingViewModel.briefing?.primaryRecommendation {
-                            PrimaryActionCard(
-                                recommendation: primaryRec,
-                                onAction: { selectedPrimaryRecommendation = primaryRec },
-                                onDismiss: { /* Handle remind later */ }
-                            )
-                            .padding(.horizontal, DesignSystem.Spacing.md)
+                        // FIXED: Critical Health Alert (conditional, always after hero)
+                        if let metrics = briefingViewModel.briefing?.keyMetrics,
+                           metrics.isHealthCritical || metrics.isHealthDataSuspect {
+                            CriticalHealthAlertBanner(metrics: metrics)
+                                .padding(.horizontal, DesignSystem.Spacing.md)
+                                .cardStagger(index: 0)
                         }
 
-                        // D. Day Timeline (Today Schedule)
-                        TodayScheduleView(
-                            events: todayEvents,
-                            currentEvent: currentEvent,
-                            onEventTap: { event in
+                        // REORDERABLE TILES: Rendered in user's preferred order
+                        ForEach(Array(tileOrderManager.tileOrder.enumerated()), id: \.element.id) { index, tileType in
+                            renderTile(tileType, index: index)
+                        }
+
+                        // FIXED: Schedule (always near bottom)
+                        if !todayEvents.isEmpty {
+                            CollapsibleScheduleSection(
+                                events: todayEvents,
+                                currentEvent: currentEvent,
+                                tileId: TileExpansionManager.TileId.schedule.rawValue,
+                                expansionManager: tileExpansionManager
+                            ) { event in
                                 selectedEvent = event
-                                showingEventSheet = true
                             }
-                        )
-                        .padding(.horizontal, DesignSystem.Spacing.md)
+                            .padding(.horizontal, DesignSystem.Spacing.md)
+                            .cardStagger(index: tileOrderManager.tileOrder.count + 1)
+                        }
 
-                        // E. Optional Insights (Collapsed by default)
-                        OptionalInsightsView(
-                            briefing: briefingViewModel.briefing,
-                            isExpanded: $isInsightsExpanded
-                        )
-                        .padding(.horizontal, DesignSystem.Spacing.md)
+                        // FIXED: Health Access Card (conditional, always at bottom)
+                        if !healthMetricsService.isAuthorized {
+                            TodayHealthCard()
+                                .padding(.horizontal, DesignSystem.Spacing.md)
+                                .cardStagger(index: tileOrderManager.tileOrder.count + 2)
+                        }
 
-                        // Bottom padding for floating actions
-                        Color.clear.frame(height: 140)
+                        // Bottom padding for FAB
+                        Color.clear.frame(height: 100)
+                    }
+                }
+                .refreshable {
+                    // First: Fetch FRESH HealthKit data for immediate display
+                    await briefingViewModel.fetchFreshHealthMetrics()
+
+                    // Then: Sync health data to backend
+                    await HealthSyncService.shared.syncRecentDays()
+
+                    // Then: Run all refreshes in parallel
+                    async let calendarRefresh: () = calendarViewModel.refreshEvents()
+                    async let briefingRefresh: () = briefingViewModel.refresh()
+                    async let overviewRefresh: () = overviewViewModel.refresh()
+                    _ = await (calendarRefresh, briefingRefresh, overviewRefresh)
+                }
+
+                // Floating Action Button
+                fabButton
+            }
+            .navigationTitle("Today")
+            .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    customizeLayoutButton
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    HStack(spacing: 12) {
+                        notificationHistoryButton
+                        refreshButton
                     }
                 }
             }
-            .refreshable {
-                await refreshData()
-            }
-
-            // A. Sticky Header (overlay for true stickiness)
-            VStack {
-                TodayHeaderView(
-                    unreadCount: notificationHistory.unreadCount,
-                    isRefreshing: isLoading,
-                    onNotificationTap: { showingNotificationHistory = true },
-                    onRefreshTap: { Task { await refreshData() } }
-                )
-                Spacer()
-            }
-
-            // Floating Actions
-            FloatingActionStack(
-                showFABMenu: $showFABMenu,
-                showingClaraChat: $showingClaraChat,
-                showingAddEvent: $showingAddEvent,
-                showingAddTask: $showingAddTask
-            )
-        }
-        .sheet(isPresented: $showingEventSheet) {
-            if let event = selectedEvent {
+            .sheet(item: $selectedEvent) { event in
                 LocalEventDetailSheet(event: event)
             }
+            .sheet(isPresented: $showingAddEvent) {
+                AddEventView(initialDate: Date())
+            }
+            .sheet(isPresented: $showingSummaryDetail) {
+                TodaySummaryDetailView(
+                    briefing: briefingViewModel.briefing,
+                    summaryTile: overviewViewModel.overview?.summaryTile,
+                    freshHealthMetrics: briefingViewModel.freshHealthMetrics
+                )
+            }
+            .sheet(isPresented: $showingSuggestionsDetail) {
+                SuggestionsDetailView(
+                    briefing: briefingViewModel.briefing,
+                    suggestionsTile: overviewViewModel.overview?.suggestionsTile
+                )
+            }
+            .sheet(isPresented: $showingTodoDetail) {
+                ToDoDetailView(todoTile: overviewViewModel.overview?.todoTile)
+            }
+            .sheet(isPresented: $showingPlanMyDay) {
+                PlanMyDayView()
+            }
+            .sheet(isPresented: $showingNotificationHistory) {
+                NotificationHistoryView()
+            }
+            .sheet(isPresented: $navigationManager.showDayReview) {
+                DailyInsightsView()
+            }
+            .sheet(item: $selectedClaraPrompt) { prompt in
+                ClaraPromptSheet(prompt: prompt)
+            }
+            .sheet(item: $selectedPrimaryRecommendation) { recommendation in
+                PrimaryRecommendationActionSheet(
+                    recommendation: recommendation,
+                    focusWindow: briefingViewModel.briefing?.focusWindows?.first
+                )
+            }
+            .onAppear {
+                // Cancel any existing task
+                loadTask?.cancel()
+
+                // Run data loading with health sync FIRST to ensure fresh data
+                loadTask = Task {
+                    // First: Fetch FRESH HealthKit data for immediate display
+                    // This ensures the UI shows exact data from the device, not stale backend data
+                    await briefingViewModel.fetchFreshHealthMetrics()
+
+                    // Second: Sync health data to backend (for historical analysis)
+                    await HealthSyncService.shared.syncRecentDays()
+
+                    // Then: Load everything in parallel (including week drift - the killer feature)
+                    async let calendarTask: () = calendarViewModel.loadEventsForSelectedDate(Date())
+                    async let healthTask: () = healthMetricsService.checkAuthorizationStatus()
+                    async let briefingTask: () = briefingViewModel.fetchBriefing()
+                    async let overviewTask: () = overviewViewModel.fetchOverview()
+                    async let driftTask: () = fetchWeekDrift()
+
+                    // Wait for all to complete (parallel execution)
+                    _ = await (calendarTask, healthTask, briefingTask, overviewTask, driftTask)
+                }
+            }
+            .onDisappear {
+                // Cancel pending requests when view disappears
+                loadTask?.cancel()
+                loadTask = nil
+            }
+            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("EventCreated"))) { _ in
+                // Refresh calendar and briefing when an event is created
+                print("📅 TodayView: Received EventCreated notification, refreshing data...")
+                Task {
+                    // Refresh calendar events
+                    await calendarViewModel.refreshEvents()
+                    // Refresh briefing (recommendations may change based on new events)
+                    await briefingViewModel.refresh()
+                }
+            }
+            .onChange(of: healthMetricsService.isAuthorized) { oldValue, newValue in
+                if !oldValue && newValue {
+                    Task {
+                        try? await Task.sleep(nanoseconds: 1_000_000_000)
+                        await HealthSyncService.shared.syncRecentDays()
+                    }
+                }
+            }
         }
-        .sheet(isPresented: $showingClaraChat) {
-            ClaraChatView()
-        }
-        .sheet(isPresented: $showingAddEvent) {
-            AddEventView(initialDate: Date())
-        }
-        .sheet(isPresented: $showingAddTask) {
-            AddTaskSheet()
-        }
-        .sheet(isPresented: $showingNotificationHistory) {
-            NotificationHistoryView()
-        }
-        .sheet(isPresented: $showingSummaryDetail) {
-            TodaySummaryDetailView(
+    }
+
+    // MARK: - Tile Rendering (Reorderable)
+    /// Renders a tile based on its type. Used for user-customizable ordering.
+    @ViewBuilder
+    private func renderTile(_ tileType: TodayReorderableTile, index: Int) -> some View {
+        switch tileType {
+        case .primaryRecommendation:
+            if let primaryRec = briefingViewModel.briefing?.primaryRecommendation {
+                CollapsiblePrimaryRecommendationCard(
+                    recommendation: primaryRec,
+                    tileId: TileExpansionManager.TileId.primaryRecommendation.rawValue,
+                    expansionManager: tileExpansionManager,
+                    onTap: {
+                        selectedPrimaryRecommendation = primaryRec
+                    }
+                )
+                .reorderableTile(.primaryRecommendation)
+                .padding(.horizontal, DesignSystem.Spacing.md)
+                .cardStagger(index: index + 1)
+            }
+
+        case .claraPrompts:
+            if let prompts = briefingViewModel.briefing?.claraPrompts, !prompts.isEmpty {
+                CollapsibleClaraCard(
+                    prompts: prompts,
+                    tileId: TileExpansionManager.TileId.claraPrompts.rawValue,
+                    expansionManager: tileExpansionManager,
+                    onPromptTap: { prompt in
+                        handleClaraPrompt(prompt)
+                    }
+                )
+                .reorderableTile(.claraPrompts)
+                .padding(.horizontal, DesignSystem.Spacing.md)
+                .cardStagger(index: index + 1)
+            }
+
+        case .energyBudget:
+            if let energyBudget = briefingViewModel.briefing?.energyBudget {
+                CollapsibleEnergyBudgetCard(
+                    energyBudget: energyBudget,
+                    tileId: TileExpansionManager.TileId.energyBudget.rawValue,
+                    expansionManager: tileExpansionManager
+                )
+                .reorderableTile(.energyBudget)
+                .padding(.horizontal, DesignSystem.Spacing.md)
+                .cardStagger(index: index + 1)
+            }
+
+        case .decisionMoments:
+            DecisionMomentsCard()
+                .reorderableTile(.decisionMoments)
+                .padding(.horizontal, DesignSystem.Spacing.md)
+                .cardStagger(index: index + 1)
+
+        case .similarWeek:
+            SimilarWeekSection()
+                .reorderableTile(.similarWeek)
+                .padding(.horizontal, DesignSystem.Spacing.md)
+                .cardStagger(index: index + 1)
+
+        case .meetingSpots:
+            MeetingSpotsSection()
+                .reorderableTile(.meetingSpots)
+                .padding(.horizontal, DesignSystem.Spacing.md)
+                .cardStagger(index: index + 1)
+
+        case .actionsRow:
+            CollapsibleActionsRow(
+                overview: overviewViewModel.overview,
                 briefing: briefingViewModel.briefing,
-                summaryTile: overviewViewModel.overview?.summaryTile,
+                isLoading: overviewViewModel.isLoading || briefingViewModel.isLoading,
+                expansionManager: tileExpansionManager,
+                onSuggestionsTap: { showingSuggestionsDetail = true },
+                onTodoTap: { showingTodoDetail = true }
+            )
+            .reorderableTile(.actionsRow)
+            .padding(.horizontal, DesignSystem.Spacing.md)
+            .cardStagger(index: index + 1)
+
+        case .upNext:
+            UpNextSectionView()
+                .reorderableTile(.upNext)
+                .padding(.horizontal, DesignSystem.Spacing.md)
+                .cardStagger(index: index + 1)
+
+        // Fixed tiles (handled separately, not rendered here)
+        case .heroSummary, .criticalHealthAlert, .schedule, .healthAccess:
+            EmptyView()
+        }
+    }
+
+    // MARK: - Briefing Content
+    @ViewBuilder
+    private func briefingContent(briefing: DailyBriefingResponse) -> some View {
+        VStack(spacing: DesignSystem.Spacing.lg) {
+            // (1) PRIMARY RECOMMENDATION - The ONE thing to do today
+            // Clara is opinionated - this is THE recommendation, not a suggestion list
+            if let primaryRec = briefing.primaryRecommendation {
+                PrimaryRecommendationCard(recommendation: primaryRec) {
+                    handleDeepLink(primaryRec.deepLink)
+                }
+                .padding(.horizontal, DesignSystem.Spacing.md)
+            }
+
+            // (2) Daily Summary Card
+            DailySummaryCardView(briefing: briefing)
+                .padding(.horizontal, DesignSystem.Spacing.md)
+
+            // (2.5) Clara Prompts - Contextual prompts (not open-ended)
+            if let prompts = briefing.claraPrompts, !prompts.isEmpty {
+                ClaraPromptsRow(prompts: prompts) { prompt in
+                    handleClaraPrompt(prompt)
+                }
+                .padding(.horizontal, DesignSystem.Spacing.md)
+            }
+
+            // (3) Today's Plan Section (Top 3 suggestions)
+            if let suggestions = briefing.suggestions, !suggestions.isEmpty {
+                TodaysPlanSection(suggestions: suggestions)
+                    .padding(.horizontal, DesignSystem.Spacing.md)
+            }
+
+            // (4) Health Insights Card - Prominent health data display
+            // Uses fresh HealthKit data when available for accurate display
+            HealthInsightsCard(
+                keyMetrics: briefing.keyMetrics,
+                suggestions: briefing.suggestions,
+                quickStats: briefing.quickStats,
                 freshHealthMetrics: briefingViewModel.freshHealthMetrics
             )
-        }
-        .sheet(item: $selectedPrimaryRecommendation) { recommendation in
-            PrimaryRecommendationActionSheet(
-                recommendation: recommendation,
-                focusWindow: briefingViewModel.briefing?.focusWindows?.first
+            .padding(.horizontal, DesignSystem.Spacing.md)
+
+            // (5) Quick Stats Row
+            QuickStatsRowView(
+                quickStats: briefing.quickStats,
+                keyMetrics: briefing.keyMetrics
             )
-        }
-        .onAppear {
-            loadTask?.cancel()
-            loadTask = Task {
-                await loadAllData()
-            }
-        }
-        .onDisappear {
-            loadTask?.cancel()
-            loadTask = nil
-        }
-    }
+            .padding(.horizontal, DesignSystem.Spacing.md)
 
-    // MARK: - Data Loading
-
-    private func loadAllData() async {
-        // First: Fresh HealthKit data
-        await briefingViewModel.fetchFreshHealthMetrics()
-
-        // Sync health to backend
-        await HealthSyncService.shared.syncRecentDays()
-
-        // Load everything in parallel
-        async let calendarTask: () = calendarViewModel.loadEventsForSelectedDate(Date())
-        async let healthTask: () = healthMetricsService.checkAuthorizationStatus()
-        async let briefingTask: () = briefingViewModel.fetchBriefing()
-        async let overviewTask: () = overviewViewModel.fetchOverview()
-        async let driftTask: () = fetchWeekDrift()
-
-        _ = await (calendarTask, healthTask, briefingTask, overviewTask, driftTask)
-    }
-
-    private func refreshData() async {
-        await briefingViewModel.fetchFreshHealthMetrics()
-        await HealthSyncService.shared.syncRecentDays()
-
-        async let calendarRefresh: () = calendarViewModel.refreshEvents()
-        async let briefingRefresh: () = briefingViewModel.refresh()
-        async let overviewRefresh: () = overviewViewModel.refresh()
-
-        _ = await (calendarRefresh, briefingRefresh, overviewRefresh)
-    }
-
-    private func fetchWeekDrift() async {
-        await MainActor.run { weekDriftLoading = true }
-        do {
-            let status = try await APIService.shared.getWeekDriftStatus()
-            await MainActor.run {
-                weekDriftStatus = status
-                weekDriftLoading = false
-            }
-        } catch {
-            await MainActor.run { weekDriftLoading = false }
-        }
-    }
-}
-
-// MARK: - A. Sticky Header View
-/// Minimal header that stays fixed during scroll
-/// Shows: Title, Date, Notification bell, Refresh
-struct TodayHeaderView: View {
-    let unreadCount: Int
-    let isRefreshing: Bool
-    let onNotificationTap: () -> Void
-    let onRefreshTap: () -> Void
-
-    private var dateText: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "EEEE, MMM d"
-        return formatter.string(from: Date())
-    }
-
-    var body: some View {
-        HStack(alignment: .center) {
-            // Title + Date
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Today")
-                    .font(.title2.weight(.bold))
-                    .foregroundColor(DesignSystem.Colors.primaryText)
-
-                Text(dateText)
-                    .font(.caption)
-                    .foregroundColor(DesignSystem.Colors.tertiaryText)
+            // (6) Energy Budget - Time → Energy Transformation
+            if let energyBudget = briefing.energyBudget {
+                EnergyBudgetCard(energyBudget: energyBudget)
+                    .padding(.horizontal, DesignSystem.Spacing.md)
             }
 
-            Spacer()
-
-            // Right actions
-            HStack(spacing: 16) {
-                // Notification bell
-                Button(action: onNotificationTap) {
-                    ZStack(alignment: .topTrailing) {
-                        Image(systemName: "bell")
-                            .font(.system(size: 18, weight: .medium))
-                            .foregroundColor(DesignSystem.Colors.secondaryText)
-
-                        if unreadCount > 0 {
-                            Circle()
-                                .fill(DesignSystem.Colors.errorRed)
-                                .frame(width: 8, height: 8)
-                                .offset(x: 2, y: -2)
-                        }
-                    }
-                }
-                .frame(width: 44, height: 44)
-
-                // Refresh
-                Button(action: onRefreshTap) {
-                    Image(systemName: "arrow.clockwise")
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(DesignSystem.Colors.secondaryText)
-                        .rotationEffect(.degrees(isRefreshing ? 360 : 0))
-                        .animation(
-                            isRefreshing
-                                ? Animation.linear(duration: 1).repeatForever(autoreverses: false)
-                                : .default,
-                            value: isRefreshing
-                        )
-                }
-                .frame(width: 44, height: 44)
-                .disabled(isRefreshing)
-            }
+            // (7) Insights Section (Accordions)
+            insightsSection(briefing: briefing)
+                .padding(.horizontal, DesignSystem.Spacing.md)
         }
-        .padding(.horizontal, DesignSystem.Spacing.md)
-        .padding(.vertical, DesignSystem.Spacing.sm)
-        .background(
-            // Subtle gradient for visual separation
-            LinearGradient(
-                colors: [
-                    DesignSystem.Colors.background,
-                    DesignSystem.Colors.background.opacity(0.95)
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea()
-        )
-    }
-}
-
-// MARK: - B. Daily Brief Card (Hero)
-/// Single hero card showing day quality with expandable details
-struct DailyBriefCard: View {
-    let driftStatus: WeekDriftStatus?
-    let briefing: DailyBriefingResponse?
-    let overview: TodayOverviewResponse?
-    let freshHealthMetrics: DailyHealthMetrics?
-    let isLoading: Bool
-    @Binding var isExpanded: Bool
-    let onTap: () -> Void
-
-    // Derived properties
-    private var headline: String {
-        if let drift = driftStatus {
-            return drift.headline
-        }
-        return overview?.summaryTile.greeting ?? briefing?.greeting ?? "Good day"
     }
 
-    private var subheadline: String {
-        if let drift = driftStatus {
-            return drift.subheadline
-        }
-        return overview?.summaryTile.previewLine ?? briefing?.summaryLine ?? ""
-    }
-
-    private var severity: DriftSeverity {
-        guard let drift = driftStatus else { return .onTrack }
-        return DriftSeverity(rawValue: drift.severity) ?? .onTrack
-    }
-
-    private var dayLabel: String {
-        if let drift = driftStatus {
-            return "Day \(drift.dayOfWeek) of 7"
-        }
-        let formatter = DateFormatter()
-        formatter.dateFormat = "EEEE"
-        return formatter.string(from: Date())
-    }
-
-    var body: some View {
-        Button(action: {
-            withAnimation(.easeInOut(duration: 0.25)) {
-                isExpanded.toggle()
-            }
-        }) {
-            VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-                // Top row: Status pill + Day indicator
-                HStack {
-                    // Status pill
-                    HStack(spacing: 4) {
-                        Image(systemName: severity.icon)
-                            .font(.system(size: 10, weight: .semibold))
-                        Text(severity.displayName)
-                            .font(.caption.weight(.semibold))
-                    }
-                    .foregroundColor(Color(hex: severity.color))
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
-                    .background(
-                        Capsule()
-                            .fill(Color(hex: severity.color).opacity(0.12))
-                    )
-
-                    Spacer()
-
-                    Text(dayLabel)
-                        .font(.caption2.weight(.medium))
-                        .foregroundColor(.white.opacity(0.4))
-                }
-
-                // Main headline
-                if isLoading && driftStatus == nil {
-                    SkeletonView(width: 250, height: 22)
-                } else {
-                    Text(headline)
-                        .font(.title3.weight(.bold))
-                        .foregroundColor(.white)
-                        .lineLimit(isExpanded ? nil : 2)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-
-                // Subheadline
-                if isLoading && driftStatus == nil {
-                    SkeletonView(width: 200, height: 16)
-                } else if !subheadline.isEmpty {
-                    Text(subheadline)
-                        .font(.subheadline)
-                        .foregroundColor(.white.opacity(0.65))
-                        .lineLimit(isExpanded ? nil : 2)
-                }
-
-                // Expanded content: Health metrics, sleep, etc.
-                if isExpanded {
-                    expandedContent
-                        .transition(.opacity.combined(with: .move(edge: .top)))
-                }
-
-                // Expand/collapse indicator
-                HStack {
-                    Spacer()
-                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(.white.opacity(0.3))
-                }
-                .padding(.top, 4)
-            }
-            .padding(DesignSystem.Spacing.lg)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                // Premium dark gradient (charcoal → slate)
-                LinearGradient(
-                    colors: [
-                        DesignSystem.Colors.cardBackground.opacity(1.2),
-                        DesignSystem.Colors.cardBackground
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            )
-            .clipShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.xl))
-            .overlay(
-                RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.xl)
-                    .stroke(Color.white.opacity(0.06), lineWidth: 1)
-            )
-        }
-        .buttonStyle(PlainButtonStyle())
-    }
-
-    // MARK: - Expanded Content
-
+    // MARK: - Insights Section (Accordions)
     @ViewBuilder
-    private var expandedContent: some View {
-        VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-            Divider()
-                .background(Color.white.opacity(0.1))
-                .padding(.vertical, 4)
-
-            // Health metrics grid
-            LazyVGrid(columns: [
-                GridItem(.flexible()),
-                GridItem(.flexible()),
-                GridItem(.flexible())
-            ], spacing: 12) {
-                // Sleep (convert minutes to hours for DailyHealthMetrics)
-                if let sleepMinutes = freshHealthMetrics?.sleepMinutes {
-                    let sleepHours = Double(sleepMinutes) / 60.0
-                    metricItem(
-                        icon: "bed.double.fill",
-                        value: String(format: "%.1fh", sleepHours),
-                        label: "Sleep"
-                    )
-                } else if let sleep = briefing?.keyMetrics?.effectiveSleepHours {
-                    metricItem(
-                        icon: "bed.double.fill",
-                        value: String(format: "%.1fh", sleep),
-                        label: "Sleep"
-                    )
-                }
-
-                // Steps
-                if let steps = freshHealthMetrics?.steps ?? briefing?.keyMetrics?.effectiveSteps {
-                    metricItem(
-                        icon: "figure.walk",
-                        value: "\(steps)",
-                        label: "Steps"
-                    )
-                }
-
-                // Meetings
-                if let meetings = briefing?.quickStats?.meetingsCount {
-                    metricItem(
-                        icon: "person.2.fill",
-                        value: "\(meetings)",
-                        label: "Meetings"
-                    )
-                }
-
-                // Meeting hours
-                if let keyMetrics = briefing?.keyMetrics {
-                    let hours = keyMetrics.effectiveMeetingHours
-                    if hours > 0 {
-                        metricItem(
-                            icon: "clock.fill",
-                            value: String(format: "%.1fh", hours),
-                            label: "In meetings"
-                        )
-                    }
-                }
-
-                // Focus time
-                if let focus = briefing?.keyMetrics?.focusTimeAvailable, focus > 0 {
-                    metricItem(
-                        icon: "brain.head.profile",
-                        value: String(format: "%.1fh", focus),
-                        label: "Focus"
-                    )
-                }
-
-                // Tasks
-                if let tasks = overview?.todoTile.pendingCount {
-                    metricItem(
-                        icon: "checkmark.circle",
-                        value: "\(tasks)",
-                        label: "Tasks"
-                    )
-                }
+    private func insightsSection(briefing: DailyBriefingResponse) -> some View {
+        VStack(spacing: DesignSystem.Spacing.sm) {
+            // Section title
+            HStack {
+                Text("Insights")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                Spacer()
             }
+            .padding(.horizontal, DesignSystem.Spacing.xs)
 
-            // Week projection (if drifting)
-            if severity != .onTrack, let projection = driftStatus?.weekProjection {
-                HStack(spacing: 8) {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .font(.system(size: 11))
-                        .foregroundColor(Color(hex: severity.color))
-
-                    Text(projection)
-                        .font(.caption)
-                        .foregroundColor(.white.opacity(0.6))
-                }
-                .padding(10)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color(hex: severity.color).opacity(0.08))
+            // (5a) All Suggestions Accordion
+            if let suggestions = briefing.suggestions, !suggestions.isEmpty {
+                InsightsAccordionSection(
+                    title: "All Actions",
+                    icon: "lightbulb.fill",
+                    iconColor: DesignSystem.Colors.amber,
+                    badge: "\(suggestions.count)",
+                    isExpanded: expandedSections.contains("suggestions"),
+                    onToggle: { toggleSection("suggestions") },
+                    content: AnyView(AllSuggestionsList(suggestions: suggestions))
                 )
             }
 
-            // Tap for more details
-            Button(action: onTap) {
-                HStack {
-                    Text("See full summary")
-                        .font(.caption.weight(.medium))
-                    Image(systemName: "arrow.right")
-                        .font(.system(size: 10, weight: .semibold))
-                }
-                .foregroundColor(DesignSystem.Colors.primary)
+            // (5b) Focus Windows Accordion
+            if let focusWindows = briefing.focusWindows, !focusWindows.isEmpty {
+                InsightsAccordionSection(
+                    title: "Focus Windows",
+                    icon: "brain.head.profile",
+                    iconColor: DesignSystem.Colors.primary,
+                    badge: "\(focusWindows.count) available",
+                    isExpanded: expandedSections.contains("focus"),
+                    onToggle: { toggleSection("focus") },
+                    content: AnyView(FocusWindowsList(focusWindows: focusWindows))
+                )
             }
-            .padding(.top, 4)
+
+            // (5c) Energy Dips Accordion
+            if let energyDips = briefing.energyDips, !energyDips.isEmpty {
+                InsightsAccordionSection(
+                    title: "Energy Dips",
+                    icon: "battery.50",
+                    iconColor: DesignSystem.Colors.amber,
+                    badge: "\(energyDips.count) predicted",
+                    isExpanded: expandedSections.contains("energy"),
+                    onToggle: { toggleSection("energy") },
+                    content: AnyView(EnergyDipsList(energyDips: energyDips))
+                )
+            }
+
+            // (6) Detailed Summary Accordion
+            if briefing.keyMetrics != nil {
+                InsightsAccordionSection(
+                    title: "Detailed Summary",
+                    icon: "doc.text.fill",
+                    iconColor: DesignSystem.Colors.accent,
+                    badge: nil,
+                    isExpanded: expandedSections.contains("details"),
+                    onToggle: { toggleSection("details") },
+                    content: AnyView(DetailedSummaryContent(briefing: briefing, freshHealthMetrics: briefingViewModel.freshHealthMetrics))
+                )
+            }
         }
     }
 
-    private func metricItem(icon: String, value: String, label: String) -> some View {
-        VStack(spacing: 4) {
-            Image(systemName: icon)
-                .font(.system(size: 14))
-                .foregroundColor(.white.opacity(0.5))
-
-            Text(value)
-                .font(.subheadline.weight(.semibold))
-                .foregroundColor(.white)
-
-            Text(label)
-                .font(.caption2)
-                .foregroundColor(.white.opacity(0.4))
-        }
-        .frame(maxWidth: .infinity)
-    }
-}
-
-// MARK: - C. Primary Action Card
-/// Single "Do Now" action with clear CTAs
-struct PrimaryActionCard: View {
-    let recommendation: PrimaryRecommendation
-    let onAction: () -> Void
-    let onDismiss: () -> Void
-
-    private var accentColor: Color {
-        switch recommendation.urgency?.lowercased() ?? "" {
-        case "high", "critical":
-            return DesignSystem.Colors.amber
-        default:
-            return DesignSystem.Colors.violet
-        }
-    }
-
-    var body: some View {
+    // MARK: - Events Section
+    private var eventsSection: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-            // Label
-            HStack(spacing: 6) {
-                Circle()
-                    .fill(accentColor)
-                    .frame(width: 6, height: 6)
-
-                Text("DO NOW")
-                    .font(.caption.weight(.bold))
-                    .foregroundColor(accentColor)
-                    .tracking(0.5)
-            }
-
-            // Action text
-            Text(recommendation.action)
-                .font(.body.weight(.semibold))
-                .foregroundColor(DesignSystem.Colors.primaryText)
-                .fixedSize(horizontal: false, vertical: true)
-
-            // Reason (if available)
-            if let reason = recommendation.reason, !reason.isEmpty {
-                Text(reason)
-                    .font(.subheadline)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(2)
-            }
-
-            // CTAs
-            HStack(spacing: 12) {
-                // Primary: Do it
-                Button(action: onAction) {
-                    Text("Do it")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
-                        .background(
-                            RoundedRectangle(cornerRadius: 10)
-                                .fill(accentColor)
-                        )
-                }
-
-                // Secondary: Remind me later
-                Button(action: onDismiss) {
-                    Text("Later")
-                        .font(.subheadline.weight(.medium))
-                        .foregroundColor(DesignSystem.Colors.secondaryText)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
-                        .background(
-                            RoundedRectangle(cornerRadius: 10)
-                                .stroke(DesignSystem.Colors.secondaryText.opacity(0.3), lineWidth: 1)
-                        )
-                }
-            }
-        }
-        .padding(DesignSystem.Spacing.md)
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg)
-                .fill(DesignSystem.Colors.cardBackground)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg)
-                .stroke(accentColor.opacity(0.3), lineWidth: 1)
-        )
-    }
-}
-
-// MARK: - D. Today Schedule View
-/// Vertical time-based list showing schedule flow (renamed to avoid conflict with calendar DayTimelineView)
-struct TodayScheduleView: View {
-    let events: [Event]
-    let currentEvent: Event?
-    let onEventTap: (Event) -> Void
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
             // Section header
             HStack {
                 Text("Schedule")
@@ -681,538 +504,235 @@ struct TodayScheduleView: View {
 
                 Spacer()
 
-                Text("\(events.count) event\(events.count == 1 ? "" : "s")")
+                Text("\(todayEvents.count) event\(todayEvents.count == 1 ? "" : "s")")
                     .font(.caption)
                     .foregroundColor(DesignSystem.Colors.tertiaryText)
             }
 
-            if events.isEmpty {
-                // Empty state
-                emptyState
-            } else {
-                // Timeline
-                VStack(spacing: 0) {
-                    ForEach(Array(events.enumerated()), id: \.element.id) { index, event in
-                        TodayScheduleRow(
-                            event: event,
-                            isCurrentEvent: event.id == currentEvent?.id,
-                            isPastEvent: isPastEvent(event),
-                            isLast: index == events.count - 1,
-                            onTap: { onEventTap(event) }
-                        )
+            // Event list
+            VStack(spacing: 8) {
+                ForEach(todayEvents.prefix(5)) { event in
+                    CompactEventRow(
+                        event: event,
+                        isCurrentEvent: event.id == currentEvent?.id,
+                        isPastEvent: isPastEvent(event)
+                    )
+                    .onTapGesture {
+                        selectedEvent = event
                     }
                 }
-                .padding(DesignSystem.Spacing.sm)
-                .background(
-                    RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg)
-                        .fill(DesignSystem.Colors.cardBackground)
-                )
+
+                // Show more if needed
+                if todayEvents.count > 5 {
+                    Text("+ \(todayEvents.count - 5) more events")
+                        .font(.caption)
+                        .foregroundColor(DesignSystem.Colors.primary)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.top, 4)
+                }
+            }
+            .padding(DesignSystem.Spacing.md)
+            .background(
+                RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg)
+                    .fill(DesignSystem.Colors.cardBackground)
+            )
+        }
+    }
+
+    // MARK: - Customize Layout Button
+    private var customizeLayoutButton: some View {
+        Button(action: {
+            if tileOrderManager.isReorderModeActive {
+                tileOrderManager.exitReorderMode()
+            } else {
+                tileOrderManager.enterReorderMode()
+            }
+        }) {
+            Image(systemName: tileOrderManager.isReorderModeActive ? "checkmark" : "square.grid.2x2")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundColor(tileOrderManager.isReorderModeActive ? DesignSystem.Colors.primary : DesignSystem.Colors.secondaryText)
+        }
+    }
+
+    // MARK: - Notification History Button
+    private var notificationHistoryButton: some View {
+        Button(action: {
+            showingNotificationHistory = true
+        }) {
+            ZStack(alignment: .topTrailing) {
+                Image(systemName: "bell")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(DesignSystem.Colors.primary)
+
+                // Unread badge
+                if notificationHistory.unreadCount > 0 {
+                    Circle()
+                        .fill(Color.red)
+                        .frame(width: 8, height: 8)
+                        .offset(x: 4, y: -4)
+                }
             }
         }
     }
 
-    private var emptyState: some View {
-        VStack(spacing: 8) {
-            Image(systemName: "calendar")
-                .font(.system(size: 24))
-                .foregroundColor(DesignSystem.Colors.tertiaryText)
-
-            Text("No events today")
-                .font(.subheadline)
-                .foregroundColor(DesignSystem.Colors.secondaryText)
+    // MARK: - Refresh Button
+    private var refreshButton: some View {
+        Button(action: {
+            Task { await briefingViewModel.refresh() }
+        }) {
+            Image(systemName: "arrow.clockwise")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundColor(DesignSystem.Colors.primary)
+                .rotationEffect(.degrees(briefingViewModel.isLoading ? 360 : 0))
+                .animation(
+                    briefingViewModel.isLoading ?
+                        Animation.linear(duration: 1).repeatForever(autoreverses: false) :
+                        .default,
+                    value: briefingViewModel.isLoading
+                )
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, DesignSystem.Spacing.xl)
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg)
-                .fill(DesignSystem.Colors.cardBackground)
-        )
+        .disabled(briefingViewModel.isLoading)
     }
 
-    private func isPastEvent(_ event: Event) -> Bool {
-        guard let endDate = event.endDate ?? event.startDate else { return false }
-        return endDate < Date()
-    }
-}
+    // MARK: - FAB Buttons
+    @State private var showFABMenu = false
+    @State private var showingAddTask = false
+    @State private var showingAddReminder = false
+    @State private var showingQuickPick = false
+    @State private var showingQuickBook = false
+    @State private var generatedWeekendPlan: WeekendPlanResponse?
 
-// MARK: - Today Schedule Row
-/// Individual event row in the schedule (renamed to avoid conflict)
-struct TodayScheduleRow: View {
-    let event: Event
-    let isCurrentEvent: Bool
-    let isPastEvent: Bool
-    let isLast: Bool
-    let onTap: () -> Void
-
-    private var timeText: String {
-        guard let start = event.startDate else { return "" }
-        let formatter = DateFormatter()
-        formatter.dateFormat = "h:mm a"
-        return formatter.string(from: start).lowercased()
-    }
-
-    private var durationText: String {
-        guard let start = event.startDate, let end = event.endDate else { return "" }
-        let minutes = Int(end.timeIntervalSince(start) / 60)
-        if minutes >= 60 {
-            let hours = minutes / 60
-            let mins = minutes % 60
-            return mins > 0 ? "\(hours)h \(mins)m" : "\(hours)h"
-        }
-        return "\(minutes)m"
-    }
-
-    var body: some View {
-        Button(action: onTap) {
-            HStack(alignment: .top, spacing: 12) {
-                // Timeline indicator
-                VStack(spacing: 0) {
-                    // Time dot
-                    Circle()
-                        .fill(isCurrentEvent ? DesignSystem.Colors.primary : (isPastEvent ? DesignSystem.Colors.tertiaryText : DesignSystem.Colors.secondaryText))
-                        .frame(width: isCurrentEvent ? 10 : 6, height: isCurrentEvent ? 10 : 6)
-
-                    // Connecting line (if not last)
-                    if !isLast {
-                        Rectangle()
-                            .fill(DesignSystem.Colors.tertiaryText.opacity(0.3))
-                            .frame(width: 1)
-                            .frame(maxHeight: .infinity)
-                    }
-                }
-                .frame(width: 20)
-
-                // Time
-                Text(timeText)
-                    .font(.caption.monospacedDigit())
-                    .foregroundColor(isPastEvent ? DesignSystem.Colors.tertiaryText : DesignSystem.Colors.secondaryText)
-                    .frame(width: 60, alignment: .leading)
-
-                // Event details
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(event.title)
-                        .font(.subheadline.weight(isCurrentEvent ? .semibold : .regular))
-                        .foregroundColor(isPastEvent ? DesignSystem.Colors.tertiaryText : DesignSystem.Colors.primaryText)
-                        .lineLimit(1)
-
-                    HStack(spacing: 8) {
-                        Text(durationText)
-                            .font(.caption)
-                            .foregroundColor(DesignSystem.Colors.tertiaryText)
-
-                        if let location = event.locationName, !location.isEmpty {
-                            Text("·")
-                                .foregroundColor(DesignSystem.Colors.tertiaryText)
-                            Text(location)
-                                .font(.caption)
-                                .foregroundColor(DesignSystem.Colors.tertiaryText)
-                                .lineLimit(1)
+    private var fabButton: some View {
+        ZStack(alignment: .bottomTrailing) {
+            // Dimmed background when FAB menu is open
+            if showFABMenu {
+                Color.black.opacity(0.3)
+                    .ignoresSafeArea()
+                    .onTapGesture {
+                        withAnimation(.spring(response: 0.3)) {
+                            showFABMenu = false
                         }
                     }
-                }
-
-                Spacer()
-
-                // Current indicator
-                if isCurrentEvent {
-                    Text("NOW")
-                        .font(.caption2.weight(.bold))
-                        .foregroundColor(DesignSystem.Colors.primary)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(
-                            Capsule()
-                                .fill(DesignSystem.Colors.primary.opacity(0.15))
-                        )
-                }
             }
-            .padding(.vertical, 10)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(PlainButtonStyle())
-        .opacity(isPastEvent ? 0.6 : 1.0)
-    }
-}
 
-// MARK: - E. Optional Insights View
-/// Collapsed accordion for secondary insights
-struct OptionalInsightsView: View {
-    let briefing: DailyBriefingResponse?
-    @Binding var isExpanded: Bool
+            VStack(alignment: .trailing, spacing: 12) {
+                // Expandable menu options
+                if showFABMenu {
+                    // Weekend Quick Pick - only show on weekends/holidays
+                    if isWeekendOrHoliday {
+                        fabMenuItem(
+                            icon: "sparkles",
+                            label: "Quick Pick",
+                            color: Color(hex: "EC4899")
+                        ) {
+                            showFABMenu = false
+                            showingQuickPick = true
+                        }
+                    }
 
-    @State private var expandedSections: Set<String> = []
+                    // Plan My Day option
+                    fabMenuItem(
+                        icon: "wand.and.stars",
+                        label: "Plan My Day",
+                        color: DesignSystem.Colors.violet
+                    ) {
+                        showFABMenu = false
+                        showingPlanMyDay = true
+                    }
 
-    private var hasInsights: Bool {
-        guard let briefing = briefing else { return false }
-        let hasSuggestions = (briefing.suggestions?.count ?? 0) > 0
-        let hasFocusWindows = (briefing.focusWindows?.count ?? 0) > 0
-        let hasEnergyDips = (briefing.energyDips?.count ?? 0) > 0
-        return hasSuggestions || hasFocusWindows || hasEnergyDips
-    }
+                    // Quick Book - easily block time on calendar
+                    fabMenuItem(
+                        icon: "calendar.badge.clock",
+                        label: "Quick Book",
+                        color: Color(hex: "06B6D4")
+                    ) {
+                        showFABMenu = false
+                        showingQuickBook = true
+                    }
 
-    var body: some View {
-        if hasInsights {
-            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                // Section header (tap to expand/collapse)
+                    // Add Reminder option
+                    fabMenuItem(
+                        icon: "bell.fill",
+                        label: "Add Reminder",
+                        color: DesignSystem.Colors.amber
+                    ) {
+                        showFABMenu = false
+                        showingAddReminder = true
+                    }
+
+                    // Add Task option
+                    fabMenuItem(
+                        icon: "checkmark.circle.fill",
+                        label: "Add Task",
+                        color: DesignSystem.Colors.emerald
+                    ) {
+                        showFABMenu = false
+                        showingAddTask = true
+                    }
+
+                    // Add Event option
+                    fabMenuItem(
+                        icon: "calendar.badge.plus",
+                        label: "Add Event",
+                        color: DesignSystem.Colors.blue
+                    ) {
+                        showFABMenu = false
+                        showingAddEvent = true
+                    }
+                }
+
+                // Main FAB button
                 Button(action: {
-                    withAnimation(.easeInOut(duration: 0.25)) {
-                        isExpanded.toggle()
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                        showFABMenu.toggle()
                     }
                 }) {
-                    HStack {
-                        Text("Insights")
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundColor(DesignSystem.Colors.secondaryText)
-
-                        Text("(optional)")
-                            .font(.caption)
-                            .foregroundColor(DesignSystem.Colors.tertiaryText)
-
-                        Spacer()
-
-                        Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(DesignSystem.Colors.tertiaryText)
-                    }
-                }
-
-                // Expanded content
-                if isExpanded {
-                    VStack(spacing: DesignSystem.Spacing.sm) {
-                        // All Actions
-                        if let suggestions = briefing?.suggestions, !suggestions.isEmpty {
-                            insightAccordion(
-                                title: "All Actions",
-                                icon: "lightbulb.fill",
-                                iconColor: DesignSystem.Colors.amber,
-                                badge: "\(suggestions.count)",
-                                sectionId: "actions",
-                                content: AnyView(
-                                    VStack(spacing: 8) {
-                                        ForEach(suggestions.prefix(5), id: \.suggestionId) { suggestion in
-                                            suggestionRow(suggestion)
-                                        }
-                                    }
+                    Image(systemName: showFABMenu ? "xmark" : "plus")
+                        .font(.system(size: 24, weight: .semibold))
+                        .foregroundColor(.white)
+                        .frame(width: 56, height: 56)
+                        .background(
+                            Circle()
+                                .fill(
+                                    LinearGradient(
+                                        colors: showFABMenu ? [Color(hex: "6B7280"), Color(hex: "4B5563")] : [
+                                            DesignSystem.Colors.primary,
+                                            DesignSystem.Colors.primaryDark
+                                        ],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
                                 )
-                            )
-                        }
-
-                        // Focus Windows
-                        if let focusWindows = briefing?.focusWindows, !focusWindows.isEmpty {
-                            insightAccordion(
-                                title: "Focus Windows",
-                                icon: "brain.head.profile",
-                                iconColor: DesignSystem.Colors.blue,
-                                badge: "\(focusWindows.count) available",
-                                sectionId: "focus",
-                                content: AnyView(
-                                    VStack(spacing: 8) {
-                                        ForEach(focusWindows.prefix(3), id: \.startTime) { window in
-                                            focusWindowRow(window)
-                                        }
-                                    }
-                                )
-                            )
-                        }
-
-                        // Energy Dips
-                        if let energyDips = briefing?.energyDips, !energyDips.isEmpty {
-                            insightAccordion(
-                                title: "Energy Dips",
-                                icon: "battery.50",
-                                iconColor: DesignSystem.Colors.amber,
-                                badge: "\(energyDips.count) predicted",
-                                sectionId: "energy",
-                                content: AnyView(
-                                    VStack(spacing: 8) {
-                                        ForEach(energyDips.prefix(3), id: \.time) { dip in
-                                            energyDipRow(dip)
-                                        }
-                                    }
-                                )
-                            )
-                        }
-                    }
-                    .transition(.opacity.combined(with: .move(edge: .top)))
+                                .shadow(color: (showFABMenu ? Color(hex: "6B7280") : DesignSystem.Colors.primary).opacity(0.4), radius: 12, y: 6)
+                        )
+                        .rotationEffect(.degrees(showFABMenu ? 90 : 0))
                 }
             }
+            .padding(.trailing, DesignSystem.Spacing.lg)
+            .padding(.bottom, 160) // Above Clara FAB button
         }
-    }
-
-    // MARK: - Accordion Component
-
-    private func insightAccordion(
-        title: String,
-        icon: String,
-        iconColor: Color,
-        badge: String,
-        sectionId: String,
-        content: AnyView
-    ) -> some View {
-        VStack(spacing: 0) {
-            // Header
-            Button(action: {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    if expandedSections.contains(sectionId) {
-                        expandedSections.remove(sectionId)
-                    } else {
-                        expandedSections.insert(sectionId)
-                    }
-                }
-            }) {
-                HStack(spacing: 10) {
-                    Image(systemName: icon)
-                        .font(.system(size: 14))
-                        .foregroundColor(iconColor)
-                        .frame(width: 24)
-
-                    Text(title)
-                        .font(.subheadline.weight(.medium))
-                        .foregroundColor(DesignSystem.Colors.primaryText)
-
-                    Spacer()
-
-                    Text(badge)
-                        .font(.caption)
-                        .foregroundColor(DesignSystem.Colors.tertiaryText)
-
-                    Image(systemName: expandedSections.contains(sectionId) ? "chevron.up" : "chevron.down")
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundColor(DesignSystem.Colors.tertiaryText)
-                }
-                .padding(DesignSystem.Spacing.md)
-            }
-
-            // Content
-            if expandedSections.contains(sectionId) {
-                content
-                    .padding(.horizontal, DesignSystem.Spacing.md)
-                    .padding(.bottom, DesignSystem.Spacing.md)
+        .sheet(isPresented: $showingAddTask) {
+            AddTaskSheet()
+        }
+        .sheet(isPresented: $showingAddReminder) {
+            AddReminderSheet()
+        }
+        .sheet(isPresented: $showingQuickPick) {
+            WeekendQuickPickView { plan in
+                generatedWeekendPlan = plan
             }
         }
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.md)
-                .fill(DesignSystem.Colors.cardBackground)
-        )
-    }
-
-    // MARK: - Row Components
-
-    private func suggestionRow(_ suggestion: BriefingSuggestion) -> some View {
-        HStack(spacing: 10) {
-            Image(systemName: suggestion.icon ?? "lightbulb")
-                .font(.system(size: 12))
-                .foregroundColor(DesignSystem.Colors.amber)
-                .frame(width: 20)
-
-            Text(suggestion.title)
-                .font(.caption)
-                .foregroundColor(DesignSystem.Colors.primaryText)
-                .lineLimit(1)
-
-            Spacer()
+        .sheet(item: $generatedWeekendPlan) { plan in
+            WeekendPlanResultView(plan: plan)
         }
-        .padding(.vertical, 4)
-    }
-
-    private func focusWindowRow(_ window: FocusWindow) -> some View {
-        HStack(spacing: 10) {
-            Text(window.startTime)
-                .font(.caption.monospacedDigit())
-                .foregroundColor(DesignSystem.Colors.secondaryText)
-
-            Text(window.suggestedActivity ?? "Focus time")
-                .font(.caption)
-                .foregroundColor(DesignSystem.Colors.primaryText)
-                .lineLimit(1)
-
-            Spacer()
-        }
-        .padding(.vertical, 4)
-    }
-
-    private func energyDipRow(_ dip: EnergyDip) -> some View {
-        HStack(spacing: 10) {
-            Text(dip.displayTime)
-                .font(.caption.monospacedDigit())
-                .foregroundColor(DesignSystem.Colors.secondaryText)
-
-            Text(dip.recommendation ?? dip.reason ?? "Energy dip expected")
-                .font(.caption)
-                .foregroundColor(DesignSystem.Colors.primaryText)
-                .lineLimit(1)
-
-            Spacer()
-        }
-        .padding(.vertical, 4)
-    }
-}
-
-// MARK: - Floating Action Stack
-/// Two floating buttons: + FAB and Clara orb
-struct FloatingActionStack: View {
-    @Binding var showFABMenu: Bool
-    @Binding var showingClaraChat: Bool
-    @Binding var showingAddEvent: Bool
-    @Binding var showingAddTask: Bool
-
-    // Clara orb breathing animation
-    @State private var orbScale: CGFloat = 1.0
-
-    var body: some View {
-        VStack(spacing: 12) {
-            Spacer()
-
-            HStack {
-                Spacer()
-
-                VStack(spacing: 12) {
-                    // Dimmed background when FAB menu is open
-                    if showFABMenu {
-                        Color.black.opacity(0.4)
-                            .ignoresSafeArea()
-                            .onTapGesture {
-                                withAnimation(.easeOut(duration: 0.2)) {
-                                    showFABMenu = false
-                                }
-                            }
-                    }
-
-                    // FAB Menu items (when expanded)
-                    if showFABMenu {
-                        // Add Task
-                        fabMenuItem(
-                            icon: "checkmark.circle.fill",
-                            label: "Task",
-                            color: DesignSystem.Colors.emerald
-                        ) {
-                            showFABMenu = false
-                            showingAddTask = true
-                        }
-
-                        // Add Event
-                        fabMenuItem(
-                            icon: "calendar.badge.plus",
-                            label: "Event",
-                            color: DesignSystem.Colors.blue
-                        ) {
-                            showFABMenu = false
-                            showingAddEvent = true
-                        }
-                    }
-
-                    // Clara AI Orb (secondary, above + button)
-                    claraOrb
-
-                    // Primary FAB (+)
-                    primaryFAB
-                }
-                .padding(.trailing, DesignSystem.Spacing.lg)
-                .padding(.bottom, 100) // Above tab bar
-            }
+        .sheet(isPresented: $showingQuickBook) {
+            QuickBookView()
         }
     }
 
-    // MARK: - Clara Orb
-    /// Soft purple gradient with slow breathing animation
-    private var claraOrb: some View {
-        Button(action: {
-            HapticManager.shared.lightTap()
-            showingClaraChat = true
-        }) {
-            ZStack {
-                // Outer glow
-                Circle()
-                    .fill(
-                        RadialGradient(
-                            colors: [
-                                DesignSystem.Colors.violet.opacity(0.3),
-                                Color.clear
-                            ],
-                            center: .center,
-                            startRadius: 0,
-                            endRadius: 30
-                        )
-                    )
-                    .frame(width: 60, height: 60)
-
-                // Main orb
-                Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                DesignSystem.Colors.violet,
-                                DesignSystem.Colors.violetDark
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .frame(width: 44, height: 44)
-                    .shadow(color: DesignSystem.Colors.violet.opacity(0.4), radius: 8, y: 4)
-
-                // Sparkle icon
-                Image(systemName: "sparkles")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(.white)
-            }
-            .scaleEffect(orbScale)
-        }
-        .buttonStyle(PlainButtonStyle())
-        .onAppear {
-            // Slow breathing animation (3s cycle)
-            withAnimation(
-                Animation
-                    .easeInOut(duration: 3)
-                    .repeatForever(autoreverses: true)
-            ) {
-                orbScale = 1.04
-            }
-        }
-    }
-
-    // MARK: - Primary FAB
-    /// Blue + button for adding events/tasks
-    private var primaryFAB: some View {
-        Button(action: {
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                showFABMenu.toggle()
-            }
-        }) {
-            Image(systemName: showFABMenu ? "xmark" : "plus")
-                .font(.system(size: 22, weight: .semibold))
-                .foregroundColor(.white)
-                .frame(width: 56, height: 56)
-                .background(
-                    Circle()
-                        .fill(
-                            LinearGradient(
-                                colors: showFABMenu
-                                    ? [DesignSystem.Colors.tertiaryText, DesignSystem.Colors.tertiaryText.opacity(0.8)]
-                                    : [DesignSystem.Colors.primary, DesignSystem.Colors.primaryDark],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .shadow(
-                            color: (showFABMenu ? DesignSystem.Colors.tertiaryText : DesignSystem.Colors.primary).opacity(0.4),
-                            radius: 12,
-                            y: 6
-                        )
-                )
-                .rotationEffect(.degrees(showFABMenu ? 90 : 0))
-        }
-    }
-
-    // MARK: - FAB Menu Item
-    private func fabMenuItem(
-        icon: String,
-        label: String,
-        color: Color,
-        action: @escaping () -> Void
-    ) -> some View {
+    private func fabMenuItem(icon: String, label: String, color: Color, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            HStack(spacing: 10) {
+            HStack(spacing: 12) {
                 Text(label)
                     .font(.subheadline.weight(.medium))
                     .foregroundColor(DesignSystem.Colors.primaryText)
@@ -1221,13 +741,13 @@ struct FloatingActionStack: View {
                     .background(
                         Capsule()
                             .fill(DesignSystem.Colors.cardBackground)
-                            .shadow(color: .black.opacity(0.15), radius: 4, y: 2)
+                            .shadow(color: .black.opacity(0.1), radius: 4, y: 2)
                     )
 
                 Image(systemName: icon)
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(.system(size: 18, weight: .semibold))
                     .foregroundColor(.white)
-                    .frame(width: 40, height: 40)
+                    .frame(width: 44, height: 44)
                     .background(
                         Circle()
                             .fill(color)
@@ -1235,19 +755,88 @@ struct FloatingActionStack: View {
                     )
             }
         }
-        .transition(
-            .asymmetric(
-                insertion: .scale(scale: 0.6).combined(with: .opacity).combined(with: .offset(y: 10)),
-                removal: .scale(scale: 0.6).combined(with: .opacity)
-            )
-        )
+        .transition(.asymmetric(
+            insertion: .scale(scale: 0.5).combined(with: .opacity).combined(with: .move(edge: .trailing)),
+            removal: .scale(scale: 0.5).combined(with: .opacity)
+        ))
     }
-}
 
-// MARK: - Preview
+    // MARK: - Helper Methods
+    private func toggleSection(_ section: String) {
+        withAnimation(.spring(response: 0.3)) {
+            if expandedSections.contains(section) {
+                expandedSections.remove(section)
+            } else {
+                expandedSections.insert(section)
+            }
+        }
+    }
 
-#Preview {
-    TodayView()
-        .environmentObject(CalendarViewModel())
-        .preferredColorScheme(.dark)
+    private func isPastEvent(_ event: Event) -> Bool {
+        guard let endDate = event.endDate ?? event.startDate else { return false }
+        return endDate < Date()
+    }
+
+    // MARK: - Week Drift (Killer Feature)
+
+    /// Fetch week drift status - the forward-looking intelligence
+    private func fetchWeekDrift() async {
+        await MainActor.run { weekDriftLoading = true }
+
+        do {
+            let status = try await APIService.shared.getWeekDriftStatus()
+            await MainActor.run {
+                weekDriftStatus = status
+                weekDriftLoading = false
+            }
+            print("🎯 TodayView: Week drift loaded - score=\(status.driftScore), severity=\(status.severity)")
+        } catch {
+            print("⚠️ TodayView: Failed to load week drift: \(error)")
+            await MainActor.run { weekDriftLoading = false }
+        }
+    }
+
+    /// Handle intervention taps - navigate to the action deep link
+    private func handleInterventionTap(_ intervention: DriftIntervention) {
+        print("🎯 TodayView: Intervention tapped - \(intervention.id): \(intervention.action)")
+        NavigationManager.shared.handleDestination(intervention.deepLink)
+    }
+
+    /// Handle deep link navigation from primary recommendation
+    private func handleDeepLink(_ deepLink: String?) {
+        // If no deep link, show the action sheet for the recommendation
+        if deepLink == nil || deepLink?.isEmpty == true {
+            if let rec = briefingViewModel.briefing?.primaryRecommendation {
+                selectedPrimaryRecommendation = rec
+            }
+            return
+        }
+
+        guard let link = deepLink else { return }
+        print("🔗 TodayView: Deep link tapped - \(link)")
+
+        // Handle various deep link formats
+        if link.starts(with: "block_time") || link.starts(with: "protect_time") {
+            // Show Plan My Day for time blocking
+            showingPlanMyDay = true
+        } else if link.starts(with: "reschedule") || link.starts(with: "move_meeting") {
+            // Navigate to calendar
+            NavigationManager.shared.navigateToCalendar()
+        } else if link.starts(with: "health") || link.starts(with: "recovery") {
+            // Navigate to health
+            NavigationManager.shared.navigateToHealth()
+        } else if link.starts(with: "cancel") || link.starts(with: "decline") {
+            // Show calendar for meeting management
+            NavigationManager.shared.navigateToCalendar()
+        } else {
+            // Try standard navigation
+            NavigationManager.shared.handleDestination(link)
+        }
+    }
+
+    /// Handle Clara prompt taps - opens Clara prompt sheet
+    private func handleClaraPrompt(_ prompt: ClaraPrompt) {
+        print("🗣️ TodayView: Clara prompt tapped - \(prompt.label ?? "unknown")")
+        selectedClaraPrompt = prompt
+    }
 }
