@@ -519,7 +519,7 @@ struct DailyBriefCard: View {
                 }
 
                 // Tasks
-                if let tasks = overview?.todoTile.total {
+                if let tasks = overview?.todoTile.pendingCount {
                     metricItem(
                         icon: "checkmark.circle",
                         value: "\(tasks)",
