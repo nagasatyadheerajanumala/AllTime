@@ -63,7 +63,7 @@ struct ClaraLoadingView: View {
 
                     // Subtle dot accent
                     Circle()
-                        .fill(Color(hex: "8B5CF6"))
+                        .fill(DesignSystem.Colors.violet)
                         .frame(width: 6, height: 6)
                         .opacity(logoOpacity)
                 }
@@ -125,7 +125,7 @@ struct LoadingDotsView: View {
         HStack(spacing: 8) {
             ForEach(0..<3) { index in
                 Circle()
-                    .fill(Color(hex: "8B5CF6").opacity(animatingDot == index ? 1.0 : 0.3))
+                    .fill(DesignSystem.Colors.violet.opacity(animatingDot == index ? 1.0 : 0.3))
                     .frame(width: 8, height: 8)
                     .scaleEffect(animatingDot == index ? 1.2 : 1.0)
                     .animation(.easeInOut(duration: 0.4), value: animatingDot)

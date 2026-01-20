@@ -5,8 +5,8 @@ import SwiftUI
 /// This is the main Insights tab replacing the old Health tab
 /// Optimized with task cancellation and proper ViewModel lifecycle management
 struct InsightsRootView: View {
-    @State private var selectedSection: InsightsSection = .weekly
-    @State private var previousSection: InsightsSection = .weekly
+    @State private var selectedSection: InsightsSection = .daily
+    @State private var previousSection: InsightsSection = .daily
     @StateObject private var weeklyNarrativeViewModel = WeeklyNarrativeViewModel()
     @ObservedObject private var healthMetricsService = HealthMetricsService.shared
     @State private var loadTask: Task<Void, Never>?
@@ -14,6 +14,7 @@ struct InsightsRootView: View {
     @Environment(\.accessibilityReduceMotion) var reduceMotion
 
     // Track which views have been loaded to preserve their state
+    @State private var dailyViewLoaded = false
     @State private var weeklyViewLoaded = false
     @State private var monthlyViewLoaded = false
     @State private var healthViewLoaded = false
@@ -29,12 +30,14 @@ struct InsightsRootView: View {
     }
 
     enum InsightsSection: String, CaseIterable {
+        case daily = "Daily"
         case weekly = "Weekly"
         case monthly = "Monthly"
         case health = "Health"
 
         var icon: String {
             switch self {
+            case .daily: return "sun.max.fill"
             case .weekly: return "calendar.badge.clock"
             case .monthly: return "calendar"
             case .health: return "heart.fill"
@@ -52,6 +55,13 @@ struct InsightsRootView: View {
 
             // Content - direction-aware transitions for smooth tab switching
             ZStack {
+                // Daily View
+                if selectedSection == .daily {
+                    DailyInsightsTabView()
+                        .transition(contentTransition)
+                        .onAppear { dailyViewLoaded = true }
+                }
+
                 // Weekly View
                 if selectedSection == .weekly {
                     WeeklyInsightsView()
@@ -87,6 +97,13 @@ struct InsightsRootView: View {
             loadTask = nil
             weeklyNarrativeViewModel.cancelPendingRequests()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .navigateToDailyInsights)) { _ in
+            // Switch to Daily section when notification is received (from evening summary notification)
+            withAnimation {
+                previousSection = selectedSection
+                selectedSection = .daily
+            }
+        }
     }
 
     // MARK: - Header
@@ -104,27 +121,6 @@ struct InsightsRootView: View {
             }
 
             Spacer()
-
-            // Clara AI badge - premium, subtle
-            HStack(spacing: 6) {
-                Image(systemName: "sparkles")
-                    .font(.caption.weight(.semibold))
-                Text("Clara")
-                    .font(.caption.weight(.semibold))
-            }
-            .foregroundColor(.white)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .background(
-                Capsule()
-                    .fill(
-                        LinearGradient(
-                            colors: [Color.indigo.opacity(0.8), Color.purple.opacity(0.8)],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-            )
         }
         .padding(.horizontal, DesignSystem.Spacing.screenMargin)
         .padding(.top, DesignSystem.Spacing.md)

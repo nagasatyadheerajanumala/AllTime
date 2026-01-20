@@ -27,6 +27,7 @@ struct WeeklyInsightsView: View {
             }
             .padding(.horizontal, DesignSystem.Spacing.screenMargin)
             .padding(.top, DesignSystem.Spacing.md)
+            .padding(.bottom, 100) // Space for tab bar
         }
         .background(DesignSystem.Colors.background)
         .refreshable {
@@ -174,14 +175,14 @@ struct WeeklyInsightsView: View {
                     HStack(spacing: 4) {
                         if trend > 0 {
                             Image(systemName: "arrow.up.circle.fill")
-                                .foregroundColor(Color(hex: "10B981"))
+                                .foregroundColor(DesignSystem.Colors.emerald)
                             Text("\(trend) points from last week")
-                                .foregroundColor(Color(hex: "10B981"))
+                                .foregroundColor(DesignSystem.Colors.emerald)
                         } else if trend < 0 {
                             Image(systemName: "arrow.down.circle.fill")
-                                .foregroundColor(Color(hex: "EF4444"))
+                                .foregroundColor(DesignSystem.Colors.errorRed)
                             Text("\(abs(trend)) points from last week")
-                                .foregroundColor(Color(hex: "EF4444"))
+                                .foregroundColor(DesignSystem.Colors.errorRed)
                         } else {
                             Image(systemName: "equal.circle.fill")
                                 .foregroundColor(Color(hex: "6B7280"))
@@ -307,7 +308,7 @@ struct WeeklyInsightsView: View {
             // Levers label
             Text("Quick wins")
                 .font(.caption.weight(.medium))
-                .foregroundColor(Color(hex: "10B981").opacity(0.8))
+                .foregroundColor(DesignSystem.Colors.emerald.opacity(0.8))
                 .padding(.top, 4)
 
             // Show levers as tappable rows
@@ -319,7 +320,7 @@ struct WeeklyInsightsView: View {
                     HStack(alignment: .center, spacing: 8) {
                         Image(systemName: lever.sfSymbol)
                             .font(.system(size: 11, weight: .semibold))
-                            .foregroundColor(Color(hex: "10B981"))
+                            .foregroundColor(DesignSystem.Colors.emerald)
                             .frame(width: 16)
 
                         Text(lever.action)
@@ -332,22 +333,22 @@ struct WeeklyInsightsView: View {
 
                         Text(lever.formattedGain)
                             .font(.system(size: 10, weight: .bold, design: .rounded))
-                            .foregroundColor(Color(hex: "10B981"))
+                            .foregroundColor(DesignSystem.Colors.emerald)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
                             .background(
                                 Capsule()
-                                    .fill(Color(hex: "10B981").opacity(0.2))
+                                    .fill(DesignSystem.Colors.emerald.opacity(0.2))
                             )
                     }
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
                     .background(
                         RoundedRectangle(cornerRadius: 8)
-                            .fill(Color(hex: "10B981").opacity(0.1))
+                            .fill(DesignSystem.Colors.emerald.opacity(0.1))
                             .overlay(
                                 RoundedRectangle(cornerRadius: 8)
-                                    .stroke(Color(hex: "10B981").opacity(0.2), lineWidth: 0.5)
+                                    .stroke(DesignSystem.Colors.emerald.opacity(0.2), lineWidth: 0.5)
                             )
                     )
                 }
@@ -394,11 +395,11 @@ struct WeeklyInsightsView: View {
             HStack(spacing: 10) {
                 ZStack {
                     Circle()
-                        .fill(Color(hex: "F59E0B").opacity(0.15))
+                        .fill(DesignSystem.Colors.amber.opacity(0.15))
                         .frame(width: 32, height: 32)
                     Image(systemName: "sparkles")
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(Color(hex: "F59E0B"))
+                        .foregroundColor(DesignSystem.Colors.amber)
                 }
 
                 Text("Week Highlights")
@@ -529,11 +530,11 @@ struct WeeklyInsightsView: View {
             HStack(spacing: 10) {
                 ZStack {
                     Circle()
-                        .fill(Color(hex: "8B5CF6").opacity(0.15))
+                        .fill(DesignSystem.Colors.violet.opacity(0.15))
                         .frame(width: 32, height: 32)
                     Image(systemName: "chart.bar.fill")
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(Color(hex: "8B5CF6"))
+                        .foregroundColor(DesignSystem.Colors.violet)
                 }
 
                 Text("Week vs Week")
@@ -555,7 +556,7 @@ struct WeeklyInsightsView: View {
                     delta: comparison.meetingHoursDelta,
                     trend: comparison.meetingTrend,
                     unit: "h",
-                    color: Color(hex: "8B5CF6"),
+                    color: DesignSystem.Colors.violet,
                     higherIsBetter: false
                 )
 
@@ -568,7 +569,7 @@ struct WeeklyInsightsView: View {
                     delta: comparison.focusHoursDelta,
                     trend: comparison.focusTrend,
                     unit: "h",
-                    color: Color(hex: "3B82F6"),
+                    color: DesignSystem.Colors.blue,
                     higherIsBetter: true
                 )
 
@@ -581,7 +582,7 @@ struct WeeklyInsightsView: View {
                     delta: comparison.eventsDelta,
                     trend: comparison.eventsTrend,
                     unit: "",
-                    color: Color(hex: "F59E0B"),
+                    color: DesignSystem.Colors.amber,
                     higherIsBetter: false
                 )
 
@@ -594,7 +595,7 @@ struct WeeklyInsightsView: View {
                     delta: comparison.freeHoursDelta,
                     trend: comparison.freeTimeTrend,
                     unit: "h",
-                    color: Color(hex: "10B981"),
+                    color: DesignSystem.Colors.emerald,
                     higherIsBetter: true
                 )
             }
@@ -623,8 +624,8 @@ struct WeeklyInsightsView: View {
     ) -> some View {
         let trendColor: Color = {
             switch trend {
-            case "up": return higherIsBetter ? Color(hex: "10B981") : Color(hex: "EF4444")
-            case "down": return higherIsBetter ? Color(hex: "EF4444") : Color(hex: "10B981")
+            case "up": return higherIsBetter ? DesignSystem.Colors.emerald : DesignSystem.Colors.errorRed
+            case "down": return higherIsBetter ? DesignSystem.Colors.errorRed : DesignSystem.Colors.emerald
             default: return Color(hex: "6B7280")
             }
         }()
@@ -845,11 +846,11 @@ struct WeeklyInsightsView: View {
             HStack(spacing: 10) {
                 ZStack {
                     Circle()
-                        .fill(Color(hex: "3B82F6").opacity(0.15))
+                        .fill(DesignSystem.Colors.blue.opacity(0.15))
                         .frame(width: 32, height: 32)
                     Image(systemName: "chart.pie.fill")
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(Color(hex: "3B82F6"))
+                        .foregroundColor(DesignSystem.Colors.blue)
                 }
 
                 Text("Time Breakdown")
@@ -1003,11 +1004,11 @@ struct WeeklyInsightsView: View {
             HStack(spacing: 10) {
                 ZStack {
                     Circle()
-                        .fill(Color(hex: "F59E0B").opacity(0.15))
+                        .fill(DesignSystem.Colors.amber.opacity(0.15))
                         .frame(width: 32, height: 32)
                     Image(systemName: "eye")
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(Color(hex: "F59E0B"))
+                        .foregroundColor(DesignSystem.Colors.amber)
                 }
 
                 Text("Areas to Watch")
@@ -1039,7 +1040,7 @@ struct WeeklyInsightsView: View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: "exclamationmark.circle")
                 .font(.body)
-                .foregroundColor(Color(hex: "F59E0B"))
+                .foregroundColor(DesignSystem.Colors.amber)
                 .padding(.top, 2)
 
             VStack(alignment: .leading, spacing: 4) {
@@ -1057,7 +1058,7 @@ struct WeeklyInsightsView: View {
         .padding(12)
         .background(
             RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.md)
-                .fill(Color(hex: "F59E0B").opacity(0.05))
+                .fill(DesignSystem.Colors.amber.opacity(0.05))
         )
     }
 
@@ -1068,11 +1069,11 @@ struct WeeklyInsightsView: View {
             HStack(spacing: 10) {
                 ZStack {
                     Circle()
-                        .fill(Color(hex: "10B981").opacity(0.15))
+                        .fill(DesignSystem.Colors.emerald.opacity(0.15))
                         .frame(width: 32, height: 32)
                     Image(systemName: "lightbulb.fill")
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(Color(hex: "10B981"))
+                        .foregroundColor(DesignSystem.Colors.emerald)
                 }
 
                 Text("Ideas for Next Week")
@@ -1114,26 +1115,26 @@ struct WeeklyInsightsView: View {
             HStack(spacing: 6) {
                 Image(systemName: "arrow.right.circle.fill")
                     .font(.caption)
-                    .foregroundColor(Color(hex: "10B981"))
+                    .foregroundColor(DesignSystem.Colors.emerald)
                 Text(suggestion.action)
                     .font(.caption.weight(.medium))
-                    .foregroundColor(Color(hex: "10B981"))
+                    .foregroundColor(DesignSystem.Colors.emerald)
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
             .background(
                 RoundedRectangle(cornerRadius: 8)
-                    .fill(Color(hex: "10B981").opacity(0.1))
+                    .fill(DesignSystem.Colors.emerald.opacity(0.1))
             )
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.md)
-                .fill(Color(hex: "10B981").opacity(0.03))
+                .fill(DesignSystem.Colors.emerald.opacity(0.03))
                 .overlay(
                     RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.md)
-                        .stroke(Color(hex: "10B981").opacity(0.1), lineWidth: 0.5)
+                        .stroke(DesignSystem.Colors.emerald.opacity(0.1), lineWidth: 0.5)
                 )
         )
     }
@@ -1315,11 +1316,11 @@ extension WeeklyInsightsView {
                 HStack(spacing: 10) {
                     ZStack {
                         Circle()
-                            .fill(Color(hex: "6366F1").opacity(0.15))
+                            .fill(DesignSystem.Colors.indigo.opacity(0.15))
                             .frame(width: 32, height: 32)
                         Image(systemName: "arrow.forward.circle.fill")
                             .font(.system(size: 14, weight: .semibold))
-                            .foregroundColor(Color(hex: "6366F1"))
+                            .foregroundColor(DesignSystem.Colors.indigo)
                     }
 
                     Text("Next Week Forecast")
@@ -1348,11 +1349,11 @@ extension WeeklyInsightsView {
                 HStack(spacing: 10) {
                     ZStack {
                         Circle()
-                            .fill(Color(hex: "6366F1").opacity(0.15))
+                            .fill(DesignSystem.Colors.indigo.opacity(0.15))
                             .frame(width: 32, height: 32)
                         Image(systemName: "arrow.forward.circle.fill")
                             .font(.system(size: 14, weight: .semibold))
-                            .foregroundColor(Color(hex: "6366F1"))
+                            .foregroundColor(DesignSystem.Colors.indigo)
                     }
 
                     VStack(alignment: .leading, spacing: 2) {
@@ -1361,7 +1362,7 @@ extension WeeklyInsightsView {
                             .foregroundColor(DesignSystem.Colors.primaryText)
                         Text(forecast.weekLabel)
                             .font(.caption.weight(.medium))
-                            .foregroundColor(Color(hex: "6366F1"))
+                            .foregroundColor(DesignSystem.Colors.indigo)
                     }
 
                     Spacer()
@@ -1413,7 +1414,7 @@ extension WeeklyInsightsView {
                     VStack(spacing: 8) {
                         Text("Take action now")
                             .font(.caption.weight(.semibold))
-                            .foregroundColor(Color(hex: "10B981"))
+                            .foregroundColor(DesignSystem.Colors.emerald)
                             .frame(maxWidth: .infinity, alignment: .leading)
 
                         ForEach(forecast.interventions) { intervention in
@@ -1434,7 +1435,7 @@ extension WeeklyInsightsView {
                     )
                     .overlay(
                         RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg)
-                            .stroke(Color(hex: "6366F1").opacity(0.3), lineWidth: 0.5)
+                            .stroke(DesignSystem.Colors.indigo.opacity(0.3), lineWidth: 0.5)
                     )
             )
         }
@@ -1526,7 +1527,7 @@ extension WeeklyInsightsView {
             HStack(spacing: 10) {
                 Image(systemName: intervention.sfSymbol)
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(Color(hex: "10B981"))
+                    .foregroundColor(DesignSystem.Colors.emerald)
                     .frame(width: 20)
 
                 VStack(alignment: .leading, spacing: 2) {
@@ -1563,10 +1564,10 @@ extension WeeklyInsightsView {
             .padding(12)
             .background(
                 RoundedRectangle(cornerRadius: 10)
-                    .fill(Color(hex: "10B981").opacity(0.05))
+                    .fill(DesignSystem.Colors.emerald.opacity(0.05))
                     .overlay(
                         RoundedRectangle(cornerRadius: 10)
-                            .stroke(Color(hex: "10B981").opacity(0.15), lineWidth: 0.5)
+                            .stroke(DesignSystem.Colors.emerald.opacity(0.15), lineWidth: 0.5)
                     )
             )
         }

@@ -119,36 +119,78 @@ class ConnectedCalendarsViewModel: ObservableObject {
     func syncProvider(_ providerId: Int) async {
         print("🔄 ConnectedCalendarsViewModel: Syncing provider \(providerId)...")
         isSyncing = true
-        
+        errorMessage = nil
+        successMessage = nil
+
         // Use sync scheduler for manual sync (handles errors internally)
         await SyncScheduler.shared.manualSync()
-        
+
         // Check if sync had an error
         if let syncError = SyncScheduler.shared.syncError {
-            errorMessage = "Failed to sync calendar: \(syncError)"
+            // Show user-friendly error message
+            errorMessage = formatSyncError(syncError)
+        } else {
+            // Show success message
+            successMessage = "Calendar synced successfully"
+
+            // Clear success message after 3 seconds
+            Task {
+                try? await Task.sleep(nanoseconds: 3_000_000_000)
+                successMessage = nil
+            }
         }
-        
+
         // Reload calendars and events
         await loadProviders()
-        
+
         isSyncing = false
+    }
+
+    /// Format sync error message to be user-friendly
+    private func formatSyncError(_ error: String) -> String {
+        let lowercased = error.lowercased()
+
+        // Handle common error patterns
+        if lowercased.contains("token") && lowercased.contains("expired") {
+            return "Calendar connection expired. Please reconnect."
+        } else if lowercased.contains("network") || lowercased.contains("connection") {
+            return "Network error. Please check your connection."
+        } else if lowercased.contains("unauthorized") || lowercased.contains("401") {
+            return "Session expired. Please sign in again."
+        } else if lowercased.contains("timeout") {
+            return "Sync timed out. Please try again."
+        } else if error.count > 100 {
+            // Truncate long technical messages
+            return "Sync failed. Please try again."
+        }
+
+        return error
     }
     
     func syncGoogleCalendar() async {
         print("🔄 ConnectedCalendarsViewModel: Syncing Google Calendar...")
         isSyncing = true
-        
+        errorMessage = nil
+        successMessage = nil
+
         // Use sync scheduler for manual sync (handles errors internally)
         await SyncScheduler.shared.manualSync()
-        
+
         // Check if sync had an error
         if let syncError = SyncScheduler.shared.syncError {
-            errorMessage = "Failed to sync Google Calendar: \(syncError)"
+            errorMessage = formatSyncError(syncError)
+        } else {
+            successMessage = "Google Calendar synced successfully"
+
+            Task {
+                try? await Task.sleep(nanoseconds: 3_000_000_000)
+                successMessage = nil
+            }
         }
-        
+
         // Reload calendars and events
         await loadProviders()
-        
+
         isSyncing = false
     }
     

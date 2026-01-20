@@ -9,7 +9,7 @@ struct EnhancedLoadingView: View {
     var body: some View {
         VStack(spacing: 24) {
             ProgressView()
-                .progressViewStyle(CircularProgressViewStyle(tint: Color(hex: "3B82F6")))
+                .progressViewStyle(CircularProgressViewStyle(tint: DesignSystem.Colors.blue))
                 .scaleEffect(1.2)
             Text("Preparing your summary")
                 .font(.system(size: 15, weight: .light))
@@ -27,7 +27,7 @@ struct EnhancedErrorView: View {
         VStack(spacing: 24) {
             Image(systemName: "exclamationmark.triangle")
                 .font(.system(size: 40, weight: .thin))
-                .foregroundColor(Color(hex: "F59E0B"))
+                .foregroundColor(DesignSystem.Colors.amber)
             VStack(spacing: 8) {
                 Text("Unable to load")
                     .font(.system(size: 18, weight: .light))
@@ -40,10 +40,10 @@ struct EnhancedErrorView: View {
             Button(action: onRetry) {
                 Text("Try Again")
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(Color(hex: "3B82F6"))
+                    .foregroundColor(DesignSystem.Colors.blue)
                     .padding(.horizontal, 24)
                     .padding(.vertical, 12)
-                    .background(Capsule().stroke(Color(hex: "3B82F6").opacity(0.5), lineWidth: 1))
+                    .background(Capsule().stroke(DesignSystem.Colors.blue.opacity(0.5), lineWidth: 1))
             }
         }
         .padding(.horizontal, 40)

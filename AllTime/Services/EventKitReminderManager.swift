@@ -13,7 +13,7 @@ class EventKitReminderManager: ObservableObject {
     @Published var authorizationStatus: EKAuthorizationStatus = .notDetermined
     
     private let eventStore = EKEventStore()
-    private let reminderCalendarName = "Chrona"
+    private let reminderCalendarName = "Clara"
     
     private init() {
         checkAuthorizationStatus()
@@ -80,7 +80,7 @@ class EventKitReminderManager: ObservableObject {
     
     // MARK: - Calendar Management
     
-    /// Gets or creates the Chrona reminder calendar
+    /// Gets or creates the Clara reminder calendar
     /// Returns nil if not authorized or calendar creation fails
     private func getOrCreateReminderCalendar() -> EKCalendar? {
         guard isAuthorized else {
@@ -149,7 +149,7 @@ class EventKitReminderManager: ObservableObject {
         if !notes.isEmpty {
             notes += "\n\n"
         }
-        notes += "[Chrona ID: \(reminder.id)]"
+        notes += "[Clara ID: \(reminder.id)]"
         ekReminder.notes = notes
         
         // Set due date
@@ -200,7 +200,7 @@ class EventKitReminderManager: ObservableObject {
                 // Find reminder with matching Chrona ID in notes
                 let matching = reminders?.first { reminder in
                     guard let notes = reminder.notes else { return false }
-                    return notes.contains("[Chrona ID: \(reminderId)]")
+                    return notes.contains("[Clara ID: \(reminderId)]")
                 }
                 continuation.resume(returning: matching)
             }
@@ -281,7 +281,7 @@ class EventKitReminderManager: ObservableObject {
         // Extract Chrona ID from notes if present, otherwise generate a negative ID
         var reminderId: Int64 = Int64.random(in: -999999...(-1)) // Negative IDs for EventKit-only reminders
         if let notes = ekReminder.notes,
-           let idRange = notes.range(of: "[Chrona ID: ") {
+           let idRange = notes.range(of: "[Clara ID: ") {
             let startIndex = notes.index(idRange.upperBound, offsetBy: 0)
             let endIndex = notes.firstIndex(of: "]") ?? notes.endIndex
             let idString = String(notes[startIndex..<endIndex])
@@ -292,7 +292,7 @@ class EventKitReminderManager: ObservableObject {
         
         // Extract description (remove Chrona ID marker if present)
         var description = ekReminder.notes ?? ""
-        if let idRange = description.range(of: "[Chrona ID: ") {
+        if let idRange = description.range(of: "[Clara ID: ") {
             description = String(description[..<idRange.lowerBound]).trimmingCharacters(in: .whitespacesAndNewlines)
         }
         

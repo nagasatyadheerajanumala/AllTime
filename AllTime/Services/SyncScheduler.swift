@@ -183,6 +183,12 @@ class SyncScheduler: ObservableObject {
             
             saveLastSyncTime()
 
+            // Update meeting links for existing events (extracts from description/location)
+            // This helps populate meeting links for events synced before this feature was added
+            Task {
+                await updateMeetingLinksAfterSync()
+            }
+
             // Prefetch insights data in background after calendar sync
             // This ensures insights are ready when user navigates to Insights tab
             Task {
@@ -317,6 +323,24 @@ class SyncScheduler: ObservableObject {
             await EventNotificationService.shared.scheduleNotifications(for: response.events)
         } catch {
             print("🔔 SyncScheduler: Failed to fetch events for notifications: \(error.localizedDescription)")
+        }
+    }
+
+    /// Update meeting links for existing events after sync
+    /// Extracts meeting links from descriptions/locations for events that don't have them
+    private func updateMeetingLinksAfterSync() async {
+        print("🔗 SyncScheduler: Updating meeting links for existing events...")
+
+        do {
+            let result = try await apiService.updateMeetingLinks()
+            if let updated = result.updatedCount, updated > 0 {
+                print("✅ SyncScheduler: Updated \(updated) events with meeting links")
+            } else {
+                print("🔗 SyncScheduler: No events needed meeting link updates")
+            }
+        } catch {
+            // Don't propagate error - this is a background enhancement
+            print("⚠️ SyncScheduler: Failed to update meeting links: \(error.localizedDescription)")
         }
     }
 }

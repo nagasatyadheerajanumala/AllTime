@@ -247,11 +247,39 @@ struct AddEventView: View {
                                         .foregroundColor(DesignSystem.Colors.tertiaryText)
                                         .padding(.top, 4)
                                 } else {
-                                    Text("Event will be saved locally only")
+                                    Text("Event will be saved to AllTime")
                                         .font(DesignSystem.Typography.caption)
                                         .foregroundColor(DesignSystem.Colors.tertiaryText)
                                         .padding(.top, 4)
                                 }
+                            }
+
+                            Divider()
+                                .padding(.vertical, DesignSystem.Spacing.sm)
+
+                            // Save to iPhone Calendar toggle
+                            HStack {
+                                Image(systemName: "calendar.badge.plus")
+                                    .font(.system(size: 16))
+                                    .foregroundColor(DesignSystem.Colors.primary)
+
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Add to iPhone Calendar")
+                                        .font(DesignSystem.Typography.body)
+                                        .foregroundColor(DesignSystem.Colors.primaryText)
+                                    Text("Shows in your device's Calendar app")
+                                        .font(DesignSystem.Typography.caption)
+                                        .foregroundColor(DesignSystem.Colors.tertiaryText)
+                                }
+
+                                Spacer()
+
+                                Toggle("", isOn: $viewModel.saveToDeviceCalendar)
+                                    .toggleStyle(.switch)
+                                    .tint(DesignSystem.Colors.primary)
+                                    .onChange(of: viewModel.saveToDeviceCalendar) { _, _ in
+                                        HapticManager.shared.selectionChanged()
+                                    }
                             }
                         }
                         .padding(DesignSystem.Spacing.lg)
@@ -274,7 +302,7 @@ struct AddEventView: View {
                                 )
                         )
                         .shadow(color: Color.black.opacity(0.08), radius: 15, x: 0, y: 5)
-                        
+
                         // Attendees & Video Conferencing Card
                         if viewModel.selectedCalendar != nil {
                             VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
@@ -533,7 +561,8 @@ class AddEventViewModel: ObservableObject {
     @Published var newAttendeeEmail = ""
     @Published var addGoogleMeet: Bool = false  // Whether to add Google Meet link
     @Published var selectedColor: String = "#3B82F6"  // Default blue color
-    
+    @Published var saveToDeviceCalendar: Bool = true  // Also save to device's native calendar (EventKit)
+
     init(initialDate: Date = Date()) {
         self.startDate = initialDate
         // Set end date to 1 hour after start date, preserving the selected day
@@ -545,8 +574,9 @@ class AddEventViewModel: ObservableObject {
     @Published var errorMessage: String?
     @Published var successMessage: String?
     @Published var syncStatus: CreateEventResponse?
-    
+
     private let apiService = APIService()
+    private let calendarService = CalendarService.shared
     
     func loadCalendars() async {
         isLoadingCalendars = true
@@ -597,17 +627,17 @@ class AddEventViewModel: ObservableObject {
             errorMessage = "Please enter an event title"
             return
         }
-        
+
         guard endDate > startDate else {
             errorMessage = "End time must be after start time"
             return
         }
-        
+
         isCreating = true
         errorMessage = nil
         successMessage = nil
         syncStatus = nil
-        
+
         do {
             // Adjust end date for all-day events
             var actualEndDate = endDate
@@ -619,10 +649,10 @@ class AddEventViewModel: ObservableObject {
                     actualEndDate = nextDay
                 }
             }
-            
+
             // Get provider from selected calendar
             let provider = selectedCalendar?.provider
-            
+
             let response = try await apiService.createEvent(
                 title: title,
                 description: description.isEmpty ? nil : description,
@@ -635,19 +665,19 @@ class AddEventViewModel: ObservableObject {
                 addGoogleMeet: addGoogleMeet,
                 eventColor: selectedColor
             )
-            
+
             syncStatus = response
-            
+
             // Build success message with sync status
             var message = "Event '\(response.title)' created successfully!"
-            
+
             if response.syncStatus.synced {
                 let providerName = response.syncStatus.provider.capitalized
                 message += "\n✅ Synced to \(providerName) Calendar"
-                
+
                 if let attendeesCount = response.syncStatus.attendeesCount, attendeesCount > 0 {
                     message += "\n📧 Invites sent to \(attendeesCount) attendee\(attendeesCount == 1 ? "" : "s")"
-                    
+
                     // Show meeting link info if available
                     if let meetingLink = response.syncStatus.meetingLink, !meetingLink.isEmpty {
                         if let meetingType = response.syncStatus.meetingType {
@@ -658,17 +688,44 @@ class AddEventViewModel: ObservableObject {
                         }
                     }
                 }
-            } else {
-                message += "\n⚠️ Saved locally (no external calendar selected)"
             }
-            
+
+            // Also save to device's native calendar (EventKit) if enabled
+            // This ensures the event appears in the iPhone Calendar app
+            if saveToDeviceCalendar {
+                do {
+                    let notes = description.isEmpty ? "Created by AllTime" : "\(description)\n\nCreated by AllTime"
+                    let savedToDevice = try await calendarService.createEvent(
+                        title: title,
+                        startDate: startDate,
+                        endDate: actualEndDate,
+                        notes: notes,
+                        location: location.isEmpty ? nil : location,
+                        calendarTitle: nil,  // Uses default calendar
+                        isAllDay: isAllDay
+                    )
+                    if savedToDevice {
+                        message += "\n📱 Added to iPhone Calendar"
+                        print("✅ AddEventViewModel: Event also saved to device calendar (EventKit)")
+                    }
+                } catch CalendarError.accessDenied {
+                    message += "\n⚠️ Calendar access denied - enable in Settings"
+                    print("⚠️ AddEventViewModel: Calendar access denied for EventKit")
+                } catch {
+                    // Log but don't fail the whole operation
+                    print("⚠️ AddEventViewModel: Failed to save to device calendar: \(error)")
+                }
+            } else if !response.syncStatus.synced {
+                message += "\n⚠️ Saved to AllTime only (no calendar selected)"
+            }
+
             successMessage = message
             isSuccess = true
             isCreating = false
-            
+
             // Post notification for UI to refresh events (before dismissing)
             NotificationCenter.default.post(name: NSNotification.Name("EventCreated"), object: response)
-            
+
             print("✅ AddEventViewModel: Event created successfully")
             print("   - Provider: \(response.syncStatus.provider)")
             print("   - Synced: \(response.syncStatus.synced)")
@@ -681,7 +738,7 @@ class AddEventViewModel: ObservableObject {
             if let meetingType = response.syncStatus.meetingType {
                 print("   - Meeting type: \(meetingType)")
             }
-            
+
         } catch let error as NSError {
             let errorMsg = error.localizedDescription
             errorMessage = errorMsg

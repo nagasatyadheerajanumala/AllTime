@@ -17,7 +17,7 @@ struct InterestsSetupView: View {
                         title: "Activities",
                         subtitle: "What physical activities do you enjoy?",
                         icon: "figure.run",
-                        color: Color(hex: "10B981"),
+                        color: DesignSystem.Colors.emerald,
                         options: viewModel.activityOptions,
                         selected: viewModel.selectedActivities,
                         onToggle: viewModel.toggleActivity
@@ -28,7 +28,7 @@ struct InterestsSetupView: View {
                         title: "Lifestyle",
                         subtitle: "What do you enjoy in your free time?",
                         icon: "book.fill",
-                        color: Color(hex: "8B5CF6"),
+                        color: DesignSystem.Colors.violet,
                         options: viewModel.lifestyleOptions,
                         selected: viewModel.selectedLifestyle,
                         onToggle: viewModel.toggleLifestyle
@@ -39,7 +39,7 @@ struct InterestsSetupView: View {
                         title: "Social",
                         subtitle: "How do you like to spend time with others?",
                         icon: "person.3.fill",
-                        color: Color(hex: "F59E0B"),
+                        color: DesignSystem.Colors.amber,
                         options: viewModel.socialOptions,
                         selected: viewModel.selectedSocial,
                         onToggle: viewModel.toggleSocial

@@ -61,10 +61,10 @@ struct KeyMetric: Codable, Identifiable {
 
     var color: Color {
         switch label.lowercased() {
-        case "meetings": return Color(hex: "3B82F6") // Blue
-        case "busy time": return Color(hex: "8B5CF6") // Purple
-        case "overload days": return Color(hex: "EF4444") // Red
-        case "longest focus block": return Color(hex: "10B981") // Green
+        case "meetings": return DesignSystem.Colors.blue // Blue
+        case "busy time": return DesignSystem.Colors.violet // Purple
+        case "overload days": return DesignSystem.Colors.errorRed // Red
+        case "longest focus block": return DesignSystem.Colors.emerald // Green
         default: return Color(hex: "6B7280") // Gray
         }
     }
@@ -150,9 +150,9 @@ struct SuggestedBlock: Codable, Identifiable {
 
     var typeColor: Color {
         switch type {
-        case "focus": return Color(hex: "10B981") // Green
-        case "buffer": return Color(hex: "F59E0B") // Orange
-        case "break": return Color(hex: "3B82F6") // Blue
+        case "focus": return DesignSystem.Colors.emerald // Green
+        case "buffer": return DesignSystem.Colors.amber // Orange
+        case "break": return DesignSystem.Colors.blue // Blue
         default: return Color(hex: "6B7280") // Gray
         }
     }
@@ -310,10 +310,10 @@ struct WeeklyNarrativeResponse: Codable {
 
     var toneColor: Color {
         switch overallTone.lowercased() {
-        case "calm": return Color(hex: "10B981") // Green
-        case "balanced": return Color(hex: "3B82F6") // Blue
-        case "overloaded": return Color(hex: "F59E0B") // Orange
-        case "draining": return Color(hex: "EF4444") // Red
+        case "calm": return DesignSystem.Colors.emerald // Green
+        case "balanced": return DesignSystem.Colors.blue // Blue
+        case "overloaded": return DesignSystem.Colors.amber // Orange
+        case "draining": return DesignSystem.Colors.errorRed // Red
         default: return Color(hex: "6B7280") // Gray
         }
     }
@@ -351,11 +351,11 @@ struct TimeBucket: Codable, Identifiable {
 
     var color: Color {
         switch category.lowercased() {
-        case "meetings": return Color(hex: "8B5CF6") // Purple
-        case "focus": return Color(hex: "3B82F6") // Blue
+        case "meetings": return DesignSystem.Colors.violet // Purple
+        case "focus": return DesignSystem.Colors.blue // Blue
         case "personal": return Color(hex: "EC4899") // Pink
-        case "health": return Color(hex: "10B981") // Green
-        case "sleep": return Color(hex: "6366F1") // Indigo
+        case "health": return DesignSystem.Colors.emerald // Green
+        case "sleep": return DesignSystem.Colors.indigo // Indigo
         default: return Color(hex: "6B7280") // Gray
         }
     }
@@ -382,9 +382,9 @@ struct EnergyAlignment: Codable {
 
     var color: Color {
         switch label.lowercased() {
-        case "well-aligned", "aligned": return Color(hex: "10B981") // Green
-        case "partially aligned": return Color(hex: "F59E0B") // Orange
-        case "misaligned": return Color(hex: "EF4444") // Red
+        case "well-aligned", "aligned": return DesignSystem.Colors.emerald // Green
+        case "partially aligned": return DesignSystem.Colors.amber // Orange
+        case "misaligned": return DesignSystem.Colors.errorRed // Red
         default: return Color(hex: "6B7280") // Gray
         }
     }
@@ -698,9 +698,9 @@ struct WeekComparison: Codable {
     // Helper computed properties
     var balanceScoreColor: Color {
         switch balanceScore {
-        case 70...100: return Color(hex: "10B981") // Green - good balance
-        case 40...69: return Color(hex: "F59E0B") // Orange - needs attention
-        default: return Color(hex: "EF4444") // Red - poor balance
+        case 70...100: return DesignSystem.Colors.emerald // Green - good balance
+        case 40...69: return DesignSystem.Colors.amber // Orange - needs attention
+        default: return DesignSystem.Colors.errorRed // Red - poor balance
         }
     }
 
@@ -724,8 +724,8 @@ struct WeekComparison: Codable {
 
     func trendColor(for trend: String, higherIsBetter: Bool) -> Color {
         switch trend {
-        case "up": return higherIsBetter ? Color(hex: "10B981") : Color(hex: "EF4444")
-        case "down": return higherIsBetter ? Color(hex: "EF4444") : Color(hex: "10B981")
+        case "up": return higherIsBetter ? DesignSystem.Colors.emerald : DesignSystem.Colors.errorRed
+        case "down": return higherIsBetter ? DesignSystem.Colors.errorRed : DesignSystem.Colors.emerald
         default: return Color(hex: "6B7280")
         }
     }
@@ -826,9 +826,9 @@ struct ScoreDriver: Codable, Identifiable {
     /// Color based on whether this driver is positive or negative
     var color: Color {
         if delta > 0 {
-            return Color(hex: "10B981") // Green for positive
+            return DesignSystem.Colors.emerald // Green for positive
         } else if delta < 0 {
-            return Color(hex: "EF4444") // Red for negative
+            return DesignSystem.Colors.errorRed // Red for negative
         } else {
             return Color(hex: "6B7280") // Gray for neutral
         }
@@ -846,10 +846,10 @@ struct ScoreDriver: Codable, Identifiable {
     /// Category color for visual distinction
     var categoryColor: Color {
         switch category.lowercased() {
-        case "meetings": return Color(hex: "8B5CF6") // Purple
-        case "focus": return Color(hex: "3B82F6") // Blue
-        case "free_time": return Color(hex: "10B981") // Green
-        case "consistency": return Color(hex: "F59E0B") // Orange
+        case "meetings": return DesignSystem.Colors.violet // Purple
+        case "focus": return DesignSystem.Colors.blue // Blue
+        case "free_time": return DesignSystem.Colors.emerald // Green
+        case "consistency": return DesignSystem.Colors.amber // Orange
         case "recovery": return Color(hex: "EC4899") // Pink
         default: return Color(hex: "6B7280") // Gray
         }
@@ -908,10 +908,10 @@ struct HealthGoalSummary: Codable {
 
     var overallProgressColor: Color {
         switch overallPercentage {
-        case 80...100: return Color(hex: "10B981") // Green - excellent
-        case 60...79: return Color(hex: "3B82F6") // Blue - good
-        case 40...59: return Color(hex: "F59E0B") // Orange - fair
-        default: return Color(hex: "EF4444") // Red - needs work
+        case 80...100: return DesignSystem.Colors.emerald // Green - excellent
+        case 60...79: return DesignSystem.Colors.blue // Blue - good
+        case 40...59: return DesignSystem.Colors.amber // Orange - fair
+        default: return DesignSystem.Colors.errorRed // Red - needs work
         }
     }
 
@@ -970,10 +970,10 @@ struct GoalProgress: Codable, Identifiable {
 
     var progressColor: Color {
         switch percentage {
-        case 90...Int.max: return Color(hex: "10B981") // Green - exceeded
-        case 70...89: return Color(hex: "3B82F6") // Blue - on track
-        case 50...69: return Color(hex: "F59E0B") // Orange - partial
-        default: return Color(hex: "EF4444") // Red - needs work
+        case 90...Int.max: return DesignSystem.Colors.emerald // Green - exceeded
+        case 70...89: return DesignSystem.Colors.blue // Blue - on track
+        case 50...69: return DesignSystem.Colors.amber // Orange - partial
+        default: return DesignSystem.Colors.errorRed // Red - needs work
         }
     }
 
@@ -1081,12 +1081,12 @@ struct WeekHighlightDetail: Codable, Identifiable {
 
     var iconColor: Color {
         switch label.lowercased() {
-        case "busiest day": return Color(hex: "EF4444") // Red - intense
-        case "key collaborator": return Color(hex: "3B82F6") // Blue - collaborative
+        case "busiest day": return DesignSystem.Colors.errorRed // Red - intense
+        case "key collaborator": return DesignSystem.Colors.blue // Blue - collaborative
         case "marathon day": return Color(hex: "F97316") // Orange - endurance
-        case "longest meeting": return Color(hex: "8B5CF6") // Purple
-        case "early bird": return Color(hex: "F59E0B") // Amber
-        case "night owl": return Color(hex: "6366F1") // Indigo
+        case "longest meeting": return DesignSystem.Colors.violet // Purple
+        case "early bird": return DesignSystem.Colors.amber // Amber
+        case "night owl": return DesignSystem.Colors.indigo // Indigo
         case "flight", "travel": return Color(hex: "0EA5E9") // Sky blue
         default: return Color(hex: "6B7280") // Gray
         }
@@ -1195,11 +1195,11 @@ struct ForecastWeekMetrics: Codable {
 
     var densityColor: Color {
         switch densityLabel {
-        case "Very Heavy": return Color(hex: "EF4444") // Red
+        case "Very Heavy": return DesignSystem.Colors.errorRed // Red
         case "Heavy": return Color(hex: "F97316") // Orange
-        case "Full": return Color(hex: "F59E0B") // Amber
-        case "Light": return Color(hex: "10B981") // Green
-        default: return Color(hex: "3B82F6") // Blue
+        case "Full": return DesignSystem.Colors.amber // Amber
+        case "Light": return DesignSystem.Colors.emerald // Green
+        default: return DesignSystem.Colors.blue // Blue
         }
     }
 }
@@ -1248,11 +1248,11 @@ struct DayForecast: Codable, Identifiable {
 
     var intensityColor: Color {
         switch intensity {
-        case "heavy": return Color(hex: "EF4444") // Red
+        case "heavy": return DesignSystem.Colors.errorRed // Red
         case "full": return Color(hex: "F97316") // Orange
-        case "moderate": return Color(hex: "F59E0B") // Amber
-        case "light": return Color(hex: "3B82F6") // Blue
-        case "open": return Color(hex: "10B981") // Green
+        case "moderate": return DesignSystem.Colors.amber // Amber
+        case "light": return DesignSystem.Colors.blue // Blue
+        case "open": return DesignSystem.Colors.emerald // Green
         default: return Color(hex: "6B7280") // Gray
         }
     }
@@ -1296,9 +1296,9 @@ struct ForecastRiskSignal: Codable, Identifiable {
 
     var severityColor: Color {
         switch severity {
-        case "high": return Color(hex: "EF4444") // Red
-        case "medium": return Color(hex: "F59E0B") // Amber
-        case "low": return Color(hex: "3B82F6") // Blue
+        case "high": return DesignSystem.Colors.errorRed // Red
+        case "medium": return DesignSystem.Colors.amber // Amber
+        case "low": return DesignSystem.Colors.blue // Blue
         default: return Color(hex: "6B7280") // Gray
         }
     }
@@ -1349,8 +1349,8 @@ struct ForecastIntervention: Codable, Identifiable {
 
     var impactColor: Color {
         switch impact {
-        case 15...100: return Color(hex: "10B981") // Green - high impact
-        case 10...14: return Color(hex: "3B82F6") // Blue - medium
+        case 15...100: return DesignSystem.Colors.emerald // Green - high impact
+        case 10...14: return DesignSystem.Colors.blue // Blue - medium
         default: return Color(hex: "6B7280") // Gray - low
         }
     }

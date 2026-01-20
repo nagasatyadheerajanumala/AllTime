@@ -39,6 +39,7 @@ struct LifeInsightsView: View {
             }
             .padding(.horizontal, DesignSystem.Spacing.screenMargin)
             .padding(.top, DesignSystem.Spacing.md)
+            .padding(.bottom, 100) // Space for tab bar
         }
         .background(DesignSystem.Colors.background)
         .refreshable {
@@ -179,7 +180,7 @@ struct LifeInsightsView: View {
                     if let trendIcon = metric.trendIcon {
                         Image(systemName: trendIcon)
                             .font(.caption2.weight(.semibold))
-                            .foregroundColor(metric.trend == "up" ? Color(hex: "10B981") : metric.trend == "down" ? Color(hex: "EF4444") : .white.opacity(0.6))
+                            .foregroundColor(metric.trend == "up" ? DesignSystem.Colors.emerald : metric.trend == "down" ? DesignSystem.Colors.errorRed : .white.opacity(0.6))
                     }
                 }
                 Text(metric.label)

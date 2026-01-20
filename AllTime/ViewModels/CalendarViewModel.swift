@@ -238,7 +238,7 @@ class CalendarViewModel: ObservableObject {
                     // Rebuild index for fast lookups
                     self.rebuildEventIndex()
                 }
-                
+
                 #if DEBUG
                 print("💾 CalendarViewModel: Loaded \(filteredCached.count) cached events")
                 #endif

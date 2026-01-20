@@ -43,14 +43,18 @@ class CalendarService {
     ///   - startDate: Start time
     ///   - endDate: End time
     ///   - notes: Optional event notes
+    ///   - location: Optional event location
     ///   - calendarTitle: Optional calendar to add to (uses default if nil)
+    ///   - isAllDay: Whether this is an all-day event
     /// - Returns: True if event was created successfully
     func createEvent(
         title: String,
         startDate: Date,
         endDate: Date,
         notes: String? = nil,
-        calendarTitle: String? = nil
+        location: String? = nil,
+        calendarTitle: String? = nil,
+        isAllDay: Bool = false
     ) async throws -> Bool {
         // Request access if needed
         if !hasAccess {
@@ -66,6 +70,10 @@ class CalendarService {
         event.startDate = startDate
         event.endDate = endDate
         event.notes = notes
+        event.isAllDay = isAllDay
+        if let location = location, !location.isEmpty {
+            event.location = location
+        }
 
         // Find calendar
         if let calendarTitle = calendarTitle {
@@ -81,7 +89,13 @@ class CalendarService {
         // Save the event
         try eventStore.save(event, span: .thisEvent)
 
-        print("CalendarService: Created event '\(title)' from \(startDate) to \(endDate)")
+        print("✅ CalendarService: Created event '\(title)' in device calendar")
+        print("   - Start: \(startDate)")
+        print("   - End: \(endDate)")
+        print("   - All day: \(isAllDay)")
+        if let location = location {
+            print("   - Location: \(location)")
+        }
         return true
     }
 

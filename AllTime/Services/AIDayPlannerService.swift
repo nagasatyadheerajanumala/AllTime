@@ -37,10 +37,6 @@ class AIDayPlannerService: ObservableObject {
             throw AIPlannerError.notAuthenticated
         }
 
-        guard let userId = UserDefaults.standard.value(forKey: "userId") as? Int64 else {
-            throw AIPlannerError.notAuthenticated
-        }
-
         // Build the request
         guard let url = URL(string: "\(baseURL)/api/v1/planning/weekend-plan") else {
             throw AIPlannerError.invalidURL
@@ -50,7 +46,6 @@ class AIDayPlannerService: ObservableObject {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.setValue(String(userId), forHTTPHeaderField: "X-User-ID")
         request.timeoutInterval = 60 // AI generation can take longer
 
         // Create request body
@@ -91,7 +86,7 @@ class AIDayPlannerService: ObservableObject {
 
         if httpResponse.statusCode == 200 {
             let planResponse = try JSONDecoder().decode(WeekendPlanResponse.self, from: data)
-            print("✅ AIDayPlanner: Generated plan with \(planResponse.activities.count) activities")
+            print("✅ AIDayPlanner: Generated plan with \(planResponse.activities?.count ?? 0) activities")
             return planResponse
         } else if httpResponse.statusCode == 503 || httpResponse.statusCode == 504 {
             // Service unavailable - generate local plan
@@ -277,7 +272,7 @@ class AIDayPlannerService: ObservableObject {
         }
 
         // Calculate totals
-        let totalDuration = activities.reduce(0) { $0 + $1.duration }
+        let totalDuration = activities.reduce(0) { $0 + ($1.duration ?? 0) }
         let formatter = DateFormatter()
         formatter.dateFormat = "EEEE, MMM d"
 
@@ -407,15 +402,17 @@ struct LocationPayload: Codable {
 
 // MARK: - Response Models
 
-struct WeekendPlanResponse: Codable {
-    let date: String
-    let dayType: String
-    let summary: String
-    let activities: [PlannedActivity]
-    let totalDuration: Int
-    let estimatedBudget: String
-    let tips: [String]
-    let generatedAt: String
+struct WeekendPlanResponse: Codable, Identifiable {
+    var id: String { generatedAt ?? UUID().uuidString }
+
+    let date: String?
+    let dayType: String?
+    let summary: String?
+    let activities: [PlannedActivity]?
+    let totalDuration: Int?
+    let estimatedBudget: String?
+    let tips: [String]?
+    let generatedAt: String?
 
     enum CodingKeys: String, CodingKey {
         case date
@@ -432,17 +429,17 @@ struct WeekendPlanResponse: Codable {
 struct PlannedActivity: Codable, Identifiable {
     let id: String
     let title: String
-    let description: String
-    let category: String
-    let startTime: String
-    let endTime: String
-    let duration: Int
+    let description: String?
+    let category: String?
+    let startTime: String?
+    let endTime: String?
+    let duration: Int?
     let location: String?
     let address: String?
     let latitude: Double?
     let longitude: Double?
     let googlePlaceId: String?
-    let icon: String
+    let icon: String?
     let estimatedCost: String?
     let notes: String?
 
@@ -464,23 +461,23 @@ struct PlannedActivity: Codable, Identifiable {
         case notes
     }
 
-    // Custom initializer with default values for new optional fields
+    // Custom initializer with default values for optional fields
     init(
         id: String,
         title: String,
-        description: String,
-        category: String,
-        startTime: String,
-        endTime: String,
-        duration: Int,
-        location: String?,
+        description: String? = nil,
+        category: String? = nil,
+        startTime: String? = nil,
+        endTime: String? = nil,
+        duration: Int? = nil,
+        location: String? = nil,
         address: String? = nil,
         latitude: Double? = nil,
         longitude: Double? = nil,
         googlePlaceId: String? = nil,
-        icon: String,
-        estimatedCost: String?,
-        notes: String?
+        icon: String? = nil,
+        estimatedCost: String? = nil,
+        notes: String? = nil
     ) {
         self.id = id
         self.title = title
@@ -500,7 +497,7 @@ struct PlannedActivity: Codable, Identifiable {
     }
 
     var categoryColor: Color {
-        switch category.lowercased() {
+        switch category?.lowercased() {
         case "fitness", "outdoor": return .green
         case "dining": return .orange
         case "culture", "entertainment": return .purple

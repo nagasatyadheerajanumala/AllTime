@@ -22,7 +22,7 @@ struct SettingsView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                // Official Chrona Dark Theme Background
+                // Background
                 DesignSystem.Colors.background
                     .ignoresSafeArea()
                 
@@ -58,7 +58,7 @@ struct SettingsView: View {
                                             .foregroundColor(.secondary)
                                     }
                                 } else {
-                                    Text("Chrona User")
+                                    Text("Clara User")
                                         .font(.system(size: 17, weight: .regular))
                                         .foregroundColor(.secondary)
                                 }
@@ -92,7 +92,7 @@ struct SettingsView: View {
                     NavigationLink(destination: ConnectedCalendarsView()) {
                         SettingsRow(
                             icon: "calendar.badge.clock",
-                            iconColor: .blue,
+                            iconColor: DesignSystem.Colors.blue, // Blue
                             title: "My Calendars",
                             badge: settingsViewModel.connectedProvidersCount
                         )
@@ -112,8 +112,8 @@ struct SettingsView: View {
                 Section {
                     NavigationLink(destination: InterestsSetupView()) {
                         SettingsRow(
-                            icon: "heart.fill",
-                            iconColor: .pink,
+                            icon: "sparkles",
+                            iconColor: Color(hex: "EC4899"), // Pink
                             title: "My Interests"
                         )
                     }
@@ -133,28 +133,28 @@ struct SettingsView: View {
                 Section {
                     // Theme Toggle
                     ThemeToggleView()
-                    
+
                     NavigationLink(destination: NotificationSettingsView()) {
                         SettingsRow(
-                            icon: "bell.fill",
-                            iconColor: .blue,
+                            icon: "bell.badge.fill",
+                            iconColor: DesignSystem.Colors.amber, // Amber
                             title: "Notifications"
                         )
                     }
-                    
+
                     NavigationLink(destination: PrivacySettingsView()) {
                         SettingsRow(
-                            icon: "lock.fill",
-                            iconColor: .blue,
+                            icon: "lock.shield.fill",
+                            iconColor: DesignSystem.Colors.emerald, // Green
                             title: "Privacy & Security"
                         )
                     }
-                    
+
                     NavigationLink(destination: AboutView()) {
                         SettingsRow(
                             icon: "info.circle.fill",
-                            iconColor: .blue,
-                            title: "About"
+                            iconColor: DesignSystem.Colors.violet, // Purple
+                            title: "About Clara"
                         )
                     }
                 } header: {
@@ -180,6 +180,7 @@ struct SettingsView: View {
                 }
                 }
                 .safeAreaPadding(.bottom, 110) // Reserve space for tab bar
+                .contentMargins(.top, 0, for: .scrollContent)
                 .navigationTitle("Settings")
                 .navigationBarTitleDisplayMode(.large)
                 .refreshable {

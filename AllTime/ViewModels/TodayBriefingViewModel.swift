@@ -11,6 +11,35 @@ class TodayBriefingViewModel: ObservableObject {
     @Published var errorMessage: String?
     @Published var lastRefreshDate: Date?
 
+    // MARK: - Fresh HealthKit Data (from shared service)
+    /// Fresh health metrics from HealthKit - sourced from HealthMetricsService.shared
+    /// This data is fetched on app launch and foreground, ensuring immediate availability
+    var freshHealthMetrics: DailyHealthMetrics? {
+        HealthMetricsService.shared.todaysFreshMetrics
+    }
+
+    /// Convenience accessors for fresh health data
+    var freshSleepHours: Double? {
+        guard let minutes = freshHealthMetrics?.sleepMinutes else { return nil }
+        return Double(minutes) / 60.0
+    }
+
+    var freshSteps: Int? {
+        freshHealthMetrics?.steps
+    }
+
+    var freshActiveMinutes: Int? {
+        freshHealthMetrics?.activeMinutes
+    }
+
+    var freshRestingHeartRate: Double? {
+        freshHealthMetrics?.restingHeartRate
+    }
+
+    var freshHRV: Double? {
+        freshHealthMetrics?.hrv
+    }
+
     // MARK: - Private Properties
     private let apiService = APIService()
     private let cacheService = CacheService.shared
@@ -62,6 +91,13 @@ class TodayBriefingViewModel: ObservableObject {
     }
 
     // MARK: - Public Methods
+
+    /// Fetch fresh health metrics from the shared service
+    /// This triggers a refresh of HealthMetricsService.shared.todaysFreshMetrics
+    /// which is then automatically available via the freshHealthMetrics computed property
+    func fetchFreshHealthMetrics() async {
+        await HealthMetricsService.shared.fetchTodaysFreshMetrics()
+    }
 
     /// Fetch briefing from API with optional force refresh
     /// Uses request de-duplication to prevent duplicate API calls

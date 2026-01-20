@@ -45,28 +45,129 @@ class EveningSummaryNotificationService: ObservableObject {
     // MARK: - Engaging Copy Templates
 
     /// Generate a personalized evening title using the user's first name
+    /// Uses engaging, curiosity-inducing titles that make users want to tap
     private func getPersonalizedTitle() -> String {
         let firstName = UserDefaults.standard.string(forKey: "user_first_name")
 
         if let name = firstName, !name.isEmpty {
-            // Personalized greetings with name
+            // Engaging titles that create curiosity and encourage tapping
             let personalizedOptions = [
-                "How was your day, \(name)?",
-                "\(name)'s day in review",
-                "Time to reflect, \(name)",
-                "\(name), your day is done!"
+                "\(name), see what you accomplished",
+                "Your day decoded, \(name)",
+                "\(name)'s wins today",
+                "\(name), you might be surprised...",
+                "Look what you did today, \(name)",
+                "\(name), your day in numbers",
+                "Guess what, \(name)?",
+                "\(name), check this out"
             ]
-            return personalizedOptions.randomElement() ?? "How was your day, \(name)?"
+            return personalizedOptions.randomElement() ?? "\(name), see what you accomplished"
         } else {
-            // Fallback to generic titles
+            // Generic engaging titles
             let genericOptions = [
-                "Day in review",
-                "How was your day?",
-                "Daily wrap-up",
-                "End of day recap"
+                "See what you accomplished",
+                "Your day decoded",
+                "Today's wins inside",
+                "You might be surprised...",
+                "Look what you did today",
+                "Your day in numbers",
+                "Check this out"
             ]
-            return genericOptions.randomElement() ?? "Day in review"
+            return genericOptions.randomElement() ?? "See what you accomplished"
         }
+    }
+
+    /// Generate an engaging title based on day tone (used when we have insights data)
+    /// This creates context-aware titles that are even more compelling
+    private func getEngagingTitle(dayTone: String?, eventCount: Int?, stepsGoalMet: Bool?) -> String {
+        let firstName = UserDefaults.standard.string(forKey: "user_first_name")
+        let name = firstName ?? ""
+        let hasName = !name.isEmpty
+
+        // Achievement-based titles when goals are met
+        if stepsGoalMet == true {
+            if hasName {
+                return [
+                    "\(name), you crushed your goals!",
+                    "Way to go, \(name)!",
+                    "\(name), look at those numbers!"
+                ].randomElement()!
+            } else {
+                return ["You crushed your goals!", "Way to go!", "Look at those numbers!"].randomElement()!
+            }
+        }
+
+        // Tone-based engaging titles
+        if let tone = dayTone?.lowercased() {
+            switch tone {
+            case "intense", "busy":
+                if hasName {
+                    return [
+                        "\(name), you survived!",
+                        "What a day, \(name)!",
+                        "\(name), you earned this break"
+                    ].randomElement()!
+                } else {
+                    return ["You survived!", "What a day!", "You earned this break"].randomElement()!
+                }
+
+            case "productive":
+                if hasName {
+                    return [
+                        "\(name), productive much?",
+                        "On fire today, \(name)!",
+                        "\(name), boss moves only"
+                    ].randomElement()!
+                } else {
+                    return ["Productive much?", "On fire today!", "Boss moves only"].randomElement()!
+                }
+
+            case "calm", "relaxed":
+                if hasName {
+                    return [
+                        "Chill day, \(name)?",
+                        "\(name), easy does it",
+                        "Nice pace today, \(name)"
+                    ].randomElement()!
+                } else {
+                    return ["Chill day?", "Easy does it", "Nice pace today"].randomElement()!
+                }
+
+            case "balanced":
+                if hasName {
+                    return [
+                        "Perfect balance, \(name)",
+                        "\(name), nailed the mix",
+                        "Harmony achieved, \(name)"
+                    ].randomElement()!
+                } else {
+                    return ["Perfect balance", "Nailed the mix", "Harmony achieved"].randomElement()!
+                }
+
+            default:
+                break
+            }
+        }
+
+        // Event-count based titles
+        if let events = eventCount {
+            if events >= 6 {
+                if hasName {
+                    return ["\(name), marathon day!", "Busy bee, \(name)!", "\(name), what a hustle"].randomElement()!
+                } else {
+                    return ["Marathon day!", "Busy bee!", "What a hustle"].randomElement()!
+                }
+            } else if events <= 2 {
+                if hasName {
+                    return ["\(name), breathing room!", "Space to think, \(name)", "\(name), light and easy"].randomElement()!
+                } else {
+                    return ["Breathing room!", "Space to think", "Light and easy"].randomElement()!
+                }
+            }
+        }
+
+        // Default to generic engaging title
+        return getPersonalizedTitle()
     }
 
     private let titles = [
@@ -99,42 +200,31 @@ class EveningSummaryNotificationService: ObservableObject {
     ]
 
     /// Generate personalized fallback messages for evening summary
+    /// Uses summary-style messages, not questions/questionnaires
+    /// Note: For repeating notifications, we use day-agnostic messages since content is
+    /// set at schedule time, not fire time. Day-specific content is set via refreshNotificationWithSummaryData.
     private func getPersonalizedFallbackMessage() -> String {
         let firstName = UserDefaults.standard.string(forKey: "user_first_name")
-        let dayOfWeek = Calendar.current.component(.weekday, from: Date())
 
-        // Weekend-specific messages
-        if dayOfWeek == 1 || dayOfWeek == 7 {
-            if let name = firstName, !name.isEmpty {
-                let weekendMessages = [
-                    "How was your weekend day, \(name)?",
-                    "\(name), time to reflect on your day.",
-                    "Rest up, \(name)! See how today went."
-                ]
-                return weekendMessages.randomElement() ?? "Your weekend recap is ready."
-            }
-            return "Weekend day wrapped up! See how it went."
-        }
-
-        // Weekday personalized messages
+        // Use day-agnostic summary-style messages for repeating notifications
         if let name = firstName, !name.isEmpty {
             let personalizedMessages = [
-                "\(name), take a moment to reflect.",
-                "Another day done, \(name)! How did it go?",
-                "\(name), see what you accomplished today.",
-                "Time to unwind, \(name). Review your day."
+                "\(name), here's how your day went.",
+                "Your day wrapped up, \(name). See the highlights.",
+                "\(name), your daily summary is ready.",
+                "Day done! Tap to see your summary, \(name)."
             ]
-            return personalizedMessages.randomElement() ?? "Your day review is ready, \(name)."
+            return personalizedMessages.randomElement() ?? "Your daily summary is ready, \(name)."
         }
 
-        // Generic fallback
+        // Generic summary-style fallback (not questions)
         let genericMessages = [
-            "See how your day went and reflect.",
-            "Your day review is ready.",
-            "Review your day and rate how it went.",
-            "Time to reflect on your day."
+            "Here's how your day went.",
+            "Your daily summary is ready.",
+            "Day complete. See your highlights.",
+            "Tap to see today's summary."
         ]
-        return genericMessages.randomElement() ?? "Your day review is ready."
+        return genericMessages.randomElement() ?? "Your daily summary is ready."
     }
 
     private let fallbackMessages = [
@@ -276,11 +366,60 @@ class EveningSummaryNotificationService: ObservableObject {
         }
     }
 
-    /// Send a test notification immediately (for debugging/preview)
+    /// Send a test notification immediately with mock data (for debugging/preview)
     func sendTestNotification() {
+        // Create mock activities for testing
+        let mockActivities: [ActivityStatus] = [
+            ActivityStatus(
+                activityId: "1",
+                title: "Team standup meeting",
+                category: "work",
+                plannedTime: "09:00",
+                location: nil,
+                isCompleted: true,
+                matchedEventTitle: nil
+            ),
+            ActivityStatus(
+                activityId: "2",
+                title: "Project review with stakeholders",
+                category: "work",
+                plannedTime: "14:00",
+                location: "Conference Room A",
+                isCompleted: true,
+                matchedEventTitle: nil
+            ),
+            ActivityStatus(
+                activityId: "3",
+                title: "Code review session",
+                category: "work",
+                plannedTime: "16:00",
+                location: nil,
+                isCompleted: true,
+                matchedEventTitle: nil
+            ),
+            ActivityStatus(
+                activityId: "4",
+                title: "1:1 with manager",
+                category: "work",
+                plannedTime: "17:00",
+                location: nil,
+                isCompleted: false,
+                matchedEventTitle: nil
+            )
+        ]
+
+        // Generate summary body with mock data
+        let body = generateEnhancedSummaryBody(
+            summaryMessage: "",  // Empty to test fallback generation
+            meetingsCompleted: 3,
+            totalMeetings: 4,
+            completionPercentage: 75,
+            activities: mockActivities
+        )
+
         let content = UNMutableNotificationContent()
         content.title = getPersonalizedTitle()
-        content.body = "See how your day went and reflect on it."
+        content.body = body
         content.sound = .default
         content.userInfo = [
             "type": "evening_summary",
@@ -299,7 +438,7 @@ class EveningSummaryNotificationService: ObservableObject {
             if let error = error {
                 print("Failed to send test notification: \(error.localizedDescription)")
             } else {
-                print("Test evening summary notification sent")
+                print("Test evening summary notification sent with body: \(body)")
             }
         }
     }
@@ -310,30 +449,59 @@ class EveningSummaryNotificationService: ObservableObject {
         guard isEnabled else { return }
 
         do {
-            // Fetch today's day review data
-            let review = try await DayReviewService.shared.getDayReview(date: Date())
+            // Try to fetch comprehensive daily insights first (better summary)
+            let dailyInsights = try await DayReviewService.shared.getDailyInsightsSummary(date: Date())
 
-            let meetingsCompleted = review.totalCompleted
-            let totalMeetings = review.totalPlanned
-            let completionPercentage = review.completionPercentage
+            // Use context-aware engaging title based on day data
+            let title = getEngagingTitle(
+                dayTone: dailyInsights.dayTone,
+                eventCount: dailyInsights.eventStats?.totalEvents,
+                stepsGoalMet: dailyInsights.health?.stepsGoalMet
+            )
+            let body = dailyInsights.shortSummary
 
-            // Generate engaging notification content
-            let title = getPersonalizedTitle()
-            let body = generateSummaryBody(
-                meetingsCompleted: meetingsCompleted,
-                totalMeetings: totalMeetings,
-                completionPercentage: completionPercentage
+            // Update the scheduled notification with fresh content
+            let content = UNMutableNotificationContent()
+            content.title = title
+            content.body = body
+            content.sound = .default
+            content.userInfo = [
+                "type": "evening_summary",
+                "destination": "day-review",
+                "day_tone": dailyInsights.dayTone
+            ]
+
+            // Re-schedule with updated content
+            let calendar = Calendar.current
+            var dateComponents = calendar.dateComponents([.hour, .minute], from: scheduledTime)
+            dateComponents.second = 0
+
+            let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: true)
+
+            let request = UNNotificationRequest(
+                identifier: notificationIdentifier,
+                content: content,
+                trigger: trigger
             )
 
-            // Update the scheduled notification
-            updateNotificationContent(
-                meetingsCompleted: meetingsCompleted,
-                totalMeetings: totalMeetings,
-                focusTimeUsed: nil,
-                mood: nil
+            // Remove old and add new
+            UNUserNotificationCenter.current().removePendingNotificationRequests(
+                withIdentifiers: [notificationIdentifier]
             )
 
-            // Save to notification history
+            UNUserNotificationCenter.current().add(request) { error in
+                if let error = error {
+                    print("[EveningSummary] Failed to update notification: \(error.localizedDescription)")
+                } else {
+                    print("[EveningSummary] Notification updated with daily insights: \(body)")
+                }
+            }
+
+            // Save to notification history with event stats if available
+            let meetingsCompleted = dailyInsights.eventStats?.meetings ?? 0
+            let totalMeetings = dailyInsights.eventStats?.totalEvents ?? 0
+            let completionPercentage = 0 // Not applicable for insights summary
+
             historyService.addEveningSummary(
                 title: title,
                 body: body,
@@ -342,11 +510,129 @@ class EveningSummaryNotificationService: ObservableObject {
                 completionPercentage: completionPercentage
             )
 
-            print("[EveningSummary] Updated notification with summary: \(meetingsCompleted)/\(totalMeetings) completed (\(completionPercentage)%)")
+            print("[EveningSummary] Updated notification with daily insights: \(dailyInsights.dayTone) day")
         } catch {
-            print("[EveningSummary] Failed to fetch summary data: \(error.localizedDescription)")
-            // Keep fallback notification content
+            print("[EveningSummary] Daily insights failed, trying day review: \(error.localizedDescription)")
+
+            // Fallback to day review endpoint
+            do {
+                let review = try await DayReviewService.shared.getDayReview(date: Date())
+
+                let meetingsCompleted = review.totalCompleted
+                let totalMeetings = review.totalPlanned
+                let completionPercentage = review.completionPercentage
+
+                let title = getPersonalizedTitle()
+                let body = generateEnhancedSummaryBody(
+                    summaryMessage: review.summaryMessage,
+                    meetingsCompleted: meetingsCompleted,
+                    totalMeetings: totalMeetings,
+                    completionPercentage: completionPercentage,
+                    activities: review.activities
+                )
+
+                let content = UNMutableNotificationContent()
+                content.title = title
+                content.body = body
+                content.sound = .default
+                content.userInfo = [
+                    "type": "evening_summary",
+                    "destination": "day-review"
+                ]
+
+                let calendar = Calendar.current
+                var dateComponents = calendar.dateComponents([.hour, .minute], from: scheduledTime)
+                dateComponents.second = 0
+
+                let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: true)
+
+                let request = UNNotificationRequest(
+                    identifier: notificationIdentifier,
+                    content: content,
+                    trigger: trigger
+                )
+
+                UNUserNotificationCenter.current().removePendingNotificationRequests(
+                    withIdentifiers: [notificationIdentifier]
+                )
+
+                UNUserNotificationCenter.current().add(request) { error in
+                    if let error = error {
+                        print("[EveningSummary] Failed to update notification: \(error.localizedDescription)")
+                    } else {
+                        print("[EveningSummary] Notification updated with day review")
+                    }
+                }
+
+                historyService.addEveningSummary(
+                    title: title,
+                    body: body,
+                    meetingsCompleted: meetingsCompleted,
+                    totalMeetings: totalMeetings,
+                    completionPercentage: completionPercentage
+                )
+            } catch {
+                print("[EveningSummary] Failed to fetch any summary data: \(error.localizedDescription)")
+                // Keep fallback notification content
+            }
         }
+    }
+
+    /// Generate an enhanced summary body using API data and activity information
+    private func generateEnhancedSummaryBody(
+        summaryMessage: String,
+        meetingsCompleted: Int,
+        totalMeetings: Int,
+        completionPercentage: Int,
+        activities: [ActivityStatus]
+    ) -> String {
+        // If we have a good summary message from the API, use it
+        if !summaryMessage.isEmpty && summaryMessage.count < 120 {
+            return summaryMessage
+        }
+
+        // Build a summary based on activities
+        let completedActivities = activities.filter { $0.isCompleted }
+        let firstName = UserDefaults.standard.string(forKey: "user_first_name")
+        let name = firstName ?? ""
+
+        // No activities case
+        if totalMeetings == 0 {
+            if !name.isEmpty {
+                return "\(name), you had a free day today. Time to relax and reflect!"
+            }
+            return "You had a free day today. Time to relax and reflect!"
+        }
+
+        // Build activity summary
+        var summary = ""
+
+        // High completion rate
+        if completionPercentage >= 80 {
+            if !name.isEmpty {
+                summary = "Great job, \(name)! You completed \(meetingsCompleted) of \(totalMeetings) activities today (\(completionPercentage)%)."
+            } else {
+                summary = "Great job! You completed \(meetingsCompleted) of \(totalMeetings) activities today (\(completionPercentage)%)."
+            }
+        } else if completionPercentage >= 50 {
+            summary = "You completed \(meetingsCompleted) of \(totalMeetings) activities today. Tap to reflect on your day."
+        } else if totalMeetings >= 5 {
+            summary = "Busy day with \(totalMeetings) activities! You got through \(meetingsCompleted). Time to unwind."
+        } else {
+            summary = "You had \(totalMeetings) activities today and completed \(meetingsCompleted). How did your day feel?"
+        }
+
+        // Add top completed activity if available
+        if let topActivity = completedActivities.first {
+            let shortTitle = topActivity.title.prefix(30)
+            if shortTitle.count < topActivity.title.count {
+                summary += " Including \"\(shortTitle)...\"."
+            } else if summary.count + topActivity.title.count < 140 {
+                summary += " Including \"\(topActivity.title)\"."
+            }
+        }
+
+        return summary
     }
 
     /// Generate a summary-specific notification body

@@ -234,7 +234,7 @@ enum TaskPriority: String, Codable, CaseIterable {
         case .low: return .secondary
         case .medium: return Color(hex: "007AFF")   // Blue
         case .high: return Color(hex: "5856D6")     // Indigo
-        case .urgent: return Color(hex: "FF9500")   // Orange
+        case .urgent: return DesignSystem.Colors.warning   // Orange
         }
     }
 

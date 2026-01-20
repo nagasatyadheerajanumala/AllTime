@@ -92,34 +92,16 @@ struct DailySummaryCardView: View {
         )
     }
 
+    private var mood: DayMood {
+        DayMood(from: briefing.mood)
+    }
+
     private var moodColor: Color {
-        switch briefing.mood.lowercased() {
-        case "focus_day", "focused":
-            return Color(hex: "3B82F6")
-        case "light_day", "light":
-            return Color(hex: "10B981")
-        case "intense_meetings", "intense", "busy":
-            return Color(hex: "F59E0B")
-        case "rest_day", "rest", "recovery":
-            return Color(hex: "8B5CF6")
-        default:
-            return DesignSystem.Colors.primary
-        }
+        mood.color
     }
 
     private var moodBackgroundColor: Color {
-        switch briefing.mood.lowercased() {
-        case "focus_day", "focused":
-            return Color(hex: "3B82F6").opacity(0.08)
-        case "light_day", "light":
-            return Color(hex: "10B981").opacity(0.08)
-        case "intense_meetings", "intense", "busy":
-            return Color(hex: "F59E0B").opacity(0.08)
-        case "rest_day", "rest", "recovery":
-            return Color(hex: "8B5CF6").opacity(0.08)
-        default:
-            return DesignSystem.Colors.cardBackground
-        }
+        mood.color.opacity(0.08)
     }
 }
 
@@ -154,7 +136,7 @@ struct TodaysPlanSection: View {
             HStack(spacing: 8) {
                 Image(systemName: "sparkles")
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(Color(hex: "F59E0B"))
+                    .foregroundColor(DesignSystem.Colors.amber)
 
                 Text("Today's Plan")
                     .font(.headline)
@@ -561,7 +543,7 @@ struct QuickStatsRowView: View {
                 icon: "brain.head.profile",
                 value: focusLabel,
                 label: "Focus",
-                color: Color(hex: "10B981")
+                color: DesignSystem.Colors.emerald
             )
 
             quickDivider
@@ -571,7 +553,7 @@ struct QuickStatsRowView: View {
                 icon: "heart.fill",
                 value: healthLabel,
                 label: "Health",
-                color: Color(hex: "EF4444")
+                color: DesignSystem.Colors.errorRed
             )
 
             quickDivider
@@ -581,7 +563,7 @@ struct QuickStatsRowView: View {
                 icon: "bolt.fill",
                 value: energyLabel,
                 label: "Energy",
-                color: Color(hex: "F59E0B")
+                color: DesignSystem.Colors.amber
             )
         }
         .padding(.vertical, DesignSystem.Spacing.md)
@@ -1150,7 +1132,7 @@ struct FocusWindowRow: View {
                             Text("\(score)")
                                 .font(.caption.weight(.medium))
                         }
-                        .foregroundColor(Color(hex: "F59E0B"))
+                        .foregroundColor(DesignSystem.Colors.amber)
                     }
 
                     if !window.confidenceBadge.isEmpty {
@@ -1300,12 +1282,14 @@ struct EnergyDipRow: View {
 // MARK: - Detailed Summary View (Accordion Content)
 struct DetailedSummaryContent: View {
     let briefing: DailyBriefingResponse
+    /// Fresh HealthKit data - when provided, these values are displayed instead of backend data
+    var freshHealthMetrics: DailyHealthMetrics? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-            // Key metrics breakdown
+            // Key metrics breakdown - uses fresh HealthKit data when available
             if let metrics = briefing.keyMetrics {
-                DetailedMetricsSection(metrics: metrics)
+                DetailedMetricsSection(metrics: metrics, freshHealthMetrics: freshHealthMetrics)
             }
 
             // Data sources info
@@ -1330,6 +1314,49 @@ struct DetailedSummaryContent: View {
 
 struct DetailedMetricsSection: View {
     let metrics: BriefingKeyMetrics
+    /// Fresh HealthKit data - when provided, these values are displayed instead of backend data
+    var freshHealthMetrics: DailyHealthMetrics? = nil
+
+    // MARK: - Fresh Health Data Accessors
+    /// Get fresh sleep hours, falling back to backend data
+    private var displaySleepHours: Double? {
+        if let freshMinutes = freshHealthMetrics?.sleepMinutes, freshMinutes > 0 {
+            return Double(freshMinutes) / 60.0
+        }
+        return metrics.sleepHoursLastNight
+    }
+
+    /// Get fresh steps, falling back to backend data
+    private var displaySteps: Int? {
+        if let freshSteps = freshHealthMetrics?.steps, freshSteps > 0 {
+            return freshSteps
+        }
+        return metrics.stepsYesterday ?? metrics.stepsToday
+    }
+
+    /// Get fresh active minutes, falling back to backend data
+    private var displayActiveMinutes: Int? {
+        if let freshMinutes = freshHealthMetrics?.activeMinutes, freshMinutes > 0 {
+            return freshMinutes
+        }
+        return metrics.activeMinutesYesterday ?? metrics.activeMinutes
+    }
+
+    /// Get fresh resting heart rate, falling back to backend data
+    private var displayRestingHeartRate: Int? {
+        if let freshHR = freshHealthMetrics?.restingHeartRate, freshHR > 0 {
+            return Int(freshHR)
+        }
+        return metrics.restingHeartRate
+    }
+
+    /// Get fresh HRV, falling back to backend data
+    private var displayHRV: Int? {
+        if let freshHRV = freshHealthMetrics?.hrv, freshHRV > 0 {
+            return Int(freshHRV)
+        }
+        return metrics.hrvLastNight
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
@@ -1361,7 +1388,7 @@ struct DetailedMetricsSection: View {
                 }
             }
 
-            // Health metrics
+            // Health metrics - use fresh HealthKit data when available
             if hasHealthMetrics {
                 VStack(alignment: .leading, spacing: 8) {
                     Label("Health", systemImage: "heart.fill")
@@ -1369,8 +1396,8 @@ struct DetailedMetricsSection: View {
                         .foregroundColor(DesignSystem.Colors.secondaryText)
 
                     VStack(alignment: .leading, spacing: 4) {
-                        // Sleep metrics - only show if > 0
-                        if let sleepHours = metrics.sleepHoursLastNight, sleepHours > 0 {
+                        // Sleep metrics - use fresh data when available
+                        if let sleepHours = displaySleepHours, sleepHours > 0 {
                             DetailMetricRow(label: "Sleep last night", value: String(format: "%.1fh", sleepHours))
                         }
                         if let sleepQuality = metrics.sleepQualityScore, sleepQuality > 0 {
@@ -1378,23 +1405,19 @@ struct DetailedMetricsSection: View {
                         } else if let sleep = metrics.sleepScore, sleep > 0 {
                             DetailMetricRow(label: "Sleep score", value: "\(sleep)")
                         }
-                        // Steps - only show if > 0
-                        if let steps = metrics.stepsYesterday, steps > 0 {
-                            DetailMetricRow(label: "Steps yesterday", value: steps.formatted())
-                        } else if let steps = metrics.stepsToday, steps > 0 {
-                            DetailMetricRow(label: "Steps today", value: steps.formatted())
+                        // Steps - use fresh data when available
+                        if let steps = displaySteps, steps > 0 {
+                            DetailMetricRow(label: "Steps", value: steps.formatted())
                         }
-                        // Active minutes - only show if > 0
-                        if let active = metrics.activeMinutesYesterday, active > 0 {
-                            DetailMetricRow(label: "Active minutes yesterday", value: "\(active) min")
-                        } else if let active = metrics.activeMinutes, active > 0 {
+                        // Active minutes - use fresh data when available
+                        if let active = displayActiveMinutes, active > 0 {
                             DetailMetricRow(label: "Active minutes", value: "\(active) min")
                         }
-                        // Heart metrics - only show if > 0
-                        if let rhr = metrics.restingHeartRate, rhr > 0 {
+                        // Heart metrics - use fresh data when available
+                        if let rhr = displayRestingHeartRate, rhr > 0 {
                             DetailMetricRow(label: "Resting heart rate", value: "\(rhr) BPM")
                         }
-                        if let hrv = metrics.hrvLastNight, hrv > 0 {
+                        if let hrv = displayHRV, hrv > 0 {
                             DetailMetricRow(label: "HRV last night", value: "\(hrv) ms")
                         }
                     }
@@ -1410,10 +1433,22 @@ struct DetailedMetricsSection: View {
     }
 
     private var hasHealthMetrics: Bool {
-        metrics.sleepHoursLastNight != nil || metrics.sleepScore != nil ||
-        metrics.stepsYesterday != nil || metrics.stepsToday != nil ||
-        metrics.activeMinutesYesterday != nil || metrics.activeMinutes != nil ||
-        metrics.restingHeartRate != nil || metrics.hrvLastNight != nil
+        // Check both backend data and fresh HealthKit data - values must be > 0 to be considered available
+        let hasFreshSleep = (freshHealthMetrics?.sleepMinutes ?? 0) > 0
+        let hasFreshSteps = (freshHealthMetrics?.steps ?? 0) > 0
+        let hasFreshActive = (freshHealthMetrics?.activeMinutes ?? 0) > 0
+        let hasFreshHR = (freshHealthMetrics?.restingHeartRate ?? 0) > 0
+        let hasFreshHRV = (freshHealthMetrics?.hrv ?? 0) > 0
+        let hasFreshData = hasFreshSleep || hasFreshSteps || hasFreshActive || hasFreshHR || hasFreshHRV
+
+        let hasBackendSleep = (metrics.sleepHoursLastNight ?? 0) > 0 || (metrics.sleepScore ?? 0) > 0
+        let hasBackendSteps = (metrics.stepsYesterday ?? metrics.stepsToday ?? 0) > 0
+        let hasBackendActive = (metrics.activeMinutesYesterday ?? metrics.activeMinutes ?? 0) > 0
+        let hasBackendHR = (metrics.restingHeartRate ?? 0) > 0
+        let hasBackendHRV = (metrics.hrvLastNight ?? 0) > 0
+        let hasBackendData = hasBackendSleep || hasBackendSteps || hasBackendActive || hasBackendHR || hasBackendHRV
+
+        return hasFreshData || hasBackendData
     }
 }
 
@@ -1543,6 +1578,33 @@ struct HealthInsightsCard: View {
     let keyMetrics: BriefingKeyMetrics?
     let suggestions: [BriefingSuggestion]?
     let quickStats: QuickStats?
+    /// Fresh HealthKit data - when provided, these values are displayed instead of backend data
+    var freshHealthMetrics: DailyHealthMetrics? = nil
+
+    // MARK: - Fresh Health Data Accessors
+    /// Get fresh sleep hours, falling back to backend data
+    private var displaySleepHours: Double? {
+        if let freshMinutes = freshHealthMetrics?.sleepMinutes, freshMinutes > 0 {
+            return Double(freshMinutes) / 60.0
+        }
+        return keyMetrics?.sleepHoursLastNight ?? keyMetrics?.effectiveSleepHours
+    }
+
+    /// Get fresh steps, falling back to backend data
+    private var displaySteps: Int? {
+        if let freshSteps = freshHealthMetrics?.steps, freshSteps > 0 {
+            return freshSteps
+        }
+        return keyMetrics?.stepsYesterday ?? keyMetrics?.stepsToday
+    }
+
+    /// Get fresh active minutes, falling back to backend data
+    private var displayActiveMinutes: Int? {
+        if let freshMinutes = freshHealthMetrics?.activeMinutes, freshMinutes > 0 {
+            return freshMinutes
+        }
+        return keyMetrics?.activeMinutesYesterday ?? keyMetrics?.activeMinutes
+    }
 
     // Filter health-related suggestions
     private var healthSuggestions: [BriefingSuggestion] {
@@ -1559,27 +1621,36 @@ struct HealthInsightsCard: View {
 
     // Determine energy level based on sleep and HRV
     private var energyLevel: (label: String, color: Color, icon: String) {
-        guard let metrics = keyMetrics else {
+        guard keyMetrics != nil || freshHealthMetrics != nil else {
             return ("Unknown", DesignSystem.Colors.secondaryText, "questionmark.circle")
         }
 
-        let sleepHours = metrics.sleepHoursLastNight ?? metrics.effectiveSleepHours ?? 0
-        let hrv = metrics.hrvLastNight
+        // Use fresh data if available, otherwise backend data
+        let sleepHours = displaySleepHours ?? 0
+        let hrv = keyMetrics?.hrvLastNight
 
         if sleepHours >= 7 && (hrv == nil || hrv! >= 40) {
-            return ("High Energy", Color(hex: "10B981"), "bolt.fill")
+            return ("High Energy", DesignSystem.Colors.emerald, "bolt.fill")
         } else if sleepHours >= 6 && (hrv == nil || hrv! >= 30) {
-            return ("Moderate", Color(hex: "F59E0B"), "bolt")
+            return ("Moderate", DesignSystem.Colors.amber, "bolt")
         } else {
-            return ("Low Energy", Color(hex: "EF4444"), "battery.25")
+            return ("Low Energy", DesignSystem.Colors.errorRed, "battery.25")
         }
     }
 
     private var hasHealthData: Bool {
-        guard let metrics = keyMetrics else { return false }
-        return metrics.sleepHoursLastNight != nil ||
-               metrics.stepsYesterday != nil ||
-               metrics.activeMinutesYesterday != nil
+        // Check both backend data and fresh HealthKit data - values must be > 0 to be considered available
+        let hasFreshSleep = (freshHealthMetrics?.sleepMinutes ?? 0) > 0
+        let hasFreshSteps = (freshHealthMetrics?.steps ?? 0) > 0
+        let hasFreshActive = (freshHealthMetrics?.activeMinutes ?? 0) > 0
+        let hasFreshData = hasFreshSleep || hasFreshSteps || hasFreshActive
+
+        let hasBackendSleep = (keyMetrics?.sleepHoursLastNight ?? 0) > 0
+        let hasBackendSteps = (keyMetrics?.stepsYesterday ?? keyMetrics?.stepsToday ?? 0) > 0
+        let hasBackendActive = (keyMetrics?.activeMinutesYesterday ?? keyMetrics?.activeMinutes ?? 0) > 0
+        let hasBackendData = hasBackendSleep || hasBackendSteps || hasBackendActive
+
+        return hasFreshData || hasBackendData
     }
 
     var body: some View {
@@ -1589,7 +1660,7 @@ struct HealthInsightsCard: View {
                 HStack {
                     Image(systemName: "heart.fill")
                         .font(.subheadline.weight(.semibold))
-                        .foregroundColor(Color(hex: "EF4444"))
+                        .foregroundColor(DesignSystem.Colors.errorRed)
 
                     Text("Health Insights")
                         .font(.subheadline.weight(.semibold))
@@ -1634,8 +1705,8 @@ struct HealthInsightsCard: View {
     @ViewBuilder
     private func healthMetricsRow(metrics: BriefingKeyMetrics) -> some View {
         HStack(spacing: DesignSystem.Spacing.sm) {
-            // Sleep metric - only show if > 0
-            if let sleepHours = metrics.sleepHoursLastNight ?? metrics.effectiveSleepHours, sleepHours > 0 {
+            // Sleep metric - use fresh data when available
+            if let sleepHours = displaySleepHours, sleepHours > 0 {
                 healthMetricItem(
                     icon: "moon.fill",
                     value: String(format: "%.1fh", sleepHours),
@@ -1645,8 +1716,8 @@ struct HealthInsightsCard: View {
                 )
             }
 
-            // Steps metric - only show if > 0
-            if let steps = metrics.stepsYesterday ?? metrics.stepsToday, steps > 0 {
+            // Steps metric - use fresh data when available
+            if let steps = displaySteps, steps > 0 {
                 healthMetricItem(
                     icon: "figure.walk",
                     value: formatNumber(steps),
@@ -1656,8 +1727,8 @@ struct HealthInsightsCard: View {
                 )
             }
 
-            // Active minutes metric - only show if > 0
-            if let activeMin = metrics.activeMinutesYesterday ?? metrics.activeMinutes, activeMin > 0 {
+            // Active minutes metric - use fresh data when available
+            if let activeMin = displayActiveMinutes, activeMin > 0 {
                 healthMetricItem(
                     icon: "flame.fill",
                     value: "\(activeMin)m",
@@ -1710,7 +1781,7 @@ struct HealthInsightsCard: View {
                 HStack(spacing: DesignSystem.Spacing.sm) {
                     Image(systemName: suggestion.displayIcon)
                         .font(.caption)
-                        .foregroundColor(Color(hex: "10B981"))
+                        .foregroundColor(DesignSystem.Colors.emerald)
                         .frame(width: 20)
 
                     VStack(alignment: .leading, spacing: 2) {
@@ -1738,7 +1809,7 @@ struct HealthInsightsCard: View {
                 .padding(DesignSystem.Spacing.sm)
                 .background(
                     RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.sm)
-                        .fill(Color(hex: "10B981").opacity(0.08))
+                        .fill(DesignSystem.Colors.emerald.opacity(0.08))
                 )
             }
         }
@@ -1755,9 +1826,9 @@ struct HealthInsightsCard: View {
     }
 
     private func sleepColor(_ hours: Double) -> Color {
-        if hours >= 7 { return Color(hex: "10B981") }
-        if hours >= 6 { return Color(hex: "F59E0B") }
-        return Color(hex: "EF4444")
+        if hours >= 7 { return DesignSystem.Colors.emerald }
+        if hours >= 6 { return DesignSystem.Colors.amber }
+        return DesignSystem.Colors.errorRed
     }
 
     private func stepsComparison(_ steps: Int, average: Int?) -> String? {
@@ -1770,9 +1841,9 @@ struct HealthInsightsCard: View {
     private func stepsColor(_ steps: Int, average: Int?) -> Color {
         let target = average ?? 10000
         let percent = Double(steps) / Double(target)
-        if percent >= 0.8 { return Color(hex: "10B981") }
-        if percent >= 0.5 { return Color(hex: "F59E0B") }
-        return Color(hex: "EF4444")
+        if percent >= 0.8 { return DesignSystem.Colors.emerald }
+        if percent >= 0.5 { return DesignSystem.Colors.amber }
+        return DesignSystem.Colors.errorRed
     }
 
     private func activeMinComparison(_ minutes: Int, average: Int?) -> String? {
@@ -1785,9 +1856,9 @@ struct HealthInsightsCard: View {
     private func activeMinColor(_ minutes: Int, average: Int?) -> Color {
         let target = average ?? 30
         let percent = Double(minutes) / Double(target)
-        if percent >= 0.8 { return Color(hex: "10B981") }
-        if percent >= 0.5 { return Color(hex: "F59E0B") }
-        return Color(hex: "EF4444")
+        if percent >= 0.8 { return DesignSystem.Colors.emerald }
+        if percent >= 0.5 { return DesignSystem.Colors.amber }
+        return DesignSystem.Colors.errorRed
     }
 
     private func formatNumber(_ num: Int) -> String {

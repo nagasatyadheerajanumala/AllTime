@@ -89,12 +89,12 @@ struct ToDoDetailView: View {
             TaskStatCard(
                 value: "\(viewModel.catchUpCount)",
                 label: "Catch Up",
-                color: Color(hex: "FF9500")
+                color: DesignSystem.Colors.warning
             )
             TaskStatCard(
                 value: "\(viewModel.doneToday)",
                 label: "Done",
-                color: Color(hex: "10B981")
+                color: DesignSystem.Colors.emerald
             )
         }
     }
@@ -284,7 +284,7 @@ struct TodoTaskRow: View {
 
                     if isCompleted {
                         Circle()
-                            .fill(Color(hex: "10B981"))
+                            .fill(DesignSystem.Colors.emerald)
                             .frame(width: 24, height: 24)
                         Image(systemName: "checkmark")
                             .font(.system(size: 12, weight: .bold))
@@ -308,13 +308,13 @@ struct TodoTaskRow: View {
                     if let time = task.timeLabel {
                         Text(time)
                             .font(.caption)
-                            .foregroundColor(task.isOverdue == true ? Color(hex: "FF9500") : DesignSystem.Colors.secondaryText)
+                            .foregroundColor(task.isOverdue == true ? DesignSystem.Colors.warning : DesignSystem.Colors.secondaryText)
                     }
 
                     if task.isOverdue == true {
                         Text("Past")
                             .font(.caption)
-                            .foregroundColor(Color(hex: "FF9500"))
+                            .foregroundColor(DesignSystem.Colors.warning)
                     }
                 }
             }
@@ -337,19 +337,19 @@ struct TodoTaskRow: View {
         .padding(12)
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(task.isOverdue == true ? Color(hex: "FF9500").opacity(0.08) : DesignSystem.Colors.cardBackground)
+                .fill(task.isOverdue == true ? DesignSystem.Colors.warning.opacity(0.08) : DesignSystem.Colors.cardBackground)
         )
     }
 
     private var checkboxColor: Color {
         if isCompleted {
-            return Color(hex: "10B981")
+            return DesignSystem.Colors.emerald
         }
         if task.isOverdue == true {
-            return Color(hex: "FF9500")
+            return DesignSystem.Colors.warning
         }
         switch task.priority {
-        case .urgent: return Color(hex: "FF9500")
+        case .urgent: return DesignSystem.Colors.warning
         case .high: return Color(hex: "5856D6")
         default: return DesignSystem.Colors.secondaryText
         }
@@ -374,7 +374,7 @@ struct TaskPriorityBadge: View {
 
     private var priorityColor: Color {
         switch priority {
-        case .urgent: return Color(hex: "FF9500")   // Orange - time-sensitive
+        case .urgent: return DesignSystem.Colors.warning   // Orange - time-sensitive
         case .high: return Color(hex: "5856D6")     // Indigo - important
         case .medium: return Color(hex: "007AFF")   // Blue - regular
         case .low: return DesignSystem.Colors.secondaryText

@@ -47,11 +47,11 @@ struct LifeInsightItem: Codable, Identifiable {
     var sentimentColor: Color {
         switch sentiment {
         case "positive":
-            return Color(hex: "10B981") // Green
+            return DesignSystem.Colors.emerald // Green
         case "negative":
-            return Color(hex: "EF4444") // Red
+            return DesignSystem.Colors.errorRed // Red
         default:
-            return Color(hex: "3B82F6") // Blue
+            return DesignSystem.Colors.blue // Blue
         }
     }
 }
@@ -78,11 +78,11 @@ struct LifeActionItem: Codable, Identifiable {
     var priorityColor: Color {
         switch priority {
         case "high":
-            return Color(hex: "EF4444") // Red
+            return DesignSystem.Colors.errorRed // Red
         case "medium":
-            return Color(hex: "F59E0B") // Orange
+            return DesignSystem.Colors.amber // Orange
         default:
-            return Color(hex: "10B981") // Green
+            return DesignSystem.Colors.emerald // Green
         }
     }
 }
@@ -146,7 +146,7 @@ struct LifeKeyMetric: Codable, Identifiable {
         if let hex = colorHex {
             return Color(hex: hex)
         }
-        return Color(hex: "3B82F6")
+        return DesignSystem.Colors.blue
     }
 
     var trendIcon: String? {

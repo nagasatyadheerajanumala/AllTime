@@ -245,31 +245,43 @@ struct AIWeeklyOverviewCard: View {
 // MARK: - Health Summary Stats Grid
 struct HealthSummaryStatsGrid: View {
     let stats: SummaryStats
-    
+
+    /// Check if there's any health data to display
+    private var hasAnyData: Bool {
+        let hasSteps = (stats.avgSteps ?? 0) > 0
+        let hasSleep = (stats.avgSleepMinutes ?? 0) > 0
+        let hasActive = (stats.avgActiveMinutes ?? 0) > 0
+        let hasWorkouts = (stats.totalWorkouts ?? 0) > 0
+        return hasSteps || hasSleep || hasActive || hasWorkouts
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-            Text("Overview")
-                .font(DesignSystem.Typography.title3)
-                .fontWeight(.bold)
-                .foregroundColor(DesignSystem.Colors.primaryText)
-            
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: DesignSystem.Spacing.md) {
-                if let steps = stats.avgSteps, steps > 0 {
-                    HealthMetricCard(icon: "figure.walk", title: "Avg Steps", value: Int(steps).formatted(), color: .blue)
-                }
+        // Only show the section if there's any health data
+        if hasAnyData {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+                Text("Overview")
+                    .font(DesignSystem.Typography.title3)
+                    .fontWeight(.bold)
+                    .foregroundColor(DesignSystem.Colors.primaryText)
 
-                if let sleep = stats.avgSleepMinutes, sleep > 0 {
-                    let hours = Int(sleep) / 60
-                    let minutes = Int(sleep) % 60
-                    HealthMetricCard(icon: "moon.fill", title: "Avg Sleep", value: "\(hours)h \(minutes)m", color: .indigo)
-                }
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: DesignSystem.Spacing.md) {
+                    if let steps = stats.avgSteps, steps > 0 {
+                        HealthMetricCard(icon: "figure.walk", title: "Avg Steps", value: Int(steps).formatted(), color: .blue)
+                    }
 
-                if let active = stats.avgActiveMinutes, active > 0 {
-                    HealthMetricCard(icon: "flame.fill", title: "Avg Active", value: "\(Int(active).formatted()) min", color: .orange)
-                }
+                    if let sleep = stats.avgSleepMinutes, sleep > 0 {
+                        let hours = Int(sleep) / 60
+                        let minutes = Int(sleep) % 60
+                        HealthMetricCard(icon: "moon.fill", title: "Avg Sleep", value: "\(hours)h \(minutes)m", color: .indigo)
+                    }
 
-                if let workouts = stats.totalWorkouts, workouts > 0 {
-                    HealthMetricCard(icon: "figure.run", title: "Workouts", value: workouts.formatted(), color: .green)
+                    if let active = stats.avgActiveMinutes, active > 0 {
+                        HealthMetricCard(icon: "flame.fill", title: "Avg Active", value: "\(Int(active).formatted()) min", color: .orange)
+                    }
+
+                    if let workouts = stats.totalWorkouts, workouts > 0 {
+                        HealthMetricCard(icon: "figure.run", title: "Workouts", value: workouts.formatted(), color: .green)
+                    }
                 }
             }
         }
@@ -486,50 +498,77 @@ struct HealthTrendCard: View {
 // MARK: - Comprehensive Health Breakdown
 struct ComprehensiveHealthBreakdown: View {
     let breakdown: HealthBreakdown
-    
+
+    /// Check if heart health has any data to display
+    private var hasHeartHealthData: Bool {
+        guard let h = breakdown.heartHealth else { return false }
+        return h.restingHeartRateAvg != nil || h.hrvAvg != nil ||
+               (h.bloodPressureSystolicAvg != nil && h.bloodPressureDiastolicAvg != nil)
+    }
+
+    /// Check if activity has any data to display
+    private var hasActivityData: Bool {
+        guard let a = breakdown.activity else { return false }
+        return a.stepsAvg != nil || a.activeMinutesAvg != nil || a.walkingDistanceAvg != nil
+    }
+
+    /// Check if sleep has any data to display
+    private var hasSleepData: Bool {
+        guard let s = breakdown.sleep else { return false }
+        return s.sleepMinutesAvg != nil || s.sleepQualityScoreAvg != nil
+    }
+
+    /// Check if there's any health breakdown data to display
+    private var hasAnyData: Bool {
+        hasHeartHealthData || hasActivityData || hasSleepData
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-            Text("Health Categories")
-                .font(DesignSystem.Typography.title3)
-                .fontWeight(.bold)
-                .foregroundColor(DesignSystem.Colors.primaryText)
-            
-            if let heartHealth = breakdown.heartHealth {
-                DetailedHealthCategoryCard(
-                    title: "Heart Health",
-                    icon: "heart.fill",
-                    color: .red,
-                    items: [
-                        ("Resting HR", heartHealth.restingHeartRateAvg != nil ? String(format: "%.0f BPM", heartHealth.restingHeartRateAvg!) : nil),
-                        ("HRV", heartHealth.hrvAvg != nil ? String(format: "%.1f ms", heartHealth.hrvAvg!) : nil),
-                        ("BP", heartHealth.bloodPressureSystolicAvg != nil && heartHealth.bloodPressureDiastolicAvg != nil ? String(format: "%.0f/%.0f", heartHealth.bloodPressureSystolicAvg!, heartHealth.bloodPressureDiastolicAvg!) : nil)
-                    ]
-                )
-            }
-            
-            if let activity = breakdown.activity {
-                DetailedHealthCategoryCard(
-                    title: "Activity",
-                    icon: "figure.walk",
-                    color: .blue,
-                    items: [
-                        ("Steps", activity.stepsAvg != nil ? Int(activity.stepsAvg!).formatted() : nil),
-                        ("Active", activity.activeMinutesAvg != nil ? String(format: "%.0f min", activity.activeMinutesAvg!) : nil),
-                        ("Walking", activity.walkingDistanceAvg != nil ? String(format: "%.1f km", activity.walkingDistanceAvg! / 1000) : nil)
-                    ]
-                )
-            }
-            
-            if let sleep = breakdown.sleep {
-                DetailedHealthCategoryCard(
-                    title: "Sleep",
-                    icon: "moon.fill",
-                    color: .indigo,
-                    items: [
-                        ("Duration", sleep.sleepMinutesAvg != nil ? String(format: "%.1f hrs", sleep.sleepMinutesAvg! / 60) : nil),
-                        ("Quality", sleep.sleepQualityScoreAvg != nil ? String(format: "%.0f%%", sleep.sleepQualityScoreAvg!) : nil)
-                    ]
-                )
+        // Only show the section if there's any health breakdown data
+        if hasAnyData {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+                Text("Health Categories")
+                    .font(DesignSystem.Typography.title3)
+                    .fontWeight(.bold)
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+
+                if hasHeartHealthData, let heartHealth = breakdown.heartHealth {
+                    DetailedHealthCategoryCard(
+                        title: "Heart Health",
+                        icon: "heart.fill",
+                        color: .red,
+                        items: [
+                            ("Resting HR", heartHealth.restingHeartRateAvg != nil ? String(format: "%.0f BPM", heartHealth.restingHeartRateAvg!) : nil),
+                            ("HRV", heartHealth.hrvAvg != nil ? String(format: "%.1f ms", heartHealth.hrvAvg!) : nil),
+                            ("BP", heartHealth.bloodPressureSystolicAvg != nil && heartHealth.bloodPressureDiastolicAvg != nil ? String(format: "%.0f/%.0f", heartHealth.bloodPressureSystolicAvg!, heartHealth.bloodPressureDiastolicAvg!) : nil)
+                        ]
+                    )
+                }
+
+                if hasActivityData, let activity = breakdown.activity {
+                    DetailedHealthCategoryCard(
+                        title: "Activity",
+                        icon: "figure.walk",
+                        color: .blue,
+                        items: [
+                            ("Steps", activity.stepsAvg != nil ? Int(activity.stepsAvg!).formatted() : nil),
+                            ("Active", activity.activeMinutesAvg != nil ? String(format: "%.0f min", activity.activeMinutesAvg!) : nil),
+                            ("Walking", activity.walkingDistanceAvg != nil ? String(format: "%.1f km", activity.walkingDistanceAvg! / 1000) : nil)
+                        ]
+                    )
+                }
+
+                if hasSleepData, let sleep = breakdown.sleep {
+                    DetailedHealthCategoryCard(
+                        title: "Sleep",
+                        icon: "moon.fill",
+                        color: .indigo,
+                        items: [
+                            ("Duration", sleep.sleepMinutesAvg != nil ? String(format: "%.1f hrs", sleep.sleepMinutesAvg! / 60) : nil),
+                            ("Quality", sleep.sleepQualityScoreAvg != nil ? String(format: "%.0f%%", sleep.sleepQualityScoreAvg!) : nil)
+                        ]
+                    )
+                }
             }
         }
     }
@@ -585,7 +624,7 @@ struct DetailedHealthCategoryCard: View {
 struct WeeklyHealthChartsSection: View {
     let metrics: [DailyHealthMetrics]
     @State private var selectedMetric: MetricType = .steps
-    
+
     private var availableMetrics: [MetricType] {
         // Only show metrics that have at least one data point
         MetricType.allCases.filter { metricType in
@@ -593,6 +632,11 @@ struct WeeklyHealthChartsSection: View {
                 metricType.value(from: entry) != nil
             }
         }
+    }
+
+    /// Check if there's any health chart data to display
+    private var hasAnyData: Bool {
+        !metrics.isEmpty && !availableMetrics.isEmpty
     }
     
     private var chartPoints: [ChartPoint] {
@@ -620,47 +664,49 @@ struct WeeklyHealthChartsSection: View {
     }
     
     var body: some View {
-        VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Daily Trends")
-                        .font(DesignSystem.Typography.title3)
-                        .fontWeight(.bold)
-                        .foregroundColor(DesignSystem.Colors.primaryText)
-                    
-                    Text(effectiveMetric.subtitle)
-                        .font(DesignSystem.Typography.caption)
-                        .foregroundColor(DesignSystem.Colors.secondaryText)
-                }
-                
-                Spacer()
-                
-                if availableMetrics.count > 1 {
-                    Picker("Metric", selection: $selectedMetric) {
-                        ForEach(availableMetrics) { metric in
-                            Text(metric.displayName).tag(metric)
-                        }
+        // Only show the section if there's any chart data available
+        if hasAnyData {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Daily Trends")
+                            .font(DesignSystem.Typography.title3)
+                            .fontWeight(.bold)
+                            .foregroundColor(DesignSystem.Colors.primaryText)
+
+                        Text(effectiveMetric.subtitle)
+                            .font(DesignSystem.Typography.caption)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
                     }
-                    .pickerStyle(.menu)
+
+                    Spacer()
+
+                    if availableMetrics.count > 1 {
+                        Picker("Metric", selection: $selectedMetric) {
+                            ForEach(availableMetrics) { metric in
+                                Text(metric.displayName).tag(metric)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                    }
                 }
-            }
-            
-            if chartPoints.isEmpty {
-                VStack(spacing: DesignSystem.Spacing.sm) {
-                    Image(systemName: "chart.line.uptrend.xyaxis")
-                        .font(.title3)
-                        .foregroundColor(DesignSystem.Colors.tertiaryText)
-                    Text("Not enough data for this metric yet.")
-                        .font(DesignSystem.Typography.caption)
-                        .foregroundColor(DesignSystem.Colors.secondaryText)
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 32)
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color(UIColor.secondarySystemGroupedBackground))
-                )
-            } else {
+
+                if chartPoints.isEmpty {
+                    VStack(spacing: DesignSystem.Spacing.sm) {
+                        Image(systemName: "chart.line.uptrend.xyaxis")
+                            .font(.title3)
+                            .foregroundColor(DesignSystem.Colors.tertiaryText)
+                        Text("Not enough data for this metric yet.")
+                            .font(DesignSystem.Typography.caption)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 32)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color(UIColor.secondarySystemGroupedBackground))
+                    )
+                } else {
                 Chart {
                     ForEach(chartPoints) { point in
                         AreaMark(
@@ -707,25 +753,26 @@ struct WeeklyHealthChartsSection: View {
                 
                 MetricSummaryView(metric: effectiveMetric, points: chartPoints)
             }
-        }
-        .onAppear {
-            // Auto-select first available metric if current selection has no data
-            let available = availableMetrics
-            if !available.contains(selectedMetric) {
-                if let first = available.first {
+            }
+            .onAppear {
+                // Auto-select first available metric if current selection has no data
+                let available = availableMetrics
+                if !available.contains(selectedMetric) {
+                    if let first = available.first {
+                        selectedMetric = first
+                    }
+                }
+            }
+            .onChange(of: metrics) { _, _ in
+                // Update selection when metrics change
+                let available = availableMetrics
+                if !available.contains(selectedMetric), let first = available.first {
                     selectedMetric = first
                 }
             }
         }
-        .onChange(of: metrics) { _, _ in
-            // Update selection when metrics change
-            let available = availableMetrics
-            if !available.contains(selectedMetric), let first = available.first {
-                selectedMetric = first
-            }
-        }
     }
-    
+
     // MARK: - Nested Types
     struct ChartPoint: Identifiable {
         let date: Date
@@ -946,7 +993,7 @@ struct HealthInsightsPermissionRequiredView: View {
                 .fontWeight(.bold)
                 .foregroundColor(DesignSystem.Colors.primaryText)
             
-            Text("To view your health insights, Chrona needs access to your Health data.")
+            Text("To view your health insights, Clara needs access to your Health data.")
                 .font(DesignSystem.Typography.body)
                 .foregroundColor(DesignSystem.Colors.secondaryText)
                 .multilineTextAlignment(.center)
@@ -961,7 +1008,7 @@ struct HealthInsightsPermissionRequiredView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     InstructionStep(number: "1", text: "Open iOS Settings")
                     InstructionStep(number: "2", text: "Go to Health → Data Access & Devices")
-                    InstructionStep(number: "3", text: "Select 'Chrona'")
+                    InstructionStep(number: "3", text: "Select 'Clara'")
                     InstructionStep(number: "4", text: "Turn ON all health data types")
                 }
             }

@@ -7,19 +7,32 @@ class IntelligenceService {
 
     private let baseURL = Constants.API.baseURL
     private let session = URLSession.shared
+    private let timeout: TimeInterval = Constants.API.timeout
     private let locationManager = CLLocationManager()
 
+    private var accessToken: String? {
+        KeychainManager.shared.getAccessToken()
+    }
+
     private init() {}
+
+    /// Creates URLComponents from the given string, throwing an error if invalid
+    private func makeURLComponents(_ path: String) throws -> URLComponents {
+        guard let components = URLComponents(string: path) else {
+            throw IntelligenceError.invalidResponse
+        }
+        return components
+    }
 
     // MARK: - Daily Forecast
 
     /// Get comprehensive daily forecast combining all signals
     func getDailyForecast() async throws -> DailyForecast {
-        guard let userId = UserDefaults.standard.value(forKey: "userId") as? Int64 else {
+        guard let token = accessToken, !token.isEmpty else {
             throw IntelligenceError.notAuthenticated
         }
 
-        var urlComponents = URLComponents(string: "\(baseURL)/api/intelligence/forecast/daily")!
+        var urlComponents = try makeURLComponents("\(baseURL)/api/intelligence/forecast/daily")
 
         // Add location if available
         if let location = getCurrentLocation() {
@@ -29,10 +42,14 @@ class IntelligenceService {
             ]
         }
 
-        var request = URLRequest(url: urlComponents.url!)
+        guard let url = urlComponents.url else {
+            throw IntelligenceError.invalidResponse
+        }
+        var request = URLRequest(url: url)
         request.httpMethod = "GET"
+        request.timeoutInterval = timeout
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue(String(userId), forHTTPHeaderField: "X-User-ID")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
 
         let (data, response) = try await session.data(for: request)
 
@@ -52,11 +69,11 @@ class IntelligenceService {
 
     /// Get prediction for a specific event
     func getEventPrediction(eventId: Int64) async throws -> EventPrediction {
-        guard let userId = UserDefaults.standard.value(forKey: "userId") as? Int64 else {
+        guard let token = accessToken, !token.isEmpty else {
             throw IntelligenceError.notAuthenticated
         }
 
-        var urlComponents = URLComponents(string: "\(baseURL)/api/intelligence/event/\(eventId)")!
+        var urlComponents = try makeURLComponents("\(baseURL)/api/intelligence/event/\(eventId)")
 
         // Add location if available
         if let location = getCurrentLocation() {
@@ -66,10 +83,14 @@ class IntelligenceService {
             ]
         }
 
-        var request = URLRequest(url: urlComponents.url!)
+        guard let url = urlComponents.url else {
+            throw IntelligenceError.invalidResponse
+        }
+        var request = URLRequest(url: url)
         request.httpMethod = "GET"
+        request.timeoutInterval = timeout
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue(String(userId), forHTTPHeaderField: "X-User-ID")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
 
         let (data, response) = try await session.data(for: request)
 
@@ -93,11 +114,11 @@ class IntelligenceService {
 
     /// Get predictions for all remaining events today
     func getRemainingEventPredictions() async throws -> [EventPrediction] {
-        guard let userId = UserDefaults.standard.value(forKey: "userId") as? Int64 else {
+        guard let token = accessToken, !token.isEmpty else {
             throw IntelligenceError.notAuthenticated
         }
 
-        var urlComponents = URLComponents(string: "\(baseURL)/api/intelligence/events/remaining")!
+        var urlComponents = try makeURLComponents("\(baseURL)/api/intelligence/events/remaining")
 
         // Add location if available
         if let location = getCurrentLocation() {
@@ -107,10 +128,14 @@ class IntelligenceService {
             ]
         }
 
-        var request = URLRequest(url: urlComponents.url!)
+        guard let url = urlComponents.url else {
+            throw IntelligenceError.invalidResponse
+        }
+        var request = URLRequest(url: url)
         request.httpMethod = "GET"
+        request.timeoutInterval = timeout
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue(String(userId), forHTTPHeaderField: "X-User-ID")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
 
         let (data, response) = try await session.data(for: request)
 

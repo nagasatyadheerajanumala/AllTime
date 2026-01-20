@@ -23,7 +23,7 @@ struct QuickStatsHeader: View {
                 icon: "brain.head.profile",
                 value: quickStats.focusTimeAvailable ?? "0h",
                 label: "Focus Time",
-                color: Color(hex: "10B981")
+                color: DesignSystem.Colors.emerald
             )
 
             Divider()
@@ -35,7 +35,7 @@ struct QuickStatsHeader: View {
                 icon: "heart.fill",
                 value: quickStats.healthLabel ?? "Good",
                 label: "Health",
-                color: Color(hex: "EF4444")
+                color: DesignSystem.Colors.errorRed
             )
 
             Divider()
@@ -47,7 +47,7 @@ struct QuickStatsHeader: View {
                 icon: "bolt.fill",
                 value: quickStats.energyForecast ?? "Steady",
                 label: "Energy",
-                color: Color(hex: "F59E0B")
+                color: DesignSystem.Colors.amber
             )
         }
         .padding(.vertical, DesignSystem.Spacing.md)
@@ -141,7 +141,7 @@ struct SummaryCard: View {
                     HStack(alignment: .top, spacing: 8) {
                         Image(systemName: "lightbulb.fill")
                             .font(.system(size: 12))
-                            .foregroundColor(Color(hex: "F59E0B"))
+                            .foregroundColor(DesignSystem.Colors.amber)
 
                         Text(topSuggestion)
                             .font(.subheadline)
@@ -163,7 +163,7 @@ struct SummaryCard: View {
                                 Image(systemName: isSuggestionExpanded ? "chevron.up" : "chevron.down")
                                     .font(.system(size: 10, weight: .medium))
                             }
-                            .foregroundColor(Color(hex: "F59E0B"))
+                            .foregroundColor(DesignSystem.Colors.amber)
                         }
                         .buttonStyle(.plain)
                     }
@@ -172,7 +172,7 @@ struct SummaryCard: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(
                     RoundedRectangle(cornerRadius: 10)
-                        .fill(Color(hex: "F59E0B").opacity(0.1))
+                        .fill(DesignSystem.Colors.amber.opacity(0.1))
                 )
             }
         }
@@ -574,7 +574,7 @@ struct SuggestionsSection: View {
             HStack {
                 Image(systemName: "lightbulb.fill")
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(Color(hex: "F59E0B"))
+                    .foregroundColor(DesignSystem.Colors.amber)
 
                 Text("Suggestions")
                     .font(.subheadline.weight(.semibold))
@@ -699,7 +699,7 @@ struct FocusWindowCard: View {
                             Text("\(score)")
                                 .font(.system(size: 11, weight: .medium))
                         }
-                        .foregroundColor(Color(hex: "F59E0B"))
+                        .foregroundColor(DesignSystem.Colors.amber)
                     }
                 }
             }
@@ -866,7 +866,7 @@ struct EnergyDipsSection: View {
             HStack {
                 Image(systemName: "battery.50")
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(Color(hex: "F59E0B"))
+                    .foregroundColor(DesignSystem.Colors.amber)
 
                 Text("Energy Dips")
                     .font(.subheadline.weight(.semibold))
@@ -925,7 +925,7 @@ struct KeyMetricsSection: View {
                         icon: "brain.head.profile",
                         value: String(format: "%.1fh", focusTime),
                         label: "Focus Time",
-                        color: Color(hex: "10B981")
+                        color: DesignSystem.Colors.emerald
                     )
                 }
 
@@ -934,7 +934,7 @@ struct KeyMetricsSection: View {
                         icon: "figure.walk",
                         value: steps.formatted(),
                         label: "Steps",
-                        color: Color(hex: "F59E0B")
+                        color: DesignSystem.Colors.amber
                     )
                 }
 
@@ -943,7 +943,7 @@ struct KeyMetricsSection: View {
                         icon: "moon.fill",
                         value: "\(sleepScore)",
                         label: "Sleep Score",
-                        color: Color(hex: "8B5CF6")
+                        color: DesignSystem.Colors.violet
                     )
                 }
 
@@ -952,7 +952,7 @@ struct KeyMetricsSection: View {
                         icon: "flame.fill",
                         value: "\(activeMinutes)m",
                         label: "Active Time",
-                        color: Color(hex: "EF4444")
+                        color: DesignSystem.Colors.errorRed
                     )
                 }
 

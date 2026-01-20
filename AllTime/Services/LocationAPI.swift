@@ -3,8 +3,17 @@ import CoreLocation
 
 class LocationAPI {
     private let baseURL = Constants.API.baseURL
+    private let timeout: TimeInterval = Constants.API.timeout
     private let apiService = APIService()
-    
+
+    /// Creates a URL from the given string, throwing an error if invalid
+    private func makeURL(_ path: String) throws -> URL {
+        guard let url = URL(string: path) else {
+            throw LocationError.invalidURL
+        }
+        return url
+    }
+
     // MARK: - Update Location
     
     func updateLocation(latitude: Double, longitude: Double,
@@ -13,9 +22,10 @@ class LocationAPI {
             throw LocationError.unauthorized
         }
         
-        let url = URL(string: "\(baseURL)/api/v1/location")!
+        let url = try makeURL("\(baseURL)/api/v1/location")
         
         var request = URLRequest(url: url)
+        request.timeoutInterval = timeout
         request.httpMethod = "POST"
         request.addValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.addValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -65,6 +75,7 @@ class LocationAPI {
         }
         
         var request = URLRequest(url: url)
+        request.timeoutInterval = timeout
         request.addValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         
         print("📤 LocationAPI: Fetching lunch recommendations for \(dateStr)")
@@ -123,6 +134,7 @@ class LocationAPI {
         }
         
         var request = URLRequest(url: url)
+        request.timeoutInterval = timeout
         request.addValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         
         print("📤 LocationAPI: Fetching walk routes for \(dateStr)")
@@ -178,9 +190,10 @@ class LocationAPI {
             throw LocationError.unauthorized
         }
 
-        let url = URL(string: "\(baseURL)/api/v1/places/visits")!
+        let url = try makeURL("\(baseURL)/api/v1/places/visits")
 
         var request = URLRequest(url: url)
+        request.timeoutInterval = timeout
         request.httpMethod = "POST"
         request.addValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.addValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -222,9 +235,10 @@ class LocationAPI {
             throw LocationError.unauthorized
         }
 
-        let url = URL(string: "\(baseURL)/api/v1/places/check-proximity")!
+        let url = try makeURL("\(baseURL)/api/v1/places/check-proximity")
 
         var request = URLRequest(url: url)
+        request.timeoutInterval = timeout
         request.httpMethod = "POST"
         request.addValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.addValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -258,9 +272,10 @@ class LocationAPI {
             throw LocationError.unauthorized
         }
 
-        let url = URL(string: "\(baseURL)/api/v1/places/auto-record")!
+        let url = try makeURL("\(baseURL)/api/v1/places/auto-record")
 
         var request = URLRequest(url: url)
+        request.timeoutInterval = timeout
         request.httpMethod = "POST"
         request.addValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.addValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -294,9 +309,10 @@ class LocationAPI {
             throw LocationError.unauthorized
         }
 
-        let url = URL(string: "\(baseURL)/api/v1/places/suggestions/today")!
+        let url = try makeURL("\(baseURL)/api/v1/places/suggestions/today")
 
         var request = URLRequest(url: url)
+        request.timeoutInterval = timeout
         request.addValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
 
         let (data, response) = try await URLSession.shared.data(for: request)
@@ -321,9 +337,10 @@ class LocationAPI {
             throw LocationError.unauthorized
         }
 
-        let url = URL(string: "\(baseURL)/api/v1/places/suggestions/\(suggestionId)/click")!
+        let url = try makeURL("\(baseURL)/api/v1/places/suggestions/\(suggestionId)/click")
 
         var request = URLRequest(url: url)
+        request.timeoutInterval = timeout
         request.httpMethod = "POST"
         request.addValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
 

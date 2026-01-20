@@ -339,31 +339,53 @@ class PlanMyDayViewModel: ObservableObject {
     // MARK: - Add to Calendar
 
     /// Add a focus window to the calendar
+    /// Uses FocusTimeService to sync to Google/Microsoft Calendar AND saves to local device calendar
     func addFocusWindowToCalendar(_ window: FocusWindow) async -> Bool {
         guard let startDate = window.startDate, let endDate = window.endDate else {
             print("❌ Cannot add focus window - missing dates")
             return false
         }
 
+        let title = window.suggestedActivity ?? "Focus Time"
+
         do {
-            let title = window.suggestedActivity ?? "Focus Time"
-            let success = try await CalendarService.shared.createEvent(
+            // Primary: Use FocusTimeService to sync to Google/Microsoft Calendar via backend
+            let response = try await FocusTimeService.shared.blockFocusTime(
+                start: startDate,
+                end: endDate,
                 title: title,
-                startDate: startDate,
-                endDate: endDate,
-                notes: window.reason
+                description: window.reason ?? "Focus time from Plan Your Day",
+                enableFocusMode: false,
+                calendarProvider: "all"  // Sync to all connected calendars
             )
 
-            if success {
+            if response.success {
                 let generator = UINotificationFeedbackGenerator()
                 generator.notificationOccurred(.success)
                 print("✅ Added focus window to calendar: \(title)")
-            }
 
-            return success
+                // Log calendar sync results
+                if let calendarEvents = response.calendarEvents {
+                    for event in calendarEvents {
+                        if event.success {
+                            print("   ✅ \(event.provider) Calendar: synced (eventId: \(event.eventId ?? "n/a"))")
+                        } else {
+                            print("   ⚠️ \(event.provider) Calendar: failed - \(event.error ?? "unknown")")
+                        }
+                    }
+                }
+
+                // Post notification for UI refresh
+                NotificationCenter.default.post(name: NSNotification.Name("EventCreated"), object: nil)
+                return true
+            } else {
+                print("❌ FocusTimeService failed: \(response.message ?? "unknown error")")
+                errorMessage = response.message ?? "Failed to add to calendar"
+                return false
+            }
         } catch {
             print("❌ Failed to add focus window to calendar: \(error)")
-            errorMessage = "Failed to add to calendar"
+            errorMessage = "Failed to add to calendar: \(error.localizedDescription)"
             return false
         }
     }
@@ -395,23 +417,43 @@ class PlanMyDayViewModel: ObservableObject {
         }
 
         do {
-            let success = try await CalendarService.shared.createEvent(
+            // Use FocusTimeService to sync to Google/Microsoft Calendar via backend
+            let response = try await FocusTimeService.shared.blockFocusTime(
+                start: startDate,
+                end: endDate,
                 title: lunch.title,
-                startDate: startDate,
-                endDate: endDate,
-                notes: lunch.description
+                description: lunch.description ?? "Lunch break from Plan Your Day",
+                enableFocusMode: false,
+                calendarProvider: "all"  // Sync to all connected calendars
             )
 
-            if success {
+            if response.success {
                 let generator = UINotificationFeedbackGenerator()
                 generator.notificationOccurred(.success)
                 print("✅ Added lunch to calendar: \(lunch.title)")
-            }
 
-            return success
+                // Log calendar sync results
+                if let calendarEvents = response.calendarEvents {
+                    for event in calendarEvents {
+                        if event.success {
+                            print("   ✅ \(event.provider) Calendar: synced")
+                        } else {
+                            print("   ⚠️ \(event.provider) Calendar: failed - \(event.error ?? "unknown")")
+                        }
+                    }
+                }
+
+                // Post notification for UI refresh
+                NotificationCenter.default.post(name: NSNotification.Name("EventCreated"), object: nil)
+                return true
+            } else {
+                print("❌ FocusTimeService failed: \(response.message ?? "unknown error")")
+                errorMessage = response.message ?? "Failed to add to calendar"
+                return false
+            }
         } catch {
             print("❌ Failed to add lunch to calendar: \(error)")
-            errorMessage = "Failed to add to calendar"
+            errorMessage = "Failed to add to calendar: \(error.localizedDescription)"
             return false
         }
     }
@@ -609,7 +651,7 @@ class PlanMyDayViewModel: ObservableObject {
             )
 
             self.weekendPlan = plan
-            print("✅ Generated AI weekend plan with \(plan.activities.count) activities")
+            print("✅ Generated AI weekend plan with \(plan.activities?.count ?? 0) activities")
 
         } catch {
             errorMessage = "Failed to generate plan: \(error.localizedDescription)"

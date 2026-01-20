@@ -6,7 +6,23 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXCopyFilesBuildPhase section */
+		A24D3F542F16E9FF0026B445 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
+		A24D3F3F2F16E9FD0026B445 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		A24D3F412F16E9FD0026B445 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		A24D3F662F16EA450026B445 /* AllTimeWidgetsExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = AllTimeWidgetsExtension.entitlements; sourceTree = "<group>"; };
 		A25624E02EA1B05E006F37F8 /* AllTime.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AllTime.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -42,10 +58,21 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		A24D3F3E2F16E9FD0026B445 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				A24D3F3F2F16E9FD0026B445 /* WidgetKit.framework */,
+				A24D3F412F16E9FD0026B445 /* SwiftUI.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		A25624D72EA1B05E006F37F8 = {
 			isa = PBXGroup;
 			children = (
+				A24D3F662F16EA450026B445 /* AllTimeWidgetsExtension.entitlements */,
 				A25624E22EA1B05E006F37F8 /* AllTime */,
+				A24D3F3E2F16E9FD0026B445 /* Frameworks */,
 				A25624E12EA1B05E006F37F8 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -68,6 +95,7 @@
 				A25624DC2EA1B05E006F37F8 /* Sources */,
 				A25624DD2EA1B05E006F37F8 /* Frameworks */,
 				A25624DE2EA1B05E006F37F8 /* Resources */,
+				A24D3F542F16E9FF0026B445 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);

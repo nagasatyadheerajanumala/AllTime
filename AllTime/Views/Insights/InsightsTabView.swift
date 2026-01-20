@@ -78,13 +78,13 @@ struct InsightsTabView: View {
                 Capsule()
                     .fill(
                         LinearGradient(
-                            colors: [Color(hex: "6366F1"), Color(hex: "8B5CF6")],
+                            colors: [DesignSystem.Colors.indigo, DesignSystem.Colors.violet],
                             startPoint: .leading,
                             endPoint: .trailing
                         )
                     )
             )
-            .shadow(color: Color(hex: "6366F1").opacity(0.3), radius: 8, x: 0, y: 4)
+            .shadow(color: DesignSystem.Colors.indigo.opacity(0.3), radius: 8, x: 0, y: 4)
         }
         .padding(.horizontal, DesignSystem.Spacing.screenMargin)
         .padding(.top, DesignSystem.Spacing.md)

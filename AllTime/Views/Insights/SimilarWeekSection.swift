@@ -31,11 +31,11 @@ struct SimilarWeekSection: View {
             HStack(spacing: 10) {
                 ZStack {
                     Circle()
-                        .fill(Color(hex: "6366F1").opacity(0.15))
+                        .fill(DesignSystem.Colors.indigo.opacity(0.15))
                         .frame(width: 36, height: 36)
                     Image(systemName: "clock.arrow.circlepath")
                         .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(Color(hex: "6366F1"))
+                        .foregroundColor(DesignSystem.Colors.indigo)
                 }
 
                 VStack(alignment: .leading, spacing: 2) {
@@ -59,7 +59,7 @@ struct SimilarWeekSection: View {
                         .foregroundColor(.white)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
-                        .background(Color(hex: "6366F1"))
+                        .background(DesignSystem.Colors.indigo)
                         .cornerRadius(6)
                 }
             }
@@ -80,7 +80,7 @@ struct SimilarWeekSection: View {
                 HStack(alignment: .top, spacing: 8) {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .font(.caption)
-                        .foregroundColor(Color(hex: "F59E0B"))
+                        .foregroundColor(DesignSystem.Colors.amber)
 
                     Text(prediction)
                         .font(.subheadline)
@@ -88,7 +88,7 @@ struct SimilarWeekSection: View {
                 }
                 .padding(12)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color(hex: "F59E0B").opacity(0.1))
+                .background(DesignSystem.Colors.amber.opacity(0.1))
                 .cornerRadius(8)
             }
 
@@ -115,7 +115,7 @@ struct SimilarWeekSection: View {
                 HStack(alignment: .top, spacing: 8) {
                     Image(systemName: "lightbulb.fill")
                         .font(.caption)
-                        .foregroundColor(Color(hex: "10B981"))
+                        .foregroundColor(DesignSystem.Colors.emerald)
 
                     Text(recommendation)
                         .font(.caption)
@@ -129,7 +129,7 @@ struct SimilarWeekSection: View {
                 .fill(DesignSystem.Colors.cardBackground)
                 .overlay(
                     RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg)
-                        .stroke(Color(hex: "6366F1").opacity(0.2), lineWidth: 1)
+                        .stroke(DesignSystem.Colors.indigo.opacity(0.2), lineWidth: 1)
                 )
         )
     }
@@ -145,13 +145,13 @@ struct SimilarWeekSection: View {
                     VStack(spacing: 4) {
                         Image(systemName: "moon.zzz.fill")
                             .font(.system(size: 20))
-                            .foregroundColor(Color(hex: "8B5CF6"))
+                            .foregroundColor(DesignSystem.Colors.violet)
                         Text(outcomes.formattedSleep)
                             .font(.headline)
                         if let vs = outcomes.sleepVsBaseline, vs != "normal" {
                             Text(vs)
                                 .font(.caption2)
-                                .foregroundColor(vs.hasPrefix("-") ? Color(hex: "EF4444") : Color(hex: "10B981"))
+                                .foregroundColor(vs.hasPrefix("-") ? DesignSystem.Colors.errorRed : DesignSystem.Colors.emerald)
                         }
                         Text("Sleep")
                             .font(.caption2)
@@ -171,7 +171,7 @@ struct SimilarWeekSection: View {
                         if let vs = outcomes.stepsVsBaseline, vs != "normal" {
                             Text(vs)
                                 .font(.caption2)
-                                .foregroundColor(vs.hasPrefix("-") ? Color(hex: "EF4444") : Color(hex: "10B981"))
+                                .foregroundColor(vs.hasPrefix("-") ? DesignSystem.Colors.errorRed : DesignSystem.Colors.emerald)
                         }
                         Text("Steps")
                             .font(.caption2)
@@ -197,7 +197,7 @@ struct SimilarWeekSection: View {
             }
         }
         .padding(12)
-        .background(Color(hex: "6366F1").opacity(0.05))
+        .background(DesignSystem.Colors.indigo.opacity(0.05))
         .cornerRadius(8)
     }
 }

@@ -31,7 +31,7 @@ struct ActionsRow: View {
             // Suggestions Card
             ActionCard(
                 icon: "sparkles",
-                iconColor: Color(hex: "F59E0B"),
+                iconColor: DesignSystem.Colors.amber,
                 title: "Actions",
                 count: suggestionsCount,
                 subtitle: topSuggestion,
@@ -42,7 +42,7 @@ struct ActionsRow: View {
             // Todo Card
             ActionCard(
                 icon: "checklist",
-                iconColor: Color(hex: "10B981"),
+                iconColor: DesignSystem.Colors.emerald,
                 title: "Tasks",
                 count: pendingTasks,
                 subtitle: overdueTasks > 0 ? "\(overdueTasks) overdue" : nil,

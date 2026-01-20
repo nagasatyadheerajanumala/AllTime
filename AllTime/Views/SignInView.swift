@@ -38,7 +38,7 @@ struct ClassySignInView: View {
                     .fill(
                         RadialGradient(
                             colors: [
-                                Color(hex: "3B82F6").opacity(0.06),
+                                DesignSystem.Colors.blue.opacity(0.06),
                                 Color.clear
                             ],
                             center: .center,
@@ -65,8 +65,8 @@ struct ClassySignInView: View {
                             .fill(
                                 RadialGradient(
                                     colors: [
-                                        Color(hex: "3B82F6").opacity(glowIntensity),
-                                        Color(hex: "3B82F6").opacity(0.1),
+                                        DesignSystem.Colors.blue.opacity(glowIntensity),
+                                        DesignSystem.Colors.blue.opacity(0.1),
                                         Color.clear
                                     ],
                                     center: .center,
@@ -83,7 +83,7 @@ struct ClassySignInView: View {
                                 LinearGradient(
                                     colors: [
                                         Color(hex: "4A90F2"),
-                                        Color(hex: "3B82F6"),
+                                        DesignSystem.Colors.blue,
                                         Color(hex: "2563EB")
                                     ],
                                     startPoint: .topLeading,
@@ -106,7 +106,7 @@ struct ClassySignInView: View {
                                         lineWidth: 1
                                     )
                             )
-                            .shadow(color: Color(hex: "3B82F6").opacity(0.5), radius: 30, x: 0, y: 15)
+                            .shadow(color: DesignSystem.Colors.blue.opacity(0.5), radius: 30, x: 0, y: 15)
                             .shadow(color: Color.black.opacity(0.4), radius: 20, x: 0, y: 10)
 
                         // Calendar icon
@@ -247,12 +247,12 @@ struct ClassySignInView: View {
     private func errorBanner(message: String) -> some View {
         HStack(spacing: 10) {
             Circle()
-                .fill(Color(hex: "EF4444"))
+                .fill(DesignSystem.Colors.errorRed)
                 .frame(width: 6, height: 6)
 
             Text(message)
                 .font(.system(size: 13, weight: .regular))
-                .foregroundColor(Color(hex: "EF4444").opacity(0.9))
+                .foregroundColor(DesignSystem.Colors.errorRed.opacity(0.9))
 
             Spacer()
         }
@@ -260,10 +260,10 @@ struct ClassySignInView: View {
         .padding(.vertical, 14)
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color(hex: "EF4444").opacity(0.08))
+                .fill(DesignSystem.Colors.errorRed.opacity(0.08))
                 .overlay(
                     RoundedRectangle(cornerRadius: 12)
-                        .stroke(Color(hex: "EF4444").opacity(0.15), lineWidth: 1)
+                        .stroke(DesignSystem.Colors.errorRed.opacity(0.15), lineWidth: 1)
                 )
         )
     }

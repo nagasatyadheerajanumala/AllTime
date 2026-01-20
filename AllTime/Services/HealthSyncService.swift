@@ -93,7 +93,17 @@ class HealthSyncService: ObservableObject {
             let metrics = try await healthMetricsService.fetchDailyMetrics(for: startDate, endDate: endDate)
             
             os_log("Fetched %d days of metrics", log: Self.logger, type: .info, metrics.count)
-            
+
+            // Log a sample of what we're sending
+            if let firstMetric = metrics.first {
+                os_log("📊 Sample metric - Date: %@, Steps: %d, Sleep: %d min, HR: %.0f",
+                       log: Self.logger, type: .info,
+                       firstMetric.date,
+                       firstMetric.steps ?? 0,
+                       firstMetric.sleepMinutes ?? 0,
+                       firstMetric.restingHeartRate ?? 0)
+            }
+
             guard !metrics.isEmpty else {
                 os_log("No metrics to sync (HealthKit may not have data for this range)", log: Self.logger, type: .info)
                 isSyncing = false
@@ -188,4 +198,29 @@ class HealthSyncService: ObservableObject {
         formatter.timeZone = TimeZone.current
         return formatter
     }()
+
+    /// Force a complete resync of all health data (last 30 days)
+    /// Call this when health data appears incorrect or missing
+    func forceFullResync() async {
+        os_log("🔄 Force full health resync requested", log: Self.logger, type: .info)
+
+        // Clear the last sync date to force a full resync
+        userDefaults.removeObject(forKey: lastSyncKey)
+        lastSyncDate = nil
+
+        // Clear the health metrics cache
+        healthMetricsService.clearCache()
+
+        // Sync last 30 days
+        await syncLastNDaysToBackend(30)
+
+        os_log("✅ Force full resync completed", log: Self.logger, type: .info)
+    }
+
+    /// Clear the last sync date (for debugging)
+    func clearLastSyncDate() {
+        userDefaults.removeObject(forKey: lastSyncKey)
+        lastSyncDate = nil
+        os_log("🗑️ Last sync date cleared", log: Self.logger, type: .info)
+    }
 }

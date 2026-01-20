@@ -67,8 +67,8 @@ struct EnergyPatternInsight: Codable, Identifiable {
     /// Significance badge color
     var significanceColor: Color {
         switch significance {
-        case "strong": return Color(hex: "EF4444")  // Red - high impact
-        case "moderate": return Color(hex: "F59E0B") // Orange - medium
+        case "strong": return DesignSystem.Colors.errorRed  // Red - high impact
+        case "moderate": return DesignSystem.Colors.amber // Orange - medium
         case "weak": return Color(hex: "6B7280")    // Gray - low
         default: return Color(hex: "6B7280")
         }

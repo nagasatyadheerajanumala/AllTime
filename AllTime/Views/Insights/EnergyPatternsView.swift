@@ -12,11 +12,11 @@ struct EnergyPatternsSection: View {
             HStack(spacing: 10) {
                 ZStack {
                     Circle()
-                        .fill(Color(hex: "8B5CF6").opacity(0.15))
+                        .fill(DesignSystem.Colors.violet.opacity(0.15))
                         .frame(width: 32, height: 32)
                     Image(systemName: "bolt.heart.fill")
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(Color(hex: "8B5CF6"))
+                        .foregroundColor(DesignSystem.Colors.violet)
                 }
 
                 VStack(alignment: .leading, spacing: 2) {
@@ -103,7 +103,7 @@ struct EnergyPatternsSection: View {
         VStack(spacing: 12) {
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 32))
-                .foregroundColor(Color(hex: "10B981"))
+                .foregroundColor(DesignSystem.Colors.emerald)
 
             Text("No Impact Detected")
                 .font(.subheadline.weight(.medium))
@@ -186,7 +186,7 @@ struct EnergyPatternCard: View {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text(pattern.impact)
                     .font(.system(size: 28, weight: .bold, design: .rounded))
-                    .foregroundColor(pattern.isNegativeImpact ? Color(hex: "EF4444") : Color(hex: "10B981"))
+                    .foregroundColor(pattern.isNegativeImpact ? DesignSystem.Colors.errorRed : DesignSystem.Colors.emerald)
 
                 Text(pattern.comparison)
                     .font(.caption)

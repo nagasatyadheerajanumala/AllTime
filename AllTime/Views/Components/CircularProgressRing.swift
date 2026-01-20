@@ -11,7 +11,7 @@ struct CircularProgressRing: View {
     init(
         progress: Double,
         lineWidth: CGFloat = 12,
-        gradientColors: [Color] = [Color(hex: "3B82F6"), Color(hex: "8B5CF6")],
+        gradientColors: [Color] = [DesignSystem.Colors.blue, DesignSystem.Colors.violet],
         backgroundColor: Color = Color(hex: "2A2A3C")
     ) {
         self.progress = min(max(progress, 0), 1)
@@ -57,9 +57,9 @@ struct BalanceScoreRing: View {
 
     private var gradientColors: [Color] {
         switch score {
-        case 70...100: return [Color(hex: "10B981"), Color(hex: "34D399")]
-        case 40...69: return [Color(hex: "F59E0B"), Color(hex: "FBBF24")]
-        default: return [Color(hex: "EF4444"), Color(hex: "F87171")]
+        case 70...100: return [DesignSystem.Colors.emerald, Color(hex: "34D399")]
+        case 40...69: return [DesignSystem.Colors.amber, Color(hex: "FBBF24")]
+        default: return [DesignSystem.Colors.errorRed, Color(hex: "F87171")]
         }
     }
 
@@ -103,7 +103,7 @@ struct BalanceScoreRing: View {
                         Text("\(abs(d))")
                             .font(.system(size: size * 0.09, weight: .semibold))
                     }
-                    .foregroundColor(d > 0 ? Color(hex: "10B981") : Color(hex: "EF4444"))
+                    .foregroundColor(d > 0 ? DesignSystem.Colors.emerald : DesignSystem.Colors.errorRed)
                 }
             }
         }
@@ -125,8 +125,8 @@ struct MetricComparisonCard: View {
 
     private var trendColor: Color {
         switch trend {
-        case "up": return higherIsBetter ? Color(hex: "10B981") : Color(hex: "EF4444")
-        case "down": return higherIsBetter ? Color(hex: "EF4444") : Color(hex: "10B981")
+        case "up": return higherIsBetter ? DesignSystem.Colors.emerald : DesignSystem.Colors.errorRed
+        case "down": return higherIsBetter ? DesignSystem.Colors.errorRed : DesignSystem.Colors.emerald
         default: return Color(hex: "6B7280")
         }
     }
@@ -240,7 +240,7 @@ struct MiniProgressRing: View {
             delta: -3,
             trend: "down",
             unit: "h",
-            color: Color(hex: "8B5CF6"),
+            color: DesignSystem.Colors.violet,
             higherIsBetter: false
         )
     }

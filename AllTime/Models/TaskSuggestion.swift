@@ -58,15 +58,15 @@ struct TaskSuggestion: Codable, Identifiable {
         }
         switch category {
         case "fitness", "health", "exercise":
-            return Color(hex: "10B981")
+            return DesignSystem.Colors.emerald
         case "work", "career", "professional":
             return DesignSystem.Colors.primary
         case "personal", "self-care":
-            return Color(hex: "8B5CF6")
+            return DesignSystem.Colors.violet
         case "social", "family", "friends":
-            return Color(hex: "F59E0B")
+            return DesignSystem.Colors.amber
         case "errands", "chores", "household":
-            return Color(hex: "6366F1")
+            return DesignSystem.Colors.indigo
         case "learning", "education":
             return Color(hex: "EC4899")
         default:
@@ -130,11 +130,11 @@ struct TaskSuggestion: Codable, Identifiable {
         guard let priority = suggestedPriority?.uppercased() else { return .gray }
         switch priority {
         case "HIGH":
-            return Color(hex: "EF4444")
+            return DesignSystem.Colors.errorRed
         case "MEDIUM":
-            return Color(hex: "F59E0B")
+            return DesignSystem.Colors.amber
         case "LOW":
-            return Color(hex: "10B981")
+            return DesignSystem.Colors.emerald
         default:
             return .gray
         }

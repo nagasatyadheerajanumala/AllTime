@@ -86,6 +86,13 @@ struct DriftSignals: Codable {
     let sleepDebtHours: Double
     let activityGapPercent: Int
 
+    // UNDERLOAD/UNSTRUCTURED DRIFT SIGNALS (the missing piece)
+    // Unstructured abundance is a drift risk - "light" doesn't mean "safe"
+    let unstructuredDrift: Bool?           // True if week lacks meaningful structure
+    let unstructuredDriftReason: String?   // Why unstructured time is a risk
+    let lightStructure: Bool?              // True if structure is present but very light
+    let significantlyLighter: Bool?        // True if much lighter than baseline
+
     enum CodingKeys: String, CodingKey {
         case meetingHoursThisWeek = "meeting_hours_this_week"
         case meetingHoursRemaining = "meeting_hours_remaining"
@@ -98,6 +105,19 @@ struct DriftSignals: Codable {
         case overdueCount = "overdue_count"
         case sleepDebtHours = "sleep_debt_hours"
         case activityGapPercent = "activity_gap_percent"
+        case unstructuredDrift = "unstructured_drift"
+        case unstructuredDriftReason = "unstructured_drift_reason"
+        case lightStructure = "light_structure"
+        case significantlyLighter = "significantly_lighter"
+    }
+
+    // Helper computed properties
+    var isUnstructuredDriftRisk: Bool {
+        unstructuredDrift ?? false
+    }
+
+    var hasLightStructure: Bool {
+        lightStructure ?? false
     }
 }
 

@@ -31,11 +31,11 @@ struct CapacityAnalysisSummary: Codable {
     // Computed properties for display
     var scoreColor: Color {
         if capacityScore >= 70 {
-            return Color(hex: "10B981") // Green
+            return DesignSystem.Colors.emerald // Green
         } else if capacityScore >= 40 {
-            return Color(hex: "F59E0B") // Orange
+            return DesignSystem.Colors.amber // Orange
         } else {
-            return Color(hex: "EF4444") // Red
+            return DesignSystem.Colors.errorRed // Red
         }
     }
 
@@ -215,8 +215,8 @@ struct HealthCorrelationInfo: Codable, Identifiable {
 
     var impactColor: Color {
         switch (type ?? "").lowercased() {
-        case "positive": return Color(hex: "10B981")
-        case "negative": return Color(hex: "EF4444")
+        case "positive": return DesignSystem.Colors.emerald
+        case "negative": return DesignSystem.Colors.errorRed
         default: return Color(hex: "6B7280")
         }
     }
@@ -313,10 +313,10 @@ struct HealthImpactInsight: Codable, Identifiable {
 
     var priorityColor: Color {
         switch (priority ?? "").lowercased() {
-        case "high": return Color(hex: "EF4444") // Red
-        case "medium": return Color(hex: "F59E0B") // Orange
-        case "low": return Color(hex: "3B82F6") // Blue
-        case "positive": return Color(hex: "10B981") // Green
+        case "high": return DesignSystem.Colors.errorRed // Red
+        case "medium": return DesignSystem.Colors.amber // Orange
+        case "low": return DesignSystem.Colors.blue // Blue
+        case "positive": return DesignSystem.Colors.emerald // Green
         case "info": return Color(hex: "6B7280") // Gray
         default: return Color(hex: "6B7280")
         }
@@ -347,10 +347,10 @@ struct CapacityInsight: Codable, Identifiable {
 
     var severityColor: Color {
         switch severity.lowercased() {
-        case "positive": return Color(hex: "10B981") // Green
-        case "info": return Color(hex: "3B82F6") // Blue
-        case "warning": return Color(hex: "F59E0B") // Orange
-        case "critical": return Color(hex: "EF4444") // Red
+        case "positive": return DesignSystem.Colors.emerald // Green
+        case "info": return DesignSystem.Colors.blue // Blue
+        case "warning": return DesignSystem.Colors.amber // Orange
+        case "critical": return DesignSystem.Colors.errorRed // Red
         default: return Color(hex: "6B7280") // Gray
         }
     }
@@ -380,10 +380,10 @@ struct CapacityInsight: Codable, Identifiable {
 
     var categoryColor: Color {
         switch category.lowercased() {
-        case "meetings": return Color(hex: "3B82F6") // Blue
+        case "meetings": return DesignSystem.Colors.blue // Blue
         case "health": return Color(hex: "EC4899") // Pink
-        case "balance": return Color(hex: "8B5CF6") // Purple
-        case "suggestion": return Color(hex: "10B981") // Green
+        case "balance": return DesignSystem.Colors.violet // Purple
+        case "suggestion": return DesignSystem.Colors.emerald // Green
         default: return Color(hex: "6B7280") // Gray
         }
     }

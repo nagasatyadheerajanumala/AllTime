@@ -73,9 +73,9 @@ struct HealthOutcome: Codable {
 
     var stressColor: Color {
         switch stressIndicator {
-        case "elevated": return Color(hex: "EF4444")  // Red
-        case "moderate": return Color(hex: "F59E0B")  // Orange
-        case "normal", "low": return Color(hex: "10B981")  // Green
+        case "elevated": return DesignSystem.Colors.errorRed  // Red
+        case "moderate": return DesignSystem.Colors.amber  // Orange
+        case "normal", "low": return DesignSystem.Colors.emerald  // Green
         default: return Color(hex: "6B7280")  // Gray
         }
     }

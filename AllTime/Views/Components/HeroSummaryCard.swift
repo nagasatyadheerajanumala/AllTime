@@ -218,7 +218,7 @@ struct HeroSummaryCard: View {
         return HStack(spacing: 6) {
             Image(systemName: "sparkles")
                 .font(.caption2)
-                .foregroundColor(Color(hex: "A855F7"))
+                .foregroundColor(DesignSystem.Colors.claraPurpleLight)
 
             Text(prompt)
                 .font(.caption)
@@ -386,19 +386,23 @@ extension HeroSummaryCard {
                     taskDeferrals: 1,
                     overdueCount: 0,
                     sleepDebtHours: 0,
-                    activityGapPercent: 10
+                    activityGapPercent: 10,
+                    unstructuredDrift: nil,
+                    unstructuredDriftReason: nil,
+                    lightStructure: nil,
+                    significantlyLighter: nil
                 ),
                 interventions: [
                     DriftIntervention(
-                        id: "protect",
-                        action: "Keep it protected",
-                        detail: "Block one focus slot for the rest of the week",
-                        icon: "shield.fill",
-                        deepLink: "alltime://calendar?action=block",
-                        impact: 5
+                        id: "deep_work",
+                        action: "Block 90 minutes for deep work",
+                        detail: "Before noon. Light weeks are rare—this is when your best work happens.",
+                        icon: "brain.head.profile",
+                        deepLink: "alltime://calendar?action=block&duration=90",
+                        impact: 15
                     )
                 ],
-                weekProjection: "At current pace, you'll finish the week with energy to spare."
+                weekProjection: "Light weeks either produce your best work or disappear into noise."
             ),
             isLoading: false,
             onTap: {},
@@ -428,7 +432,11 @@ extension HeroSummaryCard {
                     taskDeferrals: 4,
                     overdueCount: 2,
                     sleepDebtHours: 2,
-                    activityGapPercent: 30
+                    activityGapPercent: 30,
+                    unstructuredDrift: nil,
+                    unstructuredDriftReason: nil,
+                    lightStructure: nil,
+                    significantlyLighter: nil
                 ),
                 interventions: [
                     DriftIntervention(

@@ -60,7 +60,7 @@ struct ReminderRowView: View {
             Button(action: onComplete) {
                 Image(systemName: reminder.isCompleted ? "checkmark.circle.fill" : "circle")
                     .font(.system(size: 22, weight: .light))
-                    .foregroundColor(reminder.isCompleted ? Color(hex: "10B981") : DesignSystem.Colors.tertiaryText)
+                    .foregroundColor(reminder.isCompleted ? DesignSystem.Colors.emerald : DesignSystem.Colors.tertiaryText)
             }
             .buttonStyle(PlainButtonStyle())
             .padding(.top, 2)
@@ -89,7 +89,7 @@ struct ReminderRowView: View {
                     // Date - friendly format
                     Text(friendlyDateString)
                         .font(.system(size: 12))
-                        .foregroundColor(needsAttention ? Color(hex: "FF9500") : DesignSystem.Colors.secondaryText)
+                        .foregroundColor(needsAttention ? DesignSystem.Colors.warning : DesignSystem.Colors.secondaryText)
 
                     // Priority indicator - subtle dot or text
                     if let priority = reminder.priority, priority != .low {
@@ -167,7 +167,7 @@ struct PriorityIndicator: View {
         case .low: return DesignSystem.Colors.tertiaryText
         case .medium: return DesignSystem.Colors.primary
         case .high: return Color(hex: "5856D6")     // Indigo - important
-        case .urgent: return Color(hex: "FF9500")   // Orange - time-sensitive
+        case .urgent: return DesignSystem.Colors.warning   // Orange - time-sensitive
         }
     }
 }
@@ -195,7 +195,7 @@ struct PriorityBadge: View {
         case .low: return Color(hex: "8E8E93")      // Gray
         case .medium: return Color(hex: "007AFF")   // Blue
         case .high: return Color(hex: "5856D6")     // Indigo
-        case .urgent: return Color(hex: "FF9500")   // Orange
+        case .urgent: return DesignSystem.Colors.warning   // Orange
         }
     }
 }

@@ -43,101 +43,85 @@ class MorningBriefingNotificationService: ObservableObject {
 
     // MARK: - Engaging Copy Templates
 
-    /// Generate a personalized title using the user's first name
-    private func getPersonalizedTitle() -> String {
+    /// Generate an engaging title based on briefing data
+    /// Uses insights to create curiosity-driven titles
+    private func getEngagingTitle(from briefing: DailyBriefingResponse?) -> String {
         let firstName = UserDefaults.standard.string(forKey: "user_first_name")
-        let hour = Calendar.current.component(.hour, from: Date())
+        let name = firstName ?? ""
+        let hasName = !name.isEmpty
 
-        let timeGreeting: String
-        if hour < 12 {
-            timeGreeting = "Good morning"
-        } else if hour < 17 {
-            timeGreeting = "Good afternoon"
-        } else {
-            timeGreeting = "Good evening"
+        // If we have briefing data, create insight-driven titles
+        if let briefing = briefing {
+            // Based on energy trajectory
+            if let energy = briefing.energyBudget, let trajectory = energy.trajectory?.lowercased() {
+                if trajectory == "declining" {
+                    return hasName ? "\(name), heads up about today" : "Heads up about today"
+                }
+            }
+
+            // Based on meeting load
+            if let metrics = briefing.keyMetrics {
+                let meetings = metrics.effectiveMeetingsCount
+                if meetings == 0 {
+                    return hasName ? "\(name), today's different" : "Today's different"
+                } else if meetings >= 6 {
+                    return hasName ? "\(name), brace yourself" : "Brace yourself"
+                }
+            }
+
+            // Based on day mood/type
+            let mood = briefing.mood.lowercased()
+            switch mood {
+            case "focus_day":
+                return hasName ? "Deep work day, \(name)" : "Deep work day ahead"
+            case "rest_day":
+                return hasName ? "Easy day, \(name)" : "Easy day ahead"
+            case "intense_meetings":
+                return hasName ? "\(name), marathon day" : "Marathon day ahead"
+            default:
+                break
+            }
+
+            // Based on primary recommendation urgency
+            if let rec = briefing.primaryRecommendation, let urgency = rec.urgency?.lowercased() {
+                if urgency == "now" {
+                    return hasName ? "\(name), act now" : "Before you start"
+                }
+            }
         }
 
-        if let name = firstName, !name.isEmpty {
-            // Personalized greetings with name
-            let personalizedOptions = [
-                "\(timeGreeting), \(name)!",
-                "Rise and shine, \(name)!",
-                "Ready for today, \(name)?",
-                "\(name), your day awaits"
-            ]
-            return personalizedOptions.randomElement() ?? "\(timeGreeting), \(name)!"
-        } else {
-            // Fallback to generic titles
-            let genericOptions = [
-                "Rise and shine!",
-                "\(timeGreeting)!",
-                "Ready for today?",
-                "Your day awaits"
-            ]
-            return genericOptions.randomElement() ?? "\(timeGreeting)!"
-        }
+        // Fallback to simple personalized greeting
+        return hasName ? "Morning, \(name)" : "Your morning brief"
     }
 
-    private let titles = [
-        "Rise and shine!",
-        "Good morning!",
-        "Ready for today?",
-        "Your day awaits"
-    ]
+    /// Simple personalized title without briefing data
+    private func getPersonalizedTitle() -> String {
+        let firstName = UserDefaults.standard.string(forKey: "user_first_name")
+        if let name = firstName, !name.isEmpty {
+            return "Morning, \(name)"
+        }
+        return "Your morning brief"
+    }
 
-    private let moodTemplates: [String: [String]] = [
-        "focus_day": [
-            "%d meetings, %@ focus time available. Let's do this!",
-            "Perfect focus day ahead - %@ of uninterrupted time!",
-            "Deep work day! %@ focus time between %d meetings."
-        ],
-        "light_day": [
-            "Light schedule today - %@ of free time to use wisely!",
-            "Easy day ahead with just %d meetings. Enjoy!",
-            "Calm day: %d meetings, plenty of breathing room."
-        ],
-        "intense_meetings": [
-            "Heads up: %d meetings today. Pace yourself!",
-            "Busy day ahead! %d meetings on the calendar.",
-            "Meeting marathon: %d scheduled. Stay energized!"
-        ],
-        "rest_day": [
-            "Quiet day ahead. Just %d meeting(s) scheduled.",
-            "Low-key day - perfect for catching up!",
-            "Relaxed schedule today. Make it count!"
-        ],
-        "balanced": [
-            "%d meetings balanced with %@ focus time.",
-            "Well-balanced day: %d meetings, %@ free.",
-            "Good mix today - meetings and focus time in harmony."
-        ]
-    ]
+    // MARK: - Insight-Driven Notification Generation
+    // The goal: Tell them something they DON'T already know
+    // Not "you have 3 meetings" but WHY that matters
 
     /// Generate personalized fallback messages
+    /// Note: For repeating notifications, we use day-agnostic messages since content is
+    /// set at schedule time, not fire time. Day-specific content is set via updateNotificationContent.
     private func getPersonalizedFallbackMessage() -> String {
         let firstName = UserDefaults.standard.string(forKey: "user_first_name")
-        let dayOfWeek = Calendar.current.component(.weekday, from: Date())
 
-        // Weekend-specific messages
-        if dayOfWeek == 1 || dayOfWeek == 7 {
-            if let name = firstName, !name.isEmpty {
-                let weekendMessages = [
-                    "\(name), enjoy your weekend! Here's what's on your radar.",
-                    "Weekend vibes, \(name)! See your day ahead.",
-                    "Happy weekend, \(name)! Your day is looking good."
-                ]
-                return weekendMessages.randomElement() ?? "Your weekend briefing is ready."
-            }
-            return "Weekend mode activated! Here's your day."
-        }
-
-        // Weekday personalized messages
+        // Use day-agnostic messages for repeating notifications
+        // The notification content will be updated with day-specific info when the app refreshes
         if let name = firstName, !name.isEmpty {
             let personalizedMessages = [
                 "\(name), here's your day at a glance.",
                 "Ready to make today great, \(name)?",
                 "\(name), let's see what's ahead today.",
-                "Your day is planned and ready, \(name)!"
+                "Your day is planned and ready, \(name)!",
+                "\(name), tap to see your schedule."
             ]
             return personalizedMessages.randomElement() ?? "Your briefing is ready, \(name)."
         }
@@ -244,7 +228,7 @@ class MorningBriefingNotificationService: ObservableObject {
     func updateNotificationContent(briefing: DailyBriefingResponse) {
         guard isEnabled else { return }
 
-        let title = getPersonalizedTitle()
+        let title = getEngagingTitle(from: briefing)
         let body = generateNotificationBody(from: briefing)
 
         let content = UNMutableNotificationContent()
@@ -327,30 +311,105 @@ class MorningBriefingNotificationService: ObservableObject {
     // MARK: - Private Methods
 
     private func generateNotificationBody(from briefing: DailyBriefingResponse) -> String {
-        let mood = briefing.mood.lowercased()
-        let meetingsCount = briefing.quickStats?.meetingsCount ?? briefing.keyMetrics?.effectiveMeetingsCount ?? 0
-        let focusTime = briefing.quickStats?.focusTimeAvailable ?? "some"
-
-        // Try to use mood-specific template
-        if let templates = moodTemplates[mood], let template = templates.randomElement() {
-            // Format the template based on available placeholders
-            if template.contains("%d") && template.contains("%@") {
-                return String(format: template, meetingsCount, focusTime)
-            } else if template.contains("%d") {
-                return String(format: template, meetingsCount)
-            } else if template.contains("%@") {
-                return String(format: template, focusTime)
-            }
-            return template
+        // PRIORITY 1: Day Narrative headline - AI-generated insight about the day
+        // This is the most valuable piece of content
+        if let narrative = briefing.dayNarrative, !narrative.headline.isEmpty {
+            return narrative.headline
         }
 
-        // Fallback: use summary line from API if available
+        // PRIORITY 2: Primary recommendation with consequence
+        // Tell them THE one thing they should do and why
+        if let rec = briefing.primaryRecommendation {
+            if let consequence = rec.ignoredConsequence, !consequence.isEmpty {
+                // e.g., "Block 90 min for deep work or you'll hit afternoon with nothing done"
+                return "\(rec.action) — \(consequence.lowercased())"
+            }
+            if let reason = rec.reason, !reason.isEmpty && reason.count < 80 {
+                return "\(rec.action): \(reason)"
+            }
+            return rec.action
+        }
+
+        // PRIORITY 3: Energy-based insights - what they don't know about their day
+        if let energy = briefing.energyBudget {
+            // Peak energy window insight
+            if let peak = energy.peakWindow, let startTime = peak.startTime {
+                let timeStr = formatTimeString(startTime)
+                return "Your energy peaks at \(timeStr) — that's your best window for important work."
+            }
+            // Energy trajectory warning
+            if let trajectory = energy.trajectory?.lowercased(), trajectory == "declining" {
+                if let recovery = energy.recoveryRecommendation, !recovery.isEmpty {
+                    return "Energy declining today. \(recovery)"
+                }
+                return "Energy will decline through the day. Front-load your important tasks."
+            }
+            // Recovery needed
+            if energy.recoveryNeeded == true, let recovery = energy.recoveryRecommendation {
+                return recovery
+            }
+        }
+
+        // PRIORITY 4: Comparison-based insights - how today differs
+        if let metrics = briefing.keyMetrics {
+            // Sleep comparison
+            if let sleepLast = metrics.sleepHoursLastNight, let sleepAvg = metrics.sleepHoursAverage {
+                let diff = sleepLast - sleepAvg
+                if diff < -1.0 {
+                    return String(format: "You slept %.1fh less than usual. Consider lighter tasks this morning.", abs(diff))
+                } else if diff > 1.0 {
+                    return String(format: "%.1fh extra sleep last night — you're primed for deep work today.", diff)
+                }
+            }
+            // Meeting load comparison
+            let meetingsToday = metrics.effectiveMeetingsCount
+            if let avgMeetings = metrics.meetingsAverageCount {
+                let diff = Double(meetingsToday) - avgMeetings
+                if diff >= 2 {
+                    return "\(meetingsToday) meetings — \(Int(diff)) more than usual. Pace yourself."
+                } else if diff <= -2 && meetingsToday <= 2 {
+                    return "Only \(meetingsToday) meeting\(meetingsToday == 1 ? "" : "s") today. Rare opportunity for deep work."
+                }
+            }
+        }
+
+        // PRIORITY 5: Focus window insight
+        if let focusWindows = briefing.focusWindows, let firstWindow = focusWindows.first {
+            let duration = firstWindow.durationMinutes
+            if duration >= 60 {
+                let hours = duration / 60
+                let startTime = firstWindow.startTime
+                if hours >= 2 {
+                    return "\(hours)h uninterrupted block at \(startTime) — protect this for your hardest task."
+                }
+            }
+        }
+
+        // PRIORITY 6: First observation from day narrative
+        if let narrative = briefing.dayNarrative,
+           let observations = narrative.keyObservations,
+           let first = observations.first, !first.isEmpty {
+            return first
+        }
+
+        // PRIORITY 7: Summary line from API
         if !briefing.summaryLine.isEmpty && briefing.summaryLine.count < 100 {
             return briefing.summaryLine
         }
 
         // Final fallback
         return getPersonalizedFallbackMessage()
+    }
+
+    /// Format time string like "09:00" to "9am"
+    private func formatTimeString(_ timeStr: String) -> String {
+        let parts = timeStr.split(separator: ":")
+        guard let hourStr = parts.first, let hour = Int(hourStr) else { return timeStr }
+
+        if hour == 0 { return "12am" }
+        if hour == 12 { return "12pm" }
+        if hour < 12 { return "\(hour)am" }
+        return "\(hour - 12)pm"
     }
 
     private func formattedTime(_ date: Date) -> String {

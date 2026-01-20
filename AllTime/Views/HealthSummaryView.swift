@@ -124,6 +124,7 @@ struct HealthSummaryView: View {
                             }
                         }
                         .padding(.vertical)
+                        .padding(.bottom, 100) // Space for tab bar
                     }
                     .refreshable {
                         await viewModel.refreshSummary()

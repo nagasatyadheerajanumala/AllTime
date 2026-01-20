@@ -10,8 +10,11 @@ class NavigationManager: ObservableObject {
     /// Currently selected tab index
     @Published var selectedTab: Int = 0
 
-    /// Show day review sheet (triggered by evening summary notification)
+    /// Show day review sheet (triggered by evening summary notification) - DEPRECATED, use navigateToDailyInsights instead
     @Published var showDayReview: Bool = false
+
+    /// Selected section within Insights tab (for deep linking to Daily/Weekly/Monthly/Health)
+    @Published var insightsSection: String? = nil
 
     /// Pending deep link destination (used when user needs to sign in first)
     @Published var pendingDestination: String? = nil
@@ -19,14 +22,16 @@ class NavigationManager: ObservableObject {
     /// Tab enumeration for type-safe navigation
     enum Tab: Int, CaseIterable {
         case today = 0
-        case calendar = 1
-        case health = 2
-        case reminders = 3
-        case settings = 4
+        case insights = 1
+        case calendar = 2
+        case health = 3
+        case reminders = 4
+        case settings = 5
 
         var title: String {
             switch self {
             case .today: return "Today"
+            case .insights: return "Insights"
             case .calendar: return "Calendar"
             case .health: return "Health"
             case .reminders: return "Reminders"
@@ -64,6 +69,21 @@ class NavigationManager: ObservableObject {
         selectedTab = Tab.settings.rawValue
     }
 
+    /// Navigate to Insights tab
+    func navigateToInsights() {
+        selectedTab = Tab.insights.rawValue
+    }
+
+    /// Navigate to Daily Insights (Insights tab → Daily section)
+    /// Used by evening summary notifications
+    func navigateToDailyInsights() {
+        print("📱 NavigationManager: Navigating to Daily Insights")
+        insightsSection = "daily"
+        selectedTab = Tab.insights.rawValue
+        // Post notification so InsightsRootView can switch to Daily section
+        NotificationCenter.default.post(name: .navigateToDailyInsights, object: nil)
+    }
+
     /// Navigate to a specific tab
     func navigate(to tab: Tab) {
         selectedTab = tab.rawValue
@@ -76,10 +96,11 @@ class NavigationManager: ObservableObject {
     }
 
     /// Navigate to day review (from evening summary notification)
+    /// Shows the DailyInsightsView as a sheet
     func navigateToDayReview() {
         print("📱 NavigationManager: Navigating to Day Review")
-        selectedTab = Tab.today.rawValue
-        showDayReview = true
+        // Post notification that MainTabView listens to for showing the day review sheet
+        NotificationCenter.default.post(name: .navigateToDayReview, object: nil)
     }
 
     /// Handle a destination string (from notification deep link)

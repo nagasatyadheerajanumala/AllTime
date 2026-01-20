@@ -242,7 +242,7 @@ struct InsightsDashboardView: View {
                 title: "Next Week Focus",
                 subtitle: "Recommendations to improve",
                 icon: "arrow.right.circle.fill",
-                iconColor: Color(hex: "10B981")
+                iconColor: DesignSystem.Colors.emerald
             )
 
             // Action Recommendations

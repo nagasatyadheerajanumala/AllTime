@@ -153,8 +153,42 @@ struct EmptyTileContent: View {
 struct TodaySummaryDetailView: View {
     let briefing: DailyBriefingResponse?
     let summaryTile: SummaryTileData?
+    /// Fresh HealthKit data - when provided, these values are displayed instead of backend data
+    var freshHealthMetrics: DailyHealthMetrics? = nil
     @Environment(\.dismiss) private var dismiss
     @State private var addedFocusWindowIds: Set<String> = []
+
+    /// Get fresh sleep hours, falling back to backend data
+    private var displaySleepHours: Double? {
+        if let freshMinutes = freshHealthMetrics?.sleepMinutes, freshMinutes > 0 {
+            return Double(freshMinutes) / 60.0
+        }
+        return briefing?.keyMetrics?.effectiveSleepHours
+    }
+
+    /// Get fresh steps, falling back to backend data
+    private var displaySteps: Int? {
+        if let freshSteps = freshHealthMetrics?.steps, freshSteps > 0 {
+            return freshSteps
+        }
+        return briefing?.keyMetrics?.effectiveSteps
+    }
+
+    /// Get fresh active minutes, falling back to backend data
+    private var displayActiveMinutes: Int? {
+        if let freshMinutes = freshHealthMetrics?.activeMinutes, freshMinutes > 0 {
+            return freshMinutes
+        }
+        return briefing?.keyMetrics?.activeMinutesYesterday ?? briefing?.keyMetrics?.activeMinutes
+    }
+
+    /// Get fresh resting heart rate, falling back to backend data
+    private var displayRestingHeartRate: Int? {
+        if let freshHR = freshHealthMetrics?.restingHeartRate, freshHR > 0 {
+            return Int(freshHR)
+        }
+        return briefing?.keyMetrics?.restingHeartRate
+    }
 
     var body: some View {
         NavigationView {
@@ -173,12 +207,13 @@ struct TodaySummaryDetailView: View {
                         keyMetricsSection(metrics: metrics)
                     }
 
-                    // Health Insights Card
+                    // Health Insights Card - uses fresh HealthKit data when available
                     if let briefing = briefing {
                         HealthInsightsCard(
                             keyMetrics: briefing.keyMetrics,
                             suggestions: briefing.suggestions,
-                            quickStats: briefing.quickStats
+                            quickStats: briefing.quickStats,
+                            freshHealthMetrics: freshHealthMetrics
                         )
                     }
 
@@ -259,24 +294,25 @@ struct TodaySummaryDetailView: View {
     }
 
     // MARK: - Key Metrics Section
+    /// Displays health metrics, preferring fresh HealthKit data over backend data
     private func keyMetricsSection(metrics: BriefingKeyMetrics) -> some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
             DetailSectionHeader(title: "Key Metrics", icon: "chart.bar.fill")
 
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: DesignSystem.Spacing.md) {
-                // Only show health metrics if they have meaningful values (> 0)
-                if let sleep = metrics.effectiveSleepHours, sleep > 0 {
-                    DetailMetricCard(title: "Sleep", value: String(format: "%.1fh", sleep), icon: "moon.fill", color: Color(hex: "8B5CF6"))
+                // Use fresh HealthKit data when available, otherwise fall back to backend data
+                if let sleep = displaySleepHours, sleep > 0 {
+                    DetailMetricCard(title: "Sleep", value: String(format: "%.1fh", sleep), icon: "moon.fill", color: DesignSystem.Colors.violet)
                 }
-                if let steps = metrics.effectiveSteps, steps > 0 {
-                    DetailMetricCard(title: "Steps", value: steps.formatted(), icon: "figure.walk", color: Color(hex: "10B981"))
+                if let steps = displaySteps, steps > 0 {
+                    DetailMetricCard(title: "Steps", value: steps.formatted(), icon: "figure.walk", color: DesignSystem.Colors.emerald)
                 }
                 // Always show meetings as it's calendar-based, not health data
                 if metrics.effectiveMeetingsCount > 0 {
-                    DetailMetricCard(title: "Meetings", value: "\(metrics.effectiveMeetingsCount)", icon: "calendar", color: Color(hex: "3B82F6"))
+                    DetailMetricCard(title: "Meetings", value: "\(metrics.effectiveMeetingsCount)", icon: "calendar", color: DesignSystem.Colors.blue)
                 }
                 if metrics.effectiveLongestFreeBlock > 0 {
-                    DetailMetricCard(title: "Longest Block", value: "\(metrics.effectiveLongestFreeBlock)m", icon: "clock.fill", color: Color(hex: "F59E0B"))
+                    DetailMetricCard(title: "Longest Block", value: "\(metrics.effectiveLongestFreeBlock)m", icon: "clock.fill", color: DesignSystem.Colors.amber)
                 }
             }
         }
@@ -330,7 +366,7 @@ struct TodaySummaryDetailView: View {
                 HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
                     Image(systemName: "heart.fill")
                         .font(.caption)
-                        .foregroundColor(Color(hex: "EF4444"))
+                        .foregroundColor(DesignSystem.Colors.errorRed)
                         .frame(width: 16)
 
                     Text(healthConnection)
@@ -341,7 +377,7 @@ struct TodaySummaryDetailView: View {
                 .padding(DesignSystem.Spacing.sm)
                 .background(
                     RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.sm)
-                        .fill(Color(hex: "EF4444").opacity(0.08))
+                        .fill(DesignSystem.Colors.errorRed.opacity(0.08))
                 )
             }
 
@@ -406,7 +442,7 @@ struct TodaySummaryDetailView: View {
         .sectionCardStyle()
     }
 
-    // Add focus window to calendar
+    // Add focus window to calendar - syncs to Google/Microsoft Calendar via backend
     private func addFocusWindowToCalendar(_ window: FocusWindow) {
         Task {
             guard let startDate = window.startDate, let endDate = window.endDate else {
@@ -416,14 +452,18 @@ struct TodaySummaryDetailView: View {
 
             do {
                 let title = window.suggestedActivity ?? "Focus Time"
-                let success = try await CalendarService.shared.createEvent(
+
+                // Use FocusTimeService to sync to Google/Microsoft Calendar via backend
+                let response = try await FocusTimeService.shared.blockFocusTime(
+                    start: startDate,
+                    end: endDate,
                     title: title,
-                    startDate: startDate,
-                    endDate: endDate,
-                    notes: window.reason
+                    description: window.reason ?? "Focus time block",
+                    enableFocusMode: false,
+                    calendarProvider: "all"  // Sync to all connected calendars
                 )
 
-                if success {
+                if response.success {
                     await MainActor.run {
                         withAnimation {
                             addedFocusWindowIds.insert(window.windowId)
@@ -432,10 +472,26 @@ struct TodaySummaryDetailView: View {
                         let generator = UINotificationFeedbackGenerator()
                         generator.notificationOccurred(.success)
                     }
-                    print("Added focus window to calendar: \(title)")
+                    print("✅ Added focus window to calendar: \(title)")
+
+                    // Log calendar sync results
+                    if let calendarEvents = response.calendarEvents {
+                        for event in calendarEvents {
+                            if event.success {
+                                print("   ✅ \(event.provider) Calendar: synced")
+                            } else {
+                                print("   ⚠️ \(event.provider) Calendar: failed - \(event.error ?? "unknown")")
+                            }
+                        }
+                    }
+
+                    // Post notification for UI refresh
+                    NotificationCenter.default.post(name: NSNotification.Name("EventCreated"), object: nil)
+                } else {
+                    print("❌ Failed to add focus window: \(response.message ?? "unknown error")")
                 }
             } catch {
-                print("Failed to add focus window to calendar: \(error)")
+                print("❌ Failed to add focus window to calendar: \(error)")
             }
         }
     }
@@ -465,7 +521,7 @@ struct TodaySummaryDetailView: View {
                     title: "Meeting Time",
                     value: formatHours(meetingHours),
                     icon: "calendar.badge.clock",
-                    color: Color(hex: "3B82F6")
+                    color: DesignSystem.Colors.blue
                 )
 
                 // Total Free Hours
@@ -474,7 +530,7 @@ struct TodaySummaryDetailView: View {
                     title: "Free Time",
                     value: formatHours(freeHours),
                     icon: "clock.fill",
-                    color: Color(hex: "10B981")
+                    color: DesignSystem.Colors.emerald
                 )
             }
 
@@ -508,7 +564,7 @@ struct TodaySummaryDetailView: View {
             HStack(spacing: DesignSystem.Spacing.xs) {
                 Image(systemName: "target")
                     .font(.caption.weight(.semibold))
-                    .foregroundColor(Color(hex: "F59E0B"))
+                    .foregroundColor(DesignSystem.Colors.amber)
                 Text("Today's Goals")
                     .font(.subheadline.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
@@ -587,7 +643,7 @@ struct TodaySummaryDetailView: View {
     @ViewBuilder
     private func goalRow(icon: String, title: String, target: String, current: Int?, targetValue: Int) -> some View {
         let progress = current != nil ? min(Double(current!) / Double(targetValue), 1.0) : 0
-        let progressColor = progress >= 0.8 ? Color(hex: "10B981") : (progress >= 0.5 ? Color(hex: "F59E0B") : Color(hex: "EF4444"))
+        let progressColor = progress >= 0.8 ? DesignSystem.Colors.emerald : (progress >= 0.5 ? DesignSystem.Colors.amber : DesignSystem.Colors.errorRed)
 
         HStack(spacing: DesignSystem.Spacing.sm) {
             Image(systemName: icon)
@@ -638,12 +694,12 @@ struct TodaySummaryDetailView: View {
     @ViewBuilder
     private func goalRow(icon: String, title: String, target: String, sleepCurrent: Double?, sleepTarget: Double) -> some View {
         let progress = sleepCurrent != nil ? min(sleepCurrent! / sleepTarget, 1.0) : 0
-        let progressColor = progress >= 0.9 ? Color(hex: "10B981") : (progress >= 0.7 ? Color(hex: "F59E0B") : Color(hex: "EF4444"))
+        let progressColor = progress >= 0.9 ? DesignSystem.Colors.emerald : (progress >= 0.7 ? DesignSystem.Colors.amber : DesignSystem.Colors.errorRed)
 
         HStack(spacing: DesignSystem.Spacing.sm) {
             Image(systemName: icon)
                 .font(.caption)
-                .foregroundColor(Color(hex: "8B5CF6"))
+                .foregroundColor(DesignSystem.Colors.violet)
                 .frame(width: 20)
 
             Text(title)
@@ -663,14 +719,14 @@ struct TodaySummaryDetailView: View {
                 } else {
                     Text("Target: \(target)")
                         .font(.caption.weight(.medium))
-                        .foregroundColor(Color(hex: "8B5CF6"))
+                        .foregroundColor(DesignSystem.Colors.violet)
                 }
             }
         }
         .padding(DesignSystem.Spacing.sm)
         .background(
             RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.sm)
-                .fill(Color(hex: "8B5CF6").opacity(0.08))
+                .fill(DesignSystem.Colors.violet.opacity(0.08))
         )
     }
 
@@ -894,13 +950,13 @@ struct ActionableFocusWindowRow: View {
             // Time indicator
             VStack(spacing: 2) {
                 Circle()
-                    .fill(Color(hex: "8B5CF6"))
+                    .fill(DesignSystem.Colors.violet)
                     .frame(width: 8, height: 8)
                 Rectangle()
-                    .fill(Color(hex: "8B5CF6").opacity(0.3))
+                    .fill(DesignSystem.Colors.violet.opacity(0.3))
                     .frame(width: 2, height: 20)
                 Circle()
-                    .stroke(Color(hex: "8B5CF6"), lineWidth: 2)
+                    .stroke(DesignSystem.Colors.violet, lineWidth: 2)
                     .frame(width: 8, height: 8)
             }
 
@@ -919,7 +975,7 @@ struct ActionableFocusWindowRow: View {
                     if let quality = window.qualityScore {
                         Text("Quality: \(quality)%")
                             .font(.caption2)
-                            .foregroundColor(Color(hex: "8B5CF6"))
+                            .foregroundColor(DesignSystem.Colors.violet)
                     }
                 }
 
@@ -931,7 +987,7 @@ struct ActionableFocusWindowRow: View {
                         Text(activity)
                             .font(.caption)
                     }
-                    .foregroundColor(Color(hex: "8B5CF6"))
+                    .foregroundColor(DesignSystem.Colors.violet)
                     .fixedSize(horizontal: false, vertical: true)
                 }
 
@@ -968,7 +1024,7 @@ struct ActionableFocusWindowRow: View {
                     Image(systemName: isAdded ? "checkmark.circle.fill" : "plus.circle.fill")
                         .font(.system(size: 20))
                 }
-                .foregroundColor(isAdded ? .green : Color(hex: "8B5CF6"))
+                .foregroundColor(isAdded ? .green : DesignSystem.Colors.violet)
             }
             .disabled(isAdded)
             .padding(.top, 2)
@@ -976,10 +1032,10 @@ struct ActionableFocusWindowRow: View {
         .padding(DesignSystem.Spacing.sm)
         .background(
             RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.sm)
-                .fill(isAdded ? Color.green.opacity(0.08) : Color(hex: "8B5CF6").opacity(0.08))
+                .fill(isAdded ? Color.green.opacity(0.08) : DesignSystem.Colors.violet.opacity(0.08))
                 .overlay(
                     RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.sm)
-                        .stroke(isAdded ? Color.green.opacity(0.2) : Color(hex: "8B5CF6").opacity(0.15), lineWidth: 1)
+                        .stroke(isAdded ? Color.green.opacity(0.2) : DesignSystem.Colors.violet.opacity(0.15), lineWidth: 1)
                 )
         )
     }

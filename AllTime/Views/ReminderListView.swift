@@ -112,6 +112,7 @@ struct ReminderListView: View {
                             }
                         }
                         .padding(.vertical)
+                        .padding(.bottom, 100) // Space for tab bar
                     }
                 }
             }
@@ -178,31 +179,28 @@ struct ReminderListView: View {
 struct StatusFilterView: View {
     @Binding var selectedStatus: ReminderStatus?
     let onStatusChange: (ReminderStatus?) -> Void
-    
+
     var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 12) {
+        HStack(spacing: 8) {
+            FilterChip(
+                title: "All",
+                isSelected: selectedStatus == nil,
+                action: {
+                    selectedStatus = nil
+                    onStatusChange(nil)
+                }
+            )
+
+            ForEach(ReminderStatus.allCases, id: \.self) { status in
                 FilterChip(
-                    title: "All",
-                    isSelected: selectedStatus == nil,
+                    title: status.displayName,
+                    isSelected: selectedStatus == status,
                     action: {
-                        selectedStatus = nil
-                        onStatusChange(nil)
+                        selectedStatus = status
+                        onStatusChange(status)
                     }
                 )
-                
-                ForEach(ReminderStatus.allCases, id: \.self) { status in
-                    FilterChip(
-                        title: status.displayName,
-                        isSelected: selectedStatus == status,
-                        action: {
-                            selectedStatus = status
-                            onStatusChange(status)
-                        }
-                    )
-                }
             }
-            .padding(.horizontal, 4)
         }
     }
 }
@@ -217,10 +215,10 @@ struct FilterChip: View {
     var body: some View {
         Button(action: action) {
             Text(title)
-                .font(.subheadline)
-                .fontWeight(isSelected ? .semibold : .regular)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
+                .font(.footnote)
+                .fontWeight(isSelected ? .semibold : .medium)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
                 .background(
                     Capsule()
                         .fill(isSelected ? DesignSystem.Colors.primary : DesignSystem.Colors.cardBackground)

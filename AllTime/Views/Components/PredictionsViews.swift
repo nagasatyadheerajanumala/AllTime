@@ -268,7 +268,7 @@ struct PredictionsDetailView: View {
     // MARK: - Insights Section
     private func insightsSection(_ insights: [CapacityInsight]) -> some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-            sectionHeader(icon: "lightbulb.fill", title: "Key Insights", color: Color(hex: "F59E0B"))
+            sectionHeader(icon: "lightbulb.fill", title: "Key Insights", color: DesignSystem.Colors.amber)
 
             ForEach(insights) { insight in
                 insightCard(insight)
@@ -330,7 +330,7 @@ struct PredictionsDetailView: View {
                 if let sleep = health.sleepCorrelation, sleep.hasSignificantCorrelation == true {
                     correlationRow(
                         icon: "moon.zzz.fill",
-                        iconColor: Color(hex: "6366F1"),
+                        iconColor: DesignSystem.Colors.indigo,
                         title: "Sleep Impact",
                         description: "High meeting days = \(sleep.formattedDifference) less sleep",
                         isNegative: (sleep.sleepDifference ?? 0) > 0
@@ -341,7 +341,7 @@ struct PredictionsDetailView: View {
                 if let activity = health.activityCorrelation, activity.hasSignificantActivityImpact == true {
                     correlationRow(
                         icon: "figure.walk",
-                        iconColor: Color(hex: "10B981"),
+                        iconColor: DesignSystem.Colors.emerald,
                         title: "Activity Impact",
                         description: "Meeting days = \(activity.formattedDifference) fewer",
                         isNegative: (activity.stepsDifference ?? 0) > 0
@@ -352,7 +352,7 @@ struct PredictionsDetailView: View {
                 if let stress = health.stressCorrelation, stress.hasSignificantStressCorrelation {
                     correlationRow(
                         icon: "waveform.path.ecg",
-                        iconColor: Color(hex: "EF4444"),
+                        iconColor: DesignSystem.Colors.errorRed,
                         title: "Stress Indicator",
                         description: "Intense meeting days show elevated heart rate",
                         isNegative: true
@@ -391,14 +391,14 @@ struct PredictionsDetailView: View {
 
             Image(systemName: isNegative ? "arrow.down.circle.fill" : "arrow.up.circle.fill")
                 .font(.title3)
-                .foregroundColor(isNegative ? Color(hex: "EF4444") : Color(hex: "10B981"))
+                .foregroundColor(isNegative ? DesignSystem.Colors.errorRed : DesignSystem.Colors.emerald)
         }
     }
 
     // MARK: - Time Consumers Section
     private func timeConsumersSection(_ meetings: [RepetitiveMeetingInfo]) -> some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-            sectionHeader(icon: "clock.fill", title: "Top Time Consumers", color: Color(hex: "3B82F6"))
+            sectionHeader(icon: "clock.fill", title: "Top Time Consumers", color: DesignSystem.Colors.blue)
 
             VStack(spacing: DesignSystem.Spacing.sm) {
                 ForEach(meetings.prefix(5)) { meeting in
@@ -417,12 +417,12 @@ struct PredictionsDetailView: View {
         HStack(spacing: DesignSystem.Spacing.md) {
             // Rank indicator
             Circle()
-                .fill(Color(hex: "3B82F6").opacity(0.15))
+                .fill(DesignSystem.Colors.blue.opacity(0.15))
                 .frame(width: 36, height: 36)
                 .overlay(
                     Text("\(meeting.occurrenceCount)x")
                         .font(.caption.weight(.bold))
-                        .foregroundColor(Color(hex: "3B82F6"))
+                        .foregroundColor(DesignSystem.Colors.blue)
                 )
 
             VStack(alignment: .leading, spacing: 2) {
@@ -452,7 +452,7 @@ struct PredictionsDetailView: View {
     // MARK: - Meeting Patterns Section
     private func meetingPatternsSection(_ patterns: MeetingPatternsSummary, summary: CapacityAnalysisSummary) -> some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-            sectionHeader(icon: "chart.bar.fill", title: "Meeting Patterns", color: Color(hex: "8B5CF6"))
+            sectionHeader(icon: "chart.bar.fill", title: "Meeting Patterns", color: DesignSystem.Colors.violet)
 
             VStack(spacing: DesignSystem.Spacing.md) {
                 // Average per day
@@ -501,7 +501,7 @@ struct PredictionsDetailView: View {
         HStack {
             Image(systemName: icon)
                 .font(.body)
-                .foregroundColor(Color(hex: "8B5CF6"))
+                .foregroundColor(DesignSystem.Colors.violet)
                 .frame(width: 24)
 
             Text(label)
@@ -599,7 +599,7 @@ enum PredictionsTileType {
 
     var gradient: LinearGradient {
         LinearGradient(
-            colors: [Color(hex: "8B5CF6"), Color(hex: "6D28D9")],
+            colors: [DesignSystem.Colors.violet, Color(hex: "6D28D9")],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
         )

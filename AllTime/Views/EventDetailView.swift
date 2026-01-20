@@ -5,8 +5,9 @@ struct EventDetailView: View {
     @State private var eventDetails: EventDetails?
     @State private var isLoading = true
     @State private var errorMessage: String?
+    @State private var copiedLink = false
     @Environment(\.dismiss) private var dismiss
-    
+
     private let apiService = APIService()
     
     // Cache DateFormatters for performance
@@ -152,7 +153,12 @@ struct EventDetailView: View {
                     if let attendees = event.attendees, !attendees.isEmpty {
                         attendeesSection(attendees)
                     }
-                    
+
+                    // Organizer Section
+                    if let organizerEmail = event.organizerEmail, !organizerEmail.isEmpty {
+                        organizerSection(organizerEmail)
+                    }
+
                     // Reminders Section
                     if let startDate = event.startDate {
                         EventRemindersSection(
@@ -161,8 +167,13 @@ struct EventDetailView: View {
                         )
                         .padding(.horizontal, 20)
                     }
-                    
+
                     calendarSourceSection(event)
+
+                    // Open in Calendar Link
+                    if let htmlLink = event.htmlLink, !htmlLink.isEmpty {
+                        openInCalendarSection(htmlLink, source: event.source)
+                    }
                 }
                 .padding(.horizontal, 16)
                 .padding(.top, 16)
@@ -222,56 +233,123 @@ struct EventDetailView: View {
     // MARK: - Join Meeting Section
     @ViewBuilder
     private func joinMeetingSection(_ event: EventDetails, meetingLink: String) -> some View {
-        Button(action: {
-            openMeetingLink(meetingLink)
-        }) {
-            HStack(spacing: 16) {
-                // Meeting icon with gradient background
-                ZStack {
-                    Circle()
-                        .fill(
-                            LinearGradient(
-                                colors: [Color.green, Color.green.opacity(0.7)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
+        VStack(spacing: 12) {
+            // Join Meeting Button
+            Button(action: {
+                openMeetingLink(meetingLink)
+            }) {
+                HStack(spacing: 16) {
+                    // Meeting icon with gradient background
+                    ZStack {
+                        Circle()
+                            .fill(
+                                LinearGradient(
+                                    colors: [Color.green, Color.green.opacity(0.7)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
                             )
-                        )
-                        .frame(width: 44, height: 44)
+                            .frame(width: 50, height: 50)
 
-                    Image(systemName: event.meetingIcon)
-                        .font(.system(size: 20, weight: .semibold))
-                        .foregroundColor(.white)
+                        Image(systemName: event.meetingIcon)
+                            .font(.system(size: 22, weight: .semibold))
+                            .foregroundColor(.white)
+                    }
+
+                    // Text content
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Join \(event.meetingTypeLabel)")
+                            .font(.system(size: 18, weight: .bold))
+                            .foregroundColor(.white)
+
+                        Text("Tap to join now")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(.white.opacity(0.9))
+                    }
+
+                    Spacer()
+
+                    Image(systemName: "arrow.up.right.circle.fill")
+                        .font(.system(size: 28))
+                        .foregroundColor(.white.opacity(0.9))
                 }
+                .padding(16)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(
+                    LinearGradient(
+                        colors: [Color.green, DesignSystem.Colors.success],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .cornerRadius(14)
+                .shadow(color: Color.green.opacity(0.3), radius: 8, x: 0, y: 4)
+            }
+            .buttonStyle(PlainButtonStyle())
 
-                // Text content
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Join \(event.meetingTypeLabel)")
-                        .font(.system(size: 17, weight: .semibold))
-                        .foregroundColor(.primary)
+            // Meeting Link Card with Copy Button
+            HStack(spacing: 12) {
+                // Link icon
+                Image(systemName: "link")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(DesignSystem.Colors.primary)
+                    .frame(width: 32, height: 32)
+                    .background(DesignSystem.Colors.primary.opacity(0.1))
+                    .cornerRadius(8)
 
-                    Text("Tap to join the video call")
-                        .font(.system(size: 13, weight: .regular))
+                // Link URL (truncated)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Meeting Link")
+                        .font(.system(size: 12, weight: .medium))
                         .foregroundColor(DesignSystem.Colors.secondaryText)
+
+                    Text(meetingLink)
+                        .font(.system(size: 14, weight: .regular))
+                        .foregroundColor(DesignSystem.Colors.primary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
                 }
 
                 Spacer()
 
-                Image(systemName: "arrow.up.right.square.fill")
-                    .font(.system(size: 22))
-                    .foregroundColor(.green)
+                // Copy Button
+                Button(action: {
+                    UIPasteboard.general.string = meetingLink
+                    // Haptic feedback
+                    let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+                    impactFeedback.impactOccurred()
+                    // Show copied feedback
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        copiedLink = true
+                    }
+                    // Reset after 2 seconds
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            copiedLink = false
+                        }
+                    }
+                }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: copiedLink ? "checkmark" : "doc.on.doc")
+                            .font(.system(size: 14, weight: .semibold))
+                        Text(copiedLink ? "Copied!" : "Copy")
+                            .font(.system(size: 14, weight: .semibold))
+                    }
+                    .foregroundColor(copiedLink ? .white : DesignSystem.Colors.primary)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(copiedLink ? Color.green : DesignSystem.Colors.primary.opacity(0.1))
+                    .cornerRadius(8)
+                }
             }
-            .padding(16)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Color.green.opacity(0.1))
-            )
+            .padding(14)
+            .background(Color(UIColor.secondarySystemGroupedBackground))
+            .cornerRadius(12)
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
-                    .stroke(Color.green.opacity(0.3), lineWidth: 1)
+                    .stroke(Color(UIColor.separator).opacity(0.5), lineWidth: 0.5)
             )
         }
-        .buttonStyle(PlainButtonStyle())
     }
 
     // MARK: - Date & Time Section
@@ -320,36 +398,107 @@ struct EventDetailView: View {
     // MARK: - Location Section
     @ViewBuilder
     private func locationSection(_ location: String) -> some View {
+        let isVideoLink = isVideoMeetingLink(location)
+
         DetailCard {
-            HStack(alignment: .top, spacing: 16) {
-                IconCircle(
-                    icon: "mappin.circle.fill",
-                    color: .red
-                )
-                
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Location".uppercased())
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundColor(DesignSystem.Colors.secondaryText)
-                        .tracking(0.5)
-                    
-                    Text(location)
-                        .font(.system(size: 17, weight: .regular))
-                        .foregroundColor(.primary)
-                        .fixedSize(horizontal: false, vertical: true)
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(alignment: .top, spacing: 16) {
+                    IconCircle(
+                        icon: isVideoLink ? "video.fill" : "mappin.circle.fill",
+                        color: isVideoLink ? .blue : .red
+                    )
+
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(isVideoLink ? "Video Meeting".uppercased() : "Location".uppercased())
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
+                            .tracking(0.5)
+
+                        if isVideoLink {
+                            // Make the link tappable
+                            Button(action: {
+                                if let url = URL(string: location) {
+                                    UIApplication.shared.open(url)
+                                }
+                            }) {
+                                Text(location)
+                                    .font(.system(size: 15, weight: .medium))
+                                    .foregroundColor(DesignSystem.Colors.primary)
+                                    .underline()
+                                    .lineLimit(2)
+                                    .multilineTextAlignment(.leading)
+                            }
+                        } else {
+                            Text(location)
+                                .font(.system(size: 17, weight: .regular))
+                                .foregroundColor(.primary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+
+                    Spacer()
+
+                    if isVideoLink {
+                        // Join button for video links
+                        Button(action: {
+                            if let url = URL(string: location) {
+                                UIApplication.shared.open(url)
+                            }
+                        }) {
+                            Text("Join")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 8)
+                                .background(Color.green)
+                                .cornerRadius(8)
+                        }
+                    } else {
+                        Button(action: {
+                            openInMaps(location: location)
+                        }) {
+                            Image(systemName: "arrow.up.right.square")
+                                .font(.system(size: 18, weight: .medium))
+                                .foregroundColor(DesignSystem.Colors.primary)
+                        }
+                    }
                 }
-                
-                Spacer()
-                
-                Button(action: {
-                    openInMaps(location: location)
-                }) {
-                    Image(systemName: "arrow.up.right.square")
-                        .font(.system(size: 18, weight: .medium))
+
+                // Copy button for video links
+                if isVideoLink {
+                    Button(action: {
+                        UIPasteboard.general.string = location
+                        let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+                        impactFeedback.impactOccurred()
+                    }) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "doc.on.doc")
+                                .font(.system(size: 12, weight: .semibold))
+                            Text("Copy Link")
+                                .font(.system(size: 13, weight: .semibold))
+                        }
                         .foregroundColor(DesignSystem.Colors.primary)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(DesignSystem.Colors.primary.opacity(0.1))
+                        .cornerRadius(6)
+                    }
+                    .padding(.leading, 52) // Align with text
                 }
             }
         }
+    }
+
+    /// Check if a string is a video meeting link
+    private func isVideoMeetingLink(_ text: String) -> Bool {
+        let lowercased = text.lowercased()
+        return lowercased.contains("meet.google.com") ||
+               lowercased.contains("teams.microsoft.com") ||
+               lowercased.contains("teams.live.com") ||
+               lowercased.contains("zoom.us") ||
+               lowercased.contains("webex.com") ||
+               lowercased.contains("gotomeeting.com") ||
+               lowercased.contains("bluejeans.com")
     }
     
     // MARK: - Description Section
@@ -362,20 +511,18 @@ struct EventDetailView: View {
                         icon: "text.alignleft",
                         color: .purple
                     )
-                    
+
                     Text("Description".uppercased())
                         .font(.system(size: 13, weight: .medium))
                         .foregroundColor(DesignSystem.Colors.secondaryText)
                         .tracking(0.5)
-                    
+
                     Spacer()
                 }
-                
-                Text(description)
+
+                // Use LinkableText to make URLs clickable
+                LinkableText(text: description)
                     .font(.system(size: 15, weight: .regular))
-                    .foregroundColor(.primary)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .lineSpacing(4)
                     .padding(.leading, 60) // Align with icon
             }
         }
@@ -415,6 +562,43 @@ struct EventDetailView: View {
         }
     }
     
+    // MARK: - Organizer Section
+    @ViewBuilder
+    private func organizerSection(_ organizerEmail: String) -> some View {
+        DetailCard {
+            HStack(spacing: 16) {
+                IconCircle(
+                    icon: "person.circle.fill",
+                    color: .orange
+                )
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Organizer".uppercased())
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                        .tracking(0.5)
+
+                    Text(organizerEmail)
+                        .font(.system(size: 15, weight: .regular))
+                        .foregroundColor(.primary)
+                }
+
+                Spacer()
+
+                // Email button
+                Button(action: {
+                    if let url = URL(string: "mailto:\(organizerEmail)") {
+                        UIApplication.shared.open(url)
+                    }
+                }) {
+                    Image(systemName: "envelope.fill")
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundColor(DesignSystem.Colors.primary)
+                }
+            }
+        }
+    }
+
     // MARK: - Calendar Source Section
     @ViewBuilder
     private func calendarSourceSection(_ event: EventDetails) -> some View {
@@ -424,13 +608,13 @@ struct EventDetailView: View {
                     icon: sourceIcon(event.source),
                     color: .gray
                 )
-                
+
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Calendar".uppercased())
                         .font(.system(size: 13, weight: .medium))
                         .foregroundColor(DesignSystem.Colors.secondaryText)
                         .tracking(0.5)
-                    
+
                     HStack(spacing: 8) {
                         ProviderBadge(provider: event.source)
                         Text("calendar")
@@ -438,9 +622,64 @@ struct EventDetailView: View {
                             .foregroundColor(DesignSystem.Colors.secondaryText)
                     }
                 }
-                
+
                 Spacer()
             }
+        }
+    }
+
+    // MARK: - Open in Calendar Section
+    @ViewBuilder
+    private func openInCalendarSection(_ htmlLink: String, source: String) -> some View {
+        Button(action: {
+            if let url = URL(string: htmlLink) {
+                UIApplication.shared.open(url)
+            }
+        }) {
+            HStack(spacing: 16) {
+                IconCircle(
+                    icon: "arrow.up.right.square",
+                    color: DesignSystem.Colors.primary
+                )
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Open in \(sourceDisplayName(source))")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundColor(.primary)
+
+                    Text("View and edit in your calendar app")
+                        .font(.system(size: 13, weight: .regular))
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(DesignSystem.Colors.tertiaryText)
+            }
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color(UIColor.secondarySystemGroupedBackground))
+            .cornerRadius(12)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(Color(UIColor.separator).opacity(0.5), lineWidth: 0.5)
+            )
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+
+    private func sourceDisplayName(_ source: String) -> String {
+        switch source.lowercased() {
+        case "google":
+            return "Google Calendar"
+        case "microsoft":
+            return "Outlook"
+        case "eventkit", "apple":
+            return "Apple Calendar"
+        default:
+            return "Calendar"
         }
     }
     
@@ -629,11 +868,11 @@ struct AttendeeRow: View {
     private func statusColor(_ status: String) -> Color {
         switch status.lowercased() {
         case "accepted":
-            return Color(hex: "34C759") // iOS Green
+            return DesignSystem.Colors.success // iOS Green
         case "declined":
             return Color(hex: "FF3B30") // iOS Red
         case "tentative":
-            return Color(hex: "FF9500") // iOS Orange
+            return DesignSystem.Colors.warning // iOS Orange
         case "needsaction":
             return Color(hex: "8E8E93") // iOS Gray
         default:
@@ -713,6 +952,119 @@ struct AttendeeRow: View {
             }
         }
         .padding(.vertical, 4)
+    }
+}
+
+// MARK: - Linkable Text Component
+/// A text view that automatically detects and makes URLs clickable
+struct LinkableText: View {
+    let text: String
+    var font: Font = .system(size: 15, weight: .regular)
+
+    // Regex pattern to match URLs
+    private static let urlPattern = try! NSRegularExpression(
+        pattern: #"(https?://[^\s<>\"\)]+)"#,
+        options: [.caseInsensitive]
+    )
+
+    private var textComponents: [(text: String, url: URL?)] {
+        var components: [(text: String, url: URL?)] = []
+        let nsString = text as NSString
+        let range = NSRange(location: 0, length: nsString.length)
+
+        var lastEnd = 0
+        let matches = Self.urlPattern.matches(in: text, options: [], range: range)
+
+        for match in matches {
+            // Add text before the URL
+            if match.range.location > lastEnd {
+                let beforeRange = NSRange(location: lastEnd, length: match.range.location - lastEnd)
+                let beforeText = nsString.substring(with: beforeRange)
+                components.append((text: beforeText, url: nil))
+            }
+
+            // Add the URL
+            let urlString = nsString.substring(with: match.range)
+            let url = URL(string: urlString)
+            components.append((text: urlString, url: url))
+
+            lastEnd = match.range.location + match.range.length
+        }
+
+        // Add remaining text after the last URL
+        if lastEnd < nsString.length {
+            let remainingText = nsString.substring(from: lastEnd)
+            components.append((text: remainingText, url: nil))
+        }
+
+        // If no URLs found, return the whole text
+        if components.isEmpty {
+            components.append((text: text, url: nil))
+        }
+
+        return components
+    }
+
+    var body: some View {
+        // Build the text with tappable links
+        textWithLinks
+            .fixedSize(horizontal: false, vertical: true)
+            .lineSpacing(4)
+    }
+
+    @ViewBuilder
+    private var textWithLinks: some View {
+        let components = textComponents
+
+        if components.count == 1 && components[0].url == nil {
+            // No URLs - just plain text
+            Text(text)
+                .font(font)
+                .foregroundColor(.primary)
+        } else {
+            // Has URLs - build composite text
+            VStack(alignment: .leading, spacing: 4) {
+                // Use Text concatenation for inline links
+                buildAttributedText(components)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func buildAttributedText(_ components: [(text: String, url: URL?)]) -> some View {
+        // Build Text with links using AttributedString (iOS 15+)
+        let attributedString = buildAttributedString(components)
+        Text(attributedString)
+            .font(font)
+            .tint(DesignSystem.Colors.primary)
+    }
+
+    private func buildAttributedString(_ components: [(text: String, url: URL?)]) -> AttributedString {
+        var result = AttributedString()
+
+        for component in components {
+            var part = AttributedString(component.text)
+
+            if let url = component.url {
+                // Make this part a clickable link
+                part.link = url
+                part.foregroundColor = DesignSystem.Colors.primary
+                part.underlineStyle = .single
+            } else {
+                part.foregroundColor = .primary
+            }
+
+            result.append(part)
+        }
+
+        return result
+    }
+
+    // Custom font modifier
+    func font(_ font: Font) -> LinkableText {
+        var copy = self
+        copy.font = font
+        return copy
     }
 }
 

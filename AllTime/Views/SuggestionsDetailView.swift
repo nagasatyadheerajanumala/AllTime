@@ -68,7 +68,7 @@ struct SuggestionsDetailView: View {
                 value: "\(suggestions.count)",
                 label: "Total",
                 icon: "lightbulb.fill",
-                color: Color(hex: "F59E0B")
+                color: DesignSystem.Colors.amber
             )
 
             StatBox(
@@ -82,7 +82,7 @@ struct SuggestionsDetailView: View {
                 value: "\(suggestions.filter { $0.category == "movement" || $0.category == "nutrition" }.count)",
                 label: "Wellness",
                 icon: "heart.fill",
-                color: Color(hex: "10B981")
+                color: DesignSystem.Colors.emerald
             )
         }
     }

@@ -4,8 +4,25 @@ import Foundation
 class DayReviewService {
     static let shared = DayReviewService()
     private let baseURL = Constants.API.baseURL
+    private let timeout: TimeInterval = Constants.API.timeout
 
     private init() {}
+
+    /// Creates a URL from the given string, throwing an error if invalid
+    private func makeURL(_ path: String) throws -> URL {
+        guard let url = URL(string: path) else {
+            throw DayReviewError.networkError
+        }
+        return url
+    }
+
+    /// Creates URLComponents from the given string, throwing an error if invalid
+    private func makeURLComponents(_ path: String) throws -> URLComponents {
+        guard let components = URLComponents(string: path) else {
+            throw DayReviewError.networkError
+        }
+        return components
+    }
 
     // MARK: - Get Day Review
 
@@ -15,7 +32,7 @@ class DayReviewService {
             throw DayReviewError.unauthorized
         }
 
-        var urlComponents = URLComponents(string: "\(baseURL)/api/v1/review/day")!
+        var urlComponents = try makeURLComponents("\(baseURL)/api/v1/review/day")
         var queryItems: [URLQueryItem] = []
 
         if let date = date {
@@ -34,8 +51,12 @@ class DayReviewService {
             urlComponents.queryItems = queryItems
         }
 
-        var request = URLRequest(url: urlComponents.url!)
+        guard let url = urlComponents.url else {
+            throw DayReviewError.networkError
+        }
+        var request = URLRequest(url: url)
         request.httpMethod = "GET"
+        request.timeoutInterval = timeout
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
@@ -71,9 +92,10 @@ class DayReviewService {
             throw DayReviewError.unauthorized
         }
 
-        let url = URL(string: "\(baseURL)/api/v1/review/day/reflection")!
+        let url = try makeURL("\(baseURL)/api/v1/review/day/reflection")
         var urlRequest = URLRequest(url: url)
         urlRequest.httpMethod = "POST"
+        urlRequest.timeoutInterval = timeout
         urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
@@ -175,4 +197,125 @@ struct ReflectionSaveResponse: Codable {
     let success: Bool
     let message: String?
     let reflectionId: Int?
+}
+
+// MARK: - Daily Insights Summary (for evening notifications)
+
+struct DailyInsightsSummary: Codable {
+    let date: String
+    let dayOfWeek: String
+    let summaryMessage: String
+    let shortSummary: String
+    let dayTone: String
+    let timeBreakdown: TimeBreakdown?
+    let eventStats: EventStats?
+    let health: HealthSummary?
+    let highlights: [DayHighlight]?
+    let completion: CompletionStats?
+
+    struct CompletionStats: Codable {
+        let hasActivities: Bool
+        let totalPlanned: Int
+        let totalCompleted: Int
+        let completionPercentage: Int
+        let summaryMessage: String?
+    }
+
+    struct TimeBreakdown: Codable {
+        let meetingHours: Double
+        let focusHours: Double
+        let personalHours: Double
+        let freeHours: Double
+        let totalScheduledHours: Double
+    }
+
+    struct EventStats: Codable {
+        let totalEvents: Int
+        let meetings: Int
+        let focusBlocks: Int
+        let personalEvents: Int
+        let backToBackCount: Int
+        let longestMeetingMinutes: Int
+    }
+
+    struct HealthSummary: Codable {
+        let hasData: Bool
+        let steps: Int?
+        let sleepMinutes: Int?
+        let activeMinutes: Int?
+        let restingHeartRate: Int?
+        let stepsGoalPercent: Int?
+        let stepsGoalMet: Bool?
+        let sleepGoalPercent: Int?
+        let sleepGoalMet: Bool?
+        let activeGoalPercent: Int?
+        let activeGoalMet: Bool?
+    }
+
+    struct DayHighlight: Codable {
+        let category: String
+        let label: String
+        let detail: String
+        let icon: String
+    }
+}
+
+extension DayReviewService {
+    /// Get comprehensive daily insights summary for evening notifications
+    func getDailyInsightsSummary(date: Date? = nil, timezone: String? = nil) async throws -> DailyInsightsSummary {
+        guard let token = KeychainManager.shared.getAccessToken() else {
+            throw DayReviewError.unauthorized
+        }
+
+        var urlComponents = try makeURLComponents("\(baseURL)/api/v1/insights/daily")
+        var queryItems: [URLQueryItem] = []
+
+        if let date = date {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "yyyy-MM-dd"
+            queryItems.append(URLQueryItem(name: "date", value: formatter.string(from: date)))
+        }
+
+        if let timezone = timezone {
+            queryItems.append(URLQueryItem(name: "timezone", value: timezone))
+        } else {
+            queryItems.append(URLQueryItem(name: "timezone", value: TimeZone.current.identifier))
+        }
+
+        if !queryItems.isEmpty {
+            urlComponents.queryItems = queryItems
+        }
+
+        guard let url = urlComponents.url else {
+            throw DayReviewError.networkError
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.timeoutInterval = timeout
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        print("🔄 DayReviewService: Fetching daily insights summary...")
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw DayReviewError.networkError
+        }
+
+        if httpResponse.statusCode == 401 {
+            throw DayReviewError.unauthorized
+        }
+
+        guard httpResponse.statusCode == 200 else {
+            print("❌ DayReviewService: Server error \(httpResponse.statusCode)")
+            throw DayReviewError.serverError(statusCode: httpResponse.statusCode)
+        }
+
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        let summaryResponse = try decoder.decode(DailyInsightsSummary.self, from: data)
+        print("✅ DayReviewService: Got daily insights - \(summaryResponse.shortSummary)")
+        return summaryResponse
+    }
 }

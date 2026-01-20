@@ -158,6 +158,7 @@ struct HealthInsightsTabContent: View {
 
                 Spacer(minLength: DesignSystem.Spacing.xl)
             }
+            .padding(.bottom, 100) // Space for tab bar
         }
         .background(DesignSystem.Colors.background)
         .refreshable {

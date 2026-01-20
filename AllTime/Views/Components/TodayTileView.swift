@@ -29,25 +29,25 @@ enum TodayTileType: String, CaseIterable {
         switch self {
         case .summary:
             return LinearGradient(
-                colors: [Color(hex: "6366F1"), Color(hex: "4F46E5")],
+                colors: [DesignSystem.Colors.indigo, DesignSystem.Colors.indigoDark],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
         case .suggestions:
             return LinearGradient(
-                colors: [Color(hex: "F59E0B"), Color(hex: "D97706")],
+                colors: [DesignSystem.Colors.amber, DesignSystem.Colors.amberDark],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
         case .todo:
             return LinearGradient(
-                colors: [Color(hex: "10B981"), Color(hex: "059669")],
+                colors: [DesignSystem.Colors.emerald, DesignSystem.Colors.emeraldDark],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
         case .insights:
             return LinearGradient(
-                colors: [Color(hex: "8B5CF6"), Color(hex: "6D28D9")],
+                colors: [DesignSystem.Colors.violet, Color(hex: "6D28D9")],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
@@ -126,16 +126,6 @@ struct TodayTileView<Content: View>: View {
             .shadow(color: Color.black.opacity(0.15), radius: 12, x: 0, y: 6)
         }
         .buttonStyle(TileButtonStyle())
-    }
-}
-
-// MARK: - Tile Button Style (Subtle press effect)
-struct TileButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? 0.97 : 1.0)
-            .opacity(configuration.isPressed ? 0.9 : 1.0)
-            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: configuration.isPressed)
     }
 }
 
@@ -363,7 +353,7 @@ struct StatPill: View {
             TodayTileView(
                 type: .summary,
                 gradient: LinearGradient(
-                    colors: [Color(hex: "6366F1"), Color(hex: "4F46E5")],
+                    colors: [DesignSystem.Colors.indigo, DesignSystem.Colors.indigoDark],
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 ),

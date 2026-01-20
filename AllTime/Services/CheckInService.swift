@@ -4,8 +4,25 @@ import Foundation
 class CheckInService {
     static let shared = CheckInService()
     private let baseURL = Constants.API.baseURL
+    private let timeout: TimeInterval = Constants.API.timeout
 
     private init() {}
+
+    /// Creates a URL from the given string, throwing an error if invalid
+    private func makeURL(_ path: String) throws -> URL {
+        guard let url = URL(string: path) else {
+            throw CheckInError.networkError
+        }
+        return url
+    }
+
+    /// Creates URLComponents from the given string, throwing an error if invalid
+    private func makeURLComponents(_ path: String) throws -> URLComponents {
+        guard let components = URLComponents(string: path) else {
+            throw CheckInError.networkError
+        }
+        return components
+    }
 
     // MARK: - Get Check-In Status
 
@@ -15,8 +32,9 @@ class CheckInService {
             throw CheckInError.unauthorized
         }
 
-        let url = URL(string: "\(baseURL)/api/v1/checkin/status")!
+        let url = try makeURL("\(baseURL)/api/v1/checkin/status")
         var request = URLRequest(url: url)
+        request.timeoutInterval = timeout
         request.httpMethod = "GET"
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -47,8 +65,9 @@ class CheckInService {
             throw CheckInError.unauthorized
         }
 
-        let url = URL(string: "\(baseURL)/api/v1/checkin/mood")!
+        let url = try makeURL("\(baseURL)/api/v1/checkin/mood")
         var urlRequest = URLRequest(url: url)
+        urlRequest.timeoutInterval = timeout
         urlRequest.httpMethod = "POST"
         urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -82,8 +101,9 @@ class CheckInService {
             throw CheckInError.unauthorized
         }
 
-        let url = URL(string: "\(baseURL)/api/v1/checkin/quick")!
+        let url = try makeURL("\(baseURL)/api/v1/checkin/quick")
         var urlRequest = URLRequest(url: url)
+        urlRequest.timeoutInterval = timeout
         urlRequest.httpMethod = "POST"
         urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -121,8 +141,9 @@ class CheckInService {
             throw CheckInError.unauthorized
         }
 
-        let url = URL(string: "\(baseURL)/api/v1/checkin/event-feedback")!
+        let url = try makeURL("\(baseURL)/api/v1/checkin/event-feedback")
         var urlRequest = URLRequest(url: url)
+        urlRequest.timeoutInterval = timeout
         urlRequest.httpMethod = "POST"
         urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -156,8 +177,9 @@ class CheckInService {
             throw CheckInError.unauthorized
         }
 
-        let url = URL(string: "\(baseURL)/api/v1/checkin/travel-feedback")!
+        let url = try makeURL("\(baseURL)/api/v1/checkin/travel-feedback")
         var urlRequest = URLRequest(url: url)
+        urlRequest.timeoutInterval = timeout
         urlRequest.httpMethod = "POST"
         urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -191,8 +213,9 @@ class CheckInService {
             throw CheckInError.unauthorized
         }
 
-        let url = URL(string: "\(baseURL)/api/v1/predictions/learning/summary")!
+        let url = try makeURL("\(baseURL)/api/v1/predictions/learning/summary")
         var request = URLRequest(url: url)
+        request.timeoutInterval = timeout
         request.httpMethod = "GET"
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -221,8 +244,9 @@ class CheckInService {
             throw CheckInError.unauthorized
         }
 
-        let url = URL(string: "\(baseURL)/api/v1/predictions/learning/energy?time_of_day=\(timeOfDay)")!
+        let url = try makeURL("\(baseURL)/api/v1/predictions/learning/energy?time_of_day=\(timeOfDay)")
         var request = URLRequest(url: url)
+        request.timeoutInterval = timeout
         request.httpMethod = "GET"
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -253,7 +277,7 @@ class CheckInService {
             throw CheckInError.unauthorized
         }
 
-        var urlComponents = URLComponents(string: "\(baseURL)/api/v1/checkin/suggestions")!
+        var urlComponents = try makeURLComponents("\(baseURL)/api/v1/checkin/suggestions")
         var queryItems = [URLQueryItem(name: "energy_level", value: String(energyLevel))]
 
         if let mood = mood {
@@ -264,7 +288,11 @@ class CheckInService {
         }
         urlComponents.queryItems = queryItems
 
-        var request = URLRequest(url: urlComponents.url!)
+        guard let url = urlComponents.url else {
+            throw CheckInError.networkError
+        }
+        var request = URLRequest(url: url)
+        request.timeoutInterval = timeout
         request.httpMethod = "GET"
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")

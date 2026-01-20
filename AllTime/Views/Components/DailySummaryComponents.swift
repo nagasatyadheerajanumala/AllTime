@@ -15,7 +15,7 @@ struct SectionCard: View {
             HStack(spacing: 10) {
                 Image(systemName: sectionIcon)
                     .font(.system(size: 14, weight: .light))
-                    .foregroundColor(Color(hex: "3B82F6"))
+                    .foregroundColor(DesignSystem.Colors.blue)
 
                 Text(cleanTitle)
                     .font(.system(size: 13, weight: .medium))
@@ -31,7 +31,7 @@ struct SectionCard: View {
                 ForEach(items, id: \.self) { item in
                     HStack(alignment: .top, spacing: 12) {
                         Circle()
-                            .fill(Color(hex: "3B82F6").opacity(0.5))
+                            .fill(DesignSystem.Colors.blue.opacity(0.5))
                             .frame(width: 4, height: 4)
                             .padding(.top, 7)
 
@@ -122,9 +122,9 @@ struct AlertsBanner: View {
 
     private func severityColor(for severity: AlertSeverity) -> Color {
         switch severity {
-        case .critical: return Color(hex: "EF4444")
-        case .warning: return Color(hex: "F59E0B")
-        case .info: return Color(hex: "3B82F6")
+        case .critical: return DesignSystem.Colors.errorRed
+        case .warning: return DesignSystem.Colors.amber
+        case .info: return DesignSystem.Colors.blue
         }
     }
 
@@ -158,7 +158,7 @@ struct WaterIntakeWidget: View {
                 HStack(spacing: 10) {
                     Image(systemName: "drop.fill")
                         .font(.system(size: 14, weight: .light))
-                        .foregroundColor(Color(hex: "3B82F6"))
+                        .foregroundColor(DesignSystem.Colors.blue)
 
                     Text("Hydration")
                         .font(.system(size: 13, weight: .medium))
@@ -184,7 +184,7 @@ struct WaterIntakeWidget: View {
                     RoundedRectangle(cornerRadius: 4)
                         .fill(
                             LinearGradient(
-                                colors: [Color(hex: "3B82F6"), Color(hex: "60A5FA")],
+                                colors: [DesignSystem.Colors.blue, Color(hex: "60A5FA")],
                                 startPoint: .leading,
                                 endPoint: .trailing
                             )
@@ -344,7 +344,7 @@ struct SummaryMetricsCard: View {
                 if let water = waterIntake {
                     MetricItem(
                         icon: "drop.fill",
-                        iconColor: Color(hex: "3B82F6"),
+                        iconColor: DesignSystem.Colors.blue,
                         value: String(format: "%.1f", water),
                         unit: "L",
                         label: "Water"
@@ -412,7 +412,7 @@ struct HealthSuggestionsGrid: View {
             HStack(spacing: 10) {
                 Image(systemName: "lightbulb")
                     .font(.system(size: 14, weight: .light))
-                    .foregroundColor(Color(hex: "F59E0B"))
+                    .foregroundColor(DesignSystem.Colors.amber)
 
                 Text("Suggestions")
                     .font(.system(size: 13, weight: .medium))
@@ -548,19 +548,19 @@ struct HealthSuggestionCard: View {
 
     private var categoryColor: Color {
         switch suggestion.category {
-        case "meal", "food": return Color(hex: "F59E0B")
+        case "meal", "food": return DesignSystem.Colors.amber
         case "exercise", "walk": return Color(hex: "34D399")
-        case "hydration", "water": return Color(hex: "3B82F6")
+        case "hydration", "water": return DesignSystem.Colors.blue
         case "rest", "break": return Color(hex: "A78BFA")
-        case "sleep": return Color(hex: "8B5CF6")
-        default: return Color(hex: "3B82F6")
+        case "sleep": return DesignSystem.Colors.violet
+        default: return DesignSystem.Colors.blue
         }
     }
 
     private var priorityColor: Color {
         switch suggestion.priority {
-        case "high": return Color(hex: "EF4444")
-        case "medium": return Color(hex: "F59E0B")
+        case "high": return DesignSystem.Colors.errorRed
+        case "medium": return DesignSystem.Colors.amber
         default: return Color(hex: "34D399")
         }
     }
@@ -600,8 +600,8 @@ struct SuggestionPriorityBadge: View {
 
     private var priorityColor: Color {
         switch priority {
-        case "high": return Color(hex: "EF4444")
-        case "medium": return Color(hex: "F59E0B")
+        case "high": return DesignSystem.Colors.errorRed
+        case "medium": return DesignSystem.Colors.amber
         default: return Color(hex: "34D399")
         }
     }
@@ -761,7 +761,7 @@ struct LocationRecommendationsCard: View {
             HStack(spacing: 10) {
                 Image(systemName: "location.fill")
                     .font(.system(size: 14, weight: .light))
-                    .foregroundColor(Color(hex: "3B82F6"))
+                    .foregroundColor(DesignSystem.Colors.blue)
 
                 if let city = recommendations.userCity {
                     Text(city)
@@ -802,7 +802,7 @@ struct LunchRecommendationView: View {
             HStack {
                 Image(systemName: "fork.knife")
                     .font(.system(size: 12, weight: .light))
-                    .foregroundColor(Color(hex: "F59E0B"))
+                    .foregroundColor(DesignSystem.Colors.amber)
 
                 Text("Lunch Spots")
                     .font(.system(size: 12, weight: .medium))
@@ -826,7 +826,7 @@ struct LunchRecommendationView: View {
         .padding(14)
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color(hex: "F59E0B").opacity(0.05))
+                .fill(DesignSystem.Colors.amber.opacity(0.05))
         )
     }
 }
@@ -861,7 +861,7 @@ struct SimpleLunchSpotRow: View {
                     HStack(spacing: 4) {
                         Image(systemName: "star.fill")
                             .font(.system(size: 10))
-                            .foregroundColor(Color(hex: "F59E0B"))
+                            .foregroundColor(DesignSystem.Colors.amber)
                         Text(String(format: "%.1f", rating))
                             .font(.system(size: 12, weight: .regular))
                             .foregroundColor(.white.opacity(0.5))

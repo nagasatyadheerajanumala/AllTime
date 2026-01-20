@@ -444,7 +444,7 @@ struct WalkRecommendationsView: View {
                     title: "Neighborhood",
                     subtitle: "Explore your local area",
                     icon: "house.fill",
-                    iconColor: Color(hex: "F59E0B"),
+                    iconColor: DesignSystem.Colors.amber,
                     routes: neighborhoodRoutes,
                     onRouteTap: { route in
                         selectedRoute = route
@@ -472,7 +472,7 @@ struct WalkRecommendationsView: View {
                     title: "Other Routes",
                     subtitle: "More walking options",
                     icon: "figure.walk",
-                    iconColor: Color(hex: "8B5CF6"),
+                    iconColor: DesignSystem.Colors.violet,
                     routes: otherRoutes,
                     onRouteTap: { route in
                         selectedRoute = route

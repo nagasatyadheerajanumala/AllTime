@@ -5,21 +5,28 @@ import Combine
 /// Service for querying and aggregating HealthKit data
 class HealthMetricsService: ObservableObject {
     static let shared = HealthMetricsService()
-    
+
     @Published var isAuthorized: Bool = false
-    
+
+    /// Today's fresh health metrics - available app-wide for immediate display
+    /// This is populated on app launch and foreground, ensuring users always see accurate data
+    @Published var todaysFreshMetrics: DailyHealthMetrics?
+
+    /// Timestamp of last fresh metrics fetch
+    @Published var lastFreshMetricsFetch: Date?
+
     // CRITICAL FIX: Use shared HealthKitManager's healthStore to avoid multiple instances
     // Multiple HKHealthStore instances can cause authorization state mismatches
     private var healthStore: HKHealthStore {
         return HealthKitManager.shared.healthStore
     }
-    
+
     // CRITICAL: Use CANONICAL source - HealthKitTypes.all
     // This ensures EXACT same instances as HealthKitManager
     private var readTypes: Set<HKObjectType> {
         return HealthKitTypes.all
     }
-    
+
     // Cache for daily aggregates (date string -> metrics) - thread-safe
     private var dailyCache: [String: DailyHealthMetrics] = [:]
     private let cacheQueue = DispatchQueue(label: "com.alltime.health.cache")
@@ -52,11 +59,39 @@ class HealthMetricsService: ObservableObject {
         }
         
         print("✅ HealthMetricsService: HealthKit is available and types can be created")
-        
+
         let ready = await HealthKitManager.shared.ensureHealthKitReady()
         isAuthorized = ready
     }
-    
+
+    // MARK: - Fresh Metrics for Today (App-Wide)
+
+    /// Fetch fresh metrics for today and store in todaysFreshMetrics
+    /// Call this on app launch and foreground to ensure fresh data is always available
+    @MainActor
+    func fetchTodaysFreshMetrics() async {
+        do {
+            // Clear today's cache entry to ensure fresh data
+            let todayString = Self.dateFormatter.string(from: Date())
+            cacheQueue.sync {
+                dailyCache.removeValue(forKey: todayString)
+            }
+
+            // Fetch fresh data from HealthKit
+            let metrics = try await fetchDailyMetrics(for: Date())
+            todaysFreshMetrics = metrics
+            lastFreshMetricsFetch = Date()
+
+            print("📊 HealthMetricsService: Fresh metrics loaded for today")
+            print("   - Steps: \(metrics.steps ?? 0)")
+            print("   - Sleep: \(metrics.sleepMinutes ?? 0) minutes (\(String(format: "%.1f", Double(metrics.sleepMinutes ?? 0) / 60.0))h)")
+            print("   - Active minutes: \(metrics.activeMinutes ?? 0)")
+            print("   - Resting HR: \(metrics.restingHeartRate ?? 0) bpm")
+        } catch {
+            print("❌ HealthMetricsService: Failed to fetch today's fresh metrics: \(error.localizedDescription)")
+        }
+    }
+
     // MARK: - Query Daily Metrics
     
     /// Fetch daily health metrics for a specific date

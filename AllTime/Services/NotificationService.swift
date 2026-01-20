@@ -232,5 +232,6 @@ extension Notification.Name {
     static let navigateToEveningSummary = Notification.Name("navigateToEveningSummary")
     static let navigateToToday = Notification.Name("navigateToToday")
     static let navigateToDayReview = Notification.Name("navigateToDayReview")
+    static let navigateToDailyInsights = Notification.Name("navigateToDailyInsights")
 }
 

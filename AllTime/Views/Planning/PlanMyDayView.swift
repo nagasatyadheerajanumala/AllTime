@@ -232,17 +232,17 @@ struct PlanMyDayView: View {
             HStack {
                 Image(systemName: "brain.head.profile")
                     .font(.headline)
-                    .foregroundColor(Color(hex: "8B5CF6"))
+                    .foregroundColor(DesignSystem.Colors.violet)
                 Text("Focus Blocks")
                     .font(.headline)
                     .foregroundColor(DesignSystem.Colors.primaryText)
                 Spacer()
                 Text("\(viewModel.focusWindows.count) available")
                     .font(.caption.weight(.semibold))
-                    .foregroundColor(Color(hex: "8B5CF6"))
+                    .foregroundColor(DesignSystem.Colors.violet)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 4)
-                    .background(Capsule().fill(Color(hex: "8B5CF6").opacity(0.15)))
+                    .background(Capsule().fill(DesignSystem.Colors.violet.opacity(0.15)))
             }
 
             Text("Block uninterrupted time for deep work")
@@ -279,7 +279,7 @@ struct PlanMyDayView: View {
             HStack {
                 Image(systemName: "fork.knife")
                     .font(.headline)
-                    .foregroundColor(Color(hex: "F59E0B"))
+                    .foregroundColor(DesignSystem.Colors.amber)
                 Text("Lunch Break")
                     .font(.headline)
                     .foregroundColor(DesignSystem.Colors.primaryText)
@@ -327,12 +327,12 @@ struct PlanMyDayView: View {
                                 Text(lunchAddedToCalendar ? "Added" : "Add to Calendar")
                                     .font(.caption.weight(.medium))
                             }
-                            .foregroundColor(lunchAddedToCalendar ? .white : Color(hex: "F59E0B"))
+                            .foregroundColor(lunchAddedToCalendar ? .white : DesignSystem.Colors.amber)
                             .padding(.horizontal, 12)
                             .padding(.vertical, 8)
                             .background(
                                 Capsule()
-                                    .fill(lunchAddedToCalendar ? Color.green : Color(hex: "F59E0B").opacity(0.15))
+                                    .fill(lunchAddedToCalendar ? Color.green : DesignSystem.Colors.amber.opacity(0.15))
                             )
                         }
                         .disabled(lunchAddedToCalendar)
@@ -551,7 +551,7 @@ struct PlanMyDayView: View {
                     Text("Your Plan")
                         .font(.headline)
                         .foregroundColor(DesignSystem.Colors.primaryText)
-                    Text(plan.summary)
+                    Text(plan.summary ?? "Your personalized plan")
                         .font(.caption)
                         .foregroundColor(DesignSystem.Colors.secondaryText)
                 }
@@ -564,36 +564,38 @@ struct PlanMyDayView: View {
             }
 
             // Activities Preview
-            ForEach(plan.activities.prefix(3)) { activity in
-                WeekendActivityRow(activity: activity)
-            }
+            if let activities = plan.activities {
+                ForEach(activities.prefix(3)) { activity in
+                    WeekendActivityRow(activity: activity)
+                }
 
-            if plan.activities.count > 3 {
-                Text("+ \(plan.activities.count - 3) more activities")
-                    .font(.caption)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .frame(maxWidth: .infinity, alignment: .center)
+                if activities.count > 3 {
+                    Text("+ \(activities.count - 3) more activities")
+                        .font(.caption)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                }
             }
 
             // Budget & Duration
             HStack(spacing: 20) {
-                Label(plan.estimatedBudget, systemImage: "dollarsign.circle")
+                Label(plan.estimatedBudget ?? "$", systemImage: "dollarsign.circle")
                     .font(.caption)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
 
-                Label("\(plan.totalDuration / 60)h planned", systemImage: "clock")
+                Label("\((plan.totalDuration ?? 0) / 60)h planned", systemImage: "clock")
                     .font(.caption)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
             }
 
             // Tips
-            if !plan.tips.isEmpty {
+            if let tips = plan.tips, !tips.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Tips")
                         .font(.caption.weight(.semibold))
                         .foregroundColor(DesignSystem.Colors.secondaryText)
 
-                    ForEach(plan.tips.prefix(2), id: \.self) { tip in
+                    ForEach(tips.prefix(2), id: \.self) { tip in
                         HStack(alignment: .top, spacing: 8) {
                             Image(systemName: "lightbulb.fill")
                                 .font(.caption)
@@ -623,10 +625,10 @@ struct WeekendActivityRow: View {
         HStack(spacing: 12) {
             // Time
             VStack(alignment: .trailing, spacing: 2) {
-                Text(activity.startTime)
+                Text(activity.startTime ?? "")
                     .font(.caption.weight(.medium))
                     .foregroundColor(activity.categoryColor)
-                Text(activity.endTime)
+                Text(activity.endTime ?? "")
                     .font(.caption2)
                     .foregroundColor(DesignSystem.Colors.tertiaryText)
             }
@@ -637,7 +639,7 @@ struct WeekendActivityRow: View {
                 Circle()
                     .fill(activity.categoryColor.opacity(0.15))
                     .frame(width: 36, height: 36)
-                Image(systemName: activity.icon)
+                Image(systemName: activity.icon ?? "star.fill")
                     .font(.system(size: 14))
                     .foregroundColor(activity.categoryColor)
             }
@@ -681,47 +683,49 @@ struct WeekendPlanDetailView: View {
                 VStack(spacing: 24) {
                     // Summary Header
                     VStack(spacing: 8) {
-                        Text(plan.date)
+                        Text(plan.date ?? "Today")
                             .font(.title2.weight(.bold))
                             .foregroundColor(DesignSystem.Colors.primaryText)
 
-                        Text(plan.summary)
+                        Text(plan.summary ?? "Your personalized plan")
                             .font(.subheadline)
                             .foregroundColor(DesignSystem.Colors.secondaryText)
                             .multilineTextAlignment(.center)
 
                         HStack(spacing: 20) {
-                            StatPill(icon: "clock", text: "\(plan.totalDuration / 60)h")
-                            StatPill(icon: "dollarsign.circle", text: plan.estimatedBudget)
-                            StatPill(icon: "list.bullet", text: "\(plan.activities.count)")
+                            StatPill(icon: "clock", text: "\((plan.totalDuration ?? 0) / 60)h")
+                            StatPill(icon: "dollarsign.circle", text: plan.estimatedBudget ?? "$")
+                            StatPill(icon: "list.bullet", text: "\(plan.activities?.count ?? 0)")
                         }
                         .padding(.top, 8)
                     }
                     .padding()
 
                     // Timeline
-                    VStack(alignment: .leading, spacing: 0) {
-                        ForEach(Array(plan.activities.enumerated()), id: \.element.id) { index, activity in
-                            WeekendActivityDetailRow(
-                                activity: activity,
-                                isLast: index == plan.activities.count - 1
-                            )
+                    if let activities = plan.activities {
+                        VStack(alignment: .leading, spacing: 0) {
+                            ForEach(Array(activities.enumerated()), id: \.element.id) { index, activity in
+                                WeekendActivityDetailRow(
+                                    activity: activity,
+                                    isLast: index == activities.count - 1
+                                )
+                            }
                         }
+                        .padding()
+                        .background(
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(DesignSystem.Colors.cardBackground)
+                        )
                     }
-                    .padding()
-                    .background(
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(DesignSystem.Colors.cardBackground)
-                    )
 
                     // Tips Section
-                    if !plan.tips.isEmpty {
+                    if let tips = plan.tips, !tips.isEmpty {
                         VStack(alignment: .leading, spacing: 12) {
                             Text("Tips for Your Day")
                                 .font(.headline)
                                 .foregroundColor(DesignSystem.Colors.primaryText)
 
-                            ForEach(plan.tips, id: \.self) { tip in
+                            ForEach(tips, id: \.self) { tip in
                                 HStack(alignment: .top, spacing: 12) {
                                     Image(systemName: "lightbulb.fill")
                                         .foregroundColor(.yellow)
@@ -782,12 +786,12 @@ struct WeekendActivityDetailRow: View {
             // Content
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
-                    Text(activity.startTime)
+                    Text(activity.startTime ?? "")
                         .font(.caption.weight(.medium))
                         .foregroundColor(activity.categoryColor)
                     Text("-")
                         .foregroundColor(DesignSystem.Colors.tertiaryText)
-                    Text(activity.endTime)
+                    Text(activity.endTime ?? "")
                         .font(.caption.weight(.medium))
                         .foregroundColor(activity.categoryColor)
 
@@ -804,14 +808,14 @@ struct WeekendActivityDetailRow: View {
                 }
 
                 HStack(spacing: 8) {
-                    Image(systemName: activity.icon)
+                    Image(systemName: activity.icon ?? "star.fill")
                         .foregroundColor(activity.categoryColor)
                     Text(activity.title)
                         .font(.headline)
                         .foregroundColor(DesignSystem.Colors.primaryText)
                 }
 
-                Text(activity.description)
+                Text(activity.description ?? "")
                     .font(.subheadline)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
 
@@ -900,13 +904,13 @@ struct DayTypeBadge: View {
     private var badgeGradient: LinearGradient {
         if dayType.isHoliday || dayType.isWeekend {
             return LinearGradient(
-                colors: [Color(hex: "F59E0B"), Color(hex: "EF4444")],
+                colors: [DesignSystem.Colors.amber, DesignSystem.Colors.errorRed],
                 startPoint: .leading,
                 endPoint: .trailing
             )
         }
         return LinearGradient(
-            colors: [Color(hex: "3B82F6"), Color(hex: "6366F1")],
+            colors: [DesignSystem.Colors.blue, DesignSystem.Colors.indigo],
             startPoint: .leading,
             endPoint: .trailing
         )
@@ -1098,7 +1102,7 @@ struct MealRow: View {
         HStack(spacing: 12) {
             Image(systemName: meal.mealIcon)
                 .font(.caption)
-                .foregroundColor(Color(hex: "F59E0B"))
+                .foregroundColor(DesignSystem.Colors.amber)
                 .frame(width: 20)
 
             Text(meal.mealType.capitalized)
@@ -1135,7 +1139,7 @@ struct FocusBlockCard: View {
             VStack(spacing: 2) {
                 Text(formatTime(window.startTime))
                     .font(.caption.weight(.semibold))
-                    .foregroundColor(Color(hex: "8B5CF6"))
+                    .foregroundColor(DesignSystem.Colors.violet)
                 Text(formatTime(window.endTime))
                     .font(.caption2)
                     .foregroundColor(DesignSystem.Colors.tertiaryText)
@@ -1144,7 +1148,7 @@ struct FocusBlockCard: View {
 
             // Divider line
             Rectangle()
-                .fill(Color(hex: "8B5CF6").opacity(0.3))
+                .fill(DesignSystem.Colors.violet.opacity(0.3))
                 .frame(width: 2)
                 .frame(maxHeight: .infinity)
 
@@ -1162,7 +1166,7 @@ struct FocusBlockCard: View {
                     if let quality = window.qualityScore {
                         Text("Quality: \(quality)%")
                             .font(.caption2)
-                            .foregroundColor(Color(hex: "8B5CF6"))
+                            .foregroundColor(DesignSystem.Colors.violet)
                     }
                 }
 
@@ -1180,17 +1184,17 @@ struct FocusBlockCard: View {
             Button(action: onAddToCalendar) {
                 Image(systemName: isAdded ? "checkmark.circle.fill" : "plus.circle.fill")
                     .font(.title2)
-                    .foregroundColor(isAdded ? .green : Color(hex: "8B5CF6"))
+                    .foregroundColor(isAdded ? .green : DesignSystem.Colors.violet)
             }
             .disabled(isAdded)
         }
         .padding()
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color(hex: "8B5CF6").opacity(0.08))
+                .fill(DesignSystem.Colors.violet.opacity(0.08))
                 .overlay(
                     RoundedRectangle(cornerRadius: 12)
-                        .stroke(isAdded ? Color.green.opacity(0.3) : Color(hex: "8B5CF6").opacity(0.2), lineWidth: 1)
+                        .stroke(isAdded ? Color.green.opacity(0.3) : DesignSystem.Colors.violet.opacity(0.2), lineWidth: 1)
                 )
         )
     }

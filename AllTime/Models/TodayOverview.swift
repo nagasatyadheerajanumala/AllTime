@@ -125,31 +125,31 @@ extension SummaryTileData {
         switch (mood ?? "").lowercased() {
         case "focus_day":
             return LinearGradient(
-                colors: [Color(hex: "3B82F6"), Color(hex: "1D4ED8")],
+                colors: [DesignSystem.Colors.blue, DesignSystem.Colors.blueDark],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
         case "light_day":
             return LinearGradient(
-                colors: [Color(hex: "10B981"), Color(hex: "059669")],
+                colors: [DesignSystem.Colors.emerald, DesignSystem.Colors.emeraldDark],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
         case "intense_meetings":
             return LinearGradient(
-                colors: [Color(hex: "F59E0B"), Color(hex: "D97706")],
+                colors: [DesignSystem.Colors.amber, DesignSystem.Colors.amberDark],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
         case "rest_day":
             return LinearGradient(
-                colors: [Color(hex: "8B5CF6"), Color(hex: "7C3AED")],
+                colors: [DesignSystem.Colors.violet, DesignSystem.Colors.violetDark],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
         case "balanced":
             return LinearGradient(
-                colors: [Color(hex: "6366F1"), Color(hex: "4F46E5")],
+                colors: [DesignSystem.Colors.indigo, DesignSystem.Colors.indigoDark],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
@@ -190,12 +190,12 @@ extension SuggestionPreviewData {
     var categoryColor: Color {
         switch (category ?? "").lowercased() {
         case "focus": return Color(hex: "5856D6")
-        case "movement": return Color(hex: "34C759")
-        case "nutrition": return Color(hex: "FF9500")
+        case "movement": return DesignSystem.Colors.success
+        case "nutrition": return DesignSystem.Colors.warning
         case "break": return Color(hex: "007AFF")
-        case "health_insight": return Color(hex: "10B981")
-        case "routine": return Color(hex: "34C759")
-        case "warning": return Color(hex: "FF9500")
+        case "health_insight": return DesignSystem.Colors.emerald
+        case "routine": return DesignSystem.Colors.success
+        case "warning": return DesignSystem.Colors.warning
         default: return DesignSystem.Colors.primary
         }
     }
@@ -221,8 +221,8 @@ extension SuggestionPreviewData {
 extension TaskPreviewData {
     var priorityColor: Color {
         switch (priority ?? "").uppercased() {
-        case "URGENT": return Color(hex: "EF4444")
-        case "HIGH": return Color(hex: "F59E0B")
+        case "URGENT": return DesignSystem.Colors.errorRed
+        case "HIGH": return DesignSystem.Colors.amber
         case "MEDIUM": return DesignSystem.Colors.primary
         case "LOW": return DesignSystem.Colors.secondaryText
         default: return DesignSystem.Colors.secondaryText

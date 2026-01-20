@@ -141,8 +141,8 @@ struct MetricChip: View {
 
         var color: Color {
             switch self {
-            case .up: return Color(hex: "10B981")
-            case .down: return Color(hex: "EF4444")
+            case .up: return DesignSystem.Colors.emerald
+            case .down: return DesignSystem.Colors.errorRed
             case .stable: return Color(hex: "6B7280")
             }
         }
@@ -211,9 +211,9 @@ struct RankedIssueRow: View {
 
         var color: Color {
             switch self {
-            case .high: return Color(hex: "EF4444")
-            case .medium: return Color(hex: "F59E0B")
-            case .low: return Color(hex: "3B82F6")
+            case .high: return DesignSystem.Colors.errorRed
+            case .medium: return DesignSystem.Colors.amber
+            case .low: return DesignSystem.Colors.blue
             }
         }
 
@@ -304,7 +304,7 @@ struct ActionRecommendationCard: View {
         title: String,
         description: String,
         icon: String = "lightbulb.fill",
-        color: Color = Color(hex: "10B981"),
+        color: Color = DesignSystem.Colors.emerald,
         actionLabel: String? = nil,
         onAction: (() -> Void)? = nil
     ) {
@@ -674,8 +674,8 @@ struct PatternRow: View {
             )
 
             HStack(spacing: 8) {
-                MetricChip(icon: "calendar", value: "23", label: "Meetings", color: Color(hex: "3B82F6"))
-                MetricChip(icon: "moon.fill", value: "6.2h", label: "Avg Sleep", color: Color(hex: "8B5CF6"), trend: .down)
+                MetricChip(icon: "calendar", value: "23", label: "Meetings", color: DesignSystem.Colors.blue)
+                MetricChip(icon: "moon.fill", value: "6.2h", label: "Avg Sleep", color: DesignSystem.Colors.violet, trend: .down)
             }
 
             RankedIssueRow(
@@ -700,7 +700,7 @@ struct PatternRow: View {
                 title: "Block Recovery Time",
                 description: "Add 15-minute buffers between meetings to reduce cognitive load.",
                 icon: "clock.badge.checkmark",
-                color: Color(hex: "10B981"),
+                color: DesignSystem.Colors.emerald,
                 actionLabel: "Add Buffers",
                 onAction: {}
             )

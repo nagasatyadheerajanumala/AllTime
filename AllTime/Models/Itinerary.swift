@@ -189,10 +189,10 @@ struct ItineraryTimeSlot: Codable, Identifiable {
 
     var categoryColor: Color {
         switch category {
-        case "activity": return Color(hex: "10B981")
-        case "lifestyle": return Color(hex: "8B5CF6")
-        case "social": return Color(hex: "F59E0B")
-        default: return Color(hex: "3B82F6")
+        case "activity": return DesignSystem.Colors.emerald
+        case "lifestyle": return DesignSystem.Colors.violet
+        case "social": return DesignSystem.Colors.amber
+        default: return DesignSystem.Colors.blue
         }
     }
 

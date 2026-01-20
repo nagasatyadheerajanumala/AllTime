@@ -154,7 +154,7 @@ struct TaskSuggestionCard: View {
                     Text("\(suggestion.confidencePercentage)%")
                         .font(.caption2.weight(.medium))
                 }
-                .foregroundColor(Color(hex: "F59E0B"))
+                .foregroundColor(DesignSystem.Colors.amber)
             }
         }
     }
@@ -187,16 +187,6 @@ struct TaskSuggestionCard: View {
     }
 }
 
-// MARK: - Scale Button Style
-
-struct ScaleButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? 0.9 : 1)
-            .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
-    }
-}
-
 // MARK: - Task Suggestions Section
 
 /// Section showing all task suggestions with header
@@ -210,19 +200,19 @@ struct TaskSuggestionsSection: View {
             // Header
             HStack {
                 Image(systemName: "lightbulb.fill")
-                    .foregroundColor(Color(hex: "F59E0B"))
+                    .foregroundColor(DesignSystem.Colors.amber)
                 Text("Suggested Tasks")
                     .font(.headline)
                     .foregroundColor(DesignSystem.Colors.primaryText)
                 Spacer()
                 Text("\(suggestions.count)")
                     .font(.caption.weight(.semibold))
-                    .foregroundColor(Color(hex: "F59E0B"))
+                    .foregroundColor(DesignSystem.Colors.amber)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 4)
                     .background(
                         Capsule()
-                            .fill(Color(hex: "F59E0B").opacity(0.15))
+                            .fill(DesignSystem.Colors.amber.opacity(0.15))
                     )
             }
 

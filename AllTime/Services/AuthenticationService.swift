@@ -92,6 +92,48 @@ class AuthenticationService: NSObject, ObservableObject {
         }
     }
 
+    // MARK: - Apple Credential Check
+
+    /// Check if Apple credential is still valid (not revoked)
+    /// Returns true if valid, false if revoked or unknown
+    private func checkAppleCredentialState() async -> Bool {
+        // Get the stored Apple user identifier
+        guard let appleSub = keychainManager.retrieve(key: "apple_user_id") else {
+            os_log("[AUTH] No Apple user ID to verify - skipping credential check", log: log, type: .info)
+            return true // Can't check, assume valid
+        }
+
+        return await withCheckedContinuation { continuation in
+            let provider = ASAuthorizationAppleIDProvider()
+            provider.getCredentialState(forUserID: appleSub) { state, error in
+                if let error = error {
+                    os_log("[AUTH] Apple credential state check failed: %{public}@", log: self.log, type: .error, error.localizedDescription)
+                    // Can't determine state - assume valid (don't lock user out)
+                    continuation.resume(returning: true)
+                    return
+                }
+
+                switch state {
+                case .authorized:
+                    os_log("[AUTH] Apple credential: AUTHORIZED", log: self.log, type: .info)
+                    continuation.resume(returning: true)
+                case .revoked:
+                    os_log("[AUTH] Apple credential: REVOKED - user must sign in again", log: self.log, type: .fault)
+                    continuation.resume(returning: false)
+                case .notFound:
+                    os_log("[AUTH] Apple credential: NOT FOUND - user must sign in again", log: self.log, type: .error)
+                    continuation.resume(returning: false)
+                case .transferred:
+                    os_log("[AUTH] Apple credential: TRANSFERRED - treating as valid", log: self.log, type: .info)
+                    continuation.resume(returning: true)
+                @unknown default:
+                    os_log("[AUTH] Apple credential: UNKNOWN state - treating as valid", log: self.log, type: .info)
+                    continuation.resume(returning: true)
+                }
+            }
+        }
+    }
+
     // MARK: - Session Restoration (ChatGPT-like behavior)
 
     /// Main entry point for session restoration
@@ -156,6 +198,17 @@ class AuthenticationService: NSObject, ObservableObject {
         guard keychainManager.hasStoredTokens() else {
             os_log("[AUTH] No stored tokens found - user needs to sign in", log: log, type: .info)
             diagnostics.logSessionRestoreComplete(success: false, reason: "No tokens in keychain")
+            authState = .unauthenticated
+            return
+        }
+
+        // Step 1.5: Check if Apple credential has been revoked
+        // This runs in parallel with other checks for efficiency
+        let isAppleCredentialValid = await checkAppleCredentialState()
+        if !isAppleCredentialValid {
+            os_log("[AUTH] Apple credential revoked/not found - user needs to sign in", log: log, type: .fault)
+            diagnostics.logSessionRestoreComplete(success: false, reason: "Apple credential revoked")
+            _ = keychainManager.clearTokens()
             authState = .unauthenticated
             return
         }
@@ -383,8 +436,11 @@ class AuthenticationService: NSObject, ObservableObject {
 
             // Also update refresh token if rotated
             if let newRefreshToken = refreshResponse.refreshToken {
-                _ = keychainManager.updateRefreshToken(newRefreshToken, expiresIn: 604800) // 7 days default
-                os_log("[AUTH] Refresh token also rotated", log: log, type: .info)
+                // Use server-provided expiry, or default to 1 year (31536000 seconds)
+                // CRITICAL: Don't use short expiry like 7 days - backend provides 1 year refresh tokens
+                let refreshExpiresIn = refreshResponse.refreshExpiresIn ?? 31536000
+                _ = keychainManager.updateRefreshToken(newRefreshToken, expiresIn: refreshExpiresIn)
+                os_log("[AUTH] Refresh token also rotated (expires in %{public}d seconds)", log: log, type: .info, refreshExpiresIn)
             }
 
             if success {
@@ -401,26 +457,41 @@ class AuthenticationService: NSObject, ObservableObject {
             os_log("[AUTH] Silent refresh failed: %{public}@", log: log, type: .error, error.localizedDescription)
             diagnostics.logTokenRefreshFailure(reason: error.localizedDescription)
 
-            // Log the full error for debugging
+            // Extract server error message if available (added by APIService for 401s)
+            var serverError = ""
             if let nsError = error as NSError? {
                 os_log("[AUTH] Error code: %{public}d, domain: %{public}@", log: log, type: .error,
                        nsError.code, nsError.domain)
+                if let serverErrorMsg = nsError.userInfo["serverError"] as? String {
+                    serverError = serverErrorMsg.lowercased()
+                    os_log("[AUTH] Server error: %{public}@", log: log, type: .error, serverErrorMsg)
+                }
             }
 
-            // Check if this is a definitive failure (refresh token is invalid/revoked)
-            let isDefinitiveFailure = errorDesc.contains("invalid_grant") ||
-                                      errorDesc.contains("revoked") ||
-                                      errorDesc.contains("invalid") && errorDesc.contains("token") ||
-                                      errorDesc.contains("expired") && errorDesc.contains("token") ||
-                                      (error as NSError?)?.code == 401
+            // Check if this is a definitive failure (refresh token is DEFINITELY invalid/revoked)
+            // Check BOTH the localized description AND the raw server error
+            let isExplicitRejection = errorDesc.contains("invalid_grant") ||
+                                       errorDesc.contains("revoked") ||
+                                       errorDesc.contains("refresh token") && errorDesc.contains("invalid") ||
+                                       errorDesc.contains("token has been revoked") ||
+                                       serverError.contains("invalid refresh token") ||
+                                       serverError.contains("invalid_grant") ||
+                                       serverError.contains("token revoked")
 
-            if isDefinitiveFailure {
-                os_log("[AUTH] ❌ Refresh token is invalid/revoked - clearing tokens", log: log, type: .fault)
+            // Note: Generic "invalid token" or "expired token" messages could be about access token, not refresh token
+            // So we DON'T clear tokens for those - we'll retry on next API call
+
+            if isExplicitRejection {
+                os_log("[AUTH] ❌ Refresh token explicitly rejected by server - clearing tokens", log: log, type: .fault)
                 refreshAttemptCount = 0
                 // Clear the invalid tokens so user can sign in fresh
                 _ = keychainManager.clearTokens()
                 return false
             }
+
+            // For generic 401s or other errors, DON'T clear tokens
+            // The user may still have a valid session - we'll retry later
+            os_log("[AUTH] ⚠️ Refresh failed but not definitively - keeping tokens, will retry", log: log, type: .info)
 
             // Transient error - don't count against retries if it's network-related
             if errorDesc.contains("network") || errorDesc.contains("connection") || errorDesc.contains("timeout") {
@@ -505,6 +576,9 @@ class AuthenticationService: NSObject, ObservableObject {
                 }
             }
 
+            // Store Apple user identifier for credential revocation checks
+            _ = keychainManager.store(key: "apple_user_id", value: userIdentifier)
+
             // Store user profile
             let user = authResponse.user
             if let userData = try? JSONEncoder().encode(user) {
@@ -567,6 +641,7 @@ class AuthenticationService: NSObject, ObservableObject {
 
         // Clear ALL stored data
         _ = keychainManager.clearTokens()
+        _ = keychainManager.delete(key: "apple_user_id")
         UserDefaults.standard.removeObject(forKey: "user_profile")
         UserDefaults.standard.removeObject(forKey: "userId")
         UserDefaults.standard.removeObject(forKey: "user_first_name")

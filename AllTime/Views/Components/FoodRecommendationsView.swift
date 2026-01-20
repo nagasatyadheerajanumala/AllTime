@@ -327,7 +327,7 @@ struct FoodRecommendationsView: View {
                 DietarySectionView(
                     title: "Vegan",
                     icon: "sparkle",
-                    iconColor: Color(hex: "10B981"),
+                    iconColor: DesignSystem.Colors.emerald,
                     spots: veganSpots,
                     onSpotTap: { spot in
                         selectedSpot = spot
@@ -340,7 +340,7 @@ struct FoodRecommendationsView: View {
                 DietarySectionView(
                     title: "Vegetarian",
                     icon: "carrot.fill",
-                    iconColor: Color(hex: "F59E0B"),
+                    iconColor: DesignSystem.Colors.amber,
                     spots: vegetarianSpots,
                     onSpotTap: { spot in
                         selectedSpot = spot
@@ -353,7 +353,7 @@ struct FoodRecommendationsView: View {
                 DietarySectionView(
                     title: "Gluten-Free",
                     icon: "checkmark.seal.fill",
-                    iconColor: Color(hex: "8B5CF6"),
+                    iconColor: DesignSystem.Colors.violet,
                     spots: glutenFreeSpots,
                     onSpotTap: { spot in
                         selectedSpot = spot
@@ -366,7 +366,7 @@ struct FoodRecommendationsView: View {
                 DietarySectionView(
                     title: "Organic",
                     icon: "leaf.arrow.circlepath",
-                    iconColor: Color(hex: "059669"),
+                    iconColor: DesignSystem.Colors.emeraldDark,
                     spots: organicSpots,
                     onSpotTap: { spot in
                         selectedSpot = spot

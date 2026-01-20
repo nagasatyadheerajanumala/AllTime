@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 // MARK: - Chrona Design System with Light/Dark Theme Support
 struct DesignSystem {
@@ -122,6 +123,70 @@ struct DesignSystem {
         static let glowBlue = Color(hex: "3C82F6").opacity(0.15) // Subtle blue glow
         static let glowBlueStrong = Color(hex: "3C82F6").opacity(0.2) // Stronger glow
 
+        // MARK: - Clara AI Colors
+        static let claraPurple = Color(hex: "8B5CF6")
+        static let claraPurpleLight = Color(hex: "A855F7")
+        static let claraPurpleDark = Color(hex: "7C3AED")
+
+        static let claraGradient = LinearGradient(
+            colors: [claraPurple, claraPurpleLight, claraPurpleDark],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+
+        static let claraGradientSimple = LinearGradient(
+            colors: [claraPurple, claraPurpleLight],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+
+        // MARK: - Semantic Colors (for alerts, status, buttons)
+        static let warningYellow = Color(hex: "F59E0B")
+        static let warningYellowDark = Color(hex: "D97706")
+        static let errorRed = Color(hex: "EF4444")
+        static let errorRedDark = Color(hex: "DC2626")
+        static let successGreen = Color(hex: "10B981")
+        static let successGreenDark = Color(hex: "059669")
+
+        // Indigo (for balanced/neutral states)
+        static let indigo = Color(hex: "6366F1")
+        static let indigoDark = Color(hex: "4F46E5")
+
+        // MARK: - Semantic Aliases (use these throughout the app)
+        static let amber = warningYellow           // Task/suggestion accent
+        static let amberDark = warningYellowDark
+        static let emerald = successGreen          // Success/completion
+        static let emeraldDark = successGreenDark
+        static let violet = claraPurple            // Clara AI / Rest
+        static let violetDark = claraPurpleDark
+        static let blue = primary                  // Focus / Primary action
+        static let blueDark = primaryDark
+
+        // MARK: - Semantic Gradients
+        static let warningGradient = LinearGradient(
+            colors: [warningYellow, warningYellowDark],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+
+        static let errorGradient = LinearGradient(
+            colors: [errorRed, errorRedDark],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+
+        static let successGradient = LinearGradient(
+            colors: [successGreen, successGreenDark],
+            startPoint: .leading,
+            endPoint: .trailing
+        )
+
+        static let indigoGradient = LinearGradient(
+            colors: [indigo, indigoDark],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+
         // Gradients
         static let primaryGradient = LinearGradient(
             colors: [primary, primaryDark],
@@ -198,6 +263,47 @@ struct DesignSystem {
         static let tileSpacing: CGFloat = 12
         static let sectionSpacing: CGFloat = 16
     }
+
+    // MARK: - Component Sizes (Standard Tokens)
+    struct Components {
+        // Avatar sizes
+        static let avatarSmall: CGFloat = 28
+        static let avatarMedium: CGFloat = 32
+        static let avatarLarge: CGFloat = 44
+        static let avatarXLarge: CGFloat = 72
+
+        // Icon sizes
+        static let iconSmall: CGFloat = 12
+        static let iconMedium: CGFloat = 14
+        static let iconLarge: CGFloat = 18
+        static let iconXLarge: CGFloat = 24
+        static let iconXXLarge: CGFloat = 32
+
+        // Touch targets (minimum 44pt for accessibility)
+        static let minTouchTarget: CGFloat = 44
+        static let buttonHeight: CGFloat = 52
+        static let compactButtonHeight: CGFloat = 44
+
+        // Chat bubble specific
+        static let chatBubbleRadius: CGFloat = 18
+        static let chatBubblePadding: CGFloat = 14
+        static let chatAvatarSize: CGFloat = 32
+
+        // Input field
+        static let inputFieldRadius: CGFloat = 24
+        static let inputFieldPadding: CGFloat = 14
+    }
+
+    // MARK: - Font Sizes (for cases where system fonts don't work)
+    struct FontSize {
+        static let xs: CGFloat = 11
+        static let sm: CGFloat = 13
+        static let md: CGFloat = 15
+        static let lg: CGFloat = 17
+        static let xl: CGFloat = 20
+        static let xxl: CGFloat = 24
+        static let xxxl: CGFloat = 32
+    }
     
     // MARK: - Shadows
     struct Shadow {
@@ -248,6 +354,117 @@ struct DesignSystem {
         static let smooth = Animation.spring(response: 0.4, dampingFraction: 0.8)
         static let bouncy = Animation.spring(response: 0.5, dampingFraction: 0.6)
         static let gentle = Animation.easeInOut(duration: 0.3)
+    }
+}
+
+// MARK: - Day Mood Type (Centralized mood color/gradient/icon mapping)
+enum DayMood: String, CaseIterable {
+    case focusDay = "focus_day"
+    case lightDay = "light_day"
+    case intenseMeetings = "intense_meetings"
+    case restDay = "rest_day"
+    case balanced = "balanced"
+    case unknown = ""
+
+    init(from string: String?) {
+        switch (string ?? "").lowercased() {
+        case "focus_day", "focused": self = .focusDay
+        case "light_day", "light": self = .lightDay
+        case "intense_meetings", "intense", "busy", "busy_day": self = .intenseMeetings
+        case "rest_day", "rest": self = .restDay
+        case "balanced": self = .balanced
+        default: self = .unknown
+        }
+    }
+
+    var color: Color {
+        switch self {
+        case .focusDay: return DesignSystem.Colors.primary
+        case .lightDay: return DesignSystem.Colors.successGreen
+        case .intenseMeetings: return DesignSystem.Colors.warningYellow
+        case .restDay: return DesignSystem.Colors.claraPurple
+        case .balanced: return DesignSystem.Colors.indigo
+        case .unknown: return DesignSystem.Colors.primary
+        }
+    }
+
+    var colorDark: Color {
+        switch self {
+        case .focusDay: return DesignSystem.Colors.primaryDark
+        case .lightDay: return DesignSystem.Colors.successGreenDark
+        case .intenseMeetings: return DesignSystem.Colors.warningYellowDark
+        case .restDay: return DesignSystem.Colors.claraPurpleDark
+        case .balanced: return DesignSystem.Colors.indigoDark
+        case .unknown: return DesignSystem.Colors.primaryDark
+        }
+    }
+
+    var gradient: LinearGradient {
+        LinearGradient(
+            colors: [color, colorDark],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+
+    var icon: String {
+        switch self {
+        case .focusDay: return "brain.head.profile"
+        case .lightDay: return "sun.max.fill"
+        case .intenseMeetings: return "flame.fill"
+        case .restDay: return "leaf.fill"
+        case .balanced: return "scale.3d"
+        case .unknown: return "sparkles"
+        }
+    }
+
+    var label: String {
+        switch self {
+        case .focusDay: return "Focus Day"
+        case .lightDay: return "Light Day"
+        case .intenseMeetings: return "Busy Day"
+        case .restDay: return "Rest Day"
+        case .balanced: return "Balanced Day"
+        case .unknown: return "Your Day"
+        }
+    }
+}
+
+// MARK: - Unified Button Styles
+struct ScaleButtonStyle: ButtonStyle {
+    var scaleAmount: CGFloat = 0.97
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? scaleAmount : 1.0)
+            .animation(.spring(response: 0.2, dampingFraction: 0.7), value: configuration.isPressed)
+    }
+}
+
+struct TileButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
+            .opacity(configuration.isPressed ? 0.9 : 1.0)
+            .animation(.spring(response: 0.25, dampingFraction: 0.8), value: configuration.isPressed)
+    }
+}
+
+struct GlassButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
+            .opacity(configuration.isPressed ? 0.8 : 1.0)
+            .animation(.spring(response: 0.2, dampingFraction: 0.7), value: configuration.isPressed)
+    }
+}
+
+struct FABButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.92 : 1.0)
+            .opacity(configuration.isPressed ? 0.9 : 1.0)
+            .animation(.spring(response: 0.25, dampingFraction: 0.6), value: configuration.isPressed)
     }
 }
 

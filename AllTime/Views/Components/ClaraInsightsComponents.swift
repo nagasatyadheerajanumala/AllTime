@@ -67,7 +67,7 @@ struct PrimaryRecommendationCard: View {
                         Text(consequence)
                             .font(.system(size: 12))
                     }
-                    .foregroundColor(Color(hex: "F59E0B"))
+                    .foregroundColor(DesignSystem.Colors.amber)
                     .padding(.top, 4)
                 }
             }
@@ -173,7 +173,7 @@ struct EnergyBudgetCard: View {
                                 title: "Peak",
                                 time: peak.displayLabel,
                                 icon: "arrow.up",
-                                color: Color(hex: "10B981")
+                                color: DesignSystem.Colors.emerald
                             )
                         }
                         if let low = energyBudget.lowWindow {
@@ -181,7 +181,7 @@ struct EnergyBudgetCard: View {
                                 title: "Low",
                                 time: low.displayLabel,
                                 icon: "arrow.down",
-                                color: Color(hex: "F59E0B")
+                                color: DesignSystem.Colors.amber
                             )
                         }
                     }
@@ -191,13 +191,13 @@ struct EnergyBudgetCard: View {
                         HStack(spacing: 8) {
                             Image(systemName: "heart.circle.fill")
                                 .font(.system(size: 16))
-                                .foregroundColor(Color(hex: "EF4444"))
+                                .foregroundColor(DesignSystem.Colors.errorRed)
                             Text(recommendation)
                                 .font(.system(size: 13))
                                 .foregroundColor(DesignSystem.Colors.secondaryText)
                         }
                         .padding(12)
-                        .background(Color(hex: "EF4444").opacity(0.1))
+                        .background(DesignSystem.Colors.errorRed.opacity(0.1))
                         .clipShape(RoundedRectangle(cornerRadius: 10))
                     }
                 }
@@ -280,9 +280,9 @@ struct ClaraPromptsRow: View {
     // Clara gradient colors
     private let claraGradient = LinearGradient(
         colors: [
-            Color(hex: "8B5CF6"),
-            Color(hex: "A855F7"),
-            Color(hex: "7C3AED")
+            DesignSystem.Colors.violet,
+            DesignSystem.Colors.claraPurpleLight,
+            DesignSystem.Colors.violetDark
         ],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
@@ -297,7 +297,7 @@ struct ClaraPromptsRow: View {
                     Circle()
                         .fill(claraGradient)
                         .frame(width: 44, height: 44)
-                        .shadow(color: Color(hex: "8B5CF6").opacity(0.4), radius: 8, y: 4)
+                        .shadow(color: DesignSystem.Colors.violet.opacity(0.4), radius: 8, y: 4)
 
                     Image(systemName: "sparkles")
                         .font(.system(size: 18, weight: .semibold))
@@ -319,15 +319,15 @@ struct ClaraPromptsRow: View {
                 // Online indicator
                 HStack(spacing: 4) {
                     Circle()
-                        .fill(Color(hex: "10B981"))
+                        .fill(DesignSystem.Colors.emerald)
                         .frame(width: 8, height: 8)
                     Text("Ready")
                         .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(Color(hex: "10B981"))
+                        .foregroundColor(DesignSystem.Colors.emerald)
                 }
                 .padding(.horizontal, 10)
                 .padding(.vertical, 5)
-                .background(Color(hex: "10B981").opacity(0.1))
+                .background(DesignSystem.Colors.emerald.opacity(0.1))
                 .clipShape(Capsule())
             }
             .padding(16)
@@ -362,14 +362,14 @@ struct ClaraPromptsRow: View {
             RoundedRectangle(cornerRadius: 20)
                 .stroke(
                     LinearGradient(
-                        colors: [Color(hex: "8B5CF6").opacity(0.3), Color(hex: "A855F7").opacity(0.1)],
+                        colors: [DesignSystem.Colors.violet.opacity(0.3), DesignSystem.Colors.claraPurpleLight.opacity(0.1)],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     ),
                     lineWidth: 1
                 )
         )
-        .shadow(color: Color(hex: "8B5CF6").opacity(0.1), radius: 20, y: 10)
+        .shadow(color: DesignSystem.Colors.violet.opacity(0.1), radius: 20, y: 10)
     }
 }
 

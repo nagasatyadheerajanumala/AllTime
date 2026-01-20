@@ -168,11 +168,11 @@ struct InsightsPreviewCard: View {
     // MARK: - Helpers
     private func scoreColor(_ score: Int) -> Color {
         if score >= 70 {
-            return Color(hex: "10B981") // Green
+            return DesignSystem.Colors.emerald // Green
         } else if score >= 40 {
-            return Color(hex: "F59E0B") // Orange
+            return DesignSystem.Colors.amber // Orange
         } else {
-            return Color(hex: "EF4444") // Red
+            return DesignSystem.Colors.errorRed // Red
         }
     }
 
@@ -310,7 +310,7 @@ class InsightsPreviewViewModel: ObservableObject {
                 icon: "calendar.badge.exclamationmark",
                 title: "Schedule Overload",
                 detail: "\(analysis.summary.highIntensityDays) high-intensity days this week",
-                color: Color(hex: "F59E0B")
+                color: DesignSystem.Colors.amber
             ))
         }
 
@@ -321,7 +321,7 @@ class InsightsPreviewViewModel: ObservableObject {
                 icon: "arrow.left.arrow.right",
                 title: "Back-to-Back Meetings",
                 detail: "\(count) occurrences - consider adding buffers",
-                color: Color(hex: "3B82F6")
+                color: DesignSystem.Colors.blue
             ))
         }
 
@@ -333,7 +333,7 @@ class InsightsPreviewViewModel: ObservableObject {
                 icon: "bed.double.fill",
                 title: "Meetings Affecting Sleep",
                 detail: sleep.formattedDifference + " less on meeting days",
-                color: Color(hex: "8B5CF6")
+                color: DesignSystem.Colors.violet
             ))
         }
 

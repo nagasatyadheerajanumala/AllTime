@@ -7,12 +7,29 @@ class FocusTimeService {
     static let shared = FocusTimeService()
 
     private let baseURL = Constants.API.baseURL
+    private let timeout: TimeInterval = Constants.API.timeout
 
     private var accessToken: String? {
         KeychainManager.shared.getAccessToken()
     }
 
     private init() {}
+
+    /// Creates a URL from the given string, throwing an error if invalid
+    private func makeURL(_ path: String) throws -> URL {
+        guard let url = URL(string: path) else {
+            throw FocusTimeError.networkError("Invalid URL: \(path)")
+        }
+        return url
+    }
+
+    /// Creates URLComponents from the given string, throwing an error if invalid
+    private func makeURLComponents(_ path: String) throws -> URLComponents {
+        guard let components = URLComponents(string: path) else {
+            throw FocusTimeError.networkError("Invalid URL components: \(path)")
+        }
+        return components
+    }
 
     // MARK: - Block Focus Time
 
@@ -29,10 +46,11 @@ class FocusTimeService {
             throw FocusTimeError.unauthorized
         }
 
-        let url = URL(string: "\(baseURL)/api/v1/focus/block-time")!
+        let url = try makeURL("\(baseURL)/api/v1/focus/block-time")
         print("🎯 FocusTimeService: Blocking time from \(start) to \(end)")
 
         var request = URLRequest(url: url)
+        request.timeoutInterval = timeout
         request.httpMethod = "POST"
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -60,6 +78,18 @@ class FocusTimeService {
         case 200..<300:
             let result = try JSONDecoder().decode(BlockTimeResponse.self, from: data)
             print("🎯 FocusTimeService: Block time response: success=\(result.success)")
+            // Log calendar sync results to debug Google Calendar issues
+            if let calendarEvents = result.calendarEvents {
+                for event in calendarEvents {
+                    if event.success {
+                        print("✅ FocusTimeService: \(event.provider) Calendar - Event created: \(event.eventId ?? "no id")")
+                    } else {
+                        print("❌ FocusTimeService: \(event.provider) Calendar - FAILED: \(event.error ?? "unknown error")")
+                    }
+                }
+            } else {
+                print("⚠️ FocusTimeService: No calendar_events in response - event may only be local")
+            }
             return result
         case 401:
             throw FocusTimeError.unauthorized
@@ -81,7 +111,7 @@ class FocusTimeService {
             throw FocusTimeError.unauthorized
         }
 
-        var components = URLComponents(string: "\(baseURL)/api/v1/focus/quick-block")!
+        var components = try makeURLComponents("\(baseURL)/api/v1/focus/quick-block")
         var queryItems = [URLQueryItem(name: "minutes", value: String(minutes))]
         if let title = title {
             queryItems.append(URLQueryItem(name: "title", value: title))
@@ -95,6 +125,7 @@ class FocusTimeService {
         print("🎯 FocusTimeService: Quick block for \(minutes) minutes")
 
         var request = URLRequest(url: url)
+        request.timeoutInterval = timeout
         request.httpMethod = "POST"
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
 
@@ -108,7 +139,21 @@ class FocusTimeService {
 
         switch httpResponse.statusCode {
         case 200..<300:
-            return try JSONDecoder().decode(BlockTimeResponse.self, from: data)
+            let result = try JSONDecoder().decode(BlockTimeResponse.self, from: data)
+            print("🎯 FocusTimeService: Quick block response: success=\(result.success)")
+            // Log calendar sync results to debug Google Calendar issues
+            if let calendarEvents = result.calendarEvents {
+                for event in calendarEvents {
+                    if event.success {
+                        print("✅ FocusTimeService: \(event.provider) Calendar - Event created: \(event.eventId ?? "no id")")
+                    } else {
+                        print("❌ FocusTimeService: \(event.provider) Calendar - FAILED: \(event.error ?? "unknown error")")
+                    }
+                }
+            } else {
+                print("⚠️ FocusTimeService: No calendar_events in response - event may only be local")
+            }
+            return result
         case 401:
             throw FocusTimeError.unauthorized
         default:
@@ -124,9 +169,10 @@ class FocusTimeService {
             throw FocusTimeError.unauthorized
         }
 
-        let url = URL(string: "\(baseURL)/api/v1/focus/calendars")!
+        let url = try makeURL("\(baseURL)/api/v1/focus/calendars")
 
         var request = URLRequest(url: url)
+        request.timeoutInterval = timeout
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
 
         let (data, response) = try await URLSession.shared.data(for: request)

@@ -29,9 +29,9 @@ struct DecisionMoment: Identifiable {
 
         var color: Color {
             switch self {
-            case .high: return Color(hex: "EF4444")
-            case .medium: return Color(hex: "F59E0B")
-            case .low: return Color(hex: "3B82F6")
+            case .high: return DesignSystem.Colors.errorRed
+            case .medium: return DesignSystem.Colors.amber
+            case .low: return DesignSystem.Colors.blue
             }
         }
 
@@ -69,11 +69,11 @@ struct DecisionMomentsCard: View {
                 HStack(spacing: 8) {
                     ZStack {
                         Circle()
-                            .fill(Color(hex: "F59E0B").opacity(0.15))
+                            .fill(DesignSystem.Colors.amber.opacity(0.15))
                             .frame(width: 28, height: 28)
                         Image(systemName: "bolt.fill")
                             .font(.system(size: 12, weight: .semibold))
-                            .foregroundColor(Color(hex: "F59E0B"))
+                            .foregroundColor(DesignSystem.Colors.amber)
                     }
 
                     Text("Decisions")
@@ -87,7 +87,7 @@ struct DecisionMomentsCard: View {
                         .foregroundColor(.white)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
-                        .background(Capsule().fill(Color(hex: "F59E0B")))
+                        .background(Capsule().fill(DesignSystem.Colors.amber))
                 }
                 .padding(.horizontal, DesignSystem.Spacing.md)
                 .padding(.top, DesignSystem.Spacing.md)
@@ -109,7 +109,7 @@ struct DecisionMomentsCard: View {
                     .fill(DesignSystem.Colors.cardBackground)
                     .overlay(
                         RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg)
-                            .stroke(Color(hex: "F59E0B").opacity(0.2), lineWidth: 1)
+                            .stroke(DesignSystem.Colors.amber.opacity(0.2), lineWidth: 1)
                     )
             )
             .onAppear {

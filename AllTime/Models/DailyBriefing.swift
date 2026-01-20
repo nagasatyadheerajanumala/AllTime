@@ -66,6 +66,12 @@ struct BriefingKeyMetrics: Codable {
     let restingHeartRate: Int?
     let hrvLastNight: Int?
 
+    // HEALTH SEVERITY - Clara's opinionated escalation
+    let healthSeverity: String?      // "normal", "warning", "critical", "data_suspect"
+    let escalationReason: String?    // Why this is escalated
+    let isCritical: Bool?            // True if immediate attention needed
+    let isDataSuspect: Bool?         // True if values seem erroneous (e.g., 0.3h sleep)
+
     // Calendar metrics
     let meetingsTodayCount: Int?
     let meetingsAverageCount: Double?
@@ -96,6 +102,11 @@ struct BriefingKeyMetrics: Codable {
         case activeMinutesAverage = "active_minutes_average"
         case restingHeartRate = "resting_heart_rate"
         case hrvLastNight = "hrv_last_night"
+        // Health severity
+        case healthSeverity = "health_severity"
+        case escalationReason = "escalation_reason"
+        case isCritical = "is_critical"
+        case isDataSuspect = "is_data_suspect"
         case meetingsTodayCount = "meetings_today_count"
         case meetingsAverageCount = "meetings_average_count"
         case totalMeetingHoursToday = "total_meeting_hours_today"
@@ -141,6 +152,28 @@ struct BriefingKeyMetrics: Codable {
 
     var effectiveSteps: Int? {
         stepsYesterday ?? stepsToday
+    }
+
+    // MARK: - Health Severity Helpers
+
+    /// True if health status is critical and needs immediate attention
+    var isHealthCritical: Bool {
+        isCritical ?? false || healthSeverity == "critical"
+    }
+
+    /// True if health data might be incorrect (e.g., 0.3h sleep)
+    var isHealthDataSuspect: Bool {
+        isDataSuspect ?? false || healthSeverity == "data_suspect"
+    }
+
+    /// True if health needs attention (warning or worse)
+    var needsHealthAttention: Bool {
+        isHealthCritical || healthSeverity == "warning"
+    }
+
+    /// Get the escalation message if any
+    var healthEscalationMessage: String? {
+        escalationReason
     }
 }
 
@@ -405,8 +438,8 @@ struct DayNarrative: Codable {
     // Tone-based styling
     var toneColor: Color {
         switch tone.lowercased() {
-        case "positive": return Color(hex: "10B981") // Green
-        case "cautionary": return Color(hex: "F59E0B") // Amber
+        case "positive": return DesignSystem.Colors.emerald // Green
+        case "cautionary": return DesignSystem.Colors.amber // Amber
         default: return DesignSystem.Colors.secondaryText // Neutral
         }
     }
@@ -451,11 +484,11 @@ struct QuickStats: Codable {
     var healthScoreColor: Color {
         guard let score = healthScore else { return DesignSystem.Colors.secondaryText }
         switch score {
-        case 80...100: return Color(hex: "10B981") // Green
+        case 80...100: return DesignSystem.Colors.emerald // Green
         case 65..<80: return Color(hex: "34D399") // Mint
-        case 50..<65: return Color(hex: "F59E0B") // Yellow
+        case 50..<65: return DesignSystem.Colors.amber // Yellow
         case 35..<50: return Color(hex: "F97316") // Orange
-        default: return Color(hex: "EF4444") // Red
+        default: return DesignSystem.Colors.errorRed // Red
         }
     }
 
@@ -478,25 +511,25 @@ extension DailyBriefingResponse {
         switch mood.lowercased() {
         case "focus_day", "focused":
             return LinearGradient(
-                colors: [Color(hex: "3B82F6"), Color(hex: "1D4ED8")],
+                colors: [DesignSystem.Colors.blue, DesignSystem.Colors.blueDark],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
         case "light_day", "light":
             return LinearGradient(
-                colors: [Color(hex: "10B981"), Color(hex: "059669")],
+                colors: [DesignSystem.Colors.emerald, DesignSystem.Colors.emeraldDark],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
         case "intense_meetings", "intense", "busy":
             return LinearGradient(
-                colors: [Color(hex: "F59E0B"), Color(hex: "D97706")],
+                colors: [DesignSystem.Colors.amber, DesignSystem.Colors.amberDark],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
         case "rest_day", "rest":
             return LinearGradient(
-                colors: [Color(hex: "8B5CF6"), Color(hex: "7C3AED")],
+                colors: [DesignSystem.Colors.violet, DesignSystem.Colors.violetDark],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
@@ -562,21 +595,21 @@ extension BriefingSuggestion {
         // Fall back to category-based color
         switch (category ?? "").lowercased() {
         case "health", "wellness", "health_insight":
-            return Color(hex: "10B981") // Green
+            return DesignSystem.Colors.emerald // Green
         case "productivity", "focus":
             return Color(hex: "5856D6") // Purple
         case "break", "rest":
             return Color(hex: "007AFF") // Blue
         case "meeting", "calendar", "routine":
-            return Color(hex: "34C759") // Green
+            return DesignSystem.Colors.success // Green
         case "exercise", "activity", "movement":
-            return Color(hex: "34C759") // Green (or FF9500 for alerts)
+            return DesignSystem.Colors.success // Green (or FF9500 for alerts)
         case "nutrition", "meal", "food":
-            return Color(hex: "FF9500") // Orange
+            return DesignSystem.Colors.warning // Orange
         case "hydration", "water":
             return Color(hex: "06B6D4") // Cyan
         case "warning":
-            return Color(hex: "FF9500") // Orange
+            return DesignSystem.Colors.warning // Orange
         default:
             return DesignSystem.Colors.primary
         }
@@ -585,11 +618,11 @@ extension BriefingSuggestion {
     var severityColor: Color {
         switch (severity ?? "").lowercased() {
         case "alert", "critical":
-            return Color(hex: "EF4444") // Red
+            return DesignSystem.Colors.errorRed // Red
         case "important", "high":
-            return Color(hex: "F59E0B") // Amber
+            return DesignSystem.Colors.amber // Amber
         case "reminder", "medium":
-            return Color(hex: "3B82F6") // Blue
+            return DesignSystem.Colors.blue // Blue
         case "info", "low":
             return DesignSystem.Colors.secondaryText
         default:
@@ -636,9 +669,9 @@ extension EnergyDip {
     var severityColor: Color {
         switch severity.lowercased() {
         case "significant", "high", "critical":
-            return Color(hex: "EF4444") // Red
+            return DesignSystem.Colors.errorRed // Red
         case "moderate", "medium":
-            return Color(hex: "F59E0B") // Amber
+            return DesignSystem.Colors.amber // Amber
         case "mild", "low":
             return Color(hex: "FBBF24") // Yellow
         default:
@@ -673,9 +706,9 @@ extension FocusWindow {
 
     var confidenceColor: Color {
         switch confidenceLevel.lowercased() {
-        case "high": return Color(hex: "10B981") // Green
-        case "medium": return Color(hex: "F59E0B") // Amber
-        case "low": return Color(hex: "EF4444") // Red
+        case "high": return DesignSystem.Colors.emerald // Green
+        case "medium": return DesignSystem.Colors.amber // Amber
+        case "low": return DesignSystem.Colors.errorRed // Red
         default: return DesignSystem.Colors.secondaryText
         }
     }
@@ -772,9 +805,9 @@ struct PrimaryRecommendation: Codable, Identifiable {
     // Urgency styling
     var urgencyColor: Color {
         switch (urgency ?? "").lowercased() {
-        case "now": return Color(hex: "EF4444")      // Red - urgent
-        case "today": return Color(hex: "F59E0B")   // Amber - important
-        case "this_week": return Color(hex: "3B82F6") // Blue - can wait
+        case "now": return DesignSystem.Colors.errorRed      // Red - urgent
+        case "today": return DesignSystem.Colors.amber   // Amber - important
+        case "this_week": return DesignSystem.Colors.blue // Blue - can wait
         default: return DesignSystem.Colors.secondaryText
         }
     }
@@ -790,8 +823,8 @@ struct PrimaryRecommendation: Codable, Identifiable {
 
     var impactColor: Color {
         switch (impact ?? "").lowercased() {
-        case "high": return Color(hex: "10B981")    // Green
-        case "medium": return Color(hex: "F59E0B") // Amber
+        case "high": return DesignSystem.Colors.emerald    // Green
+        case "medium": return DesignSystem.Colors.amber // Amber
         default: return DesignSystem.Colors.secondaryText
         }
     }
@@ -851,10 +884,10 @@ struct EnergyBudget: Codable {
     // Trajectory styling
     var trajectoryColor: Color {
         switch (trajectory ?? "").lowercased() {
-        case "rising": return Color(hex: "10B981")       // Green
-        case "stable": return Color(hex: "3B82F6")      // Blue
-        case "declining": return Color(hex: "F59E0B")   // Amber
-        case "recovering": return Color(hex: "8B5CF6")  // Purple
+        case "rising": return DesignSystem.Colors.emerald       // Green
+        case "stable": return DesignSystem.Colors.blue      // Blue
+        case "declining": return DesignSystem.Colors.amber   // Amber
+        case "recovering": return DesignSystem.Colors.violet  // Purple
         default: return DesignSystem.Colors.secondaryText
         }
     }
@@ -871,10 +904,10 @@ struct EnergyBudget: Codable {
 
     var capacityColor: Color {
         guard let level = currentLevel else { return DesignSystem.Colors.secondaryText }
-        if level >= 80 { return Color(hex: "10B981") }      // Green
-        if level >= 60 { return Color(hex: "3B82F6") }      // Blue
-        if level >= 40 { return Color(hex: "F59E0B") }      // Amber
-        return Color(hex: "EF4444")                          // Red
+        if level >= 80 { return DesignSystem.Colors.emerald }      // Green
+        if level >= 60 { return DesignSystem.Colors.blue }      // Blue
+        if level >= 40 { return DesignSystem.Colors.amber }      // Amber
+        return DesignSystem.Colors.errorRed                          // Red
     }
 
     var levelPercentage: Double {
@@ -912,8 +945,8 @@ struct BriefingEnergyFactor: Codable, Identifiable {
 
     var impactColor: Color {
         guard let impact = impact else { return DesignSystem.Colors.secondaryText }
-        if impact > 0 { return Color(hex: "10B981") }  // Green for deposits
-        if impact < 0 { return Color(hex: "EF4444") }  // Red for drains
+        if impact > 0 { return DesignSystem.Colors.emerald }  // Green for deposits
+        if impact < 0 { return DesignSystem.Colors.errorRed }  // Red for drains
         return DesignSystem.Colors.secondaryText
     }
 
@@ -998,10 +1031,10 @@ struct ClaraPrompt: Codable, Identifiable {
 
     var categoryColor: Color {
         switch (category ?? "").lowercased() {
-        case "insight": return Color(hex: "8B5CF6")     // Purple
-        case "action": return Color(hex: "F59E0B")     // Amber
-        case "planning": return Color(hex: "3B82F6")   // Blue
-        case "health": return Color(hex: "10B981")     // Green
+        case "insight": return DesignSystem.Colors.violet     // Purple
+        case "action": return DesignSystem.Colors.amber     // Amber
+        case "planning": return DesignSystem.Colors.blue   // Blue
+        case "health": return DesignSystem.Colors.emerald     // Green
         default: return DesignSystem.Colors.primary
         }
     }

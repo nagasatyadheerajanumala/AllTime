@@ -118,11 +118,11 @@ enum EventType: String, CaseIterable {
         case .meeting:
             return Color(hex: "4285F4") // Google Blue
         case .reminder:
-            return Color(hex: "FF9500") // Orange
+            return DesignSystem.Colors.warning // Orange
         case .holiday:
             return Color(hex: "FF6B6B") // Red
         case .fitness:
-            return Color(hex: "34C759") // Green
+            return DesignSystem.Colors.success // Green
         case .personal:
             return Color(hex: "FF69B4") // Pink
         case .work:
@@ -142,7 +142,7 @@ enum EventType: String, CaseIterable {
             )
         case .reminder:
             return LinearGradient(
-                colors: [Color(hex: "FF9500"), Color(hex: "FF6B00")],
+                colors: [DesignSystem.Colors.warning, Color(hex: "FF6B00")],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
@@ -154,7 +154,7 @@ enum EventType: String, CaseIterable {
             )
         case .fitness:
             return LinearGradient(
-                colors: [Color(hex: "34C759"), Color(hex: "30D158")],
+                colors: [DesignSystem.Colors.success, Color(hex: "30D158")],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )

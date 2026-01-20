@@ -6,6 +6,31 @@ class APIService: ObservableObject {
     private let baseURL = Constants.API.baseURL
     private let session = URLSession.shared
 
+    // MARK: - Safe URL Creation
+    /// Creates a URL from the given string, throwing an error if invalid
+    private func makeURL(_ path: String) throws -> URL {
+        guard let url = URL(string: path) else {
+            throw NSError(
+                domain: "AllTime",
+                code: -1,
+                userInfo: [NSLocalizedDescriptionKey: "Invalid URL: \(path)"]
+            )
+        }
+        return url
+    }
+
+    /// Creates URLComponents from the given string, throwing an error if invalid
+    private func makeURLComponents(_ path: String) throws -> URLComponents {
+        guard let components = URLComponents(string: path) else {
+            throw NSError(
+                domain: "AllTime",
+                code: -1,
+                userInfo: [NSLocalizedDescriptionKey: "Invalid URL components: \(path)"]
+            )
+        }
+        return components
+    }
+
     // MARK: - App Version Info (for API versioning)
     private static let appVersion: String = {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
@@ -225,7 +250,7 @@ class APIService: ObservableObject {
     
     // MARK: - Authentication
     func signInWithApple(identityToken: String, authorizationCode: String?, userIdentifier: String, email: String?, fullName: PersonNameComponents?) async throws -> AuthResponse {
-        let url = URL(string: "\(baseURL)/auth/apple")!
+        let url = try makeURL("\(baseURL)/auth/apple")
         print("🌐 APIService: ===== APPLE SIGN-IN REQUEST =====")
         print("🌐 APIService: Request URL: \(url)")
         print("🌐 APIService: Base URL: \(baseURL)")
@@ -362,7 +387,7 @@ class APIService: ObservableObject {
     }
     
     func logout() async throws {
-        let url = URL(string: "\(baseURL)/auth/logout")!
+        let url = try makeURL("\(baseURL)/auth/logout")
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
@@ -372,7 +397,7 @@ class APIService: ObservableObject {
     }
     
     func refreshToken(refreshToken: String) async throws -> RefreshTokenResponse {
-        let url = URL(string: "\(baseURL)/auth/refresh")!
+        let url = try makeURL("\(baseURL)/auth/refresh")
         print("🔄 APIService: Refreshing token at \(url)")
         
         var request = URLRequest(url: url)
@@ -392,19 +417,18 @@ class APIService: ObservableObject {
         
         // Don't use validateResponse here - it will cause infinite loop
         // Handle 401 directly for refresh token endpoint
+        // NOTE: Don't post ForceSignOut here - let AuthenticationService.silentRefresh() decide
+        // whether to logout based on the error. This avoids race conditions.
         if statusCode == 401 {
-            print("❌ APIService: Refresh token is invalid/expired - user must sign in again")
-            // Refresh token is invalid - trigger sign out with proper userInfo
-            // The handler checks for "401" or "invalid_grant" or "revoked" in the reason
-            NotificationCenter.default.post(
-                name: NSNotification.Name("ForceSignOut"),
-                object: nil,
-                userInfo: ["reason": "Refresh token invalid - 401 from /auth/refresh"]
-            )
+            print("❌ APIService: Refresh token rejected by server (401)")
+            // Include the server's error message in our error for AuthenticationService to inspect
             throw NSError(
                 domain: "AllTime",
                 code: 401,
-                userInfo: [NSLocalizedDescriptionKey: "Session expired. Please sign in again."]
+                userInfo: [
+                    NSLocalizedDescriptionKey: "Session expired. Please sign in again.",
+                    "serverError": responseString
+                ]
             )
         }
         
@@ -441,7 +465,7 @@ class APIService: ObservableObject {
     }
     
     func linkProvider(provider: String, authCode: String) async throws -> Provider {
-        let url = URL(string: "\(baseURL)/auth/\(provider)")!
+        let url = try makeURL("\(baseURL)/auth/\(provider)")
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -459,7 +483,7 @@ class APIService: ObservableObject {
     // MARK: - User Profile
     func fetchUserProfile() async throws -> User {
         // Backend endpoint: GET /api/user/me (per frontend developer guide)
-        let url = URL(string: "\(baseURL)/api/user/me")!
+        let url = try makeURL("\(baseURL)/api/user/me")
 
         // Helper function to make the request
         func makeRequest() async throws -> User {
@@ -493,7 +517,7 @@ class APIService: ObservableObject {
         bio: String? = nil,
         phoneNumber: String? = nil
     ) async throws -> User {
-        let url = URL(string: "\(baseURL)/api/user/profile/setup")!
+        let url = try makeURL("\(baseURL)/api/user/profile/setup")
         print("🌐 APIService: ===== SETUP PROFILE REQUEST =====")
         print("🌐 APIService: URL: \(url)")
         print("🌐 APIService: Full Name: \(fullName)")
@@ -579,7 +603,7 @@ class APIService: ObservableObject {
         phoneNumber: String? = nil
     ) async throws -> User {
         // Backend endpoint: PUT /api/user/update (per API documentation)
-        let url = URL(string: "\(baseURL)/api/user/update")!
+        let url = try makeURL("\(baseURL)/api/user/update")
         var request = URLRequest(url: url)
         request.httpMethod = "PUT"
         request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
@@ -664,7 +688,7 @@ class APIService: ObservableObject {
     
     func updateProfilePicture(url profilePictureUrl: String) async throws -> User {
         // Backend endpoint: POST /api/user/profile/picture (per API documentation)
-        let endpointURL = URL(string: "\(baseURL)/api/user/profile/picture")!
+        let endpointURL = try makeURL("\(baseURL)/api/user/profile/picture")
         print("🌐 APIService: ===== UPDATE PROFILE PICTURE =====")
         print("🌐 APIService: Endpoint URL: \(endpointURL)")
         print("🌐 APIService: Profile Picture URL: \(profilePictureUrl)")
@@ -734,7 +758,7 @@ class APIService: ObservableObject {
         // Get token with automatic refresh attempt if needed
         let token = try await getAccessTokenWithRefresh()
 
-        var components = URLComponents(string: "\(baseURL)/events")!
+        var components = try makeURLComponents("\(baseURL)/events")
         var queryItems: [URLQueryItem] = [
             URLQueryItem(name: "page", value: String(page)),
             URLQueryItem(name: "autoSync", value: String(autoSync))
@@ -799,7 +823,7 @@ class APIService: ObservableObject {
     }
     
     func syncEvents() async throws -> SyncResponse {
-        let url = URL(string: "\(baseURL)/sync")!
+        let url = try makeURL("\(baseURL)/sync")
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
@@ -814,7 +838,7 @@ class APIService: ObservableObject {
     }
     
     func syncNow() async throws -> SyncResponse {
-        let url = URL(string: "\(baseURL)/sync/now")!
+        let url = try makeURL("\(baseURL)/sync/now")
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
@@ -828,7 +852,7 @@ class APIService: ObservableObject {
     }
     
     func syncMicrosoftCalendar() async throws -> SyncResponse {
-        let url = URL(string: "\(baseURL)/sync/microsoft")!
+        let url = try makeURL("\(baseURL)/sync/microsoft")
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
@@ -864,7 +888,7 @@ class APIService: ObservableObject {
         let dateString = formatter.string(from: date)
         
         // Backend endpoint: GET /summaries/{date} (per API documentation)
-        let url = URL(string: "\(baseURL)/summaries/\(dateString)")!
+        let url = try makeURL("\(baseURL)/summaries/\(dateString)")
         var request = URLRequest(url: url)
         request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
         
@@ -875,7 +899,7 @@ class APIService: ObservableObject {
     }
     
     func fetchTodaySummary() async throws -> DailySummary {
-        let url = URL(string: "\(baseURL)/api/summary/today")!
+        let url = try makeURL("\(baseURL)/api/summary/today")
         var request = URLRequest(url: url)
         request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
         
@@ -886,7 +910,7 @@ class APIService: ObservableObject {
     }
     
     func forceGenerateSummary() async throws -> DailySummary {
-        let url = URL(string: "\(baseURL)/api/summary/send-now")!
+        let url = try makeURL("\(baseURL)/api/summary/send-now")
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
@@ -898,7 +922,7 @@ class APIService: ObservableObject {
     }
     
     func fetchSummaryPreferences() async throws -> SummaryPreferences {
-        let url = URL(string: "\(baseURL)/api/summary/preferences")!
+        let url = try makeURL("\(baseURL)/api/summary/preferences")
         var request = URLRequest(url: url)
         request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
         
@@ -909,7 +933,7 @@ class APIService: ObservableObject {
     }
     
     func updateSummaryPreferences(_ preferences: SummaryPreferences) async throws {
-        let url = URL(string: "\(baseURL)/api/summary/preferences")!
+        let url = try makeURL("\(baseURL)/api/summary/preferences")
         var request = URLRequest(url: url)
         request.httpMethod = "PUT"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -926,7 +950,7 @@ class APIService: ObservableObject {
     // It uses the correct endpoint /api/user/update with snake_case field names
     
     func fetchUserPreferences() async throws -> String {
-        let url = URL(string: "\(baseURL)/api/user/preferences")!
+        let url = try makeURL("\(baseURL)/api/user/preferences")
         var request = URLRequest(url: url)
         request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
 
@@ -940,7 +964,7 @@ class APIService: ObservableObject {
 
     /// Get the user's holiday sync preference
     func getHolidaySyncPreference() async throws -> Bool {
-        let url = URL(string: "\(baseURL)/api/user/preferences/holidays")!
+        let url = try makeURL("\(baseURL)/api/user/preferences/holidays")
         var request = URLRequest(url: url)
         request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
         request.timeoutInterval = Constants.API.timeout
@@ -960,7 +984,7 @@ class APIService: ObservableObject {
     /// Update the user's holiday sync preference
     /// When disabled, also deletes existing holiday events on the backend
     func updateHolidaySyncPreference(syncHolidays: Bool) async throws -> Bool {
-        let url = URL(string: "\(baseURL)/api/user/preferences/holidays")!
+        let url = try makeURL("\(baseURL)/api/user/preferences/holidays")
         var request = URLRequest(url: url)
         request.httpMethod = "PUT"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -985,7 +1009,7 @@ class APIService: ObservableObject {
 
     // MARK: - Calendar Sync
     func syncEvents(events: [EKEvent]) async throws {
-        let url = URL(string: "\(baseURL)/eventkit/import")!
+        let url = try makeURL("\(baseURL)/eventkit/import")
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -1019,7 +1043,7 @@ class APIService: ObservableObject {
     
     // MARK: - OAuth Flows
     func getGoogleOAuthStartURL() async throws -> String {
-        let url = URL(string: "\(baseURL)/connections/google/start")!
+        let url = try makeURL("\(baseURL)/connections/google/start")
         print("🔗 APIService: Requesting Google OAuth URL from: \(url)")
 
         var request = URLRequest(url: url)
@@ -1042,7 +1066,7 @@ class APIService: ObservableObject {
     }
     
     func completeGoogleOAuth(code: String) async throws {
-        let url = URL(string: "\(baseURL)/connections/google/callback")!
+        let url = try makeURL("\(baseURL)/connections/google/callback")
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -1056,7 +1080,7 @@ class APIService: ObservableObject {
     }
     
     func getMicrosoftOAuthStartURL() async throws -> String {
-        let url = URL(string: "\(baseURL)/connections/microsoft/start")!
+        let url = try makeURL("\(baseURL)/connections/microsoft/start")
         print("🔗 APIService: Requesting Microsoft OAuth URL from: \(url)")
 
         var request = URLRequest(url: url)
@@ -1079,7 +1103,7 @@ class APIService: ObservableObject {
     }
     
     func completeMicrosoftOAuth(code: String) async throws {
-        let url = URL(string: "\(baseURL)/connections/microsoft/callback")!
+        let url = try makeURL("\(baseURL)/connections/microsoft/callback")
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -1095,7 +1119,7 @@ class APIService: ObservableObject {
     // MARK: - Calendar Diagnostics
     
     func getCalendarDiagnostics() async throws -> CalendarDiagnosticsResponse {
-        let url = URL(string: "\(baseURL)/calendars/diagnostics")!
+        let url = try makeURL("\(baseURL)/calendars/diagnostics")
         var request = URLRequest(url: url)
         request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
         
@@ -1110,7 +1134,7 @@ class APIService: ObservableObject {
     // MARK: - Sync Status
     
     func getSyncStatus() async throws -> SyncStatusResponse {
-        let url = URL(string: "\(baseURL)/sync/status")!
+        let url = try makeURL("\(baseURL)/sync/status")
         var request = URLRequest(url: url)
         request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
         
@@ -1125,7 +1149,7 @@ class APIService: ObservableObject {
     // MARK: - Summary Preferences
     
     func updateSummaryPreferences(timePreference: String, includeWeather: Bool, includeTraffic: Bool) async throws -> SummaryPreferencesResponse {
-        let url = URL(string: "\(baseURL)/summaries/preferences")!
+        let url = try makeURL("\(baseURL)/summaries/preferences")
         var request = URLRequest(url: url)
         request.httpMethod = "PUT"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -1150,7 +1174,7 @@ class APIService: ObservableObject {
     // MARK: - Push Notifications
     func registerDeviceToken(_ deviceToken: String) async throws {
         // Backend endpoint: POST /push/register (per API documentation)
-        let url = URL(string: "\(baseURL)/push/register")!
+        let url = try makeURL("\(baseURL)/push/register")
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -1166,7 +1190,7 @@ class APIService: ObservableObject {
     
     func sendTestNotification() async throws {
         // Backend endpoint: POST /push/test (per API documentation)
-        let url = URL(string: "\(baseURL)/push/test")!
+        let url = try makeURL("\(baseURL)/push/test")
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
@@ -1177,7 +1201,7 @@ class APIService: ObservableObject {
     
     func sendDailySummaryNotification() async throws {
         // Backend endpoint: POST /push/test (per API documentation)
-        let url = URL(string: "\(baseURL)/push/test")!
+        let url = try makeURL("\(baseURL)/push/test")
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
@@ -1187,7 +1211,7 @@ class APIService: ObservableObject {
     }
     
     func sendCalendarSyncNotification() async throws {
-        let url = URL(string: "\(baseURL)/api/push/calendar-sync")!
+        let url = try makeURL("\(baseURL)/api/push/calendar-sync")
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
@@ -1197,7 +1221,7 @@ class APIService: ObservableObject {
     }
     
     func getPushNotificationStatus() async throws -> PushNotificationStatus {
-        let url = URL(string: "\(baseURL)/api/push/status")!
+        let url = try makeURL("\(baseURL)/api/push/status")
         var request = URLRequest(url: url)
         request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
         
@@ -1210,7 +1234,7 @@ class APIService: ObservableObject {
     }
     
     func getGoogleConnectionStatus() async throws -> ConnectionStatus {
-        let url = URL(string: "\(baseURL)/connections/google/status")!
+        let url = try makeURL("\(baseURL)/connections/google/status")
         var request = URLRequest(url: url)
         request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
         
@@ -1223,7 +1247,7 @@ class APIService: ObservableObject {
     }
     
     func getMicrosoftConnectionStatus() async throws -> ConnectionStatus {
-        let url = URL(string: "\(baseURL)/connections/microsoft/status")!
+        let url = try makeURL("\(baseURL)/connections/microsoft/status")
         var request = URLRequest(url: url)
         request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
         
@@ -1236,7 +1260,7 @@ class APIService: ObservableObject {
     }
     
     func fetchSummaryHistory(startDate: String, endDate: String) async throws -> SummaryHistoryResponse {
-        var components = URLComponents(string: "\(baseURL)/api/summary/history")!
+        var components = try makeURLComponents("\(baseURL)/api/summary/history")
         components.queryItems = [
             URLQueryItem(name: "start", value: startDate),
             URLQueryItem(name: "end", value: endDate)
@@ -1255,7 +1279,7 @@ class APIService: ObservableObject {
     
     // MARK: - Health Check
     func healthCheck() async throws -> Bool {
-        let url = URL(string: "\(baseURL)/health")!
+        let url = try makeURL("\(baseURL)/health")
         print("🌐 APIService: Health check to \(url)")
         
         let (data, response) = try await session.data(from: url)
@@ -1299,7 +1323,7 @@ class APIService: ObservableObject {
         // Get token with automatic refresh attempt if needed
         let token = try await getAccessTokenWithRefresh()
 
-        let url = URL(string: "\(baseURL)/calendars")!
+        let url = try makeURL("\(baseURL)/calendars")
         print("🌐 APIService: Fetching connected calendars from \(url)")
 
         var request = URLRequest(url: url)
@@ -1342,7 +1366,7 @@ class APIService: ObservableObject {
                           userInfo: [NSLocalizedDescriptionKey: "Authentication required"])
         }
 
-        let url = URL(string: "\(baseURL)/calendars/discovered")!
+        let url = try makeURL("\(baseURL)/calendars/discovered")
         print("📅 APIService: Fetching discovered calendars")
 
         var request = URLRequest(url: url)
@@ -1365,7 +1389,7 @@ class APIService: ObservableObject {
                           userInfo: [NSLocalizedDescriptionKey: "Authentication required"])
         }
 
-        let url = URL(string: "\(baseURL)/calendars/discover/microsoft")!
+        let url = try makeURL("\(baseURL)/calendars/discover/microsoft")
         print("📅 APIService: Discovering Microsoft calendars")
 
         var request = URLRequest(url: url)
@@ -1389,7 +1413,7 @@ class APIService: ObservableObject {
                           userInfo: [NSLocalizedDescriptionKey: "Authentication required"])
         }
 
-        let url = URL(string: "\(baseURL)/calendars/discovered/\(calendarId)/toggle")!
+        let url = try makeURL("\(baseURL)/calendars/discovered/\(calendarId)/toggle")
         print("📅 APIService: Toggling calendar \(calendarId) to \(enabled)")
 
         var request = URLRequest(url: url)
@@ -1416,7 +1440,7 @@ class APIService: ObservableObject {
                           userInfo: [NSLocalizedDescriptionKey: "Authentication required"])
         }
 
-        let url = URL(string: "\(baseURL)/calendars/sync/microsoft/multi")!
+        let url = try makeURL("\(baseURL)/calendars/sync/microsoft/multi")
         print("🔄 APIService: Starting multi-calendar Microsoft sync")
 
         var request = URLRequest(url: url)
@@ -1439,7 +1463,7 @@ class APIService: ObservableObject {
                           userInfo: [NSLocalizedDescriptionKey: "Authentication required"])
         }
 
-        let url = URL(string: "\(baseURL)/calendars/discovered/\(provider)")!
+        let url = try makeURL("\(baseURL)/calendars/discovered/\(provider)")
         print("📅 APIService: Fetching discovered calendars for \(provider)")
 
         var request = URLRequest(url: url)
@@ -1463,7 +1487,7 @@ class APIService: ObservableObject {
     ///   - end: End date (defaults to 7 days from today)
     /// - Returns: ClashResponse containing clashes grouped by date
     func getMeetingClashes(start: Date? = nil, end: Date? = nil) async throws -> ClashResponse {
-        var urlComponents = URLComponents(string: "\(baseURL)/calendar/clashes")!
+        var urlComponents = try makeURLComponents("\(baseURL)/calendar/clashes")
         var queryItems: [URLQueryItem] = []
 
         let dateFormatter = DateFormatter()
@@ -1506,7 +1530,7 @@ class APIService: ObservableObject {
     func getUpcomingEvents(days: Int = 7) async throws -> EventsResponse {
         // Use the new structured GET /calendars/events/upcoming endpoint
         // This endpoint returns the same structure as GET /events
-        let url = URL(string: "\(baseURL)/calendars/events/upcoming?days=\(days)")!
+        let url = try makeURL("\(baseURL)/calendars/events/upcoming?days=\(days)")
         #if DEBUG
         print("🌐 APIService: ===== FETCHING UPCOMING EVENTS =====")
         print("🌐 APIService: URL: \(url)")
@@ -1714,7 +1738,7 @@ class APIService: ObservableObject {
     }
     
     func syncGoogleCalendar() async throws -> SyncResponse {
-        let url = URL(string: "\(baseURL)/sync/google")!
+        let url = try makeURL("\(baseURL)/sync/google")
         print("🌐 APIService: ===== SYNCING GOOGLE CALENDAR =====")
         print("🌐 APIService: URL: \(url)")
         
@@ -1945,7 +1969,7 @@ class APIService: ObservableObject {
     /// Call this on app launch and periodically to proactively detect connection issues.
     /// - Returns: ConnectionHealthResponse with status of all calendar connections
     func checkConnectionHealth() async throws -> ConnectionHealthResponse {
-        let url = URL(string: "\(baseURL)/sync/connection-health")!
+        let url = try makeURL("\(baseURL)/sync/connection-health")
         print("🏥 APIService: ===== CHECKING CONNECTION HEALTH =====")
 
         guard let token = accessToken else {
@@ -2027,7 +2051,7 @@ class APIService: ObservableObject {
             )
         }
         
-        let url = URL(string: "\(baseURL)/calendars/\(providerLower)")!
+        let url = try makeURL("\(baseURL)/calendars/\(providerLower)")
         print("🗑️ APIService: ===== DISCONNECTING CALENDAR =====")
         print("🗑️ APIService: Provider: \(providerLower)")
         print("🗑️ APIService: URL: \(url)")
@@ -2161,7 +2185,7 @@ class APIService: ObservableObject {
     /// - Returns: DeleteCalendarResponse with status and message
     /// - Throws: APIError on failure
     func disconnectConnection(_ connectionId: Int) async throws -> DeleteCalendarResponse {
-        let url = URL(string: "\(baseURL)/calendars/connection/\(connectionId)")!
+        let url = try makeURL("\(baseURL)/calendars/connection/\(connectionId)")
         print("🗑️ APIService: ===== DISCONNECTING SPECIFIC CALENDAR =====")
         print("🗑️ APIService: Connection ID: \(connectionId)")
         print("🗑️ APIService: URL: \(url)")
@@ -2205,7 +2229,7 @@ class APIService: ObservableObject {
     /// - Returns: EventDetails with complete event information including attendees
     /// - Throws: APIError on failure
     func getEventDetails(eventId: Int64) async throws -> EventDetails {
-        let url = URL(string: "\(baseURL)/calendars/events/\(eventId)")!
+        let url = try makeURL("\(baseURL)/calendars/events/\(eventId)")
         print("📋 APIService: ===== FETCHING EVENT DETAILS =====")
         print("📋 APIService: Event ID: \(eventId)")
         print("📋 APIService: URL: \(url)")
@@ -2517,14 +2541,9 @@ class APIService: ObservableObject {
                 // Check if this is a refresh token endpoint by checking the URL
                 if let url = httpResponse.url, url.path.contains("/auth/refresh") {
                     // This is the refresh endpoint itself - don't try to refresh again
+                    // NOTE: Don't post ForceSignOut here - let AuthenticationService decide
                     print("❌ APIService: Refresh token endpoint returned 401 - refresh token is invalid")
-                    // Note: This is a fallback - refreshToken() handles this case directly
-                    // Include proper userInfo so the handler can make informed decisions
-                    NotificationCenter.default.post(
-                        name: NSNotification.Name("ForceSignOut"),
-                        object: nil,
-                        userInfo: ["reason": "Refresh token invalid - 401 from /auth/refresh (validateResponse)"]
-                    )
+                    // Just throw the error - AuthenticationService.silentRefresh() handles the decision
                 } else if let url = httpResponse.url, url.path.contains("/health") {
                     // Health check shouldn't require auth - just throw the error
                     print("⚠️ APIService: Health check returned 401 - backend may require auth (unexpected)")
@@ -2766,7 +2785,7 @@ class APIService: ObservableObject {
         addGoogleMeet: Bool? = nil,
         eventColor: String? = nil
     ) async throws -> CreateEventResponse {
-        let url = URL(string: "\(baseURL)/calendars/events")!
+        let url = try makeURL("\(baseURL)/calendars/events")
         print("📝 APIService: ===== CREATING EVENT =====")
         print("📝 APIService: Title: '\(title)'")
         print("📝 APIService: URL: \(url)")
@@ -2976,7 +2995,7 @@ class APIService: ObservableObject {
             )
         }
         
-        var urlComponents = URLComponents(string: "\(baseURL)/api/ai/daily-summary")!
+        var urlComponents = try makeURLComponents("\(baseURL)/api/ai/daily-summary")
         
         // Add date parameter if provided
         if let date = date {
@@ -3109,7 +3128,7 @@ class APIService: ObservableObject {
             )
         }
 
-        var urlComponents = URLComponents(string: "\(baseURL)/api/v1/daily-summary")!
+        var urlComponents = try makeURLComponents("\(baseURL)/api/v1/daily-summary")
 
         // Add date parameter if provided
         if let date = date {
@@ -3267,7 +3286,7 @@ class APIService: ObservableObject {
             )
         }
 
-        var urlComponents = URLComponents(string: "\(baseURL)/api/v1/recommendations/food")!
+        var urlComponents = try makeURLComponents("\(baseURL)/api/v1/recommendations/food")
 
         // Build query items - latitude, longitude, and radius_miles are REQUIRED for proper results
         var queryItems = [
@@ -3375,7 +3394,7 @@ class APIService: ObservableObject {
             )
         }
 
-        var urlComponents = URLComponents(string: "\(baseURL)/api/v1/recommendations/near-meeting")!
+        var urlComponents = try makeURLComponents("\(baseURL)/api/v1/recommendations/near-meeting")
         urlComponents.queryItems = [URLQueryItem(name: "timezone", value: timezone)]
 
         guard let url = urlComponents.url else {
@@ -3466,7 +3485,7 @@ class APIService: ObservableObject {
             )
         }
 
-        var urlComponents = URLComponents(string: "\(baseURL)/api/v1/health/similar-week")!
+        var urlComponents = try makeURLComponents("\(baseURL)/api/v1/health/similar-week")
         urlComponents.queryItems = [URLQueryItem(name: "timezone", value: timezone)]
 
         guard let url = urlComponents.url else {
@@ -3561,7 +3580,7 @@ class APIService: ObservableObject {
             )
         }
 
-        var urlComponents = URLComponents(string: "\(baseURL)/api/v1/recommendations/walk")!
+        var urlComponents = try makeURLComponents("\(baseURL)/api/v1/recommendations/walk")
         var queryItems = [
             URLQueryItem(name: "distance_miles", value: String(distanceMiles)),
             URLQueryItem(name: "difficulty", value: difficulty)
@@ -3664,7 +3683,7 @@ class APIService: ObservableObject {
             )
         }
         
-        var urlComponents = URLComponents(string: "\(baseURL)/api/v1/summary/daily")!
+        var urlComponents = try makeURLComponents("\(baseURL)/api/v1/summary/daily")
         
         // Add date parameter only if provided
         if let date = date {
@@ -3765,7 +3784,7 @@ class APIService: ObservableObject {
             )
         }
         
-        var urlComponents = URLComponents(string: "\(baseURL)/api/v1/timeline/day")!
+        var urlComponents = try makeURLComponents("\(baseURL)/api/v1/timeline/day")
         
         // Add date parameter only if provided
         if let date = date {
@@ -3866,7 +3885,7 @@ class APIService: ObservableObject {
             )
         }
         
-        var urlComponents = URLComponents(string: "\(baseURL)/api/v1/insights/life-wheel")!
+        var urlComponents = try makeURLComponents("\(baseURL)/api/v1/insights/life-wheel")
         var queryItems: [URLQueryItem] = []
         
         // Add date parameters only if provided
@@ -3976,7 +3995,7 @@ class APIService: ObservableObject {
             )
         }
         
-        let url = URL(string: "\(baseURL)/api/v1/health/daily")!
+        let url = try makeURL("\(baseURL)/api/v1/health/daily")
         
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -4073,7 +4092,7 @@ class APIService: ObservableObject {
             )
         }
         
-        var urlComponents = URLComponents(string: "\(baseURL)/api/v1/health/insights")!
+        var urlComponents = try makeURLComponents("\(baseURL)/api/v1/health/insights")
         var queryItems: [URLQueryItem] = []
         
         let formatter = DateFormatter()
@@ -4203,7 +4222,7 @@ class APIService: ObservableObject {
             )
         }
         
-        var urlComponents = URLComponents(string: "\(baseURL)/api/v1/health/insights/day")!
+        var urlComponents = try makeURLComponents("\(baseURL)/api/v1/health/insights/day")
         
         if let date = date {
             let formatter = DateFormatter()
@@ -4299,7 +4318,7 @@ class APIService: ObservableObject {
             )
         }
 
-        var urlComponents = URLComponents(string: "\(baseURL)/api/v1/health/energy-patterns")!
+        var urlComponents = try makeURLComponents("\(baseURL)/api/v1/health/energy-patterns")
         urlComponents.queryItems = [URLQueryItem(name: "timezone", value: timezone)]
 
         guard let url = urlComponents.url else {
@@ -4386,9 +4405,7 @@ class APIService: ObservableObject {
             )
         }
         
-        guard let url = URL(string: "\(baseURL)/api/v1/reminders") else {
-            throw NSError(domain: "AllTime", code: 400, userInfo: [NSLocalizedDescriptionKey: "Invalid URL"])
-        }
+        let url = try makeURL("\(baseURL)/api/v1/reminders")
         
         var urlRequest = URLRequest(url: url)
         urlRequest.httpMethod = "POST"
@@ -4559,9 +4576,7 @@ class APIService: ObservableObject {
             )
         }
         
-        guard let url = URL(string: "\(baseURL)/api/v1/reminders/\(id)") else {
-            throw NSError(domain: "AllTime", code: 400, userInfo: [NSLocalizedDescriptionKey: "Invalid URL"])
-        }
+        let url = try makeURL("\(baseURL)/api/v1/reminders/\(id)")
         
         var urlRequest = URLRequest(url: url)
         urlRequest.httpMethod = "GET"
@@ -4601,9 +4616,7 @@ class APIService: ObservableObject {
             )
         }
         
-        guard let url = URL(string: "\(baseURL)/api/v1/reminders/\(id)") else {
-            throw NSError(domain: "AllTime", code: 400, userInfo: [NSLocalizedDescriptionKey: "Invalid URL"])
-        }
+        let url = try makeURL("\(baseURL)/api/v1/reminders/\(id)")
         
         var urlRequest = URLRequest(url: url)
         urlRequest.httpMethod = "PUT"
@@ -4653,9 +4666,7 @@ class APIService: ObservableObject {
             )
         }
         
-        guard let url = URL(string: "\(baseURL)/api/v1/reminders/\(id)/complete") else {
-            throw NSError(domain: "AllTime", code: 400, userInfo: [NSLocalizedDescriptionKey: "Invalid URL"])
-        }
+        let url = try makeURL("\(baseURL)/api/v1/reminders/\(id)/complete")
         
         var urlRequest = URLRequest(url: url)
         urlRequest.httpMethod = "POST"
@@ -4695,9 +4706,7 @@ class APIService: ObservableObject {
             )
         }
         
-        guard let url = URL(string: "\(baseURL)/api/v1/reminders/\(id)/snooze") else {
-            throw NSError(domain: "AllTime", code: 400, userInfo: [NSLocalizedDescriptionKey: "Invalid URL"])
-        }
+        let url = try makeURL("\(baseURL)/api/v1/reminders/\(id)/snooze")
         
         var urlRequest = URLRequest(url: url)
         urlRequest.httpMethod = "POST"
@@ -4747,9 +4756,7 @@ class APIService: ObservableObject {
             )
         }
         
-        guard let url = URL(string: "\(baseURL)/api/v1/reminders/\(id)") else {
-            throw NSError(domain: "AllTime", code: 400, userInfo: [NSLocalizedDescriptionKey: "Invalid URL"])
-        }
+        let url = try makeURL("\(baseURL)/api/v1/reminders/\(id)")
         
         var urlRequest = URLRequest(url: url)
         urlRequest.httpMethod = "DELETE"
@@ -4786,9 +4793,7 @@ class APIService: ObservableObject {
             )
         }
         
-        guard let url = URL(string: "\(baseURL)/api/v1/reminders/event/\(eventId)") else {
-            throw NSError(domain: "AllTime", code: 400, userInfo: [NSLocalizedDescriptionKey: "Invalid URL"])
-        }
+        let url = try makeURL("\(baseURL)/api/v1/reminders/event/\(eventId)")
         
         var urlRequest = URLRequest(url: url)
         urlRequest.httpMethod = "GET"
@@ -4884,9 +4889,7 @@ class APIService: ObservableObject {
             )
         }
         
-        guard let url = URL(string: "\(baseURL)/api/v1/health/summary") else {
-            throw NSError(domain: "AllTime", code: 400, userInfo: [NSLocalizedDescriptionKey: "Invalid URL"])
-        }
+        let url = try makeURL("\(baseURL)/api/v1/health/summary")
         
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
@@ -5142,9 +5145,7 @@ class APIService: ObservableObject {
             )
         }
         
-        guard let url = URL(string: "\(baseURL)/api/v1/health/goals") else {
-            throw NSError(domain: "AllTime", code: 400, userInfo: [NSLocalizedDescriptionKey: "Invalid URL"])
-        }
+        let url = try makeURL("\(baseURL)/api/v1/health/goals")
         
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
@@ -5213,9 +5214,7 @@ class APIService: ObservableObject {
             )
         }
         
-        guard let url = URL(string: "\(baseURL)/api/v1/health/goals") else {
-            throw NSError(domain: "AllTime", code: 400, userInfo: [NSLocalizedDescriptionKey: "Invalid URL"])
-        }
+        let url = try makeURL("\(baseURL)/api/v1/health/goals")
         
         var urlRequest = URLRequest(url: url)
         urlRequest.httpMethod = "POST"
@@ -5324,7 +5323,7 @@ class APIService: ObservableObject {
     ///   - lat: Optional latitude for weather-aware suggestions
     ///   - lng: Optional longitude for weather-aware suggestions
     func getIntelligentUpNext(timezone: String = TimeZone.current.identifier, lat: Double? = nil, lng: Double? = nil) async throws -> UpNextItemsResponse {
-        var components = URLComponents(string: "\(baseURL)/api/v1/today/upnext")!
+        var components = try makeURLComponents("\(baseURL)/api/v1/today/upnext")
         var queryItems = [
             URLQueryItem(name: "timezone", value: timezone)
         ]
@@ -5358,7 +5357,7 @@ class APIService: ObservableObject {
 
     /// Quick add a task - just title, AI does the rest
     func quickAddTask(title: String, source: String = "quick_add", deadline: Date? = nil) async throws -> UserTask {
-        let url = URL(string: "\(baseURL)/api/v1/tasks/quick")!
+        let url = try makeURL("\(baseURL)/api/v1/tasks/quick")
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
@@ -5459,7 +5458,7 @@ class APIService: ObservableObject {
 
     /// Create a task with full details
     func createTask(_ taskRequest: TaskRequest) async throws -> UserTask {
-        let url = URL(string: "\(baseURL)/api/v1/tasks")!
+        let url = try makeURL("\(baseURL)/api/v1/tasks")
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
@@ -5480,7 +5479,7 @@ class APIService: ObservableObject {
 
     /// Update a task
     func updateTask(id: Int64, _ taskRequest: TaskRequest) async throws -> UserTask {
-        let url = URL(string: "\(baseURL)/api/v1/tasks/\(id)")!
+        let url = try makeURL("\(baseURL)/api/v1/tasks/\(id)")
         var request = URLRequest(url: url)
         request.httpMethod = "PUT"
         request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
@@ -5501,7 +5500,7 @@ class APIService: ObservableObject {
 
     /// Delete a task
     func deleteTask(id: Int64) async throws {
-        let url = URL(string: "\(baseURL)/api/v1/tasks/\(id)")!
+        let url = try makeURL("\(baseURL)/api/v1/tasks/\(id)")
         var request = URLRequest(url: url)
         request.httpMethod = "DELETE"
         request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
@@ -5513,7 +5512,7 @@ class APIService: ObservableObject {
 
     /// Mark task as completed
     func completeTask(id: Int64, actualDurationMinutes: Int? = nil) async throws -> UserTask {
-        let url = URL(string: "\(baseURL)/api/v1/tasks/\(id)/complete")!
+        let url = try makeURL("\(baseURL)/api/v1/tasks/\(id)/complete")
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
@@ -5533,7 +5532,7 @@ class APIService: ObservableObject {
 
     /// Get today's tasks for "Up Next" section
     func getTodaysTasks(timezone: String = TimeZone.current.identifier) async throws -> UpNextResponse {
-        var components = URLComponents(string: "\(baseURL)/api/v1/tasks/today")!
+        var components = try makeURLComponents("\(baseURL)/api/v1/tasks/today")
         components.queryItems = [
             URLQueryItem(name: "timezone", value: timezone)
         ]
@@ -5552,7 +5551,7 @@ class APIService: ObservableObject {
 
     /// Get pending tasks
     func getPendingTasks() async throws -> [UserTask] {
-        let url = URL(string: "\(baseURL)/api/v1/tasks/pending")!
+        let url = try makeURL("\(baseURL)/api/v1/tasks/pending")
         var request = URLRequest(url: url)
         request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
 
@@ -5567,7 +5566,7 @@ class APIService: ObservableObject {
 
     /// Get overdue tasks
     func getOverdueTasks() async throws -> [UserTask] {
-        let url = URL(string: "\(baseURL)/api/v1/tasks/overdue")!
+        let url = try makeURL("\(baseURL)/api/v1/tasks/overdue")
         var request = URLRequest(url: url)
         request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
 
@@ -5583,7 +5582,7 @@ class APIService: ObservableObject {
     /// Get ALL tasks with categorization (Open, Catch Up, Done)
     /// This is the main endpoint for the Tasks screen
     func fetchAllTasks(timezone: String = TimeZone.current.identifier) async throws -> TaskListResponse {
-        var components = URLComponents(string: "\(baseURL)/api/v1/tasks/all")!
+        var components = try makeURLComponents("\(baseURL)/api/v1/tasks/all")
         components.queryItems = [
             URLQueryItem(name: "timezone", value: timezone)
         ]
@@ -5602,7 +5601,7 @@ class APIService: ObservableObject {
 
     /// Auto-schedule pending tasks
     func autoScheduleTasks(date: Date = Date(), timezone: String = TimeZone.current.identifier) async throws -> ScheduleResponse {
-        let url = URL(string: "\(baseURL)/api/v1/tasks/schedule")!
+        let url = try makeURL("\(baseURL)/api/v1/tasks/schedule")
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
@@ -5630,7 +5629,7 @@ class APIService: ObservableObject {
         formatter.dateFormat = "yyyy-MM-dd"
         let dateString = formatter.string(from: date)
 
-        var components = URLComponents(string: "\(baseURL)/api/v1/tasks/\(taskId)/suggest")!
+        var components = try makeURLComponents("\(baseURL)/api/v1/tasks/\(taskId)/suggest")
         components.queryItems = [
             URLQueryItem(name: "date", value: dateString),
             URLQueryItem(name: "timezone", value: timezone)
@@ -5655,7 +5654,7 @@ class APIService: ObservableObject {
         // Get token with automatic refresh attempt if needed
         let token = try await getAccessTokenWithRefresh()
 
-        var components = URLComponents(string: "\(baseURL)/api/v1/today/overview")!
+        var components = try makeURLComponents("\(baseURL)/api/v1/today/overview")
         components.queryItems = [
             URLQueryItem(name: "timezone", value: timezone)
         ]
@@ -5691,7 +5690,7 @@ class APIService: ObservableObject {
 
     /// Update task status (PENDING, IN_PROGRESS, COMPLETED, etc.)
     func updateTaskStatus(taskId: Int, status: String) async throws -> UserTask {
-        let url = URL(string: "\(baseURL)/api/v1/tasks/\(taskId)/status")!
+        let url = try makeURL("\(baseURL)/api/v1/tasks/\(taskId)/status")
         var request = URLRequest(url: url)
         request.httpMethod = "PUT"
         request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
@@ -5718,7 +5717,7 @@ class APIService: ObservableObject {
 
     /// Get all predictions for today
     func getTodayPredictions() async throws -> PredictionsResponse {
-        let url = URL(string: "\(baseURL)/api/v1/predictions/today")!
+        let url = try makeURL("\(baseURL)/api/v1/predictions/today")
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
@@ -5742,7 +5741,7 @@ class APIService: ObservableObject {
         dateFormatter.dateFormat = "yyyy-MM-dd"
         let dateString = dateFormatter.string(from: date)
 
-        let url = URL(string: "\(baseURL)/api/v1/predictions/\(dateString)")!
+        let url = try makeURL("\(baseURL)/api/v1/predictions/\(dateString)")
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
@@ -5758,7 +5757,7 @@ class APIService: ObservableObject {
 
     /// Get travel predictions for today
     func getTodayTravelPredictions() async throws -> TravelPredictionsResponse {
-        let url = URL(string: "\(baseURL)/api/v1/predictions/travel/today")!
+        let url = try makeURL("\(baseURL)/api/v1/predictions/travel/today")
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
@@ -5778,7 +5777,7 @@ class APIService: ObservableObject {
         dateFormatter.dateFormat = "yyyy-MM-dd"
         let dateString = dateFormatter.string(from: date)
 
-        let url = URL(string: "\(baseURL)/api/v1/predictions/travel/\(dateString)")!
+        let url = try makeURL("\(baseURL)/api/v1/predictions/travel/\(dateString)")
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
@@ -5794,7 +5793,7 @@ class APIService: ObservableObject {
 
     /// Get capacity prediction for today
     func getTodayCapacity() async throws -> CapacityPrediction {
-        let url = URL(string: "\(baseURL)/api/v1/predictions/capacity/today")!
+        let url = try makeURL("\(baseURL)/api/v1/predictions/capacity/today")
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
@@ -5814,7 +5813,7 @@ class APIService: ObservableObject {
         dateFormatter.dateFormat = "yyyy-MM-dd"
         let dateString = dateFormatter.string(from: date)
 
-        let url = URL(string: "\(baseURL)/api/v1/predictions/capacity/\(dateString)")!
+        let url = try makeURL("\(baseURL)/api/v1/predictions/capacity/\(dateString)")
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
@@ -5839,7 +5838,7 @@ class APIService: ObservableObject {
             urlString += "?start=\(dateString)"
         }
 
-        let url = URL(string: urlString)!
+        let url = try makeURL(urlString)
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
@@ -5855,7 +5854,7 @@ class APIService: ObservableObject {
 
     /// Get detected event patterns
     func getEventPatterns() async throws -> PatternsResponse {
-        let url = URL(string: "\(baseURL)/api/v1/predictions/patterns")!
+        let url = try makeURL("\(baseURL)/api/v1/predictions/patterns")
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
@@ -5874,7 +5873,7 @@ class APIService: ObservableObject {
     /// Get comprehensive capacity analysis with meeting patterns and health impact
     func getCapacityAnalysis(days: Int = 30) async throws -> CapacityAnalysisResponse {
         let timezone = TimeZone.current.identifier
-        let url = URL(string: "\(baseURL)/api/v1/capacity/analysis?days=\(days)&timezone=\(timezone)")!
+        let url = try makeURL("\(baseURL)/api/v1/capacity/analysis?days=\(days)&timezone=\(timezone)")
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
@@ -5895,7 +5894,7 @@ class APIService: ObservableObject {
     /// Get capacity insights only (lighter endpoint)
     func getCapacityInsights(days: Int = 30) async throws -> [CapacityInsight] {
         let timezone = TimeZone.current.identifier
-        let url = URL(string: "\(baseURL)/api/v1/capacity/insights?days=\(days)&timezone=\(timezone)")!
+        let url = try makeURL("\(baseURL)/api/v1/capacity/insights?days=\(days)&timezone=\(timezone)")
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
@@ -5920,7 +5919,7 @@ class APIService: ObservableObject {
             urlString += "&weekStart=\(weekStart)"
         }
 
-        let url = URL(string: urlString)!
+        let url = try makeURL(urlString)
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
@@ -5941,7 +5940,7 @@ class APIService: ObservableObject {
     /// Refresh weekly insights (force regenerate)
     func refreshWeeklyInsights(weekStart: String) async throws -> WeeklyInsightsSummaryResponse {
         let timezone = TimeZone.current.identifier
-        let url = URL(string: "\(baseURL)/api/v1/insights/weekly/refresh")!
+        let url = try makeURL("\(baseURL)/api/v1/insights/weekly/refresh")
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
@@ -5964,7 +5963,7 @@ class APIService: ObservableObject {
 
     /// Get available weeks for insights
     func getAvailableWeeks() async throws -> AvailableWeeksResponse {
-        let url = URL(string: "\(baseURL)/api/v1/insights/weekly/available")!
+        let url = try makeURL("\(baseURL)/api/v1/insights/weekly/available")
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
@@ -5983,7 +5982,7 @@ class APIService: ObservableObject {
         let timezone = TimeZone.current.identifier
         let urlString = "\(baseURL)/api/v1/insights/next-week-forecast?timezone=\(timezone)"
 
-        let url = URL(string: urlString)!
+        let url = try makeURL(urlString)
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
@@ -6010,7 +6009,7 @@ class APIService: ObservableObject {
             urlString += "&weekStart=\(weekStart)"
         }
 
-        let url = URL(string: urlString)!
+        let url = try makeURL(urlString)
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
@@ -6035,7 +6034,7 @@ class APIService: ObservableObject {
         let timezone = TimeZone.current.identifier
         let urlString = "\(baseURL)/api/v1/insights/week-drift?timezone=\(timezone)"
 
-        let url = URL(string: urlString)!
+        let url = try makeURL(urlString)
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
@@ -6062,7 +6061,7 @@ class APIService: ObservableObject {
         let timezone = TimeZone.current.identifier
         let urlString = "\(baseURL)/api/v1/insights/life?mode=\(mode)&timezone=\(timezone)"
 
-        let url = URL(string: urlString)!
+        let url = try makeURL(urlString)
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
@@ -6108,7 +6107,7 @@ class APIService: ObservableObject {
         let timezone = TimeZone.current.identifier
         let urlString = "\(baseURL)/api/v1/insights/life/regenerate?mode=\(mode)&timezone=\(timezone)"
 
-        let url = URL(string: urlString)!
+        let url = try makeURL(urlString)
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
@@ -6129,7 +6128,7 @@ class APIService: ObservableObject {
 
     /// Get rate limit status for life insights regeneration.
     func getLifeInsightsRateLimit() async throws -> RateLimitStatus {
-        let url = URL(string: "\(baseURL)/api/v1/insights/life/rate-limit")!
+        let url = try makeURL("\(baseURL)/api/v1/insights/life/rate-limit")
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
@@ -6153,7 +6152,7 @@ class APIService: ObservableObject {
             urlString += "&lat=\(lat)&lng=\(lng)"
         }
 
-        let url = URL(string: urlString)!
+        let url = try makeURL(urlString)
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
@@ -6180,7 +6179,7 @@ class APIService: ObservableObject {
         formatter.dateFormat = "yyyy-MM-dd"
         let dateString = formatter.string(from: date)
 
-        let url = URL(string: "\(baseURL)/api/v1/suggestions/tasks?date=\(dateString)")!
+        let url = try makeURL("\(baseURL)/api/v1/suggestions/tasks?date=\(dateString)")
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
@@ -6201,7 +6200,7 @@ class APIService: ObservableObject {
 
     /// Accept a task suggestion - creates a real task from the suggestion.
     func acceptTaskSuggestion(suggestionId: Int64, scheduledDate: Date? = nil, scheduledTime: String? = nil) async throws -> AcceptSuggestionResponse {
-        let url = URL(string: "\(baseURL)/api/v1/suggestions/tasks/\(suggestionId)/accept")!
+        let url = try makeURL("\(baseURL)/api/v1/suggestions/tasks/\(suggestionId)/accept")
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
@@ -6232,7 +6231,7 @@ class APIService: ObservableObject {
 
     /// Dismiss a task suggestion - user doesn't want to do this.
     func dismissTaskSuggestion(suggestionId: Int64, reason: String? = nil) async throws {
-        let url = URL(string: "\(baseURL)/api/v1/suggestions/tasks/\(suggestionId)/dismiss")!
+        let url = try makeURL("\(baseURL)/api/v1/suggestions/tasks/\(suggestionId)/dismiss")
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
@@ -6249,7 +6248,7 @@ class APIService: ObservableObject {
 
     /// Provide feedback on a suggestion (after task completion).
     func provideSuggestionFeedback(suggestionId: Int64, wasHelpful: Bool, feedbackText: String? = nil) async throws {
-        let url = URL(string: "\(baseURL)/api/v1/suggestions/tasks/\(suggestionId)/feedback")!
+        let url = try makeURL("\(baseURL)/api/v1/suggestions/tasks/\(suggestionId)/feedback")
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
@@ -6270,7 +6269,7 @@ class APIService: ObservableObject {
 
     /// Mark a suggestion as shown (for analytics).
     func markSuggestionShown(suggestionId: Int64) async throws {
-        let url = URL(string: "\(baseURL)/api/v1/suggestions/tasks/\(suggestionId)/shown")!
+        let url = try makeURL("\(baseURL)/api/v1/suggestions/tasks/\(suggestionId)/shown")
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
@@ -6279,5 +6278,116 @@ class APIService: ObservableObject {
         let (data, response) = try await session.data(for: request)
 
         try await validateResponse(response, data: data)
+    }
+
+    // MARK: - Meeting Links
+
+    /// Response for update meeting links endpoint
+    struct UpdateMeetingLinksResponse: Codable {
+        let success: Bool
+        let message: String?
+        let updatedCount: Int?
+
+        enum CodingKeys: String, CodingKey {
+            case success
+            case message
+            case updatedCount = "updated_count"
+        }
+    }
+
+    /// Update meeting links for existing events (extracts from description/location)
+    /// Call this after sync to populate meeting links for older events
+    func updateMeetingLinks() async throws -> UpdateMeetingLinksResponse {
+        let url = try makeURL("\(baseURL)/calendars/events/update-meeting-links")
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+
+        print("🔗 APIService: Updating meeting links for existing events...")
+        let (data, response) = try await session.data(for: request)
+
+        try await validateResponse(response, data: data)
+
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        let result = try decoder.decode(UpdateMeetingLinksResponse.self, from: data)
+        print("✅ APIService: Updated \(result.updatedCount ?? 0) events with meeting links")
+        return result
+    }
+
+    // MARK: - User Interests
+
+    /// Get user's saved interests
+    /// GET /api/v1/interests
+    func getUserInterests() async throws -> UserInterestsResponse {
+        let url = try makeURL("\(baseURL)/api/v1/interests")
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+
+        print("🎯 APIService: Fetching user interests...")
+        let (data, response) = try await session.data(for: request)
+
+        try await validateResponse(response, data: data)
+
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        return try decoder.decode(UserInterestsResponse.self, from: data)
+    }
+
+    /// Save user's interests
+    /// POST /api/v1/interests
+    func saveUserInterests(_ interests: UserInterests) async throws -> UserInterestsResponse {
+        let url = try makeURL("\(baseURL)/api/v1/interests")
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let encoder = JSONEncoder()
+        encoder.keyEncodingStrategy = .convertToSnakeCase
+        request.httpBody = try encoder.encode(interests)
+
+        print("🎯 APIService: Saving user interests...")
+        let (data, response) = try await session.data(for: request)
+
+        try await validateResponse(response, data: data)
+
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        return try decoder.decode(UserInterestsResponse.self, from: data)
+    }
+
+    // MARK: - Quick Pick Planning
+
+    /// Generate a quick pick day plan from user's interest selections
+    /// POST /api/v1/planning/quick-pick
+    func generateQuickPickPlan(request planRequest: QuickPickPlanRequest) async throws -> WeekendPlanResponse {
+        let url = try makeURL("\(baseURL)/api/v1/planning/quick-pick")
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 60 // AI generation can take time
+
+        let encoder = JSONEncoder()
+        request.httpBody = try encoder.encode(planRequest)
+
+        print("✨ APIService: Generating quick pick plan...")
+        if let bodyString = String(data: request.httpBody!, encoding: .utf8) {
+            print("✨ APIService: Request body: \(bodyString)")
+        }
+
+        let (data, response) = try await session.data(for: request)
+
+        if let responseString = String(data: data, encoding: .utf8) {
+            print("✨ APIService: Quick pick response: \(responseString.prefix(500))...")
+        }
+
+        try await validateResponse(response, data: data)
+
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        return try decoder.decode(WeekendPlanResponse.self, from: data)
     }
 }

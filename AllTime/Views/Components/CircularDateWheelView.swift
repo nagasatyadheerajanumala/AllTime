@@ -57,6 +57,7 @@ struct CircularDateWheelView: View {
                 }
                 
                 // Center highlight capsule (only this updates during drag)
+                // Tap handling is done in the gesture handler below
                 CenterHighlightCapsule(
                     date: viewModel.centerDate,
                     dayNumber: calendar.component(.day, from: viewModel.centerDate),
@@ -101,10 +102,24 @@ struct CircularDateWheelView: View {
                                 // Check if this was a tap (minimal movement)
                                 let translation = value.translation
                                 let dragDistance = sqrt(translation.width * translation.width + translation.height * translation.height)
-                                
+
                                 if dragDistance < 5 {
-                                    // This was a tap - use tap handler for precise selection
-                                    if let tappedDate = viewModel.handleTap(at: value.location, center: center) {
+                                    // This was a tap - check if it's on the center capsule
+                                    let tapLocation = value.location
+                                    let distanceFromCenter = sqrt(
+                                        pow(tapLocation.x - center.x, 2) +
+                                        pow(tapLocation.y - center.y, 2)
+                                    )
+
+                                    // Center capsule is roughly 110pt wide, so check if tap is within ~60pt of center
+                                    if distanceFromCenter < 60 {
+                                        // Tapped on center capsule - show day details for current date
+                                        HapticManager.shared.selectionChanged()
+                                        Task { @MainActor in
+                                            onDateSelected(viewModel.centerDate)
+                                        }
+                                    } else if let tappedDate = viewModel.handleTap(at: tapLocation, center: center) {
+                                        // Tapped on a date bubble
                                         selectedDate = tappedDate
                                         Task { @MainActor in
                                             onDateSelected(tappedDate)
@@ -118,7 +133,7 @@ struct CircularDateWheelView: View {
                                         withAnimation(.interpolatingSpring(stiffness: 120, damping: 12)) {
                                             // Animation handled by viewModel
                                         }
-                                        
+
                                         // Load day details
                                         Task { @MainActor in
                                             onDateSelected(finalDate)

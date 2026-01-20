@@ -62,6 +62,7 @@ struct CircularWeekWheelView: View {
                 }
 
                 // Center highlight capsule (only this updates during drag)
+                // Tap handling is done in the gesture handler below
                 CenterHighlightCapsule(
                     date: viewModel.centerDate,
                     dayNumber: calendar.component(.day, from: viewModel.centerDate),
@@ -71,7 +72,7 @@ struct CircularWeekWheelView: View {
                 )
                 .transaction { $0.animation = nil }
                 .animation(nil, value: viewModel.highlightedIndex)
-                
+
                 // "Today" button
                 VStack {
                     HStack {
@@ -103,16 +104,45 @@ struct CircularWeekWheelView: View {
                                 }
                             }
                             .onEnded { value in
-                                if let finalDate = viewModel.finishDrag(value: value, center: center) {
-                                    selectedDate = finalDate
-                                    // Animate only on release
-                                    withAnimation(.interpolatingSpring(stiffness: 120, damping: 12)) {
-                                        // Spring animation for final snap
+                                // Check if this was a tap (minimal movement)
+                                let translation = value.translation
+                                let dragDistance = sqrt(translation.width * translation.width + translation.height * translation.height)
+
+                                if dragDistance < 5 {
+                                    // This was a tap - check if it's on the center capsule
+                                    let tapLocation = value.location
+                                    let distanceFromCenter = sqrt(
+                                        pow(tapLocation.x - center.x, 2) +
+                                        pow(tapLocation.y - center.y, 2)
+                                    )
+
+                                    // Center capsule is roughly 110pt wide, so check if tap is within ~60pt of center
+                                    if distanceFromCenter < 60 {
+                                        // Tapped on center capsule - show day details for current date
+                                        HapticManager.shared.selectionChanged()
+                                        Task { @MainActor in
+                                            onDateSelected(viewModel.centerDate)
+                                        }
+                                    } else if let tappedDate = viewModel.handleTap(at: tapLocation, center: center) {
+                                        // Tapped on a date bubble
+                                        selectedDate = tappedDate
+                                        Task { @MainActor in
+                                            onDateSelected(tappedDate)
+                                        }
                                     }
-                                    
-                                    // Load day details
-                                    Task { @MainActor in
-                                        onDateSelected(finalDate)
+                                } else {
+                                    // This was a drag - use drag handler
+                                    if let finalDate = viewModel.finishDrag(value: value, center: center) {
+                                        selectedDate = finalDate
+                                        // Animate only on release
+                                        withAnimation(.interpolatingSpring(stiffness: 120, damping: 12)) {
+                                            // Spring animation for final snap
+                                        }
+
+                                        // Load day details
+                                        Task { @MainActor in
+                                            onDateSelected(finalDate)
+                                        }
                                     }
                                 }
                             }

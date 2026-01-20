@@ -103,7 +103,7 @@ struct DailySummaryView: View {
             // Refresh indicator
             if summaryViewModel.isLoading {
                 ProgressView()
-                    .progressViewStyle(CircularProgressViewStyle(tint: Color(hex: "3B82F6")))
+                    .progressViewStyle(CircularProgressViewStyle(tint: DesignSystem.Colors.blue))
                     .scaleEffect(0.8)
             }
         }
@@ -233,7 +233,7 @@ struct ClassyMetricsSection: View {
                         value: String(format: "%.1f", water),
                         unit: "L",
                         label: "Water",
-                        color: Color(hex: "3B82F6")
+                        color: DesignSystem.Colors.blue
                     )
                 }
             }
@@ -306,7 +306,7 @@ struct ClassyTextSection: View {
             HStack(spacing: 10) {
                 Image(systemName: icon)
                     .font(.system(size: 14, weight: .light))
-                    .foregroundColor(Color(hex: "3B82F6"))
+                    .foregroundColor(DesignSystem.Colors.blue)
 
                 Text(title)
                     .font(.system(size: 13, weight: .medium))
@@ -320,7 +320,7 @@ struct ClassyTextSection: View {
                     Button(action: { withAnimation(.easeInOut(duration: 0.3)) { isExpanded.toggle() } }) {
                         Text(isExpanded ? "Less" : "More")
                             .font(.system(size: 12, weight: .regular))
-                            .foregroundColor(Color(hex: "3B82F6"))
+                            .foregroundColor(DesignSystem.Colors.blue)
                     }
                 }
             }
@@ -364,7 +364,7 @@ struct ClassyTextItem: View {
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             Circle()
-                .fill(Color(hex: "3B82F6").opacity(0.5))
+                .fill(DesignSystem.Colors.blue.opacity(0.5))
                 .frame(width: 4, height: 4)
                 .padding(.top, 7)
 
@@ -387,7 +387,7 @@ struct ClassySuggestionsSection: View {
             HStack(spacing: 10) {
                 Image(systemName: "lightbulb")
                     .font(.system(size: 14, weight: .light))
-                    .foregroundColor(Color(hex: "F59E0B"))
+                    .foregroundColor(DesignSystem.Colors.amber)
 
                 Text("Suggestions")
                     .font(.system(size: 13, weight: .medium))
@@ -508,19 +508,19 @@ struct ClassySuggestionCard: View {
 
     private var categoryColor: Color {
         switch suggestion.category {
-        case "meal", "food": return Color(hex: "F59E0B")
+        case "meal", "food": return DesignSystem.Colors.amber
         case "exercise", "walk": return Color(hex: "34D399")
-        case "hydration", "water": return Color(hex: "3B82F6")
+        case "hydration", "water": return DesignSystem.Colors.blue
         case "rest", "break": return Color(hex: "A78BFA")
-        case "sleep": return Color(hex: "8B5CF6")
-        default: return Color(hex: "3B82F6")
+        case "sleep": return DesignSystem.Colors.violet
+        default: return DesignSystem.Colors.blue
         }
     }
 
     private var priorityColor: Color {
         switch suggestion.priority {
-        case "high": return Color(hex: "EF4444")
-        case "medium": return Color(hex: "F59E0B")
+        case "high": return DesignSystem.Colors.errorRed
+        case "medium": return DesignSystem.Colors.amber
         default: return Color(hex: "34D399")
         }
     }
@@ -652,7 +652,7 @@ struct ClassyAlertsSection: View {
             ForEach(alerts) { alert in
                 HStack(spacing: 12) {
                     Circle()
-                        .fill(isCritical ? Color(hex: "EF4444") : Color(hex: "F59E0B"))
+                        .fill(isCritical ? DesignSystem.Colors.errorRed : DesignSystem.Colors.amber)
                         .frame(width: 6, height: 6)
 
                     Text(cleanAlertMessage(alert.message))
@@ -665,10 +665,10 @@ struct ClassyAlertsSection: View {
                 .padding(16)
                 .background(
                     RoundedRectangle(cornerRadius: 12)
-                        .fill((isCritical ? Color(hex: "EF4444") : Color(hex: "F59E0B")).opacity(0.08))
+                        .fill((isCritical ? DesignSystem.Colors.errorRed : DesignSystem.Colors.amber).opacity(0.08))
                         .overlay(
                             RoundedRectangle(cornerRadius: 12)
-                                .stroke((isCritical ? Color(hex: "EF4444") : Color(hex: "F59E0B")).opacity(0.15), lineWidth: 1)
+                                .stroke((isCritical ? DesignSystem.Colors.errorRed : DesignSystem.Colors.amber).opacity(0.15), lineWidth: 1)
                         )
                 )
             }
@@ -694,7 +694,7 @@ struct ClassyLoadingView: View {
     var body: some View {
         VStack(spacing: 24) {
             ProgressView()
-                .progressViewStyle(CircularProgressViewStyle(tint: Color(hex: "3B82F6")))
+                .progressViewStyle(CircularProgressViewStyle(tint: DesignSystem.Colors.blue))
                 .scaleEffect(1.2)
 
             Text("Preparing your summary")
@@ -713,7 +713,7 @@ struct ClassyErrorView: View {
         VStack(spacing: 24) {
             Image(systemName: "exclamationmark.triangle")
                 .font(.system(size: 40, weight: .thin))
-                .foregroundColor(Color(hex: "F59E0B"))
+                .foregroundColor(DesignSystem.Colors.amber)
 
             VStack(spacing: 8) {
                 Text("Unable to load")
@@ -729,12 +729,12 @@ struct ClassyErrorView: View {
             Button(action: onRetry) {
                 Text("Try Again")
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(Color(hex: "3B82F6"))
+                    .foregroundColor(DesignSystem.Colors.blue)
                     .padding(.horizontal, 24)
                     .padding(.vertical, 12)
                     .background(
                         Capsule()
-                            .stroke(Color(hex: "3B82F6").opacity(0.5), lineWidth: 1)
+                            .stroke(DesignSystem.Colors.blue.opacity(0.5), lineWidth: 1)
                     )
             }
         }
@@ -778,7 +778,7 @@ struct ClassyDatePicker: View {
                         displayedComponents: .date
                     )
                     .datePickerStyle(.graphical)
-                    .tint(Color(hex: "3B82F6"))
+                    .tint(DesignSystem.Colors.blue)
                     .colorScheme(.dark)
                     .padding()
 
@@ -790,7 +790,7 @@ struct ClassyDatePicker: View {
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Done") { dismiss() }
-                        .foregroundColor(Color(hex: "3B82F6"))
+                        .foregroundColor(DesignSystem.Colors.blue)
                 }
             }
         }

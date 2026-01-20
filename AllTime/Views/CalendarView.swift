@@ -17,6 +17,12 @@ struct CalendarView: View {
     @State private var selectedDayForDetail: Date = Date()
     @State private var selectedDayEvents: [Event] = []
     @State private var useDarkThemeForSheet = false  // For wheel calendar style
+
+    // FAB Menu State (same as TodayView)
+    @State private var showFABMenu = false
+    @State private var showingAddTask = false
+    @State private var showingAddReminder = false
+    @State private var showingQuickBook = false
     
     var body: some View {
         NavigationView {
@@ -192,41 +198,8 @@ struct CalendarView: View {
                     }
                 }
                 
-                // Single Floating Action Button - only show for month/week views
-                if viewMode != .day {
-                    VStack {
-                        Spacer()
-                        HStack {
-                            Spacer()
-                            Button(action: {
-                                HapticManager.shared.mediumTap()
-                                showingAddEvent = true
-                            }) {
-                                Image(systemName: "plus")
-                                    .font(.title2.weight(.semibold))
-                                    .foregroundColor(.white)
-                                    .frame(width: 56, height: 56)
-                                    .background(
-                                        Circle()
-                                            .fill(
-                                                LinearGradient(
-                                                    colors: [
-                                                        DesignSystem.Colors.primary,
-                                                        DesignSystem.Colors.primaryLight
-                                                    ],
-                                                    startPoint: .topLeading,
-                                                    endPoint: .bottomTrailing
-                                                )
-                                            )
-                                            .shadow(color: DesignSystem.Colors.primary.opacity(0.4), radius: 12, y: 6)
-                                    )
-                            }
-                            .buttonStyle(SmoothButtonStyle(haptic: .medium))
-                            .padding(.trailing, DesignSystem.Spacing.lg)
-                            .padding(.bottom, 100) // Above tab bar
-                        }
-                    }
-                }
+                // Expandable FAB Menu - show for all view modes
+                fabMenu
             }
             .navigationBarHidden(true)
             .sheet(isPresented: $showingEventDetail) {
@@ -285,6 +258,140 @@ struct CalendarView: View {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
         return formatter.string(from: calendarViewModel.selectedDate)
+    }
+
+    // MARK: - FAB Menu (same as TodayView)
+    private var fabMenu: some View {
+        ZStack {
+            // Dimmed background when FAB menu is open
+            if showFABMenu {
+                Color.black.opacity(0.3)
+                    .ignoresSafeArea()
+                    .onTapGesture {
+                        withAnimation(.spring(response: 0.3)) {
+                            showFABMenu = false
+                        }
+                    }
+            }
+
+            // FAB positioned at bottom trailing
+            VStack {
+                Spacer()
+                HStack {
+                    Spacer()
+                    VStack(alignment: .trailing, spacing: 12) {
+                        // Expandable menu options
+                        if showFABMenu {
+                            // Quick Book - easily block time on calendar
+                            fabMenuItem(
+                                icon: "calendar.badge.clock",
+                                label: "Quick Book",
+                                color: Color(hex: "06B6D4")
+                            ) {
+                                showFABMenu = false
+                                showingQuickBook = true
+                            }
+
+                            // Add Reminder option
+                            fabMenuItem(
+                                icon: "bell.fill",
+                                label: "Add Reminder",
+                                color: DesignSystem.Colors.amber
+                            ) {
+                                showFABMenu = false
+                                showingAddReminder = true
+                            }
+
+                            // Add Task option
+                            fabMenuItem(
+                                icon: "checkmark.circle.fill",
+                                label: "Add Task",
+                                color: DesignSystem.Colors.emerald
+                            ) {
+                                showFABMenu = false
+                                showingAddTask = true
+                            }
+
+                            // Add Event option
+                            fabMenuItem(
+                                icon: "calendar.badge.plus",
+                                label: "Add Event",
+                                color: DesignSystem.Colors.blue
+                            ) {
+                                showFABMenu = false
+                                showingAddEvent = true
+                            }
+                        }
+
+                        // Main FAB button
+                        Button(action: {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                showFABMenu.toggle()
+                            }
+                        }) {
+                            Image(systemName: showFABMenu ? "xmark" : "plus")
+                                .font(.system(size: 24, weight: .semibold))
+                                .foregroundColor(.white)
+                                .frame(width: 56, height: 56)
+                                .background(
+                                    Circle()
+                                        .fill(
+                                            LinearGradient(
+                                                colors: showFABMenu ? [Color(hex: "6B7280"), Color(hex: "4B5563")] : [
+                                                    DesignSystem.Colors.primary,
+                                                    DesignSystem.Colors.primaryDark
+                                                ],
+                                                startPoint: .topLeading,
+                                                endPoint: .bottomTrailing
+                                            )
+                                        )
+                                        .shadow(color: (showFABMenu ? Color(hex: "6B7280") : DesignSystem.Colors.primary).opacity(0.4), radius: 12, y: 6)
+                                )
+                                .rotationEffect(.degrees(showFABMenu ? 90 : 0))
+                        }
+                    }
+                    .padding(.trailing, DesignSystem.Spacing.lg)
+                    .padding(.bottom, 160) // Above Clara FAB button
+                }
+            }
+        }
+        .sheet(isPresented: $showingAddTask) {
+            AddTaskSheet()
+        }
+        .sheet(isPresented: $showingAddReminder) {
+            AddReminderSheet()
+        }
+        .sheet(isPresented: $showingQuickBook) {
+            QuickBookView()
+        }
+    }
+
+    private func fabMenuItem(icon: String, label: String, color: Color, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                Text(label)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(.white)
+
+                Image(systemName: icon)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(.white)
+                    .frame(width: 40, height: 40)
+                    .background(
+                        Circle()
+                            .fill(color)
+                    )
+            }
+            .padding(.leading, 16)
+            .padding(.trailing, 8)
+            .padding(.vertical, 8)
+            .background(
+                Capsule()
+                    .fill(color.opacity(0.9))
+                    .shadow(color: color.opacity(0.3), radius: 8, y: 4)
+            )
+        }
+        .transition(.scale.combined(with: .opacity))
     }
 }
 

@@ -104,15 +104,19 @@ struct ContentView: View {
         calendarManager.requestCalendarAccess()
         summaryManager.fetchTodaySummary()
         pushManager.registerForPushNotifications()
-        
+
         // Start automated sync
         Task {
+            // FIRST: Fetch fresh health metrics for immediate display
+            // This ensures the Today view has accurate HealthKit data ready
+            await HealthMetricsService.shared.fetchTodaysFreshMetrics()
+
             // Sync immediately on app launch
             await syncScheduler.syncOnAppLaunch()
-            
-            // Sync health metrics on app launch (if authorized)
+
+            // Sync health metrics to backend (if authorized)
             await HealthSyncService.shared.syncRecentDays()
-            
+
             // Start periodic sync (every 15 minutes while app is active)
             syncScheduler.startPeriodicSync()
         }
@@ -128,12 +132,16 @@ struct ContentView: View {
                     // CRITICAL: Re-check HealthKit authorization when app becomes active
                     // This handles the case where user enabled permissions in Settings while app was in background
                     HealthKitManager.shared.forceRecheckAuthorization()
-                    
+
                     // Also check via HealthMetricsService
                     await HealthMetricsService.shared.checkAuthorizationStatus()
-                    
+
+                    // FIRST: Fetch fresh health metrics for immediate display
+                    // This ensures the Today view always has the latest HealthKit data
+                    await HealthMetricsService.shared.fetchTodaysFreshMetrics()
+
                     await syncScheduler.syncOnForeground()
-                    // Sync health metrics when app comes to foreground (if authorized)
+                    // Sync health metrics to backend when app comes to foreground (if authorized)
                     await HealthSyncService.shared.syncRecentDays()
                 }
             }

@@ -4,6 +4,7 @@ struct PremiumTabView: View {
     @ObservedObject private var navigationManager = NavigationManager.shared
     @Namespace private var tabAnimation
     @State private var hasRequestedHealthKit = false
+    @State private var showingClaraChat = false
 
     // Pre-create views to preserve their state across tab switches
     // This prevents unnecessary reloading when switching tabs
@@ -12,6 +13,13 @@ struct PremiumTabView: View {
     @State private var insightsViewCreated = false
     @State private var remindersViewCreated = false
     @State private var settingsViewCreated = false
+
+    // Clara button gradient
+    private let claraGradient = LinearGradient(
+        colors: [DesignSystem.Colors.violet, DesignSystem.Colors.claraPurpleLight],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -65,7 +73,35 @@ struct PremiumTabView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             // Reserve space at bottom for tab bar
             .safeAreaInset(edge: .bottom, spacing: 0) {
-                Color.clear.frame(height: 90)
+                Color.clear.frame(height: 70) // barHeight (60) + padding (8) + buffer
+            }
+
+            // Floating Clara Button - bottom right, above tab bar
+            VStack {
+                Spacer()
+                HStack {
+                    Spacer()
+                    Button(action: {
+                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                        showingClaraChat = true
+                    }) {
+                        ZStack {
+                            // Outer glow
+                            Circle()
+                                .fill(claraGradient)
+                                .frame(width: 56, height: 56)
+                                .shadow(color: DesignSystem.Colors.violet.opacity(0.5), radius: 12, x: 0, y: 6)
+
+                            // Sparkle icon
+                            Image(systemName: "sparkles")
+                                .font(.system(size: 22, weight: .semibold))
+                                .foregroundColor(.white)
+                        }
+                    }
+                    .buttonStyle(FABButtonStyle())
+                    .padding(.trailing, DesignSystem.Spacing.lg) // Match + FAB alignment
+                    .padding(.bottom, 90) // Above tab bar
+                }
             }
 
             // Floating Tab Bar
@@ -73,6 +109,9 @@ struct PremiumTabView: View {
                 selectedTab: $navigationManager.selectedTab,
                 namespace: tabAnimation
             )
+        }
+        .sheet(isPresented: $showingClaraChat) {
+            ClaraChatView()
         }
         .ignoresSafeArea(.keyboard)
         .onAppear {
@@ -98,12 +137,13 @@ struct PremiumTabView: View {
     }
 }
 
-// MARK: - Floating Tab Bar
+// MARK: - Premium Glassy Tab Bar
+/// Clean floating pill navbar - no extra bars or backgrounds
 struct FloatingTabBar: View {
     @Binding var selectedTab: Int
     var namespace: Namespace.ID
+    @Environment(\.colorScheme) var colorScheme
 
-    // Tab configuration: Health renamed to Insights, icon updated to chart.bar.xaxis
     private let tabs: [(icon: String, selectedIcon: String, title: String, color: Color)] = [
         ("sun.horizon", "sun.horizon.fill", "Today", .orange),
         ("calendar", "calendar", "Calendar", .blue),
@@ -112,88 +152,174 @@ struct FloatingTabBar: View {
         ("gearshape", "gearshape.fill", "Settings", .gray)
     ]
 
+    private let barHeight: CGFloat = 60
+    private let cornerRadius: CGFloat = 30
+
     var body: some View {
-        HStack(spacing: 0) {
-            ForEach(Array(tabs.enumerated()), id: \.offset) { index, tab in
-                TabBarButton(
-                    icon: tab.icon,
-                    selectedIcon: tab.selectedIcon,
-                    title: tab.title,
-                    color: tab.color,
-                    isSelected: selectedTab == index,
-                    namespace: namespace
-                ) {
-                    withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
-                        selectedTab = index
+        GeometryReader { geo in
+            let tabWidth = (geo.size.width - 32) / CGFloat(tabs.count)
+
+            ZStack {
+                // Glass pill background
+                glassBackground
+
+                // Active tab glow
+                activeTabGlow(tabWidth: tabWidth, totalWidth: geo.size.width - 32)
+
+                // Tab buttons
+                HStack(spacing: 0) {
+                    ForEach(Array(tabs.enumerated()), id: \.offset) { index, tab in
+                        tabButton(index: index, tab: tab)
                     }
-                    let impact = UIImpactFeedbackGenerator(style: .light)
-                    impact.impactOccurred()
                 }
             }
+            .frame(height: barHeight)
+            .padding(.horizontal, 16)
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 10)
-        .background {
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .fill(.ultraThinMaterial)
-                .overlay {
-                    RoundedRectangle(cornerRadius: 28, style: .continuous)
-                        .fill(Color.black.opacity(0.2))
-                }
-                .overlay {
-                    RoundedRectangle(cornerRadius: 28, style: .continuous)
-                        .strokeBorder(Color.white.opacity(0.1), lineWidth: 0.5)
-                }
-                .shadow(color: Color.black.opacity(0.3), radius: 20, x: 0, y: 10)
-        }
-        .padding(.horizontal, 12)
+        .frame(height: barHeight)
         .padding(.bottom, 8)
+        // Gradient starts slightly above bottom of navbar
+        .background(
+            VStack(spacing: 0) {
+                // Clear area above gradient
+                Color.clear
+                    .frame(height: barHeight - 15)
+
+                // Gradient fade to bottom
+                LinearGradient(
+                    stops: [
+                        .init(color: .clear, location: 0),
+                        .init(color: Color(white: 0.05).opacity(0.9), location: 0.5),
+                        .init(color: Color(white: 0.04), location: 1.0)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            }
+            .ignoresSafeArea(edges: .bottom)
+        )
     }
-}
 
-// MARK: - Tab Bar Button
-struct TabBarButton: View {
-    let icon: String
-    let selectedIcon: String
-    let title: String
-    let color: Color
-    let isSelected: Bool
-    var namespace: Namespace.ID
-    let action: () -> Void
+    // MARK: - Glass Background
+    private var glassBackground: some View {
+        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+            // Base blur - THIS is what makes content behind unreadable
+            .fill(.ultraThinMaterial)
+            // Dark scrim for better contrast
+            .overlay(
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .fill(Color.black.opacity(0.3))
+            )
+            // Inner sheen - top highlight for glass effect
+            .overlay(
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                Color.white.opacity(0.15),
+                                Color.white.opacity(0)
+                            ],
+                            startPoint: .top,
+                            endPoint: .center
+                        )
+                    )
+            )
+            // Hairline stroke border
+            .overlay(
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .strokeBorder(
+                        LinearGradient(
+                            colors: [
+                                Color.white.opacity(0.25),
+                                Color.white.opacity(0.08)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        ),
+                        lineWidth: 0.5
+                    )
+            )
+            // Soft shadow
+            .shadow(color: .black.opacity(0.35), radius: 20, x: 0, y: 10)
+            .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
+    }
 
-    var body: some View {
-        Button(action: action) {
+    // MARK: - Active Tab Glow
+    private func activeTabGlow(tabWidth: CGFloat, totalWidth: CGFloat) -> some View {
+        let currentColor = tabs[selectedTab].color
+
+        // Calculate x offset from center of pill
+        let xOffset = CGFloat(selectedTab) * tabWidth - totalWidth / 2 + tabWidth / 2
+
+        return ZStack {
+            // Outer soft glow
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(
+                    RadialGradient(
+                        colors: [
+                            currentColor.opacity(0.5),
+                            currentColor.opacity(0.2),
+                            currentColor.opacity(0)
+                        ],
+                        center: .center,
+                        startRadius: 0,
+                        endRadius: 50
+                    )
+                )
+                .frame(width: 80, height: 60)
+                .blur(radius: 8)
+
+            // Inner bright glow - covers icon + label
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            currentColor.opacity(0.75),
+                            currentColor.opacity(0.45)
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .frame(width: 58, height: 48)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .strokeBorder(currentColor.opacity(0.5), lineWidth: 1)
+                )
+        }
+        .offset(x: xOffset, y: 0) // Centered on icon + label
+        .animation(.spring(response: 0.4, dampingFraction: 0.75), value: selectedTab)
+    }
+
+    // MARK: - Tab Button
+    private func tabButton(index: Int, tab: (icon: String, selectedIcon: String, title: String, color: Color)) -> some View {
+        Button {
+            withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
+                selectedTab = index
+            }
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        } label: {
             VStack(spacing: 4) {
-                ZStack {
-                    if isSelected {
-                        Capsule()
-                            .fill(color.gradient)
-                            .matchedGeometryEffect(id: "tabIndicator", in: namespace)
-                            .frame(width: 52, height: 32)
-                            .shadow(color: color.opacity(0.4), radius: 8, x: 0, y: 4)
-                    }
+                Image(systemName: selectedTab == index ? tab.selectedIcon : tab.icon)
+                    .font(.system(size: 22, weight: selectedTab == index ? .semibold : .regular))
+                    .foregroundStyle(selectedTab == index ? .white : .white.opacity(0.5))
+                    .scaleEffect(selectedTab == index ? 1.1 : 1.0)
+                    .animation(.spring(response: 0.3, dampingFraction: 0.6), value: selectedTab == index)
 
-                    Image(systemName: isSelected ? selectedIcon : icon)
-                        .font(.system(size: 20, weight: isSelected ? .semibold : .regular))
-                        .foregroundStyle(isSelected ? .white : Color.white.opacity(0.5))
-                        .frame(width: 32, height: 32)
-                }
-                .frame(height: 32)
-
-                Text(title)
-                    .font(.system(size: 10, weight: isSelected ? .semibold : .medium))
-                    .foregroundStyle(isSelected ? .white : Color.white.opacity(0.4))
-                    .lineLimit(1)
+                Text(tab.title)
+                    .font(.system(size: 10, weight: selectedTab == index ? .semibold : .medium))
+                    .foregroundStyle(selectedTab == index ? .white : .white.opacity(0.4))
             }
             .frame(maxWidth: .infinity)
-            .scaleEffect(isSelected ? 1.05 : 1.0)
-            .animation(.spring(response: 0.35, dampingFraction: 0.75), value: isSelected)
+            .frame(height: barHeight)
+            .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel(title)
-        .accessibilityAddTraits(isSelected ? .isSelected : [])
+        .buttonStyle(GlassButtonStyle())
     }
 }
+
+// Button styles moved to DesignSystem.swift (GlassButtonStyle, FABButtonStyle)
+
 
 #Preview {
     PremiumTabView()

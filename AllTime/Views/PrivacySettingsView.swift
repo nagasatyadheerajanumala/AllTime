@@ -4,7 +4,11 @@ struct PrivacySettingsView: View {
     @State private var dataSharingEnabled = false
     @State private var analyticsEnabled = true
     @State private var crashReportingEnabled = true
-    
+    @State private var isResyncingHealth = false
+    @State private var showResyncAlert = false
+    @ObservedObject private var healthSyncService = HealthSyncService.shared
+    @ObservedObject private var healthMetricsService = HealthMetricsService.shared
+
     var body: some View {
         List {
             Section {
@@ -20,7 +24,7 @@ struct PrivacySettingsView: View {
             } header: {
                 Text("Analytics")
             } footer: {
-                Text("Help us understand how you use Chrona to improve features")
+                Text("Help us understand how you use Clara to improve features")
             }
             
             Section {
@@ -35,7 +39,7 @@ struct PrivacySettingsView: View {
                 Button("Export My Data") {
                     exportUserData()
                 }
-                
+
                 Button("Delete My Account", role: .destructive) {
                     // This would require backend implementation
                 }
@@ -43,6 +47,58 @@ struct PrivacySettingsView: View {
                 Text("Data Management")
             } footer: {
                 Text("Export or delete your personal data")
+            }
+
+            Section {
+                // HealthKit Status
+                HStack {
+                    Label("HealthKit Status", systemImage: "heart.fill")
+                        .foregroundColor(.pink)
+                    Spacer()
+                    Text(healthMetricsService.isAuthorized ? "Connected" : "Not Connected")
+                        .foregroundColor(healthMetricsService.isAuthorized ? .green : .secondary)
+                }
+
+                // Last Sync Date
+                if let lastSync = healthSyncService.lastSyncDate {
+                    HStack {
+                        Label("Last Synced", systemImage: "clock.arrow.circlepath")
+                        Spacer()
+                        Text(lastSync, style: .relative)
+                            .foregroundColor(.secondary)
+                    }
+                }
+
+                // Force Resync Button
+                Button(action: {
+                    showResyncAlert = true
+                }) {
+                    HStack {
+                        Label("Resync Health Data", systemImage: "arrow.triangle.2.circlepath")
+                        Spacer()
+                        if isResyncingHealth {
+                            ProgressView()
+                                .scaleEffect(0.8)
+                        }
+                    }
+                }
+                .disabled(isResyncingHealth || !healthMetricsService.isAuthorized)
+            } header: {
+                Text("Health Data")
+            } footer: {
+                Text("If your health data appears incorrect, try resyncing. This will fetch the last 30 days of data from HealthKit.")
+            }
+            .alert("Resync Health Data?", isPresented: $showResyncAlert) {
+                Button("Cancel", role: .cancel) { }
+                Button("Resync") {
+                    Task {
+                        isResyncingHealth = true
+                        await healthSyncService.forceFullResync()
+                        isResyncingHealth = false
+                    }
+                }
+            } message: {
+                Text("This will clear cached health data and resync the last 30 days from HealthKit. This may take a moment.")
             }
             
             Section {
