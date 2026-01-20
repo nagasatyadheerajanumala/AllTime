@@ -489,7 +489,7 @@ struct DailyBriefCard: View {
                 }
 
                 // Meetings
-                if let meetings = briefing?.quickStats?.meetingCount {
+                if let meetings = briefing?.quickStats?.meetingsCount {
                     metricItem(
                         icon: "person.2.fill",
                         value: "\(meetings)",
@@ -498,16 +498,19 @@ struct DailyBriefCard: View {
                 }
 
                 // Meeting hours
-                if let hours = briefing?.quickStats?.meetingHours {
-                    metricItem(
-                        icon: "clock.fill",
-                        value: String(format: "%.1fh", hours),
-                        label: "In meetings"
-                    )
+                if let keyMetrics = briefing?.keyMetrics {
+                    let hours = keyMetrics.effectiveMeetingHours
+                    if hours > 0 {
+                        metricItem(
+                            icon: "clock.fill",
+                            value: String(format: "%.1fh", hours),
+                            label: "In meetings"
+                        )
+                    }
                 }
 
                 // Focus time
-                if let focus = briefing?.quickStats?.focusTime {
+                if let focus = briefing?.keyMetrics?.focusTimeAvailable, focus > 0 {
                     metricItem(
                         icon: "brain.head.profile",
                         value: String(format: "%.1fh", focus),
