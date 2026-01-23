@@ -1,0 +1,24 @@
+{
+  "source": "/Users/dheeraj/Desktop/AllTime/AllTime/Views/Components/DecisionMomentsCard.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Decisions",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 79
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 85
+        }
+      }
+    ]
+  },
+  "version": 1
+}

@@ -1,0 +1,88 @@
+{
+  "source": "/Users/dheeraj/Desktop/AllTime/AllTime/Views/ReminderDetailView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Reminder",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 155
+        }
+      },
+      {
+        "comment": "",
+        "key": "Delete Reminder",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 167
+        }
+      },
+      {
+        "comment": "",
+        "key": "Priority",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 60
+        }
+      },
+      {
+        "comment": "",
+        "key": "Complete",
+        "location": {
+          "startingColumn": 46,
+          "startingLine": 110
+        }
+      },
+      {
+        "comment": "",
+        "key": "Snooze for 30 minutes",
+        "location": {
+          "startingColumn": 46,
+          "startingLine": 128
+        }
+      },
+      {
+        "comment": "",
+        "key": "Delete",
+        "location": {
+          "startingColumn": 42,
+          "startingLine": 142
+        }
+      },
+      {
+        "comment": "",
+        "key": "Edit",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 159
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cancel",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 168
+        }
+      },
+      {
+        "comment": "",
+        "key": "Delete",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 169
+        }
+      },
+      {
+        "comment": "",
+        "key": "Are you sure you want to delete this reminder?",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 176
+        }
+      }
+    ]
+  },
+  "version": 1
+}

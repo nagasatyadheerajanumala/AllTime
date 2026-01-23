@@ -1,0 +1,64 @@
+{
+  "source": "/Users/dheeraj/Desktop/AllTime/AllTime/Views/Insights/SimilarWeekSection.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Similar Week Detected",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 42
+        }
+      },
+      {
+        "comment": "",
+        "key": "This week looks like %@",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 47
+        }
+      },
+      {
+        "comment": "",
+        "key": "Hide Details",
+        "location": {
+          "startingColumn": 43,
+          "startingLine": 99
+        }
+      },
+      {
+        "comment": "",
+        "key": "View Week Details",
+        "location": {
+          "startingColumn": 60,
+          "startingLine": 99
+        }
+      },
+      {
+        "comment": "",
+        "key": "Sleep",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 156
+        }
+      },
+      {
+        "comment": "",
+        "key": "Steps",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 176
+        }
+      },
+      {
+        "comment": "",
+        "key": "Stress",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 191
+        }
+      }
+    ]
+  },
+  "version": 1
+}

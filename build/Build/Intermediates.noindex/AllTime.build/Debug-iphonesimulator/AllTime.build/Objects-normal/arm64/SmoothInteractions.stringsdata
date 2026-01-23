@@ -1,0 +1,32 @@
+{
+  "source": "/Users/dheeraj/Desktop/AllTime/AllTime/Utils/SmoothInteractions.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Press Effect",
+        "location": {
+          "startingColumn": 1,
+          "startingLine": 477
+        }
+      },
+      {
+        "comment": "",
+        "key": "Bounce on Tap",
+        "location": {
+          "startingColumn": 1,
+          "startingLine": 477
+        }
+      },
+      {
+        "comment": "",
+        "key": "Smooth Button",
+        "location": {
+          "startingColumn": 1,
+          "startingLine": 477
+        }
+      }
+    ]
+  },
+  "version": 1
+}

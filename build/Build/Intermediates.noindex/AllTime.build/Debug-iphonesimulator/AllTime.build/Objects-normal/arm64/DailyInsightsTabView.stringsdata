@@ -1,0 +1,152 @@
+{
+  "source": "/Users/dheeraj/Desktop/AllTime/AllTime/Views/Insights/DailyInsightsTabView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Loading your day summary...",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 99
+        }
+      },
+      {
+        "comment": "",
+        "key": "Try Again",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 116
+        }
+      },
+      {
+        "comment": "",
+        "key": "No summary available",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 133
+        }
+      },
+      {
+        "comment": "",
+        "key": "Check back later for your daily insights",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 137
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld%%",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 217
+        }
+      },
+      {
+        "comment": "",
+        "key": "completed",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 220
+        }
+      },
+      {
+        "comment": "",
+        "key": "Summary",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 276
+        }
+      },
+      {
+        "comment": "",
+        "key": "Time Breakdown",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 299
+        }
+      },
+      {
+        "comment": "",
+        "key": "Total Scheduled",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 312
+        }
+      },
+      {
+        "comment": "",
+        "key": "Events",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 361
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld back-to-back meeting%@",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 384
+        }
+      },
+      {
+        "comment": "",
+        "key": "Longest meeting: %lld min",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 394
+        }
+      },
+      {
+        "comment": "",
+        "key": "Health",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 431
+        }
+      },
+      {
+        "comment": "",
+        "key": "Resting HR: %lld bpm",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 472
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld%% of goal",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 506
+        }
+      },
+      {
+        "comment": "",
+        "key": "Highlights",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 521
+        }
+      },
+      {
+        "comment": "",
+        "key": "Add Reflection",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 567
+        }
+      },
+      {
+        "comment": "",
+        "key": "Rate your day and add notes",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 571
+        }
+      }
+    ]
+  },
+  "version": 1
+}

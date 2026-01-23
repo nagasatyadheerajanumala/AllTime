@@ -1,0 +1,64 @@
+{
+  "source": "/Users/dheeraj/Desktop/AllTime/AllTime/Views/Insights/EnergyPatternsView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Your Energy Patterns",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 23
+        }
+      },
+      {
+        "comment": "",
+        "key": "Analyzing your patterns...",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 73
+        }
+      },
+      {
+        "comment": "",
+        "key": "More Data Needed",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 87
+        }
+      },
+      {
+        "comment": "",
+        "key": "Keep syncing your health data and calendar to discover your energy patterns.",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 91
+        }
+      },
+      {
+        "comment": "",
+        "key": "No Impact Detected",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 108
+        }
+      },
+      {
+        "comment": "",
+        "key": "Your meeting schedule doesn't appear to significantly impact your health metrics. Keep it up!",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 112
+        }
+      },
+      {
+        "comment": "",
+        "key": "Based on %lld days",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 201
+        }
+      }
+    ]
+  },
+  "version": 1
+}

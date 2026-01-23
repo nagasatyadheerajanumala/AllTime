@@ -1,0 +1,240 @@
+{
+  "source": "/Users/dheeraj/Desktop/AllTime/AllTime/Views/Components/FoodRecommendationsView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Open in Maps",
+        "location": {
+          "startingColumn": 29,
+          "startingLine": 72
+        }
+      },
+      {
+        "comment": "",
+        "key": "Lunch Break Blocked!",
+        "location": {
+          "startingColumn": 16,
+          "startingLine": 83
+        }
+      },
+      {
+        "comment": "",
+        "key": "Unable to Block Time",
+        "location": {
+          "startingColumn": 16,
+          "startingLine": 93
+        }
+      },
+      {
+        "comment": "",
+        "key": "Food Nearby",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 57
+        }
+      },
+      {
+        "comment": "",
+        "key": "Done",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 61
+        }
+      },
+      {
+        "comment": "",
+        "key": "Apple Maps",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 73
+        }
+      },
+      {
+        "comment": "",
+        "key": "Google Maps",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 76
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cancel",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 79
+        }
+      },
+      {
+        "comment": "",
+        "key": "Navigate to %@",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 81
+        }
+      },
+      {
+        "comment": "",
+        "key": "OK",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 84
+        }
+      },
+      {
+        "comment": "",
+        "key": "Enable Focus Mode",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 86
+        }
+      },
+      {
+        "comment": "",
+        "key": "OK",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 94
+        }
+      },
+      {
+        "comment": "",
+        "key": "Block Lunch Break",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 117
+        }
+      },
+      {
+        "comment": "",
+        "key": "Block Time",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 137
+        }
+      },
+      {
+        "comment": "",
+        "key": "Add this time to your calendar so others know you're taking a break",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 153
+        }
+      },
+      {
+        "comment": "",
+        "key": "Search Radius",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 221
+        }
+      },
+      {
+        "comment": "",
+        "key": "miles",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 231
+        }
+      },
+      {
+        "comment": "",
+        "key": "~%lld min",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 245
+        }
+      },
+      {
+        "comment": "",
+        "key": "0.25",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 272
+        }
+      },
+      {
+        "comment": "",
+        "key": "1.5",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 274
+        }
+      },
+      {
+        "comment": "",
+        "key": "3.0",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 276
+        }
+      },
+      {
+        "comment": "",
+        "key": "Finding nearby places...",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 400
+        }
+      },
+      {
+        "comment": "",
+        "key": "Unable to load",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 419
+        }
+      },
+      {
+        "comment": "",
+        "key": "Try Again",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 431
+        }
+      },
+      {
+        "comment": "",
+        "key": "No places found",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 455
+        }
+      },
+      {
+        "comment": "",
+        "key": "Try increasing the search radius",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 459
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld places",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 562
+        }
+      },
+      {
+        "comment": "",
+        "key": "Open",
+        "location": {
+          "startingColumn": 44,
+          "startingLine": 708
+        }
+      },
+      {
+        "comment": "",
+        "key": "Closed",
+        "location": {
+          "startingColumn": 53,
+          "startingLine": 708
+        }
+      }
+    ]
+  },
+  "version": 1
+}

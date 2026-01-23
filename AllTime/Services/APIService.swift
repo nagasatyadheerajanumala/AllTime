@@ -6390,4 +6390,66 @@ class APIService: ObservableObject {
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         return try decoder.decode(WeekendPlanResponse.self, from: data)
     }
+
+    // MARK: - Time Intelligence
+
+    /// Fetch today's time intelligence - the primary decision surface data.
+    /// GET /api/intelligence/today
+    func fetchTimeIntelligence() async throws -> TimeIntelligenceResponse {
+        let url = try makeURL("\(baseURL)/api/intelligence/today")
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+
+        print("🧠 APIService: Fetching time intelligence...")
+        let (data, response) = try await session.data(for: request)
+        try await validateResponse(response, data: data)
+
+        return try JSONDecoder().decode(TimeIntelligenceResponse.self, from: data)
+    }
+
+    /// Fetch just the directive (fast endpoint for widget/notification).
+    /// GET /api/intelligence/directive
+    func fetchDirective() async throws -> DirectiveResponse {
+        let url = try makeURL("\(baseURL)/api/intelligence/directive")
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+
+        let (data, response) = try await session.data(for: request)
+        try await validateResponse(response, data: data)
+
+        return try JSONDecoder().decode(DirectiveResponse.self, from: data)
+    }
+
+    /// Record user action on a decline recommendation.
+    /// POST /api/intelligence/decline-recommendations/{id}/action
+    func recordDeclineAction(recommendationId: Int64, action: String, wasPositive: Bool) async throws {
+        let url = try makeURL("\(baseURL)/api/intelligence/decline-recommendations/\(recommendationId)/action")
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let body: [String: Any] = [
+            "action": action,
+            "wasPositive": wasPositive
+        ]
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+
+        print("🧠 APIService: Recording decline action - \(action)")
+        let (data, response) = try await session.data(for: request)
+        try await validateResponse(response, data: data)
+    }
+
+    /// Dismiss a decline recommendation.
+    /// POST /api/intelligence/decline-recommendations/{id}/dismiss
+    func dismissDeclineRecommendation(recommendationId: Int64) async throws {
+        let url = try makeURL("\(baseURL)/api/intelligence/decline-recommendations/\(recommendationId)/dismiss")
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+
+        print("🧠 APIService: Dismissing decline recommendation \(recommendationId)")
+        let (data, response) = try await session.data(for: request)
+        try await validateResponse(response, data: data)
+    }
 }

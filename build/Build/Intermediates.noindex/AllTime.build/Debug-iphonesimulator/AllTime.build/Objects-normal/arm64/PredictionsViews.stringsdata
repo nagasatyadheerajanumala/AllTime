@@ -1,0 +1,112 @@
+{
+  "source": "/Users/dheeraj/Desktop/AllTime/AllTime/Views/Components/PredictionsViews.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "No capacity data",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 34
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 47
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 60
+        }
+      },
+      {
+        "comment": "",
+        "key": "Insights",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 120
+        }
+      },
+      {
+        "comment": "",
+        "key": "Done",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 124
+        }
+      },
+      {
+        "comment": "",
+        "key": "Analyzing your patterns...",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 144
+        }
+      },
+      {
+        "comment": "",
+        "key": "Unable to load insights",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 158
+        }
+      },
+      {
+        "comment": "",
+        "key": "Retry",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 165
+        }
+      },
+      {
+        "comment": "",
+        "key": "Your Capacity Score",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 180
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 203
+        }
+      },
+      {
+        "comment": "",
+        "key": "/100",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 206
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lldx",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 423
+        }
+      },
+      {
+        "comment": "",
+        "key": "total",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 445
+        }
+      }
+    ]
+  },
+  "version": 1
+}

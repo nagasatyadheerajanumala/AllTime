@@ -1,0 +1,176 @@
+{
+  "source": "/Users/dheeraj/Desktop/AllTime/AllTime/Views/NotificationSettingsView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Notifications",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 92
+        }
+      },
+      {
+        "comment": "",
+        "key": "Notification Permission Required",
+        "location": {
+          "startingColumn": 16,
+          "startingLine": 94
+        }
+      },
+      {
+        "comment": "",
+        "key": "Morning Briefing",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 16
+        }
+      },
+      {
+        "comment": "",
+        "key": "Delivery Time",
+        "location": {
+          "startingColumn": 25,
+          "startingLine": 25
+        }
+      },
+      {
+        "comment": "",
+        "key": "Morning Briefing",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 31
+        }
+      },
+      {
+        "comment": "",
+        "key": "Start your day with a preview of your schedule. Tap the notification to open your Today view.",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 33
+        }
+      },
+      {
+        "comment": "",
+        "key": "Evening Summary",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 38
+        }
+      },
+      {
+        "comment": "",
+        "key": "Delivery Time",
+        "location": {
+          "startingColumn": 25,
+          "startingLine": 47
+        }
+      },
+      {
+        "comment": "",
+        "key": "Evening Summary",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 53
+        }
+      },
+      {
+        "comment": "",
+        "key": "End your day with a recap of what you accomplished. See meetings completed, focus time used, and preview tomorrow.",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 55
+        }
+      },
+      {
+        "comment": "",
+        "key": "Event Reminders",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 59
+        }
+      },
+      {
+        "comment": "",
+        "key": "Event Notifications",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 66
+        }
+      },
+      {
+        "comment": "",
+        "key": "Get notified about upcoming events and schedule changes",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 68
+        }
+      },
+      {
+        "comment": "",
+        "key": "Test Morning Briefing",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 72
+        }
+      },
+      {
+        "comment": "",
+        "key": "Test Evening Summary",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 77
+        }
+      },
+      {
+        "comment": "",
+        "key": "Test General Notification",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 82
+        }
+      },
+      {
+        "comment": "",
+        "key": "Testing",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 87
+        }
+      },
+      {
+        "comment": "",
+        "key": "Send a test notification to verify your settings",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 89
+        }
+      },
+      {
+        "comment": "",
+        "key": "Settings",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 95
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cancel",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 100
+        }
+      },
+      {
+        "comment": "",
+        "key": "Please enable notifications in Settings to receive daily summaries and reminders.",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 102
+        }
+      }
+    ]
+  },
+  "version": 1
+}

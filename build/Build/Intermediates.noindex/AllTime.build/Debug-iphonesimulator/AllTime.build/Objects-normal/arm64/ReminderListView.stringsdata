@@ -1,0 +1,88 @@
+{
+  "source": "/Users/dheeraj/Desktop/AllTime/AllTime/Views/ReminderListView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Reminders",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 120
+        }
+      },
+      {
+        "comment": "",
+        "key": "Loading...",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 18
+        }
+      },
+      {
+        "comment": "",
+        "key": "All Clear",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 281
+        }
+      },
+      {
+        "comment": "",
+        "key": "Tap + to jot something down",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 285
+        }
+      },
+      {
+        "comment": "",
+        "key": "Couldn't load",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 304
+        }
+      },
+      {
+        "comment": "",
+        "key": "Check your connection and try again",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 308
+        }
+      },
+      {
+        "comment": "",
+        "key": "Try Again",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 315
+        }
+      },
+      {
+        "comment": "",
+        "key": "Do this first",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 345
+        }
+      },
+      {
+        "comment": "",
+        "key": "Due %@",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 383
+        }
+      },
+      {
+        "comment": "",
+        "key": "Overdue",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 387
+        }
+      }
+    ]
+  },
+  "version": 1
+}

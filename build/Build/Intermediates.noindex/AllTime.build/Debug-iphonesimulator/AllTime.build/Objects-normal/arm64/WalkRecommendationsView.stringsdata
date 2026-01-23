@@ -1,0 +1,248 @@
+{
+  "source": "/Users/dheeraj/Desktop/AllTime/AllTime/Views/Components/WalkRecommendationsView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Open Route",
+        "location": {
+          "startingColumn": 29,
+          "startingLine": 82
+        }
+      },
+      {
+        "comment": "",
+        "key": "Walk Time Blocked!",
+        "location": {
+          "startingColumn": 16,
+          "startingLine": 93
+        }
+      },
+      {
+        "comment": "",
+        "key": "Unable to Block Time",
+        "location": {
+          "startingColumn": 16,
+          "startingLine": 103
+        }
+      },
+      {
+        "comment": "",
+        "key": "Walk Routes",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 67
+        }
+      },
+      {
+        "comment": "",
+        "key": "Done",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 71
+        }
+      },
+      {
+        "comment": "",
+        "key": "Apple Maps",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 83
+        }
+      },
+      {
+        "comment": "",
+        "key": "Google Maps",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 86
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cancel",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 89
+        }
+      },
+      {
+        "comment": "",
+        "key": "Navigate %@",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 91
+        }
+      },
+      {
+        "comment": "",
+        "key": "OK",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 94
+        }
+      },
+      {
+        "comment": "",
+        "key": "Enable Focus Mode",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 96
+        }
+      },
+      {
+        "comment": "",
+        "key": "OK",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 104
+        }
+      },
+      {
+        "comment": "",
+        "key": "Block Walk Time",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 127
+        }
+      },
+      {
+        "comment": "",
+        "key": "Block Time",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 147
+        }
+      },
+      {
+        "comment": "",
+        "key": "Add this time to your calendar so others know you're taking a walk",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 163
+        }
+      },
+      {
+        "comment": "",
+        "key": "Walk Duration",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 231
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 236
+        }
+      },
+      {
+        "comment": "",
+        "key": "minutes",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 241
+        }
+      },
+      {
+        "comment": "",
+        "key": "~%lld cal",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 265
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 279
+        }
+      },
+      {
+        "comment": "",
+        "key": "Starting from %@",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 307
+        }
+      },
+      {
+        "comment": "",
+        "key": "Intensity Level",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 326
+        }
+      },
+      {
+        "comment": "",
+        "key": "Finding walking routes...",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 492
+        }
+      },
+      {
+        "comment": "",
+        "key": "Unable to load routes",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 511
+        }
+      },
+      {
+        "comment": "",
+        "key": "Try Again",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 523
+        }
+      },
+      {
+        "comment": "",
+        "key": "No routes found",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 547
+        }
+      },
+      {
+        "comment": "",
+        "key": "Try adjusting the duration or difficulty",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 551
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 658
+        }
+      },
+      {
+        "comment": "",
+        "key": "Accessible",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 816
+        }
+      },
+      {
+        "comment": "",
+        "key": "Best: %@",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 826
+        }
+      }
+    ]
+  },
+  "version": 1
+}

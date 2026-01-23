@@ -1,0 +1,120 @@
+{
+  "source": "/Users/dheeraj/Desktop/AllTime/AllTime/Views/ManualOAuthView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Connect Calendar",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 166
+        }
+      },
+      {
+        "comment": "",
+        "key": "Connect %@",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 23
+        }
+      },
+      {
+        "comment": "",
+        "key": "Tap the button below to connect your calendar. You'll be redirected to sign in and authorize access.",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 27
+        }
+      },
+      {
+        "comment": "",
+        "key": "Tap to connect your Google Calendar. You'll be redirected to sign in and authorize access.",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 78
+        }
+      },
+      {
+        "comment": "",
+        "key": "Connect Google Calendar",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 47
+        }
+      },
+      {
+        "comment": "",
+        "key": "Disconnect Google Calendar",
+        "location": {
+          "startingColumn": 42,
+          "startingLine": 67
+        }
+      },
+      {
+        "comment": "",
+        "key": "Authorization Code",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 85
+        }
+      },
+      {
+        "comment": "",
+        "key": "Paste authorization code here",
+        "location": {
+          "startingColumn": 39,
+          "startingLine": 89
+        }
+      },
+      {
+        "comment": "",
+        "key": "1. Tap 'Open Browser' to get authorization code\n2. Copy the code from the browser\n3. Paste it above and tap 'Complete Connection'",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 132
+        }
+      },
+      {
+        "comment": "",
+        "key": "Open Browser & Get Code",
+        "location": {
+          "startingColumn": 42,
+          "startingLine": 102
+        }
+      },
+      {
+        "comment": "",
+        "key": "Complete Connection",
+        "location": {
+          "startingColumn": 42,
+          "startingLine": 121
+        }
+      },
+      {
+        "comment": "",
+        "key": "Opening Google OAuth...",
+        "location": {
+          "startingColumn": 53,
+          "startingLine": 158
+        }
+      },
+      {
+        "comment": "",
+        "key": "Opening browser...",
+        "location": {
+          "startingColumn": 81,
+          "startingLine": 158
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cancel",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 170
+        }
+      }
+    ]
+  },
+  "version": 1
+}

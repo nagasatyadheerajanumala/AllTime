@@ -1,0 +1,136 @@
+{
+  "source": "/Users/dheeraj/Desktop/AllTime/AllTime/Views/ToDoDetailView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "To-Do",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 41
+        }
+      },
+      {
+        "comment": "",
+        "key": "Done",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 51
+        }
+      },
+      {
+        "comment": "",
+        "key": "Loading tasks...",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 158
+        }
+      },
+      {
+        "comment": "",
+        "key": "Add Task",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 181
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 244
+        }
+      },
+      {
+        "comment": "",
+        "key": "Past",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 315
+        }
+      },
+      {
+        "comment": "",
+        "key": "New Task",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 429
+        }
+      },
+      {
+        "comment": "",
+        "key": "Task",
+        "location": {
+          "startingColumn": 25,
+          "startingLine": 401
+        }
+      },
+      {
+        "comment": "",
+        "key": "Priority",
+        "location": {
+          "startingColumn": 25,
+          "startingLine": 405
+        }
+      },
+      {
+        "comment": "",
+        "key": "Due Date",
+        "location": {
+          "startingColumn": 25,
+          "startingLine": 414
+        }
+      },
+      {
+        "comment": "",
+        "key": "Title",
+        "location": {
+          "startingColumn": 31,
+          "startingLine": 402
+        }
+      },
+      {
+        "comment": "",
+        "key": "Priority",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 406
+        }
+      },
+      {
+        "comment": "",
+        "key": "Set due date",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 415
+        }
+      },
+      {
+        "comment": "",
+        "key": "Due",
+        "location": {
+          "startingColumn": 36,
+          "startingLine": 417
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cancel",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 433
+        }
+      },
+      {
+        "comment": "",
+        "key": "Add",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 436
+        }
+      }
+    ]
+  },
+  "version": 1
+}

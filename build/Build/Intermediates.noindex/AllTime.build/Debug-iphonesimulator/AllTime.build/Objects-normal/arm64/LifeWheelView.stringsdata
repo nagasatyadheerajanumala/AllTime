@@ -1,0 +1,280 @@
+{
+  "source": "/Users/dheeraj/Desktop/AllTime/AllTime/Views/LifeWheelView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Insights",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 99
+        }
+      },
+      {
+        "comment": "",
+        "key": "Range",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 35
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 152
+        }
+      },
+      {
+        "comment": "",
+        "key": "Total Events",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 156
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld%%",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 202
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld min",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 223
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld events",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 229
+        }
+      },
+      {
+        "comment": "",
+        "key": "Enable Health Data",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 331
+        }
+      },
+      {
+        "comment": "",
+        "key": "Connect your health data to see how your calendar load affects your activity, sleep, and well-being.",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 336
+        }
+      },
+      {
+        "comment": "",
+        "key": "If you denied permissions, you can enable them in Settings > Privacy & Security > Health > Clara",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 342
+        }
+      },
+      {
+        "comment": "",
+        "key": "Enable Health Data",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 355
+        }
+      },
+      {
+        "comment": "",
+        "key": "Open Settings",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 371
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld Days Overview",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 453
+        }
+      },
+      {
+        "comment": "",
+        "key": "No health or calendar data available for this period",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 528
+        }
+      },
+      {
+        "comment": "",
+        "key": "AI Insights",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 642
+        }
+      },
+      {
+        "comment": "",
+        "key": "Key Takeaways",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 658
+        }
+      },
+      {
+        "comment": "",
+        "key": "Suggestions",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 681
+        }
+      },
+      {
+        "comment": "",
+        "key": "Health Insights",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 713
+        }
+      },
+      {
+        "comment": "",
+        "key": "Time Distribution",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 817
+        }
+      },
+      {
+        "comment": "",
+        "key": "Daily Breakdown",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 842
+        }
+      },
+      {
+        "comment": "",
+        "key": "Health Metrics",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 914
+        }
+      },
+      {
+        "comment": "",
+        "key": "Enable Health Data permissions to see your activity, sleep, and wellness metrics.",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 1053
+        }
+      },
+      {
+        "comment": "",
+        "key": "Health data will appear here once it's synced from your device.",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 1058
+        }
+      },
+      {
+        "comment": "",
+        "key": "No health data available",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 1046
+        }
+      },
+      {
+        "comment": "",
+        "key": "Meeting Load: %@",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 1078
+        }
+      },
+      {
+        "comment": "",
+        "key": "No meetings scheduled",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 1082
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld %@",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 1091
+        }
+      },
+      {
+        "comment": "",
+        "key": "0 meetings",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 1095
+        }
+      },
+      {
+        "comment": "",
+        "key": "Trend Analysis",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 1196
+        }
+      },
+      {
+        "comment": "",
+        "key": "Current",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 1298
+        }
+      },
+      {
+        "comment": "",
+        "key": "Previous",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 1308
+        }
+      },
+      {
+        "comment": "",
+        "key": "Change",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 1319
+        }
+      },
+      {
+        "comment": "",
+        "key": "%@ significance",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 1338
+        }
+      },
+      {
+        "comment": "",
+        "key": "Health Breakdown",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 1389
+        }
+      }
+    ]
+  },
+  "version": 1
+}

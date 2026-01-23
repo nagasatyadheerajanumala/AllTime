@@ -1,0 +1,176 @@
+{
+  "source": "/Users/dheeraj/Desktop/AllTime/AllTime/Views/HealthSummaryView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Health Summary",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 144
+        }
+      },
+      {
+        "comment": "",
+        "key": "Loading health summary...",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 19
+        }
+      },
+      {
+        "comment": "",
+        "key": "AI Suggestions",
+        "location": {
+          "startingColumn": 46,
+          "startingLine": 79
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 46,
+          "startingLine": 86
+        }
+      },
+      {
+        "comment": "",
+        "key": "This may take 5-10 seconds...",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 258
+        }
+      },
+      {
+        "comment": "",
+        "key": "No Health Summary",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 224
+        }
+      },
+      {
+        "comment": "",
+        "key": "Generate AI-powered health insights and personalized suggestions based on your activity data.",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 229
+        }
+      },
+      {
+        "comment": "",
+        "key": "Generating...",
+        "location": {
+          "startingColumn": 41,
+          "startingLine": 245
+        }
+      },
+      {
+        "comment": "",
+        "key": "Generate Summary",
+        "location": {
+          "startingColumn": 59,
+          "startingLine": 245
+        }
+      },
+      {
+        "comment": "",
+        "key": "No suggestions at this time",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 276
+        }
+      },
+      {
+        "comment": "",
+        "key": "Error",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 301
+        }
+      },
+      {
+        "comment": "",
+        "key": "Retry",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 312
+        }
+      },
+      {
+        "comment": "",
+        "key": "AI Health Summary",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 327
+        }
+      },
+      {
+        "comment": "",
+        "key": "This Week",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 338
+        }
+      },
+      {
+        "comment": "",
+        "key": "Next Week",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 359
+        }
+      },
+      {
+        "comment": "",
+        "key": "Detected Patterns",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 388
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 395
+        }
+      },
+      {
+        "comment": "",
+        "key": "Event-Specific Advice",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 439
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 446
+        }
+      },
+      {
+        "comment": "",
+        "key": "Health Suggestions",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 530
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 537
+        }
+      }
+    ]
+  },
+  "version": 1
+}

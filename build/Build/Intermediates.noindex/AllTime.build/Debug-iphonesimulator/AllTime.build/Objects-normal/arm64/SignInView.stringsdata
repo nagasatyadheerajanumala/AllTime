@@ -1,0 +1,40 @@
+{
+  "source": "/Users/dheeraj/Desktop/AllTime/AllTime/Views/SignInView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Clara",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 128
+        }
+      },
+      {
+        "comment": "",
+        "key": "Your time, elevated",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 149
+        }
+      },
+      {
+        "comment": "",
+        "key": "Private & Secure",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 200
+        }
+      },
+      {
+        "comment": "",
+        "key": "Signing in",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 277
+        }
+      }
+    ]
+  },
+  "version": 1
+}

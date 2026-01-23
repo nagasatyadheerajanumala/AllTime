@@ -1,0 +1,136 @@
+{
+  "source": "/Users/dheeraj/Desktop/AllTime/AllTime/Views/DailySummaryView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Summary",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 78
+        }
+      },
+      {
+        "comment": "",
+        "key": "Today",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 200
+        }
+      },
+      {
+        "comment": "",
+        "key": "Less",
+        "location": {
+          "startingColumn": 43,
+          "startingLine": 321
+        }
+      },
+      {
+        "comment": "",
+        "key": "More",
+        "location": {
+          "startingColumn": 52,
+          "startingLine": 321
+        }
+      },
+      {
+        "comment": "",
+        "key": "Suggestions",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 392
+        }
+      },
+      {
+        "comment": "",
+        "key": "Breaks",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 565
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld min total",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 574
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld minutes",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 632
+        }
+      },
+      {
+        "comment": "",
+        "key": "Preparing your summary",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 700
+        }
+      },
+      {
+        "comment": "",
+        "key": "Unable to load",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 719
+        }
+      },
+      {
+        "comment": "",
+        "key": "Try Again",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 730
+        }
+      },
+      {
+        "comment": "",
+        "key": "No summary yet",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 753
+        }
+      },
+      {
+        "comment": "",
+        "key": "Your daily summary will appear here",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 757
+        }
+      },
+      {
+        "comment": "",
+        "key": "Select Date",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 788
+        }
+      },
+      {
+        "comment": "",
+        "key": "Select Date",
+        "location": {
+          "startingColumn": 25,
+          "startingLine": 776
+        }
+      },
+      {
+        "comment": "",
+        "key": "Done",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 792
+        }
+      }
+    ]
+  },
+  "version": 1
+}

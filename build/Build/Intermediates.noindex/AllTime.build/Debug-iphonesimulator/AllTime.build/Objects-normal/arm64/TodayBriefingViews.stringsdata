@@ -1,0 +1,232 @@
+{
+  "source": "/Users/dheeraj/Desktop/AllTime/AllTime/Views/Components/TodayBriefingViews.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Today's Plan",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 159
+        }
+      },
+      {
+        "comment": "",
+        "key": "Focus Time Blocked!",
+        "location": {
+          "startingColumn": 16,
+          "startingLine": 326
+        }
+      },
+      {
+        "comment": "",
+        "key": "Unable to Block Time",
+        "location": {
+          "startingColumn": 16,
+          "startingLine": 336
+        }
+      },
+      {
+        "comment": "",
+        "key": "Show Less",
+        "location": {
+          "startingColumn": 55,
+          "startingLine": 239
+        }
+      },
+      {
+        "comment": "",
+        "key": "Show More",
+        "location": {
+          "startingColumn": 69,
+          "startingLine": 239
+        }
+      },
+      {
+        "comment": "",
+        "key": "OK",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 327
+        }
+      },
+      {
+        "comment": "",
+        "key": "Enable Focus Mode",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 329
+        }
+      },
+      {
+        "comment": "",
+        "key": "OK",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 337
+        }
+      },
+      {
+        "comment": "",
+        "key": "Focus Time Blocked!",
+        "location": {
+          "startingColumn": 16,
+          "startingLine": 851
+        }
+      },
+      {
+        "comment": "",
+        "key": "Unable to Block Time",
+        "location": {
+          "startingColumn": 16,
+          "startingLine": 861
+        }
+      },
+      {
+        "comment": "",
+        "key": "Show Less",
+        "location": {
+          "startingColumn": 43,
+          "startingLine": 819
+        }
+      },
+      {
+        "comment": "",
+        "key": "Show More",
+        "location": {
+          "startingColumn": 57,
+          "startingLine": 819
+        }
+      },
+      {
+        "comment": "",
+        "key": "OK",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 852
+        }
+      },
+      {
+        "comment": "",
+        "key": "Enable Focus Mode",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 854
+        }
+      },
+      {
+        "comment": "",
+        "key": "OK",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 862
+        }
+      },
+      {
+        "comment": "",
+        "key": "Show Less",
+        "location": {
+          "startingColumn": 59,
+          "startingLine": 1129
+        }
+      },
+      {
+        "comment": "",
+        "key": "Show More",
+        "location": {
+          "startingColumn": 73,
+          "startingLine": 1129
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 1150
+        }
+      },
+      {
+        "comment": "",
+        "key": "%@ - %@",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 1234
+        }
+      },
+      {
+        "comment": "",
+        "key": "Show Less",
+        "location": {
+          "startingColumn": 59,
+          "startingLine": 1257
+        }
+      },
+      {
+        "comment": "",
+        "key": "Show More",
+        "location": {
+          "startingColumn": 73,
+          "startingLine": 1257
+        }
+      },
+      {
+        "comment": "",
+        "key": "Data from calendar, health, and activity sources",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 1318
+        }
+      },
+      {
+        "comment": "",
+        "key": "Schedule",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 1384
+        }
+      },
+      {
+        "comment": "",
+        "key": "Health",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 1412
+        }
+      },
+      {
+        "comment": "",
+        "key": "Your briefing is being prepared",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 1493
+        }
+      },
+      {
+        "comment": "",
+        "key": "Check back in a moment",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 1497
+        }
+      },
+      {
+        "comment": "",
+        "key": "Health Insights",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 1674
+        }
+      },
+      {
+        "comment": "",
+        "key": "Recommendations",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 1785
+        }
+      }
+    ]
+  },
+  "version": 1
+}

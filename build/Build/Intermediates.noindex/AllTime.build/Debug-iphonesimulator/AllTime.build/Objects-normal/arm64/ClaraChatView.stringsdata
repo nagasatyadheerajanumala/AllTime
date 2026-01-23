@@ -1,0 +1,88 @@
+{
+  "source": "/Users/dheeraj/Desktop/AllTime/AllTime/Views/ClaraChatView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Start New Chat?",
+        "location": {
+          "startingColumn": 16,
+          "startingLine": 45
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cancel",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 46
+        }
+      },
+      {
+        "comment": "",
+        "key": "New Chat",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 47
+        }
+      },
+      {
+        "comment": "",
+        "key": "This will clear your current conversation with Clara.",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 51
+        }
+      },
+      {
+        "comment": "",
+        "key": "Clara",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 71
+        }
+      },
+      {
+        "comment": "",
+        "key": "Your personal AI assistant",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 79
+        }
+      },
+      {
+        "comment": "",
+        "key": "Hi, I'm Clara!",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 131
+        }
+      },
+      {
+        "comment": "",
+        "key": "I know your calendar, health data, tasks, and habits.\nAsk me anything about your life and I'll give you\nhonest, data-driven insights.",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 135
+        }
+      },
+      {
+        "comment": "",
+        "key": "Try asking...",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 144
+        }
+      },
+      {
+        "comment": "",
+        "key": "Ask Clara anything...",
+        "location": {
+          "startingColumn": 35,
+          "startingLine": 224
+        }
+      }
+    ]
+  },
+  "version": 1
+}

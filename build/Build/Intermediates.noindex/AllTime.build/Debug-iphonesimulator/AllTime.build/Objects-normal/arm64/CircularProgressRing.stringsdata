@@ -1,0 +1,40 @@
+{
+  "source": "/Users/dheeraj/Desktop/AllTime/AllTime/Views/Components/CircularProgressRing.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 91
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 103
+        }
+      },
+      {
+        "comment": "",
+        "key": "vs %@%@ last week",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 191
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld%@",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 166
+        }
+      }
+    ]
+  },
+  "version": 1
+}

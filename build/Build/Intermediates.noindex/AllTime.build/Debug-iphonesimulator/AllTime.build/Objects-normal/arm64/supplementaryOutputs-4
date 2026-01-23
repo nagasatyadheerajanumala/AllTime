@@ -1,0 +1,156 @@
+{
+  "/Users/dheeraj/Desktop/AllTime/AllTime/Services/NotificationService.swift" : {
+    "const-values" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/NotificationService.swiftconstvalues",
+    "dependencies" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/NotificationService.d",
+    "diagnostics" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/NotificationService.dia",
+    "object" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/NotificationService.o",
+    "swift-dependencies" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/NotificationService.swiftdeps"
+  },
+  "/Users/dheeraj/Desktop/AllTime/AllTime/Services/OAuthManager.swift" : {
+    "const-values" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/OAuthManager.swiftconstvalues",
+    "dependencies" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/OAuthManager.d",
+    "diagnostics" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/OAuthManager.dia",
+    "object" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/OAuthManager.o",
+    "swift-dependencies" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/OAuthManager.swiftdeps"
+  },
+  "/Users/dheeraj/Desktop/AllTime/AllTime/Services/OfflineQueueManager.swift" : {
+    "const-values" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/OfflineQueueManager.swiftconstvalues",
+    "dependencies" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/OfflineQueueManager.d",
+    "diagnostics" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/OfflineQueueManager.dia",
+    "object" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/OfflineQueueManager.o",
+    "swift-dependencies" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/OfflineQueueManager.swiftdeps"
+  },
+  "/Users/dheeraj/Desktop/AllTime/AllTime/Services/OnDemandRecommendationsAPI.swift" : {
+    "const-values" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/OnDemandRecommendationsAPI.swiftconstvalues",
+    "dependencies" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/OnDemandRecommendationsAPI.d",
+    "diagnostics" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/OnDemandRecommendationsAPI.dia",
+    "object" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/OnDemandRecommendationsAPI.o",
+    "swift-dependencies" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/OnDemandRecommendationsAPI.swiftdeps"
+  },
+  "/Users/dheeraj/Desktop/AllTime/AllTime/Services/PerformanceOptimizer.swift" : {
+    "const-values" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/PerformanceOptimizer.swiftconstvalues",
+    "dependencies" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/PerformanceOptimizer.d",
+    "diagnostics" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/PerformanceOptimizer.dia",
+    "object" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/PerformanceOptimizer.o",
+    "swift-dependencies" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/PerformanceOptimizer.swiftdeps"
+  },
+  "/Users/dheeraj/Desktop/AllTime/AllTime/Services/PushNotificationManager.swift" : {
+    "const-values" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/PushNotificationManager.swiftconstvalues",
+    "dependencies" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/PushNotificationManager.d",
+    "diagnostics" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/PushNotificationManager.dia",
+    "object" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/PushNotificationManager.o",
+    "swift-dependencies" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/PushNotificationManager.swiftdeps"
+  },
+  "/Users/dheeraj/Desktop/AllTime/AllTime/Services/ReminderService.swift" : {
+    "const-values" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/ReminderService.swiftconstvalues",
+    "dependencies" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/ReminderService.d",
+    "diagnostics" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/ReminderService.dia",
+    "object" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/ReminderService.o",
+    "swift-dependencies" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/ReminderService.swiftdeps"
+  },
+  "/Users/dheeraj/Desktop/AllTime/AllTime/Services/SummaryManager.swift" : {
+    "const-values" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/SummaryManager.swiftconstvalues",
+    "dependencies" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/SummaryManager.d",
+    "diagnostics" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/SummaryManager.dia",
+    "object" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/SummaryManager.o",
+    "swift-dependencies" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/SummaryManager.swiftdeps"
+  },
+  "/Users/dheeraj/Desktop/AllTime/AllTime/Services/SummaryParser.swift" : {
+    "const-values" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/SummaryParser.swiftconstvalues",
+    "dependencies" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/SummaryParser.d",
+    "diagnostics" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/SummaryParser.dia",
+    "object" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/SummaryParser.o",
+    "swift-dependencies" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/SummaryParser.swiftdeps"
+  },
+  "/Users/dheeraj/Desktop/AllTime/AllTime/Services/SyncScheduler.swift" : {
+    "const-values" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/SyncScheduler.swiftconstvalues",
+    "dependencies" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/SyncScheduler.d",
+    "diagnostics" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/SyncScheduler.dia",
+    "object" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/SyncScheduler.o",
+    "swift-dependencies" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/SyncScheduler.swiftdeps"
+  },
+  "/Users/dheeraj/Desktop/AllTime/AllTime/Services/ThemeManager.swift" : {
+    "const-values" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/ThemeManager.swiftconstvalues",
+    "dependencies" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/ThemeManager.d",
+    "diagnostics" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/ThemeManager.dia",
+    "object" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/ThemeManager.o",
+    "swift-dependencies" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/ThemeManager.swiftdeps"
+  },
+  "/Users/dheeraj/Desktop/AllTime/AllTime/Services/UserManager.swift" : {
+    "const-values" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/UserManager.swiftconstvalues",
+    "dependencies" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/UserManager.d",
+    "diagnostics" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/UserManager.dia",
+    "object" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/UserManager.o",
+    "swift-dependencies" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/UserManager.swiftdeps"
+  },
+  "/Users/dheeraj/Desktop/AllTime/AllTime/Utils/Animations.swift" : {
+    "const-values" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/Animations.swiftconstvalues",
+    "dependencies" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/Animations.d",
+    "diagnostics" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/Animations.dia",
+    "object" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/Animations.o",
+    "swift-dependencies" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/Animations.swiftdeps"
+  },
+  "/Users/dheeraj/Desktop/AllTime/AllTime/Utils/BriefingExtensions.swift" : {
+    "const-values" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/BriefingExtensions.swiftconstvalues",
+    "dependencies" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/BriefingExtensions.d",
+    "diagnostics" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/BriefingExtensions.dia",
+    "object" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/BriefingExtensions.o",
+    "swift-dependencies" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/BriefingExtensions.swiftdeps"
+  },
+  "/Users/dheeraj/Desktop/AllTime/AllTime/Utils/Constants.swift" : {
+    "const-values" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/Constants.swiftconstvalues",
+    "dependencies" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/Constants.d",
+    "diagnostics" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/Constants.dia",
+    "object" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/Constants.o",
+    "swift-dependencies" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/Constants.swiftdeps"
+  },
+  "/Users/dheeraj/Desktop/AllTime/AllTime/Utils/DesignSystem.swift" : {
+    "const-values" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/DesignSystem.swiftconstvalues",
+    "dependencies" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/DesignSystem.d",
+    "diagnostics" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/DesignSystem.dia",
+    "object" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/DesignSystem.o",
+    "swift-dependencies" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/DesignSystem.swiftdeps"
+  },
+  "/Users/dheeraj/Desktop/AllTime/AllTime/Utils/DistanceConversion.swift" : {
+    "const-values" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/DistanceConversion.swiftconstvalues",
+    "dependencies" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/DistanceConversion.d",
+    "diagnostics" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/DistanceConversion.dia",
+    "object" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/DistanceConversion.o",
+    "swift-dependencies" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/DistanceConversion.swiftdeps"
+  },
+  "/Users/dheeraj/Desktop/AllTime/AllTime/Utils/EventTypeExtensions.swift" : {
+    "const-values" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/EventTypeExtensions.swiftconstvalues",
+    "dependencies" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/EventTypeExtensions.d",
+    "diagnostics" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/EventTypeExtensions.dia",
+    "object" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/EventTypeExtensions.o",
+    "swift-dependencies" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/EventTypeExtensions.swiftdeps"
+  },
+  "/Users/dheeraj/Desktop/AllTime/AllTime/Utils/Extensions.swift" : {
+    "const-values" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/Extensions.swiftconstvalues",
+    "dependencies" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/Extensions.d",
+    "diagnostics" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/Extensions.dia",
+    "object" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/Extensions.o",
+    "swift-dependencies" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/Extensions.swiftdeps"
+  },
+  "/Users/dheeraj/Desktop/AllTime/AllTime/Utils/HealthAppHelper.swift" : {
+    "const-values" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/HealthAppHelper.swiftconstvalues",
+    "dependencies" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/HealthAppHelper.d",
+    "diagnostics" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/HealthAppHelper.dia",
+    "object" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/HealthAppHelper.o",
+    "swift-dependencies" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/HealthAppHelper.swiftdeps"
+  },
+  "/Users/dheeraj/Desktop/AllTime/AllTime/Utils/Logger.swift" : {
+    "const-values" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/Logger.swiftconstvalues",
+    "dependencies" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/Logger.d",
+    "diagnostics" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/Logger.dia",
+    "object" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/Logger.o",
+    "swift-dependencies" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/Logger.swiftdeps"
+  },
+  "/Users/dheeraj/Desktop/AllTime/AllTime/Utils/MockDailySummaryData.swift" : {
+    "const-values" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/MockDailySummaryData.swiftconstvalues",
+    "dependencies" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/MockDailySummaryData.d",
+    "diagnostics" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/MockDailySummaryData.dia",
+    "object" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/MockDailySummaryData.o",
+    "swift-dependencies" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/AllTime.build/Debug-iphonesimulator/AllTime.build/Objects-normal/arm64/MockDailySummaryData.swiftdeps"
+  }
+}

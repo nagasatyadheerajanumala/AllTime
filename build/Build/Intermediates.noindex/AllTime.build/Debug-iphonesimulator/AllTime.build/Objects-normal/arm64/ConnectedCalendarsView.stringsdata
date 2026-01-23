@@ -1,0 +1,304 @@
+{
+  "source": "/Users/dheeraj/Desktop/AllTime/AllTime/Views/ConnectedCalendarsView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "My Calendars",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 186
+        }
+      },
+      {
+        "comment": "",
+        "key": "Error",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 206
+        }
+      },
+      {
+        "comment": "",
+        "key": "Success",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 218
+        }
+      },
+      {
+        "comment": "",
+        "key": "Loading calendars...",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 15
+        }
+      },
+      {
+        "comment": "",
+        "key": "No Calendars Connected",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 27
+        }
+      },
+      {
+        "comment": "",
+        "key": "Connect your Google, Microsoft, or Apple calendars to sync all your events in one place",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 31
+        }
+      },
+      {
+        "comment": "",
+        "key": "Add Calendar",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 43
+        }
+      },
+      {
+        "comment": "",
+        "key": "Connected Calendars",
+        "location": {
+          "startingColumn": 42,
+          "startingLine": 86
+        }
+      },
+      {
+        "comment": "",
+        "key": "Add",
+        "location": {
+          "startingColumn": 50,
+          "startingLine": 97
+        }
+      },
+      {
+        "comment": "",
+        "key": "Sync Settings",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 134
+        }
+      },
+      {
+        "comment": "",
+        "key": "",
+        "location": {
+          "startingColumn": 52,
+          "startingLine": 156
+        }
+      },
+      {
+        "comment": "",
+        "key": "Sync Holidays",
+        "location": {
+          "startingColumn": 50,
+          "startingLine": 142
+        }
+      },
+      {
+        "comment": "",
+        "key": "Show public holidays from your calendar",
+        "location": {
+          "startingColumn": 50,
+          "startingLine": 145
+        }
+      },
+      {
+        "comment": "",
+        "key": "OK",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 210
+        }
+      },
+      {
+        "comment": "",
+        "key": "OK",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 222
+        }
+      },
+      {
+        "comment": "",
+        "key": "Disconnect Calendar",
+        "location": {
+          "startingColumn": 16,
+          "startingLine": 403
+        }
+      },
+      {
+        "comment": "",
+        "key": "Active",
+        "location": {
+          "startingColumn": 46,
+          "startingLine": 310
+        }
+      },
+      {
+        "comment": "",
+        "key": "Inactive",
+        "location": {
+          "startingColumn": 57,
+          "startingLine": 310
+        }
+      },
+      {
+        "comment": "",
+        "key": "Disconnect Calendar",
+        "location": {
+          "startingColumn": 31,
+          "startingLine": 324
+        }
+      },
+      {
+        "comment": "",
+        "key": "Today",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 341
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 345
+        }
+      },
+      {
+        "comment": "",
+        "key": "Last Synced",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 353
+        }
+      },
+      {
+        "comment": "",
+        "key": "Sync Now",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 381
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cancel",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 404
+        }
+      },
+      {
+        "comment": "",
+        "key": "Disconnect",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 405
+        }
+      },
+      {
+        "comment": "",
+        "key": "Are you sure you want to disconnect this calendar? You won't receive new events from this account, but existing events will remain visible.",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 409
+        }
+      },
+      {
+        "comment": "",
+        "key": "Your Calendars",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 449
+        }
+      },
+      {
+        "comment": "",
+        "key": "Discover",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 469
+        }
+      },
+      {
+        "comment": "",
+        "key": "No calendars discovered yet",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 486
+        }
+      },
+      {
+        "comment": "",
+        "key": "Tap \"Discover\" to find all your Microsoft calendars including shared and delegated ones.",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 491
+        }
+      },
+      {
+        "comment": "",
+        "key": "%@ Calendars",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 514
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld/%lld enabled",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 521
+        }
+      },
+      {
+        "comment": "",
+        "key": "Sync All Enabled Calendars",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 569
+        }
+      },
+      {
+        "comment": "",
+        "key": "",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 659
+        }
+      },
+      {
+        "comment": "",
+        "key": "from %@",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 635
+        }
+      },
+      {
+        "comment": "",
+        "key": "Primary",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 614
+        }
+      },
+      {
+        "comment": "",
+        "key": "Shared",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 624
+        }
+      }
+    ]
+  },
+  "version": 1
+}

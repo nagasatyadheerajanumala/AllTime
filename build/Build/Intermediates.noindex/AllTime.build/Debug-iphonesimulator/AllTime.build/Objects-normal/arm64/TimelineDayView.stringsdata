@@ -1,0 +1,80 @@
+{
+  "source": "/Users/dheeraj/Desktop/AllTime/AllTime/Views/TimelineDayView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Timeline",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 87
+        }
+      },
+      {
+        "comment": "",
+        "key": "Loading timeline...",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 19
+        }
+      },
+      {
+        "comment": "",
+        "key": "Open day ahead",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 31
+        }
+      },
+      {
+        "comment": "",
+        "key": "This is rare. Block focus time before it fills with reactive work.",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 34
+        }
+      },
+      {
+        "comment": "",
+        "key": "Error loading timeline",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 54
+        }
+      },
+      {
+        "comment": "",
+        "key": "Retry",
+        "location": {
+          "startingColumn": 32,
+          "startingLine": 63
+        }
+      },
+      {
+        "comment": "",
+        "key": "Loading timeline...",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 77
+        }
+      },
+      {
+        "comment": "",
+        "key": "Good slot for focused work or a break",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 243
+        }
+      },
+      {
+        "comment": "",
+        "key": "Free for %@",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 237
+        }
+      }
+    ]
+  },
+  "version": 1
+}

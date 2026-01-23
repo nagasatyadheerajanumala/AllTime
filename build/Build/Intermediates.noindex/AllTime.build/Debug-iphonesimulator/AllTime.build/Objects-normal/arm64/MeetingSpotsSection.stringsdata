@@ -1,0 +1,80 @@
+{
+  "source": "/Users/dheeraj/Desktop/AllTime/AllTime/Views/Components/MeetingSpotsSection.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "No spots found nearby",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 92
+        }
+      },
+      {
+        "comment": "",
+        "key": "View all %lld spots",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 81
+        }
+      },
+      {
+        "comment": "",
+        "key": "Open",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 168
+        }
+      },
+      {
+        "comment": "",
+        "key": "Spots Near Meeting",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 253
+        }
+      },
+      {
+        "comment": "",
+        "key": "%@ at %@",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 233
+        }
+      },
+      {
+        "comment": "",
+        "key": "Done",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 257
+        }
+      },
+      {
+        "comment": "",
+        "key": "Open",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 287
+        }
+      },
+      {
+        "comment": "",
+        "key": "(%lld)",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 316
+        }
+      },
+      {
+        "comment": "",
+        "key": "Get Directions",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 334
+        }
+      }
+    ]
+  },
+  "version": 1
+}

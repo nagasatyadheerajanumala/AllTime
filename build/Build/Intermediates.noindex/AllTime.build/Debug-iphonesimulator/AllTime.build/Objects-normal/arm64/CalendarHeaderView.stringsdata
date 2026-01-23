@@ -1,0 +1,32 @@
+{
+  "source": "/Users/dheeraj/Desktop/AllTime/AllTime/Views/Components/CalendarHeaderView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Tap a date to view events",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 48
+        }
+      },
+      {
+        "comment": "",
+        "key": "Hide Week",
+        "location": {
+          "startingColumn": 48,
+          "startingLine": 93
+        }
+      },
+      {
+        "comment": "",
+        "key": "Show Week",
+        "location": {
+          "startingColumn": 62,
+          "startingLine": 93
+        }
+      }
+    ]
+  },
+  "version": 1
+}

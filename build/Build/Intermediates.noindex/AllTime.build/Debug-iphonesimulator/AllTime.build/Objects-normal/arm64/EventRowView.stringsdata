@@ -1,0 +1,16 @@
+{
+  "source": "/Users/dheeraj/Desktop/AllTime/AllTime/Views/EventRowView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "All Day",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 92
+        }
+      }
+    ]
+  },
+  "version": 1
+}

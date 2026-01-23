@@ -4,6 +4,7 @@ struct TodayView: View {
     @EnvironmentObject var calendarViewModel: CalendarViewModel
     @StateObject private var briefingViewModel = TodayBriefingViewModel()
     @StateObject private var overviewViewModel = TodayOverviewViewModel()
+    @StateObject private var timeIntelligenceService = TimeIntelligenceService.shared
     @State private var selectedEvent: Event?
     @State private var showingAddEvent = false
     @ObservedObject private var healthMetricsService = HealthMetricsService.shared
@@ -17,6 +18,9 @@ struct TodayView: View {
     @State private var showingNotificationHistory = false
     @State private var selectedClaraPrompt: ClaraPrompt? = nil
     @State private var selectedPrimaryRecommendation: PrimaryRecommendation? = nil
+
+    // Say No / Decline Recommendations
+    @State private var selectedDeclineRecommendation: DeclineRecommendationDTO? = nil
 
     // Week Drift - the killer feature
     @State private var weekDriftStatus: WeekDriftStatus?
@@ -37,6 +41,10 @@ struct TodayView: View {
 
     // Task management for cancellation
     @State private var loadTask: Task<Void, Never>?
+
+    // DESIGN PHILOSOPHY: Today is the DECISION SURFACE, not a calendar.
+    // We answer "What should I do?" not "What's on my schedule?"
+    // Schedule listing is deliberately REMOVED - users can see that in Calendar tab.
 
     private var todayEvents: [Event] {
         calendarViewModel.eventsForToday().sorted { event1, event2 in
@@ -106,11 +114,13 @@ struct TodayView: View {
                         // Reorder mode header (appears when active)
                         ReorderModeHeader()
 
-                        // FIXED: Hero Summary Card (always at top)
+                        // HERO: Today's Overview Card - All key metrics in one glanceable tile
                         HeroSummaryCard(
                             overview: overviewViewModel.overview,
                             briefing: briefingViewModel.briefing,
                             driftStatus: weekDriftStatus,
+                            freshHealth: briefingViewModel.freshHealthMetrics,
+                            intelligence: timeIntelligenceService.todayIntelligence,
                             isLoading: weekDriftLoading || overviewViewModel.isLoading || briefingViewModel.isLoading,
                             onTap: { showingSummaryDetail = true },
                             onInterventionTap: handleInterventionTap
@@ -118,38 +128,16 @@ struct TodayView: View {
                         .padding(.horizontal, DesignSystem.Spacing.md)
                         .cardStagger(index: 0)
 
-                        // FIXED: Critical Health Alert (conditional, always after hero)
-                        if let metrics = briefingViewModel.briefing?.keyMetrics,
-                           metrics.isHealthCritical || metrics.isHealthDataSuspect {
-                            CriticalHealthAlertBanner(metrics: metrics)
-                                .padding(.horizontal, DesignSystem.Spacing.md)
-                                .cardStagger(index: 0)
-                        }
-
-                        // REORDERABLE TILES: Rendered in user's preferred order
-                        ForEach(Array(tileOrderManager.tileOrder.enumerated()), id: \.element.id) { index, tileType in
+                        // Reorderable tiles (user-customizable order)
+                        ForEach(Array(tileOrderManager.tileOrder.enumerated()), id: \.element) { index, tileType in
                             renderTile(tileType, index: index)
                         }
 
-                        // FIXED: Schedule (always near bottom)
-                        if !todayEvents.isEmpty {
-                            CollapsibleScheduleSection(
-                                events: todayEvents,
-                                currentEvent: currentEvent,
-                                tileId: TileExpansionManager.TileId.schedule.rawValue,
-                                expansionManager: tileExpansionManager
-                            ) { event in
-                                selectedEvent = event
-                            }
-                            .padding(.horizontal, DesignSystem.Spacing.md)
-                            .cardStagger(index: tileOrderManager.tileOrder.count + 1)
-                        }
-
-                        // FIXED: Health Access Card (conditional, always at bottom)
+                        // Health Access Card (only if not authorized)
                         if !healthMetricsService.isAuthorized {
                             TodayHealthCard()
                                 .padding(.horizontal, DesignSystem.Spacing.md)
-                                .cardStagger(index: tileOrderManager.tileOrder.count + 2)
+                                .cardStagger(index: tileOrderManager.tileOrder.count + 1)
                         }
 
                         // Bottom padding for FAB
@@ -226,6 +214,40 @@ struct TodayView: View {
                     focusWindow: briefingViewModel.briefing?.focusWindows?.first
                 )
             }
+            .sheet(item: $selectedDeclineRecommendation) { recommendation in
+                // Say No Action Sheet - the UNIQUE decline workflow
+                DeclineActionSheet(
+                    recommendation: recommendation,
+                    onDecline: {
+                        Task {
+                            await timeIntelligenceService.recordDeclineAction(
+                                recommendationId: recommendation.recommendationId,
+                                action: "declined",
+                                wasPositive: true
+                            )
+                            await timeIntelligenceService.fetchTodayIntelligence()
+                        }
+                    },
+                    onReschedule: {
+                        Task {
+                            await timeIntelligenceService.recordDeclineAction(
+                                recommendationId: recommendation.recommendationId,
+                                action: "rescheduled",
+                                wasPositive: true
+                            )
+                            await timeIntelligenceService.fetchTodayIntelligence()
+                        }
+                    },
+                    onDismiss: {
+                        Task {
+                            await timeIntelligenceService.dismissRecommendation(
+                                recommendationId: recommendation.recommendationId
+                            )
+                            await timeIntelligenceService.fetchTodayIntelligence()
+                        }
+                    }
+                )
+            }
             .onAppear {
                 // Cancel any existing task
                 loadTask?.cancel()
@@ -239,15 +261,16 @@ struct TodayView: View {
                     // Second: Sync health data to backend (for historical analysis)
                     await HealthSyncService.shared.syncRecentDays()
 
-                    // Then: Load everything in parallel (including week drift - the killer feature)
+                    // Then: Load everything in parallel (including week drift AND Time Intelligence)
                     async let calendarTask: () = calendarViewModel.loadEventsForSelectedDate(Date())
                     async let healthTask: () = healthMetricsService.checkAuthorizationStatus()
                     async let briefingTask: () = briefingViewModel.fetchBriefing()
                     async let overviewTask: () = overviewViewModel.fetchOverview()
                     async let driftTask: () = fetchWeekDrift()
+                    async let intelligenceTask: () = timeIntelligenceService.fetchTodayIntelligence()
 
                     // Wait for all to complete (parallel execution)
-                    _ = await (calendarTask, healthTask, briefingTask, overviewTask, driftTask)
+                    _ = await (calendarTask, healthTask, briefingTask, overviewTask, driftTask, intelligenceTask)
                 }
             }
             .onDisappear {
@@ -280,36 +303,23 @@ struct TodayView: View {
     /// Renders a tile based on its type. Used for user-customizable ordering.
     @ViewBuilder
     private func renderTile(_ tileType: TodayReorderableTile, index: Int) -> some View {
+        let _ = {
+            if tileType == .primaryRecommendation {
+                print("🔍 DO NOW tile check: briefing=\(briefingViewModel.briefing != nil), primaryRec=\(briefingViewModel.briefing?.primaryRecommendation != nil)")
+                if let rec = briefingViewModel.briefing?.primaryRecommendation {
+                    print("🔍 DO NOW data: action=\(rec.action), urgency=\(rec.urgency ?? "nil")")
+                }
+            }
+        }()
         switch tileType {
         case .primaryRecommendation:
-            if let primaryRec = briefingViewModel.briefing?.primaryRecommendation {
-                CollapsiblePrimaryRecommendationCard(
-                    recommendation: primaryRec,
-                    tileId: TileExpansionManager.TileId.primaryRecommendation.rawValue,
-                    expansionManager: tileExpansionManager,
-                    onTap: {
-                        selectedPrimaryRecommendation = primaryRec
-                    }
-                )
-                .reorderableTile(.primaryRecommendation)
-                .padding(.horizontal, DesignSystem.Spacing.md)
-                .cardStagger(index: index + 1)
-            }
+            // REMOVED: Redundant with hero card intervention
+            // The hero card now shows the primary action
+            EmptyView()
 
         case .claraPrompts:
-            if let prompts = briefingViewModel.briefing?.claraPrompts, !prompts.isEmpty {
-                CollapsibleClaraCard(
-                    prompts: prompts,
-                    tileId: TileExpansionManager.TileId.claraPrompts.rawValue,
-                    expansionManager: tileExpansionManager,
-                    onPromptTap: { prompt in
-                        handleClaraPrompt(prompt)
-                    }
-                )
-                .reorderableTile(.claraPrompts)
-                .padding(.horizontal, DesignSystem.Spacing.md)
-                .cardStagger(index: index + 1)
-            }
+            // REMOVED: Redundant with floating Clara button
+            EmptyView()
 
         case .energyBudget:
             if let energyBudget = briefingViewModel.briefing?.energyBudget {
@@ -493,7 +503,12 @@ struct TodayView: View {
         }
     }
 
-    // MARK: - Events Section
+    // MARK: - Events Section (DEPRECATED)
+    // NOTE: Schedule listing has been INTENTIONALLY REMOVED from the Today tab.
+    // The Today tab is a DECISION SURFACE, not a calendar display.
+    // Users should view their schedule in the Calendar tab.
+    // This code is kept for reference but is no longer used in the main body.
+    @available(*, deprecated, message: "Schedule viewing belongs in Calendar tab")
     private var eventsSection: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
             // Section header
@@ -616,13 +631,12 @@ struct TodayView: View {
             }
 
             VStack(alignment: .trailing, spacing: 12) {
-                // Expandable menu options
                 if showFABMenu {
-                    // Weekend Quick Pick - only show on weekends/holidays
+                    // Weekend: Plan My Weekend / Quick Pick
                     if isWeekendOrHoliday {
                         fabMenuItem(
                             icon: "sparkles",
-                            label: "Quick Pick",
+                            label: "Plan My Weekend",
                             color: Color(hex: "EC4899")
                         ) {
                             showFABMenu = false
@@ -630,27 +644,7 @@ struct TodayView: View {
                         }
                     }
 
-                    // Plan My Day option
-                    fabMenuItem(
-                        icon: "wand.and.stars",
-                        label: "Plan My Day",
-                        color: DesignSystem.Colors.violet
-                    ) {
-                        showFABMenu = false
-                        showingPlanMyDay = true
-                    }
-
-                    // Quick Book - easily block time on calendar
-                    fabMenuItem(
-                        icon: "calendar.badge.clock",
-                        label: "Quick Book",
-                        color: Color(hex: "06B6D4")
-                    ) {
-                        showFABMenu = false
-                        showingQuickBook = true
-                    }
-
-                    // Add Reminder option
+                    // Add Reminder
                     fabMenuItem(
                         icon: "bell.fill",
                         label: "Add Reminder",
@@ -660,17 +654,7 @@ struct TodayView: View {
                         showingAddReminder = true
                     }
 
-                    // Add Task option
-                    fabMenuItem(
-                        icon: "checkmark.circle.fill",
-                        label: "Add Task",
-                        color: DesignSystem.Colors.emerald
-                    ) {
-                        showFABMenu = false
-                        showingAddTask = true
-                    }
-
-                    // Add Event option
+                    // Add Event
                     fabMenuItem(
                         icon: "calendar.badge.plus",
                         label: "Add Event",
@@ -678,6 +662,26 @@ struct TodayView: View {
                     ) {
                         showFABMenu = false
                         showingAddEvent = true
+                    }
+
+                    // Quick Book - PROTECT YOUR TIME
+                    fabMenuItem(
+                        icon: "shield.fill",
+                        label: "Quick Book",
+                        color: DesignSystem.Colors.emerald
+                    ) {
+                        showFABMenu = false
+                        showingQuickBook = true
+                    }
+
+                    // Plan My Day
+                    fabMenuItem(
+                        icon: "wand.and.stars",
+                        label: "Plan My Day",
+                        color: DesignSystem.Colors.violet
+                    ) {
+                        showFABMenu = false
+                        showingPlanMyDay = true
                     }
                 }
 
@@ -799,7 +803,26 @@ struct TodayView: View {
     /// Handle intervention taps - navigate to the action deep link
     private func handleInterventionTap(_ intervention: DriftIntervention) {
         print("🎯 TodayView: Intervention tapped - \(intervention.id): \(intervention.action)")
-        NavigationManager.shared.handleDestination(intervention.deepLink)
+
+        // Handle common intervention types directly
+        let id = intervention.id.lowercased()
+        let action = intervention.action.lowercased()
+
+        if id.contains("block") || id.contains("focus") || id.contains("deep_work") ||
+           action.contains("block") || action.contains("focus") {
+            // Open Plan My Day for blocking time
+            showingPlanMyDay = true
+        } else if id.contains("decline") || id.contains("cancel") || action.contains("decline") {
+            // Navigate to calendar for meeting management
+            NavigationManager.shared.navigateToCalendar()
+        } else if id.contains("reschedule") || id.contains("move") {
+            NavigationManager.shared.navigateToCalendar()
+        } else if !intervention.deepLink.isEmpty {
+            NavigationManager.shared.handleDestination(intervention.deepLink)
+        } else {
+            // Default: show Plan My Day
+            showingPlanMyDay = true
+        }
     }
 
     /// Handle deep link navigation from primary recommendation

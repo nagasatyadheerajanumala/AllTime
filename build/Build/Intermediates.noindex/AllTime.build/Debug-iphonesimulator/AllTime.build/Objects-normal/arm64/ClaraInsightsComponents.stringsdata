@@ -1,0 +1,80 @@
+{
+  "source": "/Users/dheeraj/Desktop/AllTime/AllTime/Views/Components/ClaraInsightsComponents.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Clara recommends",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 32
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 109
+        }
+      },
+      {
+        "comment": "",
+        "key": "Energy Drains",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 145
+        }
+      },
+      {
+        "comment": "",
+        "key": "Energy Deposits",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 158
+        }
+      },
+      {
+        "comment": "",
+        "key": "Clara",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 308
+        }
+      },
+      {
+        "comment": "",
+        "key": "Your AI assistant",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 312
+        }
+      },
+      {
+        "comment": "",
+        "key": "Ready",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 324
+        }
+      },
+      {
+        "comment": "",
+        "key": "What can I help with?",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 340
+        }
+      },
+      {
+        "comment": "",
+        "key": "Clara Insights Components",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 498
+        }
+      }
+    ]
+  },
+  "version": 1
+}

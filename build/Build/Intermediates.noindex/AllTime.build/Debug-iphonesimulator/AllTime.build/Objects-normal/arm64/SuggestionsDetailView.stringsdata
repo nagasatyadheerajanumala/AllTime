@@ -1,0 +1,96 @@
+{
+  "source": "/Users/dheeraj/Desktop/AllTime/AllTime/Views/SuggestionsDetailView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Actions",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 52
+        }
+      },
+      {
+        "comment": "",
+        "key": "Done",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 56
+        }
+      },
+      {
+        "comment": "",
+        "key": "No actions available",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 126
+        }
+      },
+      {
+        "comment": "",
+        "key": "Check back later for personalized actions",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 130
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld minutes",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 430
+        }
+      },
+      {
+        "comment": "",
+        "key": "Suggested Time",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 420
+        }
+      },
+      {
+        "comment": "",
+        "key": "Added to Calendar",
+        "location": {
+          "startingColumn": 52,
+          "startingLine": 467
+        }
+      },
+      {
+        "comment": "",
+        "key": "Add to Calendar",
+        "location": {
+          "startingColumn": 74,
+          "startingLine": 467
+        }
+      },
+      {
+        "comment": "",
+        "key": "Reminder Created",
+        "location": {
+          "startingColumn": 52,
+          "startingLine": 492
+        }
+      },
+      {
+        "comment": "",
+        "key": "Add to Reminders",
+        "location": {
+          "startingColumn": 73,
+          "startingLine": 492
+        }
+      },
+      {
+        "comment": "",
+        "key": "Done",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 511
+        }
+      }
+    ]
+  },
+  "version": 1
+}

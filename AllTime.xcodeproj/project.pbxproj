@@ -6,6 +6,13 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		0AD1B2F0454FAD7E653F1D1A /* SayNoComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06DC01D412D45E25E4A3BABC /* SayNoComponents.swift */; };
+		1E5B3228224BED98C022CC64 /* DecisionSurfaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3830E3CBFB9CF453BB6F8C76 /* DecisionSurfaceView.swift */; };
+		3E2F00C2CFA99A1E430E0DA9 /* TimeIntelligence.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7E6EA1AF3254CDAF8280B83 /* TimeIntelligence.swift */; };
+		605B6FF4C9DC7240F0729C8D /* TimeIntelligenceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91B08CE190AF2308A29CE93A /* TimeIntelligenceService.swift */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXCopyFilesBuildPhase section */
 		A24D3F542F16E9FF0026B445 /* Embed Foundation Extensions */ = {
 			isa = PBXCopyFilesBuildPhase;
@@ -20,10 +27,14 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		06DC01D412D45E25E4A3BABC /* SayNoComponents.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SayNoComponents.swift; path = AllTime/Views/Components/SayNoComponents.swift; sourceTree = "<group>"; };
+		3830E3CBFB9CF453BB6F8C76 /* DecisionSurfaceView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = DecisionSurfaceView.swift; path = AllTime/Views/DecisionSurfaceView.swift; sourceTree = "<group>"; };
+		91B08CE190AF2308A29CE93A /* TimeIntelligenceService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = TimeIntelligenceService.swift; path = AllTime/Services/TimeIntelligenceService.swift; sourceTree = "<group>"; };
 		A24D3F3F2F16E9FD0026B445 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		A24D3F412F16E9FD0026B445 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 		A24D3F662F16EA450026B445 /* AllTimeWidgetsExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = AllTimeWidgetsExtension.entitlements; sourceTree = "<group>"; };
 		A25624E02EA1B05E006F37F8 /* AllTime.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AllTime.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A7E6EA1AF3254CDAF8280B83 /* TimeIntelligence.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = TimeIntelligence.swift; path = AllTime/Models/TimeIntelligence.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -58,6 +69,17 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		71DA67BCCE0B23A095453FAA /* AddedFiles */ = {
+			isa = PBXGroup;
+			children = (
+				A7E6EA1AF3254CDAF8280B83 /* TimeIntelligence.swift */,
+				91B08CE190AF2308A29CE93A /* TimeIntelligenceService.swift */,
+				06DC01D412D45E25E4A3BABC /* SayNoComponents.swift */,
+				3830E3CBFB9CF453BB6F8C76 /* DecisionSurfaceView.swift */,
+			);
+			name = AddedFiles;
+			sourceTree = "<group>";
+		};
 		A24D3F3E2F16E9FD0026B445 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
@@ -74,6 +96,7 @@
 				A25624E22EA1B05E006F37F8 /* AllTime */,
 				A24D3F3E2F16E9FD0026B445 /* Frameworks */,
 				A25624E12EA1B05E006F37F8 /* Products */,
+				71DA67BCCE0B23A095453FAA /* AddedFiles */,
 			);
 			sourceTree = "<group>";
 		};
@@ -105,8 +128,6 @@
 				A25624E22EA1B05E006F37F8 /* AllTime */,
 			);
 			name = AllTime;
-			packageProductDependencies = (
-			);
 			productName = AllTime;
 			productReference = A25624E02EA1B05E006F37F8 /* AllTime.app */;
 			productType = "com.apple.product-type.application";
@@ -160,6 +181,10 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				3E2F00C2CFA99A1E430E0DA9 /* TimeIntelligence.swift in Sources */,
+				605B6FF4C9DC7240F0729C8D /* TimeIntelligenceService.swift in Sources */,
+				0AD1B2F0454FAD7E653F1D1A /* SayNoComponents.swift in Sources */,
+				1E5B3228224BED98C022CC64 /* DecisionSurfaceView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

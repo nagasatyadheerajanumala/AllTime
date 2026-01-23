@@ -1,0 +1,216 @@
+{
+  "source": "/Users/dheeraj/Desktop/AllTime/AllTime/Views/DailyInsightsView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Your Day",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 27
+        }
+      },
+      {
+        "comment": "",
+        "key": "Done",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 31
+        }
+      },
+      {
+        "comment": "",
+        "key": "Loading your day summary...",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 51
+        }
+      },
+      {
+        "comment": "",
+        "key": "Try Again",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 68
+        }
+      },
+      {
+        "comment": "",
+        "key": "No summary available",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 85
+        }
+      },
+      {
+        "comment": "",
+        "key": "Check back later for your daily insights",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 88
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld%%",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 151
+        }
+      },
+      {
+        "comment": "",
+        "key": "completed",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 153
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 170
+        }
+      },
+      {
+        "comment": "",
+        "key": "Done",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 174
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 180
+        }
+      },
+      {
+        "comment": "",
+        "key": "Missed",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 184
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 190
+        }
+      },
+      {
+        "comment": "",
+        "key": "Planned",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 194
+        }
+      },
+      {
+        "comment": "",
+        "key": "Summary",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 255
+        }
+      },
+      {
+        "comment": "",
+        "key": "Time Breakdown",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 277
+        }
+      },
+      {
+        "comment": "",
+        "key": "Total Scheduled",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 291
+        }
+      },
+      {
+        "comment": "",
+        "key": "Events",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 339
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld back-to-back meeting%@",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 361
+        }
+      },
+      {
+        "comment": "",
+        "key": "Longest meeting: %lld min",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 370
+        }
+      },
+      {
+        "comment": "",
+        "key": "Health",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 406
+        }
+      },
+      {
+        "comment": "",
+        "key": "Resting HR: %lld bpm",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 450
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld%% of goal",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 483
+        }
+      },
+      {
+        "comment": "",
+        "key": "Highlights",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 498
+        }
+      },
+      {
+        "comment": "",
+        "key": "Add Reflection",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 542
+        }
+      },
+      {
+        "comment": "",
+        "key": "Rate your day and add notes",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 546
+        }
+      }
+    ]
+  },
+  "version": 1
+}

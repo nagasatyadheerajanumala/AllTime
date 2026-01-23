@@ -1,0 +1,184 @@
+{
+  "source": "/Users/dheeraj/Desktop/AllTime/AllTime/Views/Components/BriefingComponents.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Show Less",
+        "location": {
+          "startingColumn": 61,
+          "startingLine": 161
+        }
+      },
+      {
+        "comment": "",
+        "key": "Show More",
+        "location": {
+          "startingColumn": 75,
+          "startingLine": 161
+        }
+      },
+      {
+        "comment": "",
+        "key": "Focus Time Blocked!",
+        "location": {
+          "startingColumn": 16,
+          "startingLine": 332
+        }
+      },
+      {
+        "comment": "",
+        "key": "Unable to Block Time",
+        "location": {
+          "startingColumn": 16,
+          "startingLine": 342
+        }
+      },
+      {
+        "comment": "",
+        "key": "Show Less",
+        "location": {
+          "startingColumn": 43,
+          "startingLine": 296
+        }
+      },
+      {
+        "comment": "",
+        "key": "Show More",
+        "location": {
+          "startingColumn": 57,
+          "startingLine": 296
+        }
+      },
+      {
+        "comment": "",
+        "key": "OK",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 333
+        }
+      },
+      {
+        "comment": "",
+        "key": "Enable Focus Mode",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 335
+        }
+      },
+      {
+        "comment": "",
+        "key": "OK",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 343
+        }
+      },
+      {
+        "comment": "",
+        "key": "Suggestions",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 579
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 585
+        }
+      },
+      {
+        "comment": "",
+        "key": "Show Less",
+        "location": {
+          "startingColumn": 59,
+          "startingLine": 664
+        }
+      },
+      {
+        "comment": "",
+        "key": "Show More",
+        "location": {
+          "startingColumn": 73,
+          "startingLine": 664
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 699
+        }
+      },
+      {
+        "comment": "",
+        "key": "Focus Windows",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 733
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld available",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 739
+        }
+      },
+      {
+        "comment": "",
+        "key": "%@ - %@",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 797
+        }
+      },
+      {
+        "comment": "",
+        "key": "Show Less",
+        "location": {
+          "startingColumn": 59,
+          "startingLine": 820
+        }
+      },
+      {
+        "comment": "",
+        "key": "Show More",
+        "location": {
+          "startingColumn": 73,
+          "startingLine": 820
+        }
+      },
+      {
+        "comment": "",
+        "key": "Energy Dips",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 871
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld predicted",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 877
+        }
+      },
+      {
+        "comment": "",
+        "key": "Key Metrics",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 903
+        }
+      }
+    ]
+  },
+  "version": 1
+}

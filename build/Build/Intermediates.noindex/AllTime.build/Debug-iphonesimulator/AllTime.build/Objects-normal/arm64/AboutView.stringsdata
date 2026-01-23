@@ -1,0 +1,120 @@
+{
+  "source": "/Users/dheeraj/Desktop/AllTime/AllTime/Views/AboutView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "About",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 94
+        }
+      },
+      {
+        "comment": "",
+        "key": "Clara",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 13
+        }
+      },
+      {
+        "comment": "",
+        "key": "Version 1.0.0",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 17
+        }
+      },
+      {
+        "comment": "",
+        "key": "About Clara",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 29
+        }
+      },
+      {
+        "comment": "",
+        "key": "Clara is your intelligent calendar assistant that brings together events from Google, Outlook, and Apple calendars. Get AI-powered daily briefings, work-life balance insights, and personalized recommendations.",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 32
+        }
+      },
+      {
+        "comment": "",
+        "key": "Description",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 38
+        }
+      },
+      {
+        "comment": "",
+        "key": "Features",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 50
+        }
+      },
+      {
+        "comment": "",
+        "key": "Privacy Policy",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 58
+        }
+      },
+      {
+        "comment": "",
+        "key": "Terms of Service",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 65
+        }
+      },
+      {
+        "comment": "",
+        "key": "Support",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 72
+        }
+      },
+      {
+        "comment": "",
+        "key": "Legal",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 76
+        }
+      },
+      {
+        "comment": "",
+        "key": "Made with ❤️ by the Clara Team",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 81
+        }
+      },
+      {
+        "comment": "",
+        "key": "© 2025 Clara. All rights reserved.",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 85
+        }
+      },
+      {
+        "comment": "",
+        "key": "Credits",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 91
+        }
+      }
+    ]
+  },
+  "version": 1
+}

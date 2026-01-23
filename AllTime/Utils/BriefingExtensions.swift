@@ -5,45 +5,70 @@ import SwiftUI
 extension String {
     /// Converts ISO8601 time string to readable format (e.g., "9:00 AM")
     func toReadableTime() -> String {
-        // Handle various time formats
-        let formatters: [DateFormatter] = [
-            {
-                let f = DateFormatter()
-                f.dateFormat = "HH:mm:ss"
-                f.timeZone = TimeZone.current
-                return f
-            }(),
-            {
-                let f = DateFormatter()
-                f.dateFormat = "HH:mm"
-                f.timeZone = TimeZone.current
-                return f
-            }(),
-            {
-                let f = DateFormatter()
-                f.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
-                f.timeZone = TimeZone.current
-                return f
-            }(),
-            {
-                let f = DateFormatter()
-                f.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZ"
-                f.timeZone = TimeZone.current
-                return f
-            }()
-        ]
-
         let outputFormatter = DateFormatter()
         outputFormatter.dateFormat = "h:mm a"
         outputFormatter.timeZone = TimeZone.current
 
-        for formatter in formatters {
-            if let date = formatter.date(from: self) {
+        // First, try to extract time from ISO format (contains 'T')
+        if self.contains("T") {
+            // Extract just the time portion after 'T'
+            let parts = self.components(separatedBy: "T")
+            if parts.count >= 2 {
+                var timePart = parts[1]
+                // Remove timezone suffix if present (Z, +00:00, etc.)
+                if let zIndex = timePart.firstIndex(of: "Z") {
+                    timePart = String(timePart[..<zIndex])
+                }
+                if let plusIndex = timePart.firstIndex(of: "+") {
+                    timePart = String(timePart[..<plusIndex])
+                }
+                if let minusIndex = timePart.lastIndex(of: "-"), timePart.distance(from: timePart.startIndex, to: minusIndex) > 5 {
+                    timePart = String(timePart[..<minusIndex])
+                }
+                // Remove milliseconds if present
+                if let dotIndex = timePart.firstIndex(of: ".") {
+                    timePart = String(timePart[..<dotIndex])
+                }
+
+                // Parse HH:mm:ss or HH:mm
+                let timeFormatter = DateFormatter()
+                timeFormatter.timeZone = TimeZone.current
+
+                for format in ["HH:mm:ss", "HH:mm"] {
+                    timeFormatter.dateFormat = format
+                    if let date = timeFormatter.date(from: timePart) {
+                        return outputFormatter.string(from: date)
+                    }
+                }
+            }
+        }
+
+        // Try direct parsing for simple time formats
+        let simpleFormatters: [String] = ["HH:mm:ss", "HH:mm", "h:mm a", "h:mma"]
+        let timeFormatter = DateFormatter()
+        timeFormatter.timeZone = TimeZone.current
+
+        for format in simpleFormatters {
+            timeFormatter.dateFormat = format
+            if let date = timeFormatter.date(from: self) {
                 return outputFormatter.string(from: date)
             }
         }
 
-        // Return original if parsing fails
+        // Last resort: try ISO8601DateFormatter
+        let isoFormatter = ISO8601DateFormatter()
+        for options: ISO8601DateFormatter.Options in [
+            [.withInternetDateTime, .withFractionalSeconds],
+            [.withInternetDateTime],
+            [.withFullDate, .withTime, .withColonSeparatorInTime]
+        ] {
+            isoFormatter.formatOptions = options
+            if let date = isoFormatter.date(from: self) {
+                return outputFormatter.string(from: date)
+            }
+        }
+
+        // If all parsing fails, return original (shouldn't happen)
         return self
     }
 

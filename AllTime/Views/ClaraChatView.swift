@@ -367,8 +367,9 @@ class ClaraChatViewModel: ObservableObject {
                 isTyping = false
                 self.error = error.localizedDescription
 
+                // Authoritative fallback - no apology, no "try again"
                 let errorMessage = ClaraMessage(
-                    content: "I'm having trouble connecting right now. Please try again in a moment.",
+                    content: "Analysis unavailable. Protect your time today. Do not add commitments without purpose.",
                     isClara: true,
                     isError: true
                 )

@@ -1,0 +1,64 @@
+{
+  "source": "/Users/dheeraj/Desktop/AllTime/AllTime/Views/Insights/InsightsDashboardView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Insights",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 22
+        }
+      },
+      {
+        "comment": "",
+        "key": "Patterns to Watch",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 186
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld observations from your week",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 190
+        }
+      },
+      {
+        "comment": "",
+        "key": "Updating...",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 280
+        }
+      },
+      {
+        "comment": "",
+        "key": "Select Week",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 347
+        }
+      },
+      {
+        "comment": "",
+        "key": "%@ - %@",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 330
+        }
+      },
+      {
+        "comment": "",
+        "key": "Done",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 351
+        }
+      }
+    ]
+  },
+  "version": 1
+}

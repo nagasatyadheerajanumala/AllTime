@@ -1,0 +1,112 @@
+{
+  "source": "/Users/dheeraj/Desktop/AllTime/AllTime/Views/DaySummaryView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Day Summary",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 61
+        }
+      },
+      {
+        "comment": "",
+        "key": "Done",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 65
+        }
+      },
+      {
+        "comment": "",
+        "key": "Today's Numbers",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 136
+        }
+      },
+      {
+        "comment": "",
+        "key": "Meetings Completed",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 170
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 176
+        }
+      },
+      {
+        "comment": "",
+        "key": "+ %lld more",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 187
+        }
+      },
+      {
+        "comment": "",
+        "key": "Accomplishments",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 206
+        }
+      },
+      {
+        "comment": "",
+        "key": "Tomorrow at a Glance",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 237
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 243
+        }
+      },
+      {
+        "comment": "",
+        "key": "meetings",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 246
+        }
+      },
+      {
+        "comment": "",
+        "key": "First meeting",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 255
+        }
+      },
+      {
+        "comment": "",
+        "key": "- Clara",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 292
+        }
+      },
+      {
+        "comment": "",
+        "key": "Preparing your day summary...",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 307
+        }
+      }
+    ]
+  },
+  "version": 1
+}

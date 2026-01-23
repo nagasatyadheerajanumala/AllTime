@@ -1,0 +1,144 @@
+{
+  "source": "/Users/dheeraj/Desktop/AllTime/AllTime/Views/Insights/LifeInsightsView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Regenerate Insights",
+        "location": {
+          "startingColumn": 13,
+          "startingLine": 57
+        }
+      },
+      {
+        "comment": "",
+        "key": "Regenerate",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 61
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cancel",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 64
+        }
+      },
+      {
+        "comment": "",
+        "key": "This will use AI to generate fresh insights based on your latest calendar data. You have %lld regenerations left today.",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 66
+        }
+      },
+      {
+        "comment": "",
+        "key": "Monthly Summary",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 74
+        }
+      },
+      {
+        "comment": "",
+        "key": "Analyzing your month...",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 210
+        }
+      },
+      {
+        "comment": "",
+        "key": "Unable to load insights",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 231
+        }
+      },
+      {
+        "comment": "",
+        "key": "Try Again",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 243
+        }
+      },
+      {
+        "comment": "",
+        "key": "Your Month",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 276
+        }
+      },
+      {
+        "comment": "",
+        "key": "Life Patterns",
+        "location": {
+          "startingColumn": 35,
+          "startingLine": 296
+        }
+      },
+      {
+        "comment": "",
+        "key": "Patterns to Watch",
+        "location": {
+          "startingColumn": 35,
+          "startingLine": 319
+        }
+      },
+      {
+        "comment": "",
+        "key": "What Went Well",
+        "location": {
+          "startingColumn": 35,
+          "startingLine": 342
+        }
+      },
+      {
+        "comment": "",
+        "key": "Looking Ahead",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 393
+        }
+      },
+      {
+        "comment": "",
+        "key": "Focus Areas",
+        "location": {
+          "startingColumn": 35,
+          "startingLine": 413
+        }
+      },
+      {
+        "comment": "",
+        "key": "Regenerate Insights",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 452
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld regenerations remaining today",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 472
+        }
+      },
+      {
+        "comment": "",
+        "key": "Priority",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 520
+        }
+      }
+    ]
+  },
+  "version": 1
+}

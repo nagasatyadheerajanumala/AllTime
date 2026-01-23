@@ -158,6 +158,11 @@ struct TodaySummaryDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var addedFocusWindowIds: Set<String> = []
 
+    // Collapsible section states
+    @State private var isStoryExpanded = false
+    @State private var isMetricsExpanded = true
+    @State private var isEnergyExpanded = true
+
     /// Get fresh sleep hours, falling back to backend data
     private var displaySleepHours: Double? {
         if let freshMinutes = freshHealthMetrics?.sleepMinutes, freshMinutes > 0 {
@@ -193,49 +198,54 @@ struct TodaySummaryDetailView: View {
     var body: some View {
         NavigationView {
             ScrollView {
-                VStack(alignment: .leading, spacing: DesignSystem.Today.sectionSpacing) {
-                    // Header card with mood gradient
-                    headerCard
+                VStack(spacing: 16) {
+                    // Compact header with mood
+                    compactHeader
+                        .padding(.horizontal, 16)
 
-                    // Day Narrative (plain-English story about the day)
+                    // Primary Recommendation (THE one thing)
+                    if let recommendation = briefing?.primaryRecommendation {
+                        primaryRecommendationCard(recommendation)
+                            .padding(.horizontal, 16)
+                    }
+
+                    // Day Story (collapsible - shows headline + expandable story)
                     if let narrative = briefing?.dayNarrative {
-                        dayNarrativeSection(narrative: narrative)
+                        dayStorySection(narrative: narrative)
+                            .padding(.horizontal, 16)
                     }
 
-                    // Key Metrics (above Health Insights)
-                    if let metrics = briefing?.keyMetrics {
-                        keyMetricsSection(metrics: metrics)
+                    // Energy Budget Visual
+                    if let energyBudget = briefing?.energyBudget {
+                        energyBudgetSection(energyBudget)
+                            .padding(.horizontal, 16)
                     }
 
-                    // Health Insights Card - uses fresh HealthKit data when available
-                    if let briefing = briefing {
-                        HealthInsightsCard(
-                            keyMetrics: briefing.keyMetrics,
-                            suggestions: briefing.suggestions,
-                            quickStats: briefing.quickStats,
-                            freshHealthMetrics: freshHealthMetrics
-                        )
-                    }
+                    // Quick metrics strip
+                    metricsStripSection
+                        .padding(.horizontal, 16)
 
-                    // Focus Windows
+                    // Focus Windows (actionable)
                     if let focusWindows = briefing?.focusWindows, !focusWindows.isEmpty {
                         focusWindowsSection(windows: focusWindows)
+                            .padding(.horizontal, 16)
                     }
 
-                    // Energy Dips
+                    // Energy timeline (visual, not text)
                     if let dips = briefing?.energyDips, !dips.isEmpty {
-                        energyDipsSection(dips: dips)
+                        energyTimelineSection(dips: dips)
+                            .padding(.horizontal, 16)
                     }
 
-                    // Enhanced AI Summary Section
-                    if let briefing = briefing {
-                        aiSummarySection(briefing: briefing)
+                    // Clara Prompts (ask Clara)
+                    if let prompts = briefing?.claraPrompts, !prompts.isEmpty {
+                        claraPromptsSection(prompts)
+                            .padding(.horizontal, 16)
                     }
 
-                    Spacer(minLength: DesignSystem.Spacing.xl)
+                    Spacer(minLength: 40)
                 }
-                .padding(.horizontal, DesignSystem.Spacing.screenMargin)
-                .padding(.top, DesignSystem.Spacing.md)
+                .padding(.top, 16)
             }
             .background(DesignSystem.Colors.background)
             .navigationTitle("Today's Overview")
@@ -249,6 +259,708 @@ struct TodaySummaryDetailView: View {
             }
         }
         .presentationDragIndicator(.visible)
+    }
+
+    // MARK: - Primary Recommendation Card
+    private func primaryRecommendationCard(_ recommendation: PrimaryRecommendation) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Header
+            HStack(spacing: 8) {
+                Image(systemName: recommendation.icon ?? "sparkles")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(.white)
+
+                Text("Top Priority")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundColor(.white.opacity(0.9))
+                    .textCase(.uppercase)
+                    .tracking(0.5)
+
+                Spacer()
+
+                if let urgency = recommendation.urgency {
+                    Text(urgency.replacingOccurrences(of: "_", with: " ").capitalized)
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(.white.opacity(0.8))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Capsule().fill(Color.white.opacity(0.2)))
+                }
+            }
+
+            // Action
+            Text(recommendation.action)
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundColor(.white)
+                .fixedSize(horizontal: false, vertical: true)
+
+            // Reason (if available)
+            if let reason = recommendation.reason, !reason.isEmpty {
+                Text(reason)
+                    .font(.system(size: 13))
+                    .foregroundColor(.white.opacity(0.85))
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            // Action Button
+            Button(action: {
+                handlePrimaryRecommendationAction(recommendation)
+            }) {
+                HStack(spacing: 8) {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.system(size: 14, weight: .semibold))
+                    Text(actionButtonLabel(for: recommendation))
+                        .font(.system(size: 14, weight: .semibold))
+                }
+                .foregroundColor(recommendation.urgencyColor)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .frame(maxWidth: .infinity)
+                .background(
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(Color.white)
+                )
+            }
+            .buttonStyle(PlainButtonStyle())
+            .padding(.top, 4)
+        }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(
+                    LinearGradient(
+                        colors: [recommendation.urgencyColor, recommendation.urgencyColor.opacity(0.8)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+        )
+    }
+
+    // Action button label based on recommendation category
+    private func actionButtonLabel(for recommendation: PrimaryRecommendation) -> String {
+        switch recommendation.category?.lowercased() {
+        case "protect_time", "focus":
+            return "Block Focus Time"
+        case "reduce_load":
+            return "Review Calendar"
+        case "health":
+            return "Set Reminder"
+        case "catch_up":
+            return "Schedule Now"
+        default:
+            return "Take Action"
+        }
+    }
+
+    // Handle primary recommendation action
+    private func handlePrimaryRecommendationAction(_ recommendation: PrimaryRecommendation) {
+        // Based on category, perform appropriate action
+        switch recommendation.category?.lowercased() {
+        case "protect_time", "focus":
+            // Open Quick Book to block focus time
+            NotificationCenter.default.post(name: NSNotification.Name("OpenQuickBook"), object: nil)
+        case "reduce_load":
+            // Could open calendar or decline suggestions
+            NotificationCenter.default.post(name: NSNotification.Name("OpenCalendar"), object: nil)
+        default:
+            // Default: open Plan My Day
+            NotificationCenter.default.post(name: NSNotification.Name("OpenPlanMyDay"), object: nil)
+        }
+
+        // Haptic feedback
+        let generator = UIImpactFeedbackGenerator(style: .medium)
+        generator.impactOccurred()
+    }
+
+    // MARK: - Day Story Section (Clear Read More)
+    private func dayStorySection(narrative: DayNarrative) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Icon + Headline (always visible)
+            HStack(spacing: 10) {
+                Image(systemName: narrative.toneIcon)
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(narrative.toneColor)
+
+                Text(narrative.headline)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Spacer()
+            }
+
+            // Key points as colored tags (always visible)
+            if let observations = narrative.keyObservations, !observations.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(Array(observations.prefix(3).enumerated()), id: \.offset) { index, obs in
+                            let shortText = String(obs.split(separator: " ").prefix(5).joined(separator: " "))
+                            Text(shortText)
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundColor(storyTagColor(index))
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
+                                .background(Capsule().fill(storyTagColor(index).opacity(0.12)))
+                        }
+                    }
+                }
+            }
+
+            // Health alert (always visible if exists)
+            if let healthConnection = narrative.healthConnection, !healthConnection.isEmpty {
+                HStack(spacing: 8) {
+                    Image(systemName: "heart.fill")
+                        .font(.system(size: 12))
+                        .foregroundColor(DesignSystem.Colors.errorRed)
+                    Text(healthConnection)
+                        .font(.system(size: 12))
+                        .foregroundColor(DesignSystem.Colors.errorRed)
+                        .lineLimit(2)
+                }
+                .padding(10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(RoundedRectangle(cornerRadius: 10).fill(DesignSystem.Colors.errorRed.opacity(0.08)))
+            }
+
+            // Clear "Read full story" button
+            Button(action: {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                    isStoryExpanded.toggle()
+                }
+            }) {
+                HStack(spacing: 6) {
+                    Text(isStoryExpanded ? "Hide details" : "Read full story")
+                        .font(.system(size: 13, weight: .medium))
+                    Image(systemName: isStoryExpanded ? "chevron.up" : "arrow.right")
+                        .font(.system(size: 11, weight: .semibold))
+                }
+                .foregroundColor(DesignSystem.Colors.primary)
+                .padding(.top, 4)
+            }
+            .buttonStyle(PlainButtonStyle())
+
+            // Expandable content
+            if isStoryExpanded {
+                VStack(alignment: .leading, spacing: 12) {
+                    // Full story
+                    Text(narrative.story)
+                        .font(.system(size: 14))
+                        .foregroundColor(DesignSystem.Colors.primaryText)
+                        .lineSpacing(4)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    // Key observations as bullet points
+                    if let observations = narrative.keyObservations, !observations.isEmpty {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Key Points")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundColor(DesignSystem.Colors.secondaryText)
+
+                            ForEach(observations, id: \.self) { observation in
+                                HStack(alignment: .top, spacing: 8) {
+                                    Circle()
+                                        .fill(narrative.toneColor)
+                                        .frame(width: 5, height: 5)
+                                        .padding(.top, 6)
+
+                                    Text(observation)
+                                        .font(.system(size: 13))
+                                        .foregroundColor(DesignSystem.Colors.primaryText)
+                                        .fixedSize(horizontal: false, vertical: true)
+                                }
+                            }
+                        }
+                    }
+
+                    // Health connection
+                    if let healthConnection = narrative.healthConnection, !healthConnection.isEmpty {
+                        HStack(alignment: .top, spacing: 10) {
+                            Image(systemName: "heart.fill")
+                                .font(.system(size: 12))
+                                .foregroundColor(DesignSystem.Colors.errorRed)
+
+                            Text(healthConnection)
+                                .font(.system(size: 13))
+                                .foregroundColor(DesignSystem.Colors.primaryText)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .padding(12)
+                        .background(
+                            RoundedRectangle(cornerRadius: 10)
+                                .fill(DesignSystem.Colors.errorRed.opacity(0.08))
+                        )
+                    }
+
+                    // Looking ahead
+                    if let lookingAhead = narrative.lookingAhead, !lookingAhead.isEmpty {
+                        HStack(alignment: .top, spacing: 10) {
+                            Image(systemName: "arrow.forward.circle.fill")
+                                .font(.system(size: 12))
+                                .foregroundColor(DesignSystem.Colors.blue)
+
+                            Text(lookingAhead)
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundColor(DesignSystem.Colors.blue)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .padding(12)
+                        .background(
+                            RoundedRectangle(cornerRadius: 10)
+                                .fill(DesignSystem.Colors.blue.opacity(0.08))
+                        )
+                    }
+                }
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(DesignSystem.Colors.cardBackground)
+        )
+    }
+
+    // MARK: - Energy Budget Section (Visual Ring + Compact Info)
+    private func energyBudgetSection(_ budget: EnergyBudget) -> some View {
+        VStack(spacing: 16) {
+            // Top row: Ring + Trajectory + Key info
+            HStack(spacing: 20) {
+                // Energy Ring (visual)
+                energyRingView(current: budget.currentLevel ?? 0, endOfDay: budget.predictedEndOfDay ?? 0)
+
+                // Info column
+                VStack(alignment: .leading, spacing: 8) {
+                    // Trajectory badge
+                    if let trajectory = budget.trajectory {
+                        HStack(spacing: 4) {
+                            Image(systemName: trajectoryIcon(trajectory))
+                                .font(.system(size: 12, weight: .semibold))
+                            Text(budget.trajectoryLabel ?? trajectory.capitalized)
+                                .font(.system(size: 12, weight: .medium))
+                        }
+                        .foregroundColor(trajectoryColor(trajectory))
+                    }
+
+                    // Capacity label
+                    if let capacityLabel = budget.capacityLabel {
+                        Text(capacityLabel)
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(DesignSystem.Colors.primaryText)
+                    }
+
+                    // Peak time (most important)
+                    if let peak = budget.peakWindow {
+                        HStack(spacing: 6) {
+                            Image(systemName: "sun.max.fill")
+                                .font(.system(size: 11))
+                                .foregroundColor(DesignSystem.Colors.amber)
+                            Text("Peak: \(peak.displayLabel)")
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundColor(DesignSystem.Colors.secondaryText)
+                        }
+                    }
+                }
+
+                Spacer()
+            }
+
+            // Bottom row: Boosts & Drains side by side
+            HStack(spacing: 12) {
+                // Boosts
+                if let deposits = budget.energyDeposits, !deposits.isEmpty {
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "arrow.up.circle.fill")
+                                .font(.system(size: 11))
+                                .foregroundColor(DesignSystem.Colors.emerald)
+                            Text("Boosts")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundColor(DesignSystem.Colors.emerald)
+                        }
+                        ForEach(deposits.prefix(2), id: \.label) { deposit in
+                            Text("• \(deposit.label ?? "")")
+                                .font(.system(size: 11))
+                                .foregroundColor(DesignSystem.Colors.primaryText)
+                                .lineLimit(1)
+                        }
+                    }
+                    .padding(10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(RoundedRectangle(cornerRadius: 10).fill(DesignSystem.Colors.emerald.opacity(0.08)))
+                }
+
+                // Drains
+                if let drains = budget.energyDrains, !drains.isEmpty {
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "arrow.down.circle.fill")
+                                .font(.system(size: 11))
+                                .foregroundColor(DesignSystem.Colors.errorRed)
+                            Text("Drains")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundColor(DesignSystem.Colors.errorRed)
+                        }
+                        ForEach(drains.prefix(2), id: \.label) { drain in
+                            Text("• \(drain.label ?? "")")
+                                .font(.system(size: 11))
+                                .foregroundColor(DesignSystem.Colors.primaryText)
+                                .lineLimit(1)
+                        }
+                    }
+                    .padding(10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(RoundedRectangle(cornerRadius: 10).fill(DesignSystem.Colors.errorRed.opacity(0.08)))
+                }
+            }
+
+            // Recovery recommendation (if needed)
+            if budget.recoveryNeeded == true, let recommendation = budget.recoveryRecommendation {
+                HStack(spacing: 8) {
+                    Image(systemName: "cross.circle.fill")
+                        .font(.system(size: 12))
+                        .foregroundColor(DesignSystem.Colors.emerald)
+                    Text(recommendation)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(DesignSystem.Colors.emerald)
+                }
+                .padding(10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(RoundedRectangle(cornerRadius: 10).fill(DesignSystem.Colors.emerald.opacity(0.1)))
+            }
+        }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(DesignSystem.Colors.cardBackground)
+        )
+    }
+
+    // Energy Ring View (Visual)
+    private func energyRingView(current: Int, endOfDay: Int) -> some View {
+        ZStack {
+            // Background ring
+            Circle()
+                .stroke(DesignSystem.Colors.tertiaryText.opacity(0.2), lineWidth: 8)
+                .frame(width: 80, height: 80)
+
+            // Progress ring
+            Circle()
+                .trim(from: 0, to: CGFloat(current) / 100.0)
+                .stroke(
+                    energyColor(current),
+                    style: StrokeStyle(lineWidth: 8, lineCap: .round)
+                )
+                .frame(width: 80, height: 80)
+                .rotationEffect(.degrees(-90))
+
+            // Center content
+            VStack(spacing: 2) {
+                Text("\(current)")
+                    .font(.system(size: 24, weight: .bold, design: .rounded))
+                    .foregroundColor(energyColor(current))
+
+                HStack(spacing: 2) {
+                    Image(systemName: current > endOfDay ? "arrow.down" : (current < endOfDay ? "arrow.up" : "arrow.right"))
+                        .font(.system(size: 8, weight: .bold))
+                    Text("\(endOfDay)")
+                        .font(.system(size: 10, weight: .semibold))
+                }
+                .foregroundColor(energyColor(endOfDay))
+            }
+        }
+    }
+
+    private func trajectoryIcon(_ trajectory: String) -> String {
+        switch trajectory.lowercased() {
+        case "rising": return "arrow.up.right"
+        case "declining": return "arrow.down.right"
+        case "recovering": return "arrow.up.forward.circle"
+        default: return "arrow.right"
+        }
+    }
+
+    private func trajectoryColor(_ trajectory: String) -> Color {
+        switch trajectory.lowercased() {
+        case "rising", "recovering": return DesignSystem.Colors.emerald
+        case "declining": return DesignSystem.Colors.errorRed
+        default: return DesignSystem.Colors.blue
+        }
+    }
+
+    private func energyColor(_ level: Int) -> Color {
+        if level >= 70 { return DesignSystem.Colors.emerald }
+        if level >= 40 { return DesignSystem.Colors.amber }
+        return DesignSystem.Colors.errorRed
+    }
+
+    private func storyTagColor(_ index: Int) -> Color {
+        let colors: [Color] = [DesignSystem.Colors.blue, DesignSystem.Colors.violet, DesignSystem.Colors.amber]
+        return colors[index % colors.count]
+    }
+
+    // MARK: - Clara Prompts Section
+    private func claraPromptsSection(_ prompts: [ClaraPrompt]) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: "bubble.left.and.bubble.right.fill")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(DesignSystem.Colors.violet)
+
+                Text("Ask Clara")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+
+                Spacer()
+            }
+
+            // Horizontal scroll of prompt chips
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 10) {
+                    ForEach(prompts.prefix(5)) { prompt in
+                        Button(action: {
+                            // TODO: Open Clara with this prompt
+                        }) {
+                            HStack(spacing: 6) {
+                                Image(systemName: prompt.displayIcon)
+                                    .font(.system(size: 12))
+                                Text(prompt.label ?? "Ask")
+                                    .font(.system(size: 12, weight: .medium))
+                            }
+                            .foregroundColor(DesignSystem.Colors.violet)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(
+                                RoundedRectangle(cornerRadius: 20)
+                                    .fill(DesignSystem.Colors.violet.opacity(0.1))
+                            )
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                    }
+                }
+            }
+        }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(DesignSystem.Colors.cardBackground)
+        )
+    }
+
+    // MARK: - Compact Header
+    private var compactHeader: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Greeting
+            if let greeting = summaryTile?.greeting ?? briefing?.greeting {
+                Text(greeting)
+                    .font(.system(size: 24, weight: .bold))
+                    .foregroundColor(.white)
+            }
+
+            // Mood + Quick stats row
+            HStack(spacing: 12) {
+                // Mood badge
+                HStack(spacing: 6) {
+                    if let emoji = summaryTile?.moodEmoji {
+                        Text(emoji)
+                            .font(.system(size: 16))
+                    }
+                    Text(summaryTile?.moodLabel ?? briefing?.moodLabel ?? "")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(.white.opacity(0.9))
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(Capsule().fill(Color.white.opacity(0.2)))
+
+                // Quick stats as pills
+                if let meetings = summaryTile?.meetingsLabel ?? briefing?.quickStats?.meetingsLabel {
+                    quickStatPill(icon: "calendar", text: meetings)
+                }
+                if let focus = summaryTile?.focusTimeAvailable ?? briefing?.quickStats?.focusTimeAvailable {
+                    quickStatPill(icon: "brain.head.profile", text: focus)
+                }
+            }
+        }
+        .padding(20)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 20)
+                .fill(summaryTile?.moodGradient ?? briefing?.moodGradient ?? TodayTileType.summary.defaultGradient)
+        )
+    }
+
+    private func quickStatPill(icon: String, text: String) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: icon)
+                .font(.system(size: 11, weight: .semibold))
+            Text(text)
+                .font(.system(size: 12, weight: .medium))
+        }
+        .foregroundColor(.white.opacity(0.9))
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(Capsule().fill(Color.white.opacity(0.15)))
+    }
+
+    // MARK: - Metrics Strip Section
+    private var metricsStripSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Today's Metrics")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundColor(DesignSystem.Colors.secondaryText)
+
+            HStack(spacing: 10) {
+                // Sleep
+                if let sleep = displaySleepHours, sleep > 0 {
+                    compactMetric(
+                        icon: "moon.fill",
+                        value: String(format: "%.1f", sleep),
+                        unit: "h",
+                        label: "Sleep",
+                        color: sleep >= 7 ? DesignSystem.Colors.emerald : (sleep >= 6 ? DesignSystem.Colors.amber : DesignSystem.Colors.errorRed)
+                    )
+                }
+
+                // Steps
+                if let steps = displaySteps, steps > 0 {
+                    compactMetric(
+                        icon: "figure.walk",
+                        value: steps >= 1000 ? String(format: "%.1fk", Double(steps) / 1000) : "\(steps)",
+                        unit: "",
+                        label: "Steps",
+                        color: steps >= 8000 ? DesignSystem.Colors.emerald : (steps >= 5000 ? DesignSystem.Colors.blue : DesignSystem.Colors.amber)
+                    )
+                }
+
+                // Meetings
+                if let metrics = briefing?.keyMetrics, metrics.effectiveMeetingsCount > 0 {
+                    compactMetric(
+                        icon: "calendar",
+                        value: "\(metrics.effectiveMeetingsCount)",
+                        unit: "",
+                        label: "Meetings",
+                        color: metrics.effectiveMeetingsCount >= 6 ? DesignSystem.Colors.errorRed : (metrics.effectiveMeetingsCount >= 4 ? DesignSystem.Colors.amber : DesignSystem.Colors.blue)
+                    )
+                }
+
+                // Free time
+                if let metrics = briefing?.keyMetrics, metrics.effectiveLongestFreeBlock > 0 {
+                    compactMetric(
+                        icon: "clock.fill",
+                        value: metrics.effectiveLongestFreeBlock >= 60 ? "\(metrics.effectiveLongestFreeBlock / 60)h" : "\(metrics.effectiveLongestFreeBlock)m",
+                        unit: "",
+                        label: "Free",
+                        color: DesignSystem.Colors.emerald
+                    )
+                }
+            }
+        }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(DesignSystem.Colors.cardBackground)
+        )
+    }
+
+    private func compactMetric(icon: String, value: String, unit: String, label: String, color: Color) -> some View {
+        VStack(spacing: 6) {
+            Image(systemName: icon)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundColor(color)
+
+            HStack(spacing: 1) {
+                Text(value)
+                    .font(.system(size: 18, weight: .bold, design: .rounded))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                if !unit.isEmpty {
+                    Text(unit)
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                }
+            }
+
+            Text(label)
+                .font(.system(size: 10, weight: .medium))
+                .foregroundColor(DesignSystem.Colors.tertiaryText)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 12)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(color.opacity(0.1))
+        )
+    }
+
+    // MARK: - Energy Timeline (Visual)
+    private func energyTimelineSection(dips: [EnergyDip]) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: "battery.50")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(DesignSystem.Colors.amber)
+
+                Text("Energy Timeline")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+
+                Spacer()
+            }
+
+            // Visual timeline
+            HStack(spacing: 8) {
+                ForEach(dips.prefix(3), id: \.dipId) { dip in
+                    energyDipCard(dip: dip)
+                }
+            }
+        }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(DesignSystem.Colors.cardBackground)
+        )
+    }
+
+    private func energyDipCard(dip: EnergyDip) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            // Time
+            Text(dip.displayTime)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundColor(DesignSystem.Colors.primaryText)
+
+            // Severity indicator
+            HStack(spacing: 4) {
+                ForEach(0..<3, id: \.self) { i in
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(i < dipSeverityLevel(dip) ? DesignSystem.Colors.amber : DesignSystem.Colors.tertiaryText.opacity(0.3))
+                        .frame(width: 16, height: 4)
+                }
+            }
+
+            // Recommendation
+            if let recommendation = dip.recommendation {
+                Text(recommendation.split(separator: " ").prefix(4).joined(separator: " "))
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(2)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(DesignSystem.Colors.amber.opacity(0.08))
+        )
+    }
+
+    private func dipSeverityLevel(_ dip: EnergyDip) -> Int {
+        // Return 1-3 based on severity
+        switch dip.severity.lowercased() {
+        case "high": return 3
+        case "medium": return 2
+        default: return 1
+        }
     }
 
     // MARK: - Header Card

@@ -1,0 +1,136 @@
+{
+  "source": "/Users/dheeraj/Desktop/AllTime/AllTime/Views/Components/CollapsibleTiles.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Clara recommends",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 69
+        }
+      },
+      {
+        "comment": "",
+        "key": "Take Action",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 97
+        }
+      },
+      {
+        "comment": "",
+        "key": "Clara",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 163
+        }
+      },
+      {
+        "comment": "",
+        "key": "Tap for suggestions",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 168
+        }
+      },
+      {
+        "comment": "",
+        "key": "Ready",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 181
+        }
+      },
+      {
+        "comment": "",
+        "key": "What can I help with?",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 205
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 294
+        }
+      },
+      {
+        "comment": "",
+        "key": "ENERGY DRAINS",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 344
+        }
+      },
+      {
+        "comment": "",
+        "key": "ENERGY DEPOSITS",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 357
+        }
+      },
+      {
+        "comment": "",
+        "key": "All clear",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 583
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 565
+        }
+      },
+      {
+        "comment": "",
+        "key": "Schedule",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 662
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld event%@",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 668
+        }
+      },
+      {
+        "comment": "",
+        "key": "+ %lld more",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 694
+        }
+      },
+      {
+        "comment": "",
+        "key": "Tap to see all %lld events",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 713
+        }
+      },
+      {
+        "comment": "",
+        "key": "Collapsible Tiles Preview",
+        "location": {
+          "startingColumn": 1,
+          "startingLine": 731
+        }
+      }
+    ]
+  },
+  "version": 1
+}

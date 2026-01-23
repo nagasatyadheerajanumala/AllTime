@@ -1,0 +1,24 @@
+{
+  "source": "/Users/dheeraj/Desktop/AllTime/AllTime/Views/Components/EventColorPicker.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Color",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 12
+        }
+      },
+      {
+        "comment": "",
+        "key": "Event Color",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 78
+        }
+      }
+    ]
+  },
+  "version": 1
+}

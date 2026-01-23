@@ -1,0 +1,72 @@
+{
+  "source": "/Users/dheeraj/Desktop/AllTime/AllTime/Views/CalendarView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Calendar Connection Expired",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 276
+        }
+      },
+      {
+        "comment": "",
+        "key": "Reconnect",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 277
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cancel",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 280
+        }
+      },
+      {
+        "comment": "",
+        "key": "Checking for meeting clashes...",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 308
+        }
+      },
+      {
+        "comment": "",
+        "key": "Meeting Clashes",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 324
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 331
+        }
+      },
+      {
+        "comment": "",
+        "key": "Overlap: %lld min",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 402
+        }
+      },
+      {
+        "comment": "",
+        "key": "Retry",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 510
+        }
+      }
+    ]
+  },
+  "version": 1
+}

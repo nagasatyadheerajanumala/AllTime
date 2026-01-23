@@ -1,0 +1,240 @@
+{
+  "source": "/Users/dheeraj/Desktop/AllTime/AllTime/Views/HealthInsightsDetailView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Range",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 36
+        }
+      },
+      {
+        "comment": "",
+        "key": "Loading insights...",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 66
+        }
+      },
+      {
+        "comment": "",
+        "key": "💜",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 168
+        }
+      },
+      {
+        "comment": "",
+        "key": "Your Health Story",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 171
+        }
+      },
+      {
+        "comment": "",
+        "key": "What Stood Out",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 183
+        }
+      },
+      {
+        "comment": "",
+        "key": "Ideas for You",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 206
+        }
+      },
+      {
+        "comment": "",
+        "key": "Overview",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 251
+        }
+      },
+      {
+        "comment": "",
+        "key": "Insights",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 317
+        }
+      },
+      {
+        "comment": "",
+        "key": "Trends",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 394
+        }
+      },
+      {
+        "comment": "",
+        "key": "%@ → %@",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 439
+        }
+      },
+      {
+        "comment": "",
+        "key": "Health Categories",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 492
+        }
+      },
+      {
+        "comment": "",
+        "key": "Metric",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 639
+        }
+      },
+      {
+        "comment": "",
+        "key": "Daily Trends",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 626
+        }
+      },
+      {
+        "comment": "",
+        "key": "Not enough data for this metric yet.",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 653
+        }
+      },
+      {
+        "comment": "",
+        "key": "Day",
+        "location": {
+          "startingColumn": 39,
+          "startingLine": 667
+        }
+      },
+      {
+        "comment": "",
+        "key": "Day",
+        "location": {
+          "startingColumn": 39,
+          "startingLine": 673
+        }
+      },
+      {
+        "comment": "",
+        "key": "Day",
+        "location": {
+          "startingColumn": 39,
+          "startingLine": 680
+        }
+      },
+      {
+        "comment": "",
+        "key": "Latest",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 852
+        }
+      },
+      {
+        "comment": "",
+        "key": "Change vs prev. day",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 864
+        }
+      },
+      {
+        "comment": "",
+        "key": "Unable to load insights",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 905
+        }
+      },
+      {
+        "comment": "",
+        "key": "Try Again",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 915
+        }
+      },
+      {
+        "comment": "",
+        "key": "Health Data Access Required",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 944
+        }
+      },
+      {
+        "comment": "",
+        "key": "To view your health insights, Clara needs access to your Health data.",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 949
+        }
+      },
+      {
+        "comment": "",
+        "key": "After enabling all 8 health data types in Settings, tap 'Check Permissions' above",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 1025
+        }
+      },
+      {
+        "comment": "",
+        "key": "Enable permissions:",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 956
+        }
+      },
+      {
+        "comment": "",
+        "key": "Open Settings",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 980
+        }
+      },
+      {
+        "comment": "",
+        "key": "Check Permissions",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 1011
+        }
+      },
+      {
+        "comment": "",
+        "key": "No health data yet",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 1044
+        }
+      },
+      {
+        "comment": "",
+        "key": "Start collecting health data to see personalized insights",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 1048
+        }
+      }
+    ]
+  },
+  "version": 1
+}

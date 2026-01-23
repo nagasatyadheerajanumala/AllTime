@@ -1,0 +1,88 @@
+{
+  "source": "/Users/dheeraj/Desktop/AllTime/AllTime/Views/AddConnectionView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Add Calendar",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 206
+        }
+      },
+      {
+        "comment": "",
+        "key": "Connect Your Calendars",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 25
+        }
+      },
+      {
+        "comment": "",
+        "key": "Connect your calendar providers to sync events and get AI-powered insights",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 29
+        }
+      },
+      {
+        "comment": "",
+        "key": "Or connect directly:",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 68
+        }
+      },
+      {
+        "comment": "",
+        "key": "Best for work Outlook calendars that block direct OAuth",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 58
+        }
+      },
+      {
+        "comment": "",
+        "key": "Syncing iPhone calendars...",
+        "location": {
+          "startingColumn": 54,
+          "startingLine": 191
+        }
+      },
+      {
+        "comment": "",
+        "key": "Opening Google OAuth...",
+        "location": {
+          "startingColumn": 71,
+          "startingLine": 192
+        }
+      },
+      {
+        "comment": "",
+        "key": "Opening Microsoft OAuth...",
+        "location": {
+          "startingColumn": 74,
+          "startingLine": 193
+        }
+      },
+      {
+        "comment": "",
+        "key": "Opening browser for authentication...",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 194
+        }
+      },
+      {
+        "comment": "",
+        "key": "Done",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 210
+        }
+      }
+    ]
+  },
+  "version": 1
+}

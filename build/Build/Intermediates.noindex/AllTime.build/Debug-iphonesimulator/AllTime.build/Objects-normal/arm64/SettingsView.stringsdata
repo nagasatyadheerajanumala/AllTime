@@ -1,0 +1,112 @@
+{
+  "source": "/Users/dheeraj/Desktop/AllTime/AllTime/Views/SettingsView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Settings",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 185
+        }
+      },
+      {
+        "comment": "",
+        "key": "Clara User",
+        "location": {
+          "startingColumn": 42,
+          "startingLine": 62
+        }
+      },
+      {
+        "comment": "",
+        "key": "Loading...",
+        "location": {
+          "startingColumn": 46,
+          "startingLine": 57
+        }
+      },
+      {
+        "comment": "",
+        "key": "PROFILE",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 85
+        }
+      },
+      {
+        "comment": "",
+        "key": "CONNECTED PROVIDERS",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 102
+        }
+      },
+      {
+        "comment": "",
+        "key": "Manage your connected calendar accounts and sync settings",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 107
+        }
+      },
+      {
+        "comment": "",
+        "key": "PERSONALIZATION",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 123
+        }
+      },
+      {
+        "comment": "",
+        "key": "Set your interests to get personalized weekend and vacation suggestions",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 128
+        }
+      },
+      {
+        "comment": "",
+        "key": "SETTINGS",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 162
+        }
+      },
+      {
+        "comment": "",
+        "key": "Sign Out",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 175
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 290
+        }
+      },
+      {
+        "comment": "",
+        "key": "Appearance",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 322
+        }
+      },
+      {
+        "comment": "",
+        "key": "Theme",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 329
+        }
+      }
+    ]
+  },
+  "version": 1
+}

@@ -1,0 +1,264 @@
+{
+  "source": "/Users/dheeraj/Desktop/AllTime/AllTime/Views/WeekendQuickPickView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Plan Your Day",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 80
+        }
+      },
+      {
+        "comment": "",
+        "key": "Error",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 88
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cancel",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 84
+        }
+      },
+      {
+        "comment": "",
+        "key": "OK",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 89
+        }
+      },
+      {
+        "comment": "",
+        "key": "What's on your mind today?",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 116
+        }
+      },
+      {
+        "comment": "",
+        "key": "Pick a few activities and we'll create a personalized plan for you",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 120
+        }
+      },
+      {
+        "comment": "",
+        "key": "How are you feeling?",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 132
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 177
+        }
+      },
+      {
+        "comment": "",
+        "key": "Preferences",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 213
+        }
+      },
+      {
+        "comment": "",
+        "key": "Pace",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 218
+        }
+      },
+      {
+        "comment": "",
+        "key": "Pace",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 221
+        }
+      },
+      {
+        "comment": "",
+        "key": "Chill",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 222
+        }
+      },
+      {
+        "comment": "",
+        "key": "Balanced",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 223
+        }
+      },
+      {
+        "comment": "",
+        "key": "Active",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 224
+        }
+      },
+      {
+        "comment": "",
+        "key": "How far will you go?",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 230
+        }
+      },
+      {
+        "comment": "",
+        "key": "Distance",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 233
+        }
+      },
+      {
+        "comment": "",
+        "key": "Nearby",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 234
+        }
+      },
+      {
+        "comment": "",
+        "key": "Moderate",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 235
+        }
+      },
+      {
+        "comment": "",
+        "key": "Road Trip",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 236
+        }
+      },
+      {
+        "comment": "",
+        "key": "Generate My Day",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 264
+        }
+      },
+      {
+        "comment": "",
+        "key": "Loading your interests...",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 291
+        }
+      },
+      {
+        "comment": "",
+        "key": "No interests set up yet",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 306
+        }
+      },
+      {
+        "comment": "",
+        "key": "Set up your interests in Settings to get personalized weekend plans",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 310
+        }
+      },
+      {
+        "comment": "",
+        "key": "Set Up Interests",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 315
+        }
+      },
+      {
+        "comment": "",
+        "key": "Your Day Plan",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 460
+        }
+      },
+      {
+        "comment": "",
+        "key": "Done",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 464
+        }
+      },
+      {
+        "comment": "",
+        "key": "Your Day is Planned!",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 488
+        }
+      },
+      {
+        "comment": "",
+        "key": "Overview",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 506
+        }
+      },
+      {
+        "comment": "",
+        "key": "Your Activities",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 530
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld planned",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 534
+        }
+      },
+      {
+        "comment": "",
+        "key": "Pro Tips",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 591
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lldm",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 690
+        }
+      }
+    ]
+  },
+  "version": 1
+}

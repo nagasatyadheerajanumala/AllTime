@@ -1,0 +1,40 @@
+{
+  "source": "/Users/dheeraj/Desktop/AllTime/AllTime/Views/Components/HealthGoalsSectionView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Your Health Goals",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 15
+        }
+      },
+      {
+        "comment": "",
+        "key": "Suggestions to Achieve Your Goals",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 103
+        }
+      },
+      {
+        "comment": "",
+        "key": "Goal",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 189
+        }
+      },
+      {
+        "comment": "",
+        "key": "/",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 172
+        }
+      }
+    ]
+  },
+  "version": 1
+}

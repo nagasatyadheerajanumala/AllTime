@@ -1,0 +1,104 @@
+{
+  "source": "/Users/dheeraj/Desktop/AllTime/AllTime/Views/Components/DailySummaryComponents.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Hydration",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 163
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lldm",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 261
+        }
+      },
+      {
+        "comment": "",
+        "key": "Today",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 315
+        }
+      },
+      {
+        "comment": "",
+        "key": "Suggestions",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 417
+        }
+      },
+      {
+        "comment": "",
+        "key": "Show Less",
+        "location": {
+          "startingColumn": 47,
+          "startingLine": 484
+        }
+      },
+      {
+        "comment": "",
+        "key": "Show More",
+        "location": {
+          "startingColumn": 61,
+          "startingLine": 484
+        }
+      },
+      {
+        "comment": "",
+        "key": "Breaks",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 622
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld min",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 631
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld min",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 684
+        }
+      },
+      {
+        "comment": "",
+        "key": "Patterns",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 708
+        }
+      },
+      {
+        "comment": "",
+        "key": "Lunch Spots",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 807
+        }
+      },
+      {
+        "comment": "",
+        "key": "Walk Routes",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 887
+        }
+      }
+    ]
+  },
+  "version": 1
+}

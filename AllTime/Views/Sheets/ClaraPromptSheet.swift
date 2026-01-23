@@ -184,9 +184,9 @@ struct ClaraPromptSheet: View {
         isTyping = false
         errorMessage = error.localizedDescription
 
-        // Fallback message when API fails
+        // Authoritative fallback - no apology, no "try again"
         messages.append(ClaraChatMessage(
-            content: "I'm having trouble connecting right now. Please try again in a moment.",
+            content: "Analysis unavailable. Protect your time today. Do not add commitments without purpose.",
             isClara: true
         ))
         print("❌ Clara chat error: \(error)")

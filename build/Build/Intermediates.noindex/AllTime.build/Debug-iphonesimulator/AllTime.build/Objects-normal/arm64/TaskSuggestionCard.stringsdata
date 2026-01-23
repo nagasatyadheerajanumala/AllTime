@@ -1,0 +1,48 @@
+{
+  "source": "/Users/dheeraj/Desktop/AllTime/AllTime/Views/Components/TaskSuggestionCard.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Dismiss",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 27
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld%%",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 154
+        }
+      },
+      {
+        "comment": "",
+        "key": "Tap + to add to your tasks, or swipe left to dismiss",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 240
+        }
+      },
+      {
+        "comment": "",
+        "key": "Suggested Tasks",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 214
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 218
+        }
+      }
+    ]
+  },
+  "version": 1
+}

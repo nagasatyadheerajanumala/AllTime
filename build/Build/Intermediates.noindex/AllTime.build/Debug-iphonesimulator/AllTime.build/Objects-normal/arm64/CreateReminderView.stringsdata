@@ -1,0 +1,480 @@
+{
+  "source": "/Users/dheeraj/Desktop/AllTime/AllTime/Views/CreateReminderView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "New Reminder",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 98
+        }
+      },
+      {
+        "comment": "",
+        "key": "Details",
+        "location": {
+          "startingColumn": 25,
+          "startingLine": 26
+        }
+      },
+      {
+        "comment": "",
+        "key": "Date & Time",
+        "location": {
+          "startingColumn": 25,
+          "startingLine": 33
+        }
+      },
+      {
+        "comment": "",
+        "key": "Priority",
+        "location": {
+          "startingColumn": 25,
+          "startingLine": 46
+        }
+      },
+      {
+        "comment": "",
+        "key": "Recurrence",
+        "location": {
+          "startingColumn": 25,
+          "startingLine": 55
+        }
+      },
+      {
+        "comment": "",
+        "key": "Notifications",
+        "location": {
+          "startingColumn": 25,
+          "startingLine": 65
+        }
+      },
+      {
+        "comment": "",
+        "key": "Sync",
+        "location": {
+          "startingColumn": 25,
+          "startingLine": 77
+        }
+      },
+      {
+        "comment": "",
+        "key": "Title",
+        "location": {
+          "startingColumn": 31,
+          "startingLine": 27
+        }
+      },
+      {
+        "comment": "",
+        "key": "Description (optional)",
+        "location": {
+          "startingColumn": 31,
+          "startingLine": 29
+        }
+      },
+      {
+        "comment": "",
+        "key": "Due Date",
+        "location": {
+          "startingColumn": 32,
+          "startingLine": 34
+        }
+      },
+      {
+        "comment": "",
+        "key": "Reminder Before",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 36
+        }
+      },
+      {
+        "comment": "",
+        "key": "None",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 37
+        }
+      },
+      {
+        "comment": "",
+        "key": "5 minutes",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 38
+        }
+      },
+      {
+        "comment": "",
+        "key": "15 minutes",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 39
+        }
+      },
+      {
+        "comment": "",
+        "key": "30 minutes",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 40
+        }
+      },
+      {
+        "comment": "",
+        "key": "1 hour",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 41
+        }
+      },
+      {
+        "comment": "",
+        "key": "2 hours",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 42
+        }
+      },
+      {
+        "comment": "",
+        "key": "Priority",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 47
+        }
+      },
+      {
+        "comment": "",
+        "key": "None",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 48
+        }
+      },
+      {
+        "comment": "",
+        "key": "Repeat",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 56
+        }
+      },
+      {
+        "comment": "",
+        "key": "Never",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 57
+        }
+      },
+      {
+        "comment": "",
+        "key": "Daily",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 58
+        }
+      },
+      {
+        "comment": "",
+        "key": "Weekly",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 59
+        }
+      },
+      {
+        "comment": "",
+        "key": "Monthly",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 60
+        }
+      },
+      {
+        "comment": "",
+        "key": "Yearly",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 61
+        }
+      },
+      {
+        "comment": "",
+        "key": "Enable Notifications",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 66
+        }
+      },
+      {
+        "comment": "",
+        "key": "Sound",
+        "location": {
+          "startingColumn": 32,
+          "startingLine": 69
+        }
+      },
+      {
+        "comment": "",
+        "key": "Sync to iOS Reminders",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 78
+        }
+      },
+      {
+        "comment": "",
+        "key": "Enable Reminder Access",
+        "location": {
+          "startingColumn": 32,
+          "startingLine": 81
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cancel",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 102
+        }
+      },
+      {
+        "comment": "",
+        "key": "Create",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 107
+        }
+      },
+      {
+        "comment": "",
+        "key": "Edit Reminder",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 241
+        }
+      },
+      {
+        "comment": "",
+        "key": "Details",
+        "location": {
+          "startingColumn": 25,
+          "startingLine": 182
+        }
+      },
+      {
+        "comment": "",
+        "key": "Date & Time",
+        "location": {
+          "startingColumn": 25,
+          "startingLine": 189
+        }
+      },
+      {
+        "comment": "",
+        "key": "Priority",
+        "location": {
+          "startingColumn": 25,
+          "startingLine": 202
+        }
+      },
+      {
+        "comment": "",
+        "key": "Recurrence",
+        "location": {
+          "startingColumn": 25,
+          "startingLine": 211
+        }
+      },
+      {
+        "comment": "",
+        "key": "Notifications",
+        "location": {
+          "startingColumn": 25,
+          "startingLine": 221
+        }
+      },
+      {
+        "comment": "",
+        "key": "Title",
+        "location": {
+          "startingColumn": 31,
+          "startingLine": 183
+        }
+      },
+      {
+        "comment": "",
+        "key": "Description (optional)",
+        "location": {
+          "startingColumn": 31,
+          "startingLine": 185
+        }
+      },
+      {
+        "comment": "",
+        "key": "Due Date",
+        "location": {
+          "startingColumn": 32,
+          "startingLine": 190
+        }
+      },
+      {
+        "comment": "",
+        "key": "Reminder Before",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 192
+        }
+      },
+      {
+        "comment": "",
+        "key": "Keep current",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 193
+        }
+      },
+      {
+        "comment": "",
+        "key": "5 minutes",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 194
+        }
+      },
+      {
+        "comment": "",
+        "key": "15 minutes",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 195
+        }
+      },
+      {
+        "comment": "",
+        "key": "30 minutes",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 196
+        }
+      },
+      {
+        "comment": "",
+        "key": "1 hour",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 197
+        }
+      },
+      {
+        "comment": "",
+        "key": "2 hours",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 198
+        }
+      },
+      {
+        "comment": "",
+        "key": "Priority",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 203
+        }
+      },
+      {
+        "comment": "",
+        "key": "None",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 204
+        }
+      },
+      {
+        "comment": "",
+        "key": "Repeat",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 212
+        }
+      },
+      {
+        "comment": "",
+        "key": "Never",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 213
+        }
+      },
+      {
+        "comment": "",
+        "key": "Daily",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 214
+        }
+      },
+      {
+        "comment": "",
+        "key": "Weekly",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 215
+        }
+      },
+      {
+        "comment": "",
+        "key": "Monthly",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 216
+        }
+      },
+      {
+        "comment": "",
+        "key": "Yearly",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 217
+        }
+      },
+      {
+        "comment": "",
+        "key": "Enable Notifications",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 222
+        }
+      },
+      {
+        "comment": "",
+        "key": "Sound",
+        "location": {
+          "startingColumn": 32,
+          "startingLine": 225
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cancel",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 245
+        }
+      },
+      {
+        "comment": "",
+        "key": "Save",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 250
+        }
+      }
+    ]
+  },
+  "version": 1
+}

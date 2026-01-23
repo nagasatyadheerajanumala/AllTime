@@ -1,0 +1,368 @@
+{
+  "source": "/Users/dheeraj/Desktop/AllTime/AllTime/Views/Planning/PlanMyDayView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Plan Your Day",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 83
+        }
+      },
+      {
+        "comment": "",
+        "key": "Done",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 87
+        }
+      },
+      {
+        "comment": "",
+        "key": "Creating your perfect day...",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 124
+        }
+      },
+      {
+        "comment": "",
+        "key": "Select Date",
+        "location": {
+          "startingColumn": 17,
+          "startingLine": 144
+        }
+      },
+      {
+        "comment": "",
+        "key": "Set Up Your Interests",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 168
+        }
+      },
+      {
+        "comment": "",
+        "key": "Get personalized suggestions based on what you love",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 171
+        }
+      },
+      {
+        "comment": "",
+        "key": "Suggested Activities",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 211
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 215
+        }
+      },
+      {
+        "comment": "",
+        "key": "Block uninterrupted time for deep work",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 248
+        }
+      },
+      {
+        "comment": "",
+        "key": "Focus Blocks",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 236
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld available",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 240
+        }
+      },
+      {
+        "comment": "",
+        "key": "Lunch Break",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 283
+        }
+      },
+      {
+        "comment": "",
+        "key": "Added",
+        "location": {
+          "startingColumn": 61,
+          "startingLine": 327
+        }
+      },
+      {
+        "comment": "",
+        "key": "Add to Calendar",
+        "location": {
+          "startingColumn": 71,
+          "startingLine": 327
+        }
+      },
+      {
+        "comment": "",
+        "key": "Reminder Set",
+        "location": {
+          "startingColumn": 57,
+          "startingLine": 354
+        }
+      },
+      {
+        "comment": "",
+        "key": "Set Reminder",
+        "location": {
+          "startingColumn": 74,
+          "startingLine": 354
+        }
+      },
+      {
+        "comment": "",
+        "key": "Itinerary Preferences",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 382
+        }
+      },
+      {
+        "comment": "",
+        "key": "Include meal suggestions",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 401
+        }
+      },
+      {
+        "comment": "",
+        "key": "Pace",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 389
+        }
+      },
+      {
+        "comment": "",
+        "key": "Pace",
+        "location": {
+          "startingColumn": 32,
+          "startingLine": 392
+        }
+      },
+      {
+        "comment": "",
+        "key": "Relaxed",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 393
+        }
+      },
+      {
+        "comment": "",
+        "key": "Balanced",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 394
+        }
+      },
+      {
+        "comment": "",
+        "key": "Active",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 395
+        }
+      },
+      {
+        "comment": "",
+        "key": "Generate Itinerary",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 426
+        }
+      },
+      {
+        "comment": "",
+        "key": "Your Location",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 448
+        }
+      },
+      {
+        "comment": "",
+        "key": "Enable Location for Better Recommendations",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 469
+        }
+      },
+      {
+        "comment": "",
+        "key": "AI Day Planner",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 489
+        }
+      },
+      {
+        "comment": "",
+        "key": "Get personalized activities based on your interests",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 492
+        }
+      },
+      {
+        "comment": "",
+        "key": "Generate My Perfect Day",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 510
+        }
+      },
+      {
+        "comment": "",
+        "key": "+ %lld more activities",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 573
+        }
+      },
+      {
+        "comment": "",
+        "key": "Your Plan",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 551
+        }
+      },
+      {
+        "comment": "",
+        "key": "View Full",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 560
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lldh planned",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 586
+        }
+      },
+      {
+        "comment": "",
+        "key": "Tips",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 594
+        }
+      },
+      {
+        "comment": "",
+        "key": "Your Day Plan",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 750
+        }
+      },
+      {
+        "comment": "",
+        "key": "Tips for Your Day",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 724
+        }
+      },
+      {
+        "comment": "",
+        "key": "Done",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 754
+        }
+      },
+      {
+        "comment": "",
+        "key": "-",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 792
+        }
+      },
+      {
+        "comment": "",
+        "key": "Get Directions",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 852
+        }
+      },
+      {
+        "comment": "",
+        "key": "Rest Day",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 882
+        }
+      },
+      {
+        "comment": "",
+        "key": "Your Itinerary",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 1001
+        }
+      },
+      {
+        "comment": "",
+        "key": "Done",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 1005
+        }
+      },
+      {
+        "comment": "",
+        "key": "Meals",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 1051
+        }
+      },
+      {
+        "comment": "",
+        "key": "Quality: %lld%%",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 1167
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld min",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 1162
+        }
+      }
+    ]
+  },
+  "version": 1
+}

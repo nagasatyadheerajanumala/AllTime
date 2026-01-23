@@ -1,0 +1,80 @@
+{
+  "source": "/Users/dheeraj/Desktop/AllTime/AllTime/Views/ProfileSetupView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Welcome to Clara!",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 30
+        }
+      },
+      {
+        "comment": "",
+        "key": "Complete your profile to get started",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 35
+        }
+      },
+      {
+        "comment": "",
+        "key": "Profile Picture",
+        "location": {
+          "startingColumn": 42,
+          "startingLine": 43
+        }
+      },
+      {
+        "comment": "",
+        "key": "Personal Information",
+        "location": {
+          "startingColumn": 42,
+          "startingLine": 47
+        }
+      },
+      {
+        "comment": "",
+        "key": "Full Name",
+        "location": {
+          "startingColumn": 35,
+          "startingLine": 48
+        }
+      },
+      {
+        "comment": "",
+        "key": "Email",
+        "location": {
+          "startingColumn": 35,
+          "startingLine": 52
+        }
+      },
+      {
+        "comment": "",
+        "key": "Location",
+        "location": {
+          "startingColumn": 39,
+          "startingLine": 58
+        }
+      },
+      {
+        "comment": "",
+        "key": "Complete Profile",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 92
+        }
+      },
+      {
+        "comment": "",
+        "key": "Skip for Now",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 107
+        }
+      }
+    ]
+  },
+  "version": 1
+}

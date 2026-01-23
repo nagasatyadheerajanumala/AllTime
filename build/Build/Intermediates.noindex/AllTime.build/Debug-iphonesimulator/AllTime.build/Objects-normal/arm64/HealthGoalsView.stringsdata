@@ -1,0 +1,80 @@
+{
+  "source": "/Users/dheeraj/Desktop/AllTime/AllTime/Views/HealthGoalsView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Health Goals",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 89
+        }
+      },
+      {
+        "comment": "",
+        "key": "Sleep",
+        "location": {
+          "startingColumn": 25,
+          "startingLine": 21
+        }
+      },
+      {
+        "comment": "",
+        "key": "Activity",
+        "location": {
+          "startingColumn": 25,
+          "startingLine": 31
+        }
+      },
+      {
+        "comment": "",
+        "key": "Heart Health",
+        "location": {
+          "startingColumn": 25,
+          "startingLine": 63
+        }
+      },
+      {
+        "comment": "",
+        "key": "Set your health goals to receive personalized AI suggestions tailored to your targets.",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 16
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cancel",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 93
+        }
+      },
+      {
+        "comment": "",
+        "key": "Save",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 99
+        }
+      },
+      {
+        "comment": "",
+        "key": "Loading goals...",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 132
+        }
+      },
+      {
+        "comment": "",
+        "key": "Saving goals...",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 137
+        }
+      }
+    ]
+  },
+  "version": 1
+}

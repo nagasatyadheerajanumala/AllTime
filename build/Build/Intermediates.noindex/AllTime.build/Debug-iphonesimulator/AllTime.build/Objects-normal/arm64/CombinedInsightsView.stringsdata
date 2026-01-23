@@ -1,0 +1,72 @@
+{
+  "source": "/Users/dheeraj/Desktop/AllTime/AllTime/Views/Insights/CombinedInsightsView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Insights",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 42
+        }
+      },
+      {
+        "comment": "",
+        "key": "Range",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 113
+        }
+      },
+      {
+        "comment": "",
+        "key": "Loading insights...",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 133
+        }
+      },
+      {
+        "comment": "",
+        "key": "Unable to load health insights",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 179
+        }
+      },
+      {
+        "comment": "",
+        "key": "Retry",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 186
+        }
+      },
+      {
+        "comment": "",
+        "key": "Health Data Required",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 206
+        }
+      },
+      {
+        "comment": "",
+        "key": "Enable Health permissions to see personalized health insights and correlations with your schedule.",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 210
+        }
+      },
+      {
+        "comment": "",
+        "key": "Enable Health Access",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 218
+        }
+      }
+    ]
+  },
+  "version": 1
+}

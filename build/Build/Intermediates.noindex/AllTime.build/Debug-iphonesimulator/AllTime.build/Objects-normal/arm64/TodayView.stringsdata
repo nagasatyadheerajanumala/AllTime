@@ -1,0 +1,416 @@
+{
+  "source": "/Users/dheeraj/Desktop/AllTime/AllTime/Views/TodayView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Today",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 177
+        }
+      },
+      {
+        "comment": "",
+        "key": "Insights",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 431
+        }
+      },
+      {
+        "comment": "",
+        "key": "Schedule",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 497
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld event%@",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 503
+        }
+      },
+      {
+        "comment": "",
+        "key": "+ %lld more events",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 523
+        }
+      },
+      {
+        "comment": "",
+        "key": "Type a follow-up...",
+        "location": {
+          "startingColumn": 43,
+          "startingLine": 934
+        }
+      },
+      {
+        "comment": "",
+        "key": "Clara",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 978
+        }
+      },
+      {
+        "comment": "",
+        "key": "Done",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 983
+        }
+      },
+      {
+        "comment": "",
+        "key": "Why this matters",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 1267
+        }
+      },
+      {
+        "comment": "",
+        "key": "Take Action",
+        "location": {
+          "startingColumn": 42,
+          "startingLine": 1311
+        }
+      },
+      {
+        "comment": "",
+        "key": "Remind Me Later",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 1322
+        }
+      },
+      {
+        "comment": "",
+        "key": "Done",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 1335
+        }
+      },
+      {
+        "comment": "",
+        "key": "Now",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 1423
+        }
+      },
+      {
+        "comment": "",
+        "key": "Health Data Access Required",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 1464
+        }
+      },
+      {
+        "comment": "",
+        "key": "Clara needs access to your Health data to provide personalized insights.",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 1472
+        }
+      },
+      {
+        "comment": "",
+        "key": "Open Settings",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 1483
+        }
+      },
+      {
+        "comment": "",
+        "key": "Check",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 1505
+        }
+      },
+      {
+        "comment": "",
+        "key": "All day",
+        "location": {
+          "startingColumn": 42,
+          "startingLine": 1579
+        }
+      },
+      {
+        "comment": "",
+        "key": "%@ - %@",
+        "location": {
+          "startingColumn": 42,
+          "startingLine": 1583
+        }
+      },
+      {
+        "comment": "",
+        "key": "Done",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 1629
+        }
+      },
+      {
+        "comment": "",
+        "key": "New Task",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 1965
+        }
+      },
+      {
+        "comment": "",
+        "key": "Task",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 1749
+        }
+      },
+      {
+        "comment": "",
+        "key": "What do you need to do?",
+        "location": {
+          "startingColumn": 43,
+          "startingLine": 1753
+        }
+      },
+      {
+        "comment": "",
+        "key": "Priority",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 1765
+        }
+      },
+      {
+        "comment": "",
+        "key": "",
+        "location": {
+          "startingColumn": 48,
+          "startingLine": 1806
+        }
+      },
+      {
+        "comment": "",
+        "key": "Due Date",
+        "location": {
+          "startingColumn": 46,
+          "startingLine": 1798
+        }
+      },
+      {
+        "comment": "",
+        "key": "Deadline",
+        "location": {
+          "startingColumn": 48,
+          "startingLine": 1828
+        }
+      },
+      {
+        "comment": "",
+        "key": "Must finish by",
+        "location": {
+          "startingColumn": 46,
+          "startingLine": 1820
+        }
+      },
+      {
+        "comment": "",
+        "key": "Remind Me",
+        "location": {
+          "startingColumn": 50,
+          "startingLine": 1843
+        }
+      },
+      {
+        "comment": "",
+        "key": "Estimated Time",
+        "location": {
+          "startingColumn": 42,
+          "startingLine": 1880
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld min",
+        "location": {
+          "startingColumn": 42,
+          "startingLine": 1884
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lldm",
+        "location": {
+          "startingColumn": 62,
+          "startingLine": 1892
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lldh",
+        "location": {
+          "startingColumn": 75,
+          "startingLine": 1892
+        }
+      },
+      {
+        "comment": "",
+        "key": "Notes",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 1910
+        }
+      },
+      {
+        "comment": "",
+        "key": "Saving...",
+        "location": {
+          "startingColumn": 49,
+          "startingLine": 1933
+        }
+      },
+      {
+        "comment": "",
+        "key": "Add Task",
+        "location": {
+          "startingColumn": 63,
+          "startingLine": 1933
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cancel",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 1969
+        }
+      },
+      {
+        "comment": "",
+        "key": "VERIFY",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 2157
+        }
+      },
+      {
+        "comment": "",
+        "key": "CRITICAL",
+        "location": {
+          "startingColumn": 45,
+          "startingLine": 2157
+        }
+      },
+      {
+        "comment": "",
+        "key": "New Reminder",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 2403
+        }
+      },
+      {
+        "comment": "",
+        "key": "Reminder",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 2260
+        }
+      },
+      {
+        "comment": "",
+        "key": "What do you want to be reminded of?",
+        "location": {
+          "startingColumn": 43,
+          "startingLine": 2264
+        }
+      },
+      {
+        "comment": "",
+        "key": "",
+        "location": {
+          "startingColumn": 44,
+          "startingLine": 2284
+        }
+      },
+      {
+        "comment": "",
+        "key": "Remind me on",
+        "location": {
+          "startingColumn": 42,
+          "startingLine": 2279
+        }
+      },
+      {
+        "comment": "",
+        "key": "Include time",
+        "location": {
+          "startingColumn": 46,
+          "startingLine": 2291
+        }
+      },
+      {
+        "comment": "",
+        "key": "Quick Set",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 2303
+        }
+      },
+      {
+        "comment": "",
+        "key": "Repeat",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 2319
+        }
+      },
+      {
+        "comment": "",
+        "key": "Notes",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 2348
+        }
+      },
+      {
+        "comment": "",
+        "key": "Saving...",
+        "location": {
+          "startingColumn": 49,
+          "startingLine": 2371
+        }
+      },
+      {
+        "comment": "",
+        "key": "Set Reminder",
+        "location": {
+          "startingColumn": 63,
+          "startingLine": 2371
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cancel",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 2407
+        }
+      }
+    ]
+  },
+  "version": 1
+}

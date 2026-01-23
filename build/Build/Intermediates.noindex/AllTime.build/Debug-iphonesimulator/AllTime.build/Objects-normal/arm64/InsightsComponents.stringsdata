@@ -1,0 +1,64 @@
+{
+  "source": "/Users/dheeraj/Desktop/AllTime/AllTime/Views/Insights/InsightsComponents.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Clara's Insight",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 81
+        }
+      },
+      {
+        "comment": "",
+        "key": "Show less",
+        "location": {
+          "startingColumn": 43,
+          "startingLine": 99
+        }
+      },
+      {
+        "comment": "",
+        "key": "Read more",
+        "location": {
+          "startingColumn": 57,
+          "startingLine": 99
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 235
+        }
+      },
+      {
+        "comment": "",
+        "key": "Unable to Load Insights",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 552
+        }
+      },
+      {
+        "comment": "",
+        "key": "Try Again",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 566
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 599
+        }
+      }
+    ]
+  },
+  "version": 1
+}

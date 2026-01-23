@@ -1,0 +1,168 @@
+{
+  "source": "/Users/dheeraj/Desktop/AllTime/AllTime/Views/EnhancedDailySummaryView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Preparing your summary",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 14
+        }
+      },
+      {
+        "comment": "",
+        "key": "Unable to load",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 32
+        }
+      },
+      {
+        "comment": "",
+        "key": "Try Again",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 41
+        }
+      },
+      {
+        "comment": "",
+        "key": "No summary yet",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 60
+        }
+      },
+      {
+        "comment": "",
+        "key": "Your daily summary will appear here",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 63
+        }
+      },
+      {
+        "comment": "",
+        "key": "Today's AI Summary",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 120
+        }
+      },
+      {
+        "comment": "",
+        "key": "Suggestions",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 247
+        }
+      },
+      {
+        "comment": "",
+        "key": "Overview",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 290
+        }
+      },
+      {
+        "comment": "",
+        "key": "Key Highlights",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 319
+        }
+      },
+      {
+        "comment": "",
+        "key": "Potential Issues",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 383
+        }
+      },
+      {
+        "comment": "",
+        "key": "Suggestions",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 447
+        }
+      },
+      {
+        "comment": "",
+        "key": "%@ - %@",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 494
+        }
+      },
+      {
+        "comment": "",
+        "key": "%@ - %@",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 499
+        }
+      },
+      {
+        "comment": "",
+        "key": "Day Insights",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 536
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 543
+        }
+      },
+      {
+        "comment": "",
+        "key": "Events",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 547
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 553
+        }
+      },
+      {
+        "comment": "",
+        "key": "Minutes",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 557
+        }
+      },
+      {
+        "comment": "",
+        "key": "Early Start",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 567
+        }
+      },
+      {
+        "comment": "",
+        "key": "Late End",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 578
+        }
+      }
+    ]
+  },
+  "version": 1
+}

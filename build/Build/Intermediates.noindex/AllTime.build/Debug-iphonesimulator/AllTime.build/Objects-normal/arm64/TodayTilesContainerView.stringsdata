@@ -1,0 +1,112 @@
+{
+  "source": "/Users/dheeraj/Desktop/AllTime/AllTime/Views/Components/TodayTilesContainerView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Today's Overview",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 241
+        }
+      },
+      {
+        "comment": "",
+        "key": "Done",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 245
+        }
+      },
+      {
+        "comment": "",
+        "key": "Tap + to block time",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 427
+        }
+      },
+      {
+        "comment": "",
+        "key": "Today's Goals",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 548
+        }
+      },
+      {
+        "comment": "",
+        "key": "Focus Time Available",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 597
+        }
+      },
+      {
+        "comment": "",
+        "key": "%@",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 658
+        }
+      },
+      {
+        "comment": "",
+        "key": "/ %@",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 662
+        }
+      },
+      {
+        "comment": "",
+        "key": "Target: %@",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 700
+        }
+      },
+      {
+        "comment": "",
+        "key": "last night",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 696
+        }
+      },
+      {
+        "comment": "",
+        "key": "View your weekly summary",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 855
+        }
+      },
+      {
+        "comment": "",
+        "key": "Quality: %lld%%",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 956
+        }
+      },
+      {
+        "comment": "",
+        "key": "Show less",
+        "location": {
+          "startingColumn": 51,
+          "startingLine": 990
+        }
+      },
+      {
+        "comment": "",
+        "key": "Show more",
+        "location": {
+          "startingColumn": 65,
+          "startingLine": 990
+        }
+      }
+    ]
+  },
+  "version": 1
+}

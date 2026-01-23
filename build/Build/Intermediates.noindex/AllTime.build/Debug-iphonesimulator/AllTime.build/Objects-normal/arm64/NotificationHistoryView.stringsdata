@@ -1,0 +1,80 @@
+{
+  "source": "/Users/dheeraj/Desktop/AllTime/AllTime/Views/NotificationHistoryView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Notifications",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 19
+        }
+      },
+      {
+        "comment": "",
+        "key": "Done",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 23
+        }
+      },
+      {
+        "comment": "",
+        "key": "Mark All as Read",
+        "location": {
+          "startingColumn": 36,
+          "startingLine": 30
+        }
+      },
+      {
+        "comment": "",
+        "key": "Clear History",
+        "location": {
+          "startingColumn": 36,
+          "startingLine": 33
+        }
+      },
+      {
+        "comment": "",
+        "key": "No Notifications Yet",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 52
+        }
+      },
+      {
+        "comment": "",
+        "key": "Your morning briefings, evening summaries, and reminders will appear here.",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 55
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld%%",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 215
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld meetings",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 200
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld/%lld completed",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 210
+        }
+      }
+    ]
+  },
+  "version": 1
+}

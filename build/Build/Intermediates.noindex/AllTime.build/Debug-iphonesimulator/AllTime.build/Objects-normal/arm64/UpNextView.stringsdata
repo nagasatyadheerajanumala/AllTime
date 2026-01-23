@@ -1,0 +1,200 @@
+{
+  "source": "/Users/dheeraj/Desktop/AllTime/AllTime/Views/Components/UpNextView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Plan Your Day",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 64
+        }
+      },
+      {
+        "comment": "",
+        "key": "%@ Blocked!",
+        "location": {
+          "startingColumn": 16,
+          "startingLine": 231
+        }
+      },
+      {
+        "comment": "",
+        "key": "Unable to Block Time",
+        "location": {
+          "startingColumn": 16,
+          "startingLine": 236
+        }
+      },
+      {
+        "comment": "",
+        "key": "Block Time",
+        "location": {
+          "startingColumn": 29,
+          "startingLine": 247
+        }
+      },
+      {
+        "comment": "",
+        "key": "Added to Reminders!",
+        "location": {
+          "startingColumn": 16,
+          "startingLine": 260
+        }
+      },
+      {
+        "comment": "",
+        "key": "OK",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 232
+        }
+      },
+      {
+        "comment": "",
+        "key": "OK",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 237
+        }
+      },
+      {
+        "comment": "",
+        "key": "Add to Calendar",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 248
+        }
+      },
+      {
+        "comment": "",
+        "key": "Add to Reminders",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 252
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cancel",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 256
+        }
+      },
+      {
+        "comment": "",
+        "key": "Block '%@' on your calendar?",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 258
+        }
+      },
+      {
+        "comment": "",
+        "key": "OK",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 261
+        }
+      },
+      {
+        "comment": "",
+        "key": "View Places",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 281
+        }
+      },
+      {
+        "comment": "",
+        "key": "View Routes",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 293
+        }
+      },
+      {
+        "comment": "",
+        "key": "Block Time",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 306
+        }
+      },
+      {
+        "comment": "",
+        "key": "Add a task...",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 710
+        }
+      },
+      {
+        "comment": "",
+        "key": "Set Deadline",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 818
+        }
+      },
+      {
+        "comment": "",
+        "key": "Deadline",
+        "location": {
+          "startingColumn": 21,
+          "startingLine": 807
+        }
+      },
+      {
+        "comment": "",
+        "key": "Quick Options",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 784
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cancel",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 822
+        }
+      },
+      {
+        "comment": "",
+        "key": "Done",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 827
+        }
+      },
+      {
+        "comment": "",
+        "key": "Pending",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 930
+        }
+      },
+      {
+        "comment": "",
+        "key": "Delete",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 947
+        }
+      },
+      {
+        "comment": "",
+        "key": "Add a task or check your calendar",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 975
+        }
+      }
+    ]
+  },
+  "version": 1
+}

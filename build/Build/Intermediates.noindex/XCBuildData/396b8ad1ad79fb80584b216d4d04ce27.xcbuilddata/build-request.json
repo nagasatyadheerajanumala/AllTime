@@ -1,0 +1,70 @@
+{
+  "buildCommand" : {
+    "command" : "build",
+    "skipDependencies" : false,
+    "style" : "buildOnly"
+  },
+  "configuredTargets" : [
+    {
+      "guid" : "0022d9900ebf13ba8f42ac6226def4be991d5be7fbd1b07bc99d04bfd4d2c7ab"
+    }
+  ],
+  "containerPath" : "/Users/dheeraj/Desktop/AllTime/AllTime.xcodeproj",
+  "continueBuildingAfterErrors" : false,
+  "dependencyScope" : "workspace",
+  "enableIndexBuildArena" : false,
+  "hideShellScriptEnvironment" : false,
+  "parameters" : {
+    "action" : "build",
+    "activeArchitecture" : "arm64",
+    "activeRunDestination" : {
+      "disableOnlyActiveArch" : false,
+      "platform" : "iphonesimulator",
+      "sdk" : "iphonesimulator26.0",
+      "sdkVariant" : "iphonesimulator",
+      "supportedArchitectures" : [
+        "arm64"
+      ],
+      "targetArchitecture" : "arm64"
+    },
+    "arenaInfo" : {
+      "buildIntermediatesPath" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex",
+      "buildProductsPath" : "/Users/dheeraj/Desktop/AllTime/build/Build/Products",
+      "derivedDataPath" : "/Users/dheeraj/Desktop/AllTime/build",
+      "indexDataStoreFolderPath" : "/Users/dheeraj/Desktop/AllTime/build/Index.noindex/DataStore",
+      "indexEnableDataStore" : true,
+      "indexPCHPath" : "/Users/dheeraj/Desktop/AllTime/build/Index.noindex/PrecompiledHeaders",
+      "pchPath" : "/Users/dheeraj/Desktop/AllTime/build/Build/Intermediates.noindex/PrecompiledHeaders"
+    },
+    "configurationName" : "Debug",
+    "overrides" : {
+      "commandLine" : {
+        "table" : {
+
+        }
+      },
+      "synthesized" : {
+        "table" : {
+          "ACTION" : "build",
+          "ASSETCATALOG_FILTER_FOR_DEVICE_MODEL" : "iPhone18,1",
+          "ASSETCATALOG_FILTER_FOR_DEVICE_OS_VERSION" : "26.0",
+          "ASSETCATALOG_FILTER_FOR_THINNING_DEVICE_CONFIGURATION" : "iPhone18,1",
+          "BUILD_ACTIVE_RESOURCES_ONLY" : "YES",
+          "ENABLE_PREVIEWS" : "NO",
+          "ENABLE_XOJIT_PREVIEWS" : "YES",
+          "ONLY_ACTIVE_ARCH" : "YES",
+          "TARGET_DEVICE_IDENTIFIER" : "EFDC8008-02D4-48E0-B7B8-8A87BC71119A",
+          "TARGET_DEVICE_MODEL" : "iPhone18,1",
+          "TARGET_DEVICE_OS_VERSION" : "26.0",
+          "TARGET_DEVICE_PLATFORM_NAME" : "iphonesimulator"
+        }
+      }
+    }
+  },
+  "schemeCommand" : "launch",
+  "showNonLoggedProgress" : true,
+  "useDryRun" : false,
+  "useImplicitDependencies" : true,
+  "useLegacyBuildLocations" : false,
+  "useParallelTargets" : true
+}

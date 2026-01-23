@@ -1,0 +1,224 @@
+{
+  "source": "/Users/dheeraj/Desktop/AllTime/AllTime/Views/Components/MoodCheckInView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Success!",
+        "location": {
+          "startingColumn": 16,
+          "startingLine": 130
+        }
+      },
+      {
+        "comment": "",
+        "key": "How are you feeling?",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 13
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 25
+        }
+      },
+      {
+        "comment": "",
+        "key": "Checked in",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 103
+        }
+      },
+      {
+        "comment": "",
+        "key": "View",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 109
+        }
+      },
+      {
+        "comment": "",
+        "key": "OK",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 131
+        }
+      },
+      {
+        "comment": "",
+        "key": "Check-in",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 383
+        }
+      },
+      {
+        "comment": "",
+        "key": "Time of day",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 173
+        }
+      },
+      {
+        "comment": "",
+        "key": "When",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 180
+        }
+      },
+      {
+        "comment": "",
+        "key": "Adjust energy level",
+        "location": {
+          "startingColumn": 41,
+          "startingLine": 269
+        }
+      },
+      {
+        "comment": "",
+        "key": "Analyzing your health data...",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 191
+        }
+      },
+      {
+        "comment": "",
+        "key": "Predicted Energy:",
+        "location": {
+          "startingColumn": 46,
+          "startingLine": 200
+        }
+      },
+      {
+        "comment": "",
+        "key": "Based on:",
+        "location": {
+          "startingColumn": 42,
+          "startingLine": 231
+        }
+      },
+      {
+        "comment": "",
+        "key": "Using your adjusted value",
+        "location": {
+          "startingColumn": 42,
+          "startingLine": 261
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 50,
+          "startingLine": 280
+        }
+      },
+      {
+        "comment": "",
+        "key": "Your Energy",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 295
+        }
+      },
+      {
+        "comment": "",
+        "key": "From HealthKit",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 301
+        }
+      },
+      {
+        "comment": "",
+        "key": "Mood",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 338
+        }
+      },
+      {
+        "comment": "",
+        "key": "Mental state",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 346
+        }
+      },
+      {
+        "comment": "",
+        "key": "Hours slept",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 353
+        }
+      },
+      {
+        "comment": "",
+        "key": "Last night's sleep",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 362
+        }
+      },
+      {
+        "comment": "",
+        "key": "Day review",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 371
+        }
+      },
+      {
+        "comment": "",
+        "key": "Any notes?",
+        "location": {
+          "startingColumn": 31,
+          "startingLine": 377
+        }
+      },
+      {
+        "comment": "",
+        "key": "Notes (optional)",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 380
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cancel",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 387
+        }
+      },
+      {
+        "comment": "",
+        "key": "Submit",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 392
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld/%lld",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 455
+        }
+      }
+    ]
+  },
+  "version": 1
+}

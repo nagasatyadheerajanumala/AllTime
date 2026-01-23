@@ -1,0 +1,16 @@
+{
+  "source": "/Users/dheeraj/Desktop/AllTime/AllTime/ContentView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Loading...",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 32
+        }
+      }
+    ]
+  },
+  "version": 1
+}

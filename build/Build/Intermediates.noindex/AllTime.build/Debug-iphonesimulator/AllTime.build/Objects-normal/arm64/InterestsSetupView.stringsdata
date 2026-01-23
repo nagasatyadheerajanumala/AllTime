@@ -1,0 +1,208 @@
+{
+  "source": "/Users/dheeraj/Desktop/AllTime/AllTime/Views/Settings/InterestsSetupView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Your Interests",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 67
+        }
+      },
+      {
+        "comment": "",
+        "key": "Saved!",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 83
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cancel",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 71
+        }
+      },
+      {
+        "comment": "",
+        "key": "OK",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 84
+        }
+      },
+      {
+        "comment": "",
+        "key": "Your interests have been saved. You'll now see personalized suggestions!",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 86
+        }
+      },
+      {
+        "comment": "",
+        "key": "Tell us what you love",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 103
+        }
+      },
+      {
+        "comment": "",
+        "key": "Select your interests to get personalized weekend and vacation suggestions",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 107
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 142
+        }
+      },
+      {
+        "comment": "",
+        "key": "Weekend Preferences",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 173
+        }
+      },
+      {
+        "comment": "",
+        "key": "Preferred Pace",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 179
+        }
+      },
+      {
+        "comment": "",
+        "key": "Pace",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 182
+        }
+      },
+      {
+        "comment": "",
+        "key": "Relaxed",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 183
+        }
+      },
+      {
+        "comment": "",
+        "key": "Balanced",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 184
+        }
+      },
+      {
+        "comment": "",
+        "key": "Active",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 185
+        }
+      },
+      {
+        "comment": "",
+        "key": "Travel Distance",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 192
+        }
+      },
+      {
+        "comment": "",
+        "key": "Distance",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 195
+        }
+      },
+      {
+        "comment": "",
+        "key": "Nearby",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 196
+        }
+      },
+      {
+        "comment": "",
+        "key": "Moderate",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 197
+        }
+      },
+      {
+        "comment": "",
+        "key": "Far",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 198
+        }
+      },
+      {
+        "comment": "",
+        "key": "Budget",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 205
+        }
+      },
+      {
+        "comment": "",
+        "key": "Budget",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 208
+        }
+      },
+      {
+        "comment": "",
+        "key": "Budget",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 209
+        }
+      },
+      {
+        "comment": "",
+        "key": "Moderate",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 210
+        }
+      },
+      {
+        "comment": "",
+        "key": "Premium",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 211
+        }
+      },
+      {
+        "comment": "",
+        "key": "Save Interests",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 239
+        }
+      }
+    ]
+  },
+  "version": 1
+}

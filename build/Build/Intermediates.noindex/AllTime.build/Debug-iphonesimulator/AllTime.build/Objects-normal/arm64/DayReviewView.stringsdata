@@ -1,0 +1,144 @@
+{
+  "source": "/Users/dheeraj/Desktop/AllTime/AllTime/Views/DayReviewView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Day Review",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 28
+        }
+      },
+      {
+        "comment": "",
+        "key": "Success",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 40
+        }
+      },
+      {
+        "comment": "",
+        "key": "Done",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 32
+        }
+      },
+      {
+        "comment": "",
+        "key": "OK",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 41
+        }
+      },
+      {
+        "comment": "",
+        "key": "Loading your day...",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 55
+        }
+      },
+      {
+        "comment": "",
+        "key": "Try Again",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 71
+        }
+      },
+      {
+        "comment": "",
+        "key": "No Plan Found",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 88
+        }
+      },
+      {
+        "comment": "",
+        "key": "You didn't create a day plan for today. Use 'Plan Your Day' to generate activities!",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 91
+        }
+      },
+      {
+        "comment": "",
+        "key": "How was your day?",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 103
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld%%",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 130
+        }
+      },
+      {
+        "comment": "",
+        "key": "completed",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 132
+        }
+      },
+      {
+        "comment": "",
+        "key": "Completed",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 185
+        }
+      },
+      {
+        "comment": "",
+        "key": "Missed",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 197
+        }
+      },
+      {
+        "comment": "",
+        "key": "How did today feel?",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 254
+        }
+      },
+      {
+        "comment": "",
+        "key": "Notes (optional)",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 266
+        }
+      },
+      {
+        "comment": "",
+        "key": "Update Reflection",
+        "location": {
+          "startingColumn": 60,
+          "startingLine": 288
+        }
+      },
+      {
+        "comment": "",
+        "key": "Save Reflection",
+        "location": {
+          "startingColumn": 82,
+          "startingLine": 288
+        }
+      }
+    ]
+  },
+  "version": 1
+}

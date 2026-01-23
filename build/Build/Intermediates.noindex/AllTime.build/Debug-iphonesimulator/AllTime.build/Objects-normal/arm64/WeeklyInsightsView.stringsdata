@@ -1,0 +1,272 @@
+{
+  "source": "/Users/dheeraj/Desktop/AllTime/AllTime/Views/Insights/WeeklyInsightsView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Weekly Report",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 119
+        }
+      },
+      {
+        "comment": "",
+        "key": "Work-Life Balance",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 169
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld points from last week",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 179
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld points from last week",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 184
+        }
+      },
+      {
+        "comment": "",
+        "key": "Same as last week",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 189
+        }
+      },
+      {
+        "comment": "",
+        "key": "Driven by",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 280
+        }
+      },
+      {
+        "comment": "",
+        "key": "Quick wins",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 309
+        }
+      },
+      {
+        "comment": "",
+        "key": "Week Highlights",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 405
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld people",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 414
+        }
+      },
+      {
+        "comment": "",
+        "key": "Week vs Week",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 540
+        }
+      },
+      {
+        "comment": "",
+        "key": "No change",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 674
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 654
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld%@",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 669
+        }
+      },
+      {
+        "comment": "",
+        "key": "Health Goals",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 723
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld%%",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 743
+        }
+      },
+      {
+        "comment": "",
+        "key": "/",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 796
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld/%lld",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 806
+        }
+      },
+      {
+        "comment": "",
+        "key": "days",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 808
+        }
+      },
+      {
+        "comment": "",
+        "key": "Time Breakdown",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 856
+        }
+      },
+      {
+        "comment": "",
+        "key": "Energy & Health",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 946
+        }
+      },
+      {
+        "comment": "",
+        "key": "Areas to Watch",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 1014
+        }
+      },
+      {
+        "comment": "",
+        "key": "Ideas for Next Week",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 1079
+        }
+      },
+      {
+        "comment": "",
+        "key": "Generating your report card...",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 1153
+        }
+      },
+      {
+        "comment": "",
+        "key": "Unable to load insights",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 1174
+        }
+      },
+      {
+        "comment": "",
+        "key": "Try Again",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 1186
+        }
+      },
+      {
+        "comment": "",
+        "key": "Select Week",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 1242
+        }
+      },
+      {
+        "comment": "",
+        "key": "%@ - %@",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 1226
+        }
+      },
+      {
+        "comment": "",
+        "key": "Done",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 1246
+        }
+      },
+      {
+        "comment": "",
+        "key": "Next Week Forecast",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 1326
+        }
+      },
+      {
+        "comment": "",
+        "key": "Next Week Forecast",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 1360
+        }
+      },
+      {
+        "comment": "",
+        "key": "Take action now",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 1415
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 1460
+        }
+      },
+      {
+        "comment": "",
+        "key": "mtgs",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 1464
+        }
+      }
+    ]
+  },
+  "version": 1
+}

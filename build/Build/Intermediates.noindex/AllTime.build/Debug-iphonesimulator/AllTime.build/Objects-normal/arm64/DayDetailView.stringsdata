@@ -1,0 +1,48 @@
+{
+  "source": "/Users/dheeraj/Desktop/AllTime/AllTime/Views/DayDetailView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 98
+        }
+      },
+      {
+        "comment": "",
+        "key": "Unscheduled day",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 41
+        }
+      },
+      {
+        "comment": "",
+        "key": "Protect this time intentionally",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 45
+        }
+      },
+      {
+        "comment": "",
+        "key": "Done",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 102
+        }
+      },
+      {
+        "comment": "",
+        "key": "%@ - %@",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 187
+        }
+      }
+    ]
+  },
+  "version": 1
+}

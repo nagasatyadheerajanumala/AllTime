@@ -1,0 +1,16 @@
+{
+  "source": "/Users/dheeraj/Desktop/AllTime/AllTime/Utils/Extensions.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Loading...",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 73
+        }
+      }
+    ]
+  },
+  "version": 1
+}

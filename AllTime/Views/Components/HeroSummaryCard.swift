@@ -1,349 +1,620 @@
 import SwiftUI
 
-// MARK: - Hero Summary Card (Decision Engine)
-/// The heart of Clara's decision engine.
-///
-/// Philosophy:
-/// - Clara exists to prevent bad weeks before they happen.
-/// - Time is not neutral. A meeting-free day can still be draining.
-/// - Retrospective insight is table stakes. Clara forecasts.
-/// - Clara is opinionated. It makes recommendations, not suggestions.
-/// - The unit of value is the week.
-///
-/// This card is NOT a status page. It is a decision surface.
+// MARK: - Hero Summary Card (Today's Overview)
+/// The ONE tile that tells you everything about your day.
+/// Design: Glanceable in < 1 second. Color = status. No scrolling.
 struct HeroSummaryCard: View {
     let overview: TodayOverviewResponse?
     let briefing: DailyBriefingResponse?
     let driftStatus: WeekDriftStatus?
+    let freshHealth: DailyHealthMetrics?
+    let intelligence: TimeIntelligenceResponse?
     let isLoading: Bool
     let onTap: () -> Void
     let onInterventionTap: (DriftIntervention) -> Void
 
-    // MARK: - Derived Properties
+    // Animation
+    @State private var animateIn = false
+    @State private var pulseScale: CGFloat = 1.0
 
-    /// The dominant narrative - opinionated, not observational
-    private var headline: String {
-        if let drift = driftStatus {
-            return drift.headline
-        }
-        // Fallback to old style if drift not available
-        return overview?.summaryTile.greeting ?? briefing?.greeting ?? "Good day"
-    }
+    // MARK: - Derived State
 
-    /// Supporting context - opportunity + risk framing
-    private var subheadline: String {
-        if let drift = driftStatus {
-            return drift.subheadline
-        }
-        return overview?.summaryTile.previewLine ?? briefing?.summaryLine ?? ""
-    }
-
-    /// The severity determines the card's visual treatment
     private var severity: DriftSeverity {
         guard let drift = driftStatus else { return .onTrack }
         return DriftSeverity(rawValue: drift.severity) ?? .onTrack
     }
 
-    /// The ONE non-negotiable recommendation
+    private var severityColor: Color {
+        Color(hex: severity.color)
+    }
+
     private var primaryIntervention: DriftIntervention? {
         driftStatus?.interventions.first
     }
 
-    /// Week projection - what happens if nothing changes
-    private var weekProjection: String? {
-        guard severity != .onTrack, let drift = driftStatus else { return nil }
-        return drift.weekProjection
+    // MARK: - Computed Metrics
+
+    private var sleepHours: Double {
+        Double(freshHealth?.sleepMinutes ?? 0) / 60.0
+    }
+
+    private var steps: Int {
+        freshHealth?.steps ?? 0
+    }
+
+    private var energyPercent: Int {
+        100 - min(intelligence?.capacityOverloadPercent ?? 50, 100)
+    }
+
+    private var meetingCount: Int {
+        intelligence?.metrics?.meetingCount ?? 0
+    }
+
+    private var focusMinutes: Int {
+        intelligence?.metrics?.largestFocusBlockMinutes ?? 0
+    }
+
+    // MARK: - Percentage Change Calculations (vs average)
+
+    private var sleepChangePercent: Int? {
+        guard let current = freshHealth?.sleepMinutes, current > 0,
+              let avgHours = briefing?.keyMetrics?.sleepHoursAverage, avgHours > 0 else { return nil }
+        let currentHours = Double(current) / 60.0
+        let change = ((currentHours - avgHours) / avgHours) * 100
+        return Int(change.rounded())
+    }
+
+    private var stepsChangePercent: Int? {
+        guard let current = freshHealth?.steps, current > 0,
+              let avg = briefing?.keyMetrics?.stepsAverage, avg > 0 else { return nil }
+        let change = ((Double(current) - Double(avg)) / Double(avg)) * 100
+        return Int(change.rounded())
+    }
+
+    private var meetingsChangePercent: Int? {
+        guard let avgCount = briefing?.keyMetrics?.meetingsAverageCount, avgCount > 0 else { return nil }
+        let change = ((Double(meetingCount) - avgCount) / avgCount) * 100
+        return Int(change.rounded())
+    }
+
+    private var energyChangePercent: Int? {
+        // Energy doesn't have a direct "yesterday" comparison, so we'll skip it
+        // Could be enhanced later with historical data
+        return nil
     }
 
     // MARK: - Body
 
     var body: some View {
         Button(action: onTap) {
-            VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+            VStack(spacing: 0) {
                 if isLoading && driftStatus == nil && overview == nil {
-                    skeletonContent
+                    loadingState
                 } else {
-                    // 1. Dominant Narrative (Opinionated)
-                    narrativeSection
-
-                    // 2. Risk Signal (if drifting)
-                    if let projection = weekProjection {
-                        riskSignal(projection)
-                    }
-
-                    // 3. ONE Non-Negotiable Recommendation
-                    if let intervention = primaryIntervention {
-                        interventionSection(intervention)
-                    }
-
-                    Spacer(minLength: DesignSystem.Spacing.xs)
-
-                    // 4. Contextual Clara Prompt
-                    claraPromptSection
+                    mainContent
                 }
             }
-            .heroCard(severity: severity)
+            .frame(maxWidth: .infinity)
+            .background(cardBackground)
+            .clipShape(RoundedRectangle(cornerRadius: 28))
+            .shadow(color: severityColor.opacity(0.2), radius: 20, y: 10)
         }
-        .buttonStyle(PlainButtonStyle())
+        .buttonStyle(HeroScaleButtonStyle())
+        .onAppear {
+            withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
+                animateIn = true
+            }
+            startPulseAnimation()
+        }
     }
 
-    // MARK: - Narrative Section
+    // MARK: - Main Content
 
-    private var narrativeSection: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            // Drift indicator + Day
-            HStack(spacing: 8) {
-                // Severity indicator
-                HStack(spacing: 4) {
-                    Image(systemName: severity.icon)
-                        .font(.system(size: 10, weight: .semibold))
-                    Text(severity.displayName)
-                        .font(.caption.weight(.semibold))
-                }
-                .foregroundColor(Color(hex: severity.color))
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(
-                    Capsule()
-                        .fill(Color(hex: severity.color).opacity(0.15))
+    private var mainContent: some View {
+        VStack(spacing: 16) {
+            // Header: Day progress circle + Date + Status badge
+            headerSection
+                .padding(.horizontal, 20)
+                .padding(.top, 20)
+
+            // Metrics Grid: 4 metrics, always visible, no scrolling
+            metricsGrid
+                .padding(.horizontal, 16)
+
+            // Action button (if needed)
+            if let intervention = primaryIntervention {
+                actionButton(intervention)
+                    .padding(.horizontal, 16)
+            }
+
+            Spacer().frame(height: 16)
+        }
+    }
+
+    // MARK: - Header Section
+
+    private var headerSection: some View {
+        HStack(spacing: 16) {
+            // Day progress circle with weather
+            dayProgressCircle
+
+            // Date and greeting
+            VStack(alignment: .leading, spacing: 4) {
+                Text(dayName)
+                    .font(.system(size: 24, weight: .bold, design: .rounded))
+                    .foregroundColor(.white)
+
+                Text(dateString)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(.white.opacity(0.6))
+            }
+
+            Spacer()
+
+            // Status badge
+            statusBadge
+        }
+    }
+
+    // MARK: - Day Progress Circle
+
+    private var dayProgressCircle: some View {
+        ZStack {
+            // Background circle
+            Circle()
+                .fill(Color.white.opacity(0.08))
+                .frame(width: 56, height: 56)
+
+            // Progress ring (day completion)
+            Circle()
+                .trim(from: 0, to: dayProgress)
+                .stroke(
+                    DesignSystem.Colors.emerald,
+                    style: StrokeStyle(lineWidth: 3, lineCap: .round)
                 )
+                .frame(width: 56, height: 56)
+                .rotationEffect(.degrees(-90))
 
-                Spacer()
+            // Content: Short day + weather icon
+            VStack(spacing: 2) {
+                Text(shortDayName)
+                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                    .foregroundColor(.white)
 
-                // Day indicator
-                Text(dayOfWeekLabel)
-                    .font(.caption2.weight(.medium))
-                    .foregroundColor(.white.opacity(0.5))
+                Image(systemName: weatherIcon)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(weatherColor)
             }
+        }
+        .scaleEffect(animateIn ? 1.0 : 0.8)
+        .opacity(animateIn ? 1.0 : 0)
+    }
 
-            // Main headline - the opinionated statement
-            Text(headline)
-                .font(.title3.weight(.bold))
-                .foregroundColor(.white)
-                .lineLimit(2)
-                .fixedSize(horizontal: false, vertical: true)
+    /// Calculate day progress (0.0 to 1.0) based on working hours (8am - 10pm)
+    private var dayProgress: CGFloat {
+        let calendar = Calendar.current
+        let now = Date()
+        let hour = calendar.component(.hour, from: now)
+        let minute = calendar.component(.minute, from: now)
 
-            // Subheadline - supporting context
-            if !subheadline.isEmpty {
-                Text(subheadline)
-                    .font(.subheadline)
-                    .foregroundColor(.white.opacity(0.75))
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
+        let startHour = 8  // 8 AM
+        let endHour = 22   // 10 PM
+        let totalHours = endHour - startHour
+
+        let currentMinutes = (hour - startHour) * 60 + minute
+        let totalMinutes = totalHours * 60
+
+        if hour < startHour { return 0.0 }
+        if hour >= endHour { return 1.0 }
+
+        return CGFloat(currentMinutes) / CGFloat(totalMinutes)
+    }
+
+    private var dayName: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "EEEE"
+        return formatter.string(from: Date())
+    }
+
+    private var shortDayName: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "EEE"
+        return formatter.string(from: Date()).uppercased()
+    }
+
+    private var dateString: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMMM d"
+        return formatter.string(from: Date())
+    }
+
+    /// Weather icon based on time of day (placeholder - can be enhanced with actual weather API)
+    private var weatherIcon: String {
+        let hour = Calendar.current.component(.hour, from: Date())
+        if hour >= 6 && hour < 18 {
+            return "sun.max.fill"  // Daytime
+        } else {
+            return "moon.fill"     // Nighttime
         }
     }
 
-    // MARK: - Risk Signal
-
-    private func riskSignal(_ projection: String) -> some View {
-        HStack(spacing: 8) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .font(.system(size: 11))
-                .foregroundColor(Color(hex: severity.color))
-
-            Text(projection)
-                .font(.caption)
-                .foregroundColor(.white.opacity(0.7))
-                .lineLimit(2)
+    private var weatherColor: Color {
+        let hour = Calendar.current.component(.hour, from: Date())
+        if hour >= 6 && hour < 18 {
+            return DesignSystem.Colors.amber  // Sun color
+        } else {
+            return DesignSystem.Colors.blue   // Moon color
         }
-        .padding(10)
-        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var statusBadge: some View {
+        HStack(spacing: 6) {
+            Circle()
+                .fill(severityColor)
+                .frame(width: 8, height: 8)
+                .scaleEffect(pulseScale)
+
+            Text(severity.shortLabel)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundColor(.white.opacity(0.9))
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
         .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color(hex: severity.color).opacity(0.1))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color(hex: severity.color).opacity(0.2), lineWidth: 0.5)
-                )
+            Capsule()
+                .fill(severityColor.opacity(0.2))
         )
     }
 
-    // MARK: - Intervention Section (ONE Recommendation)
+    // MARK: - Metrics Grid (No Scrolling)
 
-    private func interventionSection(_ intervention: DriftIntervention) -> some View {
+    private var metricsGrid: some View {
+        HStack(spacing: 10) {
+            // Sleep
+            HeroMetricTile(
+                icon: "moon.fill",
+                value: sleepHours > 0 ? String(format: "%.1f", sleepHours) : "--",
+                unit: "h",
+                label: "Sleep",
+                color: sleepColor,
+                delay: 0.0,
+                changePercent: sleepChangePercent
+            )
+
+            // Steps
+            HeroMetricTile(
+                icon: "figure.walk",
+                value: steps > 0 ? formatSteps(steps) : "--",
+                unit: "",
+                label: "Steps",
+                color: stepsColor,
+                delay: 0.05,
+                changePercent: stepsChangePercent
+            )
+
+            // Energy
+            HeroMetricTile(
+                icon: "bolt.fill",
+                value: "\(energyPercent)",
+                unit: "%",
+                label: "Energy",
+                color: energyColor,
+                delay: 0.1,
+                changePercent: energyChangePercent
+            )
+
+            // Meetings
+            HeroMetricTile(
+                icon: "calendar",
+                value: "\(meetingCount)",
+                unit: "",
+                label: "Meetings",
+                color: meetingsColor,
+                delay: 0.15,
+                changePercent: meetingsChangePercent
+            )
+        }
+    }
+
+    // MARK: - Action Button
+
+    private func actionButton(_ intervention: DriftIntervention) -> some View {
         Button(action: {
             HapticManager.shared.mediumTap()
             onInterventionTap(intervention)
         }) {
             HStack(spacing: 10) {
-                // Icon
-                ZStack {
-                    Circle()
-                        .fill(Color.white.opacity(0.15))
-                        .frame(width: 32, height: 32)
-                    Image(systemName: intervention.icon)
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(.white)
-                }
+                Image(systemName: intervention.icon)
+                    .font(.system(size: 16, weight: .semibold))
 
-                // Action + Detail
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(intervention.action)
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundColor(.white)
-                        .lineLimit(1)
-
-                    Text(intervention.detail)
-                        .font(.caption)
-                        .foregroundColor(.white.opacity(0.6))
-                        .lineLimit(1)
-                }
+                Text(intervention.shortAction)
+                    .font(.system(size: 15, weight: .semibold))
+                    .lineLimit(1)
 
                 Spacer()
 
-                // Action indicator
-                Image(systemName: "arrow.right.circle.fill")
-                    .font(.system(size: 18))
-                    .foregroundColor(.white.opacity(0.4))
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(.white.opacity(0.5))
             }
-            .padding(12)
+            .foregroundColor(.white)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 16)
             .background(
-                RoundedRectangle(cornerRadius: 10)
-                    .fill(Color.white.opacity(0.08))
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(severityColor.opacity(0.25))
                     .overlay(
-                        RoundedRectangle(cornerRadius: 10)
-                            .stroke(Color.white.opacity(0.1), lineWidth: 0.5)
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(severityColor.opacity(0.3), lineWidth: 1)
                     )
             )
         }
         .buttonStyle(PlainButtonStyle())
     }
 
-    // MARK: - Clara Prompt (Contextual)
+    // MARK: - Card Background
 
-    private var claraPromptSection: some View {
-        let prompt = contextualClaraPrompt
+    private var cardBackground: some View {
+        ZStack {
+            // Base
+            LinearGradient(
+                colors: [Color(hex: "1C1C2E"), Color(hex: "141420")],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
 
-        return HStack(spacing: 6) {
-            Image(systemName: "sparkles")
-                .font(.caption2)
-                .foregroundColor(DesignSystem.Colors.claraPurpleLight)
+            // Ambient glow based on status
+            RadialGradient(
+                colors: [severityColor.opacity(severity == .onTrack ? 0.08 : 0.15), Color.clear],
+                center: .topLeading,
+                startRadius: 0,
+                endRadius: 300
+            )
 
-            Text(prompt)
-                .font(.caption)
-                .foregroundColor(.white.opacity(0.5))
-
-            Spacer()
-
-            Image(systemName: "chevron.right")
-                .font(.system(size: 10, weight: .semibold))
-                .foregroundColor(.white.opacity(0.3))
-        }
-        .padding(.top, 4)
-    }
-
-    /// Contextual prompts that teach users how to think WITH Clara
-    private var contextualClaraPrompt: String {
-        switch severity {
-        case .onTrack:
-            return "Ask Clara what to protect today"
-        case .watch:
-            return "Ask Clara what's at risk this week"
-        case .drifting:
-            return "Ask Clara what to move or drop"
-        case .critical:
-            return "Ask Clara for emergency triage"
-        }
-    }
-
-    // MARK: - Day Label
-
-    private var dayOfWeekLabel: String {
-        guard let drift = driftStatus else {
-            let formatter = DateFormatter()
-            formatter.dateFormat = "EEEE"
-            return formatter.string(from: Date())
-        }
-        return "Day \(drift.dayOfWeek) of 7"
-    }
-
-    // MARK: - Skeleton
-
-    private var skeletonContent: some View {
-        VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-            // Severity badge skeleton
-            RoundedRectangle(cornerRadius: 10)
-                .fill(Color.white.opacity(0.1))
-                .frame(width: 80, height: 24)
-
-            // Headline skeleton
-            RoundedRectangle(cornerRadius: 4)
-                .fill(Color.white.opacity(0.08))
-                .frame(height: 24)
-
-            // Subheadline skeleton
-            RoundedRectangle(cornerRadius: 4)
-                .fill(Color.white.opacity(0.06))
-                .frame(width: 280, height: 16)
-
-            // Intervention skeleton
-            RoundedRectangle(cornerRadius: 10)
-                .fill(Color.white.opacity(0.06))
-                .frame(height: 56)
-
-            Spacer(minLength: DesignSystem.Spacing.sm)
-
-            // Clara prompt skeleton
-            RoundedRectangle(cornerRadius: 4)
-                .fill(Color.white.opacity(0.04))
-                .frame(width: 200, height: 14)
-        }
-        .frame(minHeight: 180)
-    }
-}
-
-// MARK: - Hero Card Modifier (Updated with Severity)
-
-extension View {
-    func heroCard(severity: DriftSeverity = .onTrack) -> some View {
-        self
-            .padding(DesignSystem.Spacing.lg)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .frame(minHeight: 180)
-            .background(
-                ZStack {
-                    // Base gradient
-                    LinearGradient(
-                        colors: [
-                            Color(hex: "1E1E2E"),
-                            Color(hex: "151520")
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-
-                    // Severity accent glow
-                    if severity != .onTrack {
-                        RadialGradient(
-                            colors: [
-                                Color(hex: severity.color).opacity(0.15),
-                                Color.clear
-                            ],
-                            center: .topTrailing,
-                            startRadius: 0,
-                            endRadius: 200
-                        )
+            // Subtle pattern overlay
+            GeometryReader { geo in
+                Path { path in
+                    let spacing: CGFloat = 30
+                    for i in 0..<Int(geo.size.width / spacing) {
+                        let x = CGFloat(i) * spacing
+                        path.move(to: CGPoint(x: x, y: 0))
+                        path.addLine(to: CGPoint(x: x + geo.size.height, y: geo.size.height))
                     }
                 }
-            )
-            .clipShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.xl))
-            .overlay(
-                RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.xl)
-                    .stroke(
-                        severity != .onTrack
-                            ? Color(hex: severity.color).opacity(0.3)
-                            : Color.white.opacity(0.08),
-                        lineWidth: 1
+                .stroke(Color.white.opacity(0.02), lineWidth: 1)
+            }
+        }
+    }
+
+    // MARK: - Loading State
+
+    private var loadingState: some View {
+        VStack(spacing: 20) {
+            // Header skeleton
+            HStack {
+                VStack(alignment: .leading, spacing: 6) {
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(Color.white.opacity(0.1))
+                        .frame(width: 120, height: 28)
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(Color.white.opacity(0.08))
+                        .frame(width: 60, height: 14)
+                }
+                Spacer()
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color.white.opacity(0.08))
+                    .frame(width: 80, height: 32)
+            }
+            .padding(.horizontal, 24)
+            .padding(.top, 24)
+
+            // Hero skeleton
+            HStack(spacing: 16) {
+                Circle()
+                    .fill(Color.white.opacity(0.08))
+                    .frame(width: 72, height: 72)
+                    .overlay(
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: .white.opacity(0.3)))
                     )
-            )
+
+                VStack(alignment: .leading, spacing: 8) {
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(Color.white.opacity(0.1))
+                        .frame(width: 160, height: 18)
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(Color.white.opacity(0.06))
+                        .frame(width: 100, height: 14)
+                }
+                Spacer()
+            }
+            .padding(16)
+            .background(RoundedRectangle(cornerRadius: 20).fill(Color.white.opacity(0.03)))
+            .padding(.horizontal, 24)
+
+            // Metrics skeleton
+            HStack(spacing: 12) {
+                ForEach(0..<4, id: \.self) { _ in
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(Color.white.opacity(0.05))
+                        .frame(height: 80)
+                }
+            }
+            .padding(.horizontal, 20)
+
+            Spacer().frame(height: 20)
+        }
+    }
+
+    // MARK: - Colors
+
+    private var sleepColor: Color {
+        if sleepHours >= 7 { return DesignSystem.Colors.emerald }
+        if sleepHours >= 6 { return DesignSystem.Colors.amber }
+        if sleepHours > 0 { return DesignSystem.Colors.errorRed }
+        return DesignSystem.Colors.secondaryText
+    }
+
+    private var stepsColor: Color {
+        if steps >= 8000 { return DesignSystem.Colors.emerald }
+        if steps >= 5000 { return DesignSystem.Colors.blue }
+        if steps > 0 { return DesignSystem.Colors.amber }
+        return DesignSystem.Colors.secondaryText
+    }
+
+    private var energyColor: Color {
+        if energyPercent >= 60 { return DesignSystem.Colors.emerald }
+        if energyPercent >= 30 { return DesignSystem.Colors.amber }
+        return DesignSystem.Colors.errorRed
+    }
+
+    private var meetingsColor: Color {
+        if meetingCount >= 6 { return DesignSystem.Colors.errorRed }
+        if meetingCount >= 4 { return DesignSystem.Colors.amber }
+        return DesignSystem.Colors.blue
+    }
+
+    // MARK: - Helpers
+
+    private func formatSteps(_ steps: Int) -> String {
+        if steps >= 1000 {
+            return String(format: "%.1fk", Double(steps) / 1000)
+        }
+        return "\(steps)"
+    }
+
+    private func startPulseAnimation() {
+        withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
+            pulseScale = 1.2
+        }
     }
 }
 
-// MARK: - Backward Compatibility Initializer
+// MARK: - Hero Metric Tile
+
+private struct HeroMetricTile: View {
+    let icon: String
+    let value: String
+    let unit: String
+    let label: String
+    let color: Color
+    let delay: Double
+    var changePercent: Int? = nil  // Optional: percentage change from average/yesterday
+
+    @State private var animateIn = false
+
+    private var changeColor: Color {
+        guard let change = changePercent else { return .white }
+        // For sleep and steps: positive is good (green), negative is bad (red)
+        // For meetings: positive is bad (more meetings = red), negative is good (green)
+        if label == "Meetings" {
+            return change > 0 ? DesignSystem.Colors.errorRed : DesignSystem.Colors.emerald
+        }
+        return change >= 0 ? DesignSystem.Colors.emerald : DesignSystem.Colors.errorRed
+    }
+
+    private var changeIcon: String {
+        guard let change = changePercent else { return "" }
+        return change > 0 ? "arrow.up" : (change < 0 ? "arrow.down" : "minus")
+    }
+
+    var body: some View {
+        VStack(spacing: 6) {
+            // Icon
+            Image(systemName: icon)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundColor(color)
+
+            // Value
+            HStack(spacing: 1) {
+                Text(value)
+                    .font(.system(size: 18, weight: .bold, design: .rounded))
+                    .foregroundColor(.white)
+
+                if !unit.isEmpty {
+                    Text(unit)
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundColor(.white.opacity(0.5))
+                        .offset(y: -2)
+                }
+            }
+
+            // Change indicator (if available)
+            if let change = changePercent, change != 0 {
+                HStack(spacing: 2) {
+                    Image(systemName: changeIcon)
+                        .font(.system(size: 8, weight: .bold))
+                    Text("\(abs(change))%")
+                        .font(.system(size: 9, weight: .semibold))
+                }
+                .foregroundColor(changeColor)
+            } else {
+                // Label when no change data
+                Text(label)
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundColor(.white.opacity(0.5))
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 12)
+        .background(
+            RoundedRectangle(cornerRadius: 14)
+                .fill(color.opacity(0.1))
+        )
+        .scaleEffect(animateIn ? 1.0 : 0.8)
+        .opacity(animateIn ? 1.0 : 0)
+        .onAppear {
+            withAnimation(.spring(response: 0.5, dampingFraction: 0.7).delay(delay)) {
+                animateIn = true
+            }
+        }
+    }
+}
+
+// MARK: - Scale Button Style
+
+private struct HeroScaleButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
+            .animation(.spring(response: 0.3), value: configuration.isPressed)
+    }
+}
+
+// MARK: - Drift Severity Extensions
+
+extension DriftSeverity {
+    var emoji: String {
+        switch self {
+        case .onTrack: return "✨"
+        case .watch: return "👀"
+        case .drifting: return "⚡"
+        case .critical: return "🔥"
+        }
+    }
+
+    var shortLabel: String {
+        switch self {
+        case .onTrack: return "On track"
+        case .watch: return "Watch"
+        case .drifting: return "Drifting"
+        case .critical: return "Overloaded"
+        }
+    }
+}
+
+// MARK: - Drift Intervention Extension
+
+extension DriftIntervention {
+    var shortAction: String {
+        let words = action.split(separator: " ").prefix(4)
+        return words.joined(separator: " ")
+    }
+}
+
+// MARK: - Backward Compatibility
 
 extension HeroSummaryCard {
-    /// Backward-compatible initializer without drift status
     init(
         overview: TodayOverviewResponse?,
         briefing: DailyBriefingResponse?,
@@ -353,9 +624,29 @@ extension HeroSummaryCard {
         self.overview = overview
         self.briefing = briefing
         self.driftStatus = nil
+        self.freshHealth = nil
+        self.intelligence = nil
         self.isLoading = isLoading
         self.onTap = onTap
         self.onInterventionTap = { _ in }
+    }
+
+    init(
+        overview: TodayOverviewResponse?,
+        briefing: DailyBriefingResponse?,
+        driftStatus: WeekDriftStatus?,
+        isLoading: Bool,
+        onTap: @escaping () -> Void,
+        onInterventionTap: @escaping (DriftIntervention) -> Void
+    ) {
+        self.overview = overview
+        self.briefing = briefing
+        self.driftStatus = driftStatus
+        self.freshHealth = nil
+        self.intelligence = nil
+        self.isLoading = isLoading
+        self.onTap = onTap
+        self.onInterventionTap = onInterventionTap
     }
 }
 
@@ -363,93 +654,12 @@ extension HeroSummaryCard {
 
 #Preview {
     VStack(spacing: 16) {
-        // On track
         HeroSummaryCard(
             overview: nil,
             briefing: nil,
-            driftStatus: WeekDriftStatus(
-                driftScore: 15,
-                severity: "on_track",
-                severityLabel: "On Track",
-                dayOfWeek: 2,
-                dayLabel: "TUESDAY",
-                headline: "This week is on course.",
-                subheadline: "Early week looks manageable. Protect what's working.",
-                signals: DriftSignals(
-                    meetingHoursThisWeek: 8,
-                    meetingHoursRemaining: 6,
-                    meetingCount: 12,
-                    backToBackCount: 2,
-                    eveningEncroachment: 0,
-                    baselineMeetingHoursPerWeek: 12,
-                    varianceFromBaseline: -33,
-                    taskDeferrals: 1,
-                    overdueCount: 0,
-                    sleepDebtHours: 0,
-                    activityGapPercent: 10,
-                    unstructuredDrift: nil,
-                    unstructuredDriftReason: nil,
-                    lightStructure: nil,
-                    significantlyLighter: nil
-                ),
-                interventions: [
-                    DriftIntervention(
-                        id: "deep_work",
-                        action: "Block 90 minutes for deep work",
-                        detail: "Before noon. Light weeks are rare—this is when your best work happens.",
-                        icon: "brain.head.profile",
-                        deepLink: "alltime://calendar?action=block&duration=90",
-                        impact: 15
-                    )
-                ],
-                weekProjection: "Light weeks either produce your best work or disappear into noise."
-            ),
-            isLoading: false,
-            onTap: {},
-            onInterventionTap: { _ in }
-        )
-
-        // Drifting
-        HeroSummaryCard(
-            overview: nil,
-            briefing: nil,
-            driftStatus: WeekDriftStatus(
-                driftScore: 55,
-                severity: "drifting",
-                severityLabel: "Drifting",
-                dayOfWeek: 4,
-                dayLabel: "THURSDAY",
-                headline: "This week is drifting.",
-                subheadline: "12h of meetings still ahead. One cut could change everything.",
-                signals: DriftSignals(
-                    meetingHoursThisWeek: 18,
-                    meetingHoursRemaining: 12,
-                    meetingCount: 22,
-                    backToBackCount: 6,
-                    eveningEncroachment: 2,
-                    baselineMeetingHoursPerWeek: 12,
-                    varianceFromBaseline: 50,
-                    taskDeferrals: 4,
-                    overdueCount: 2,
-                    sleepDebtHours: 2,
-                    activityGapPercent: 30,
-                    unstructuredDrift: nil,
-                    unstructuredDriftReason: nil,
-                    lightStructure: nil,
-                    significantlyLighter: nil
-                ),
-                interventions: [
-                    DriftIntervention(
-                        id: "reduce_meetings",
-                        action: "Decline or shorten one meeting",
-                        detail: "~2h back. Look for optional attendee meetings.",
-                        icon: "calendar.badge.minus",
-                        deepLink: "alltime://calendar?filter=meetings",
-                        impact: 18
-                    )
-                ],
-                weekProjection: "If nothing changes, this week ends in recovery mode."
-            ),
+            driftStatus: nil,
+            freshHealth: nil,
+            intelligence: nil,
             isLoading: false,
             onTap: {},
             onInterventionTap: { _ in }

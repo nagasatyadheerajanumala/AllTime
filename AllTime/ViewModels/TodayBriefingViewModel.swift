@@ -102,6 +102,7 @@ class TodayBriefingViewModel: ObservableObject {
     /// Fetch briefing from API with optional force refresh
     /// Uses request de-duplication to prevent duplicate API calls
     func fetchBriefing(forceRefresh: Bool = false) async {
+        print("🔍 fetchBriefing called, forceRefresh=\(forceRefresh)")
         // Reset error state
         hasError = false
         errorMessage = nil
@@ -123,6 +124,7 @@ class TodayBriefingViewModel: ObservableObject {
         if !forceRefresh {
             if let cached = cacheService.loadJSONSync(DailyBriefingResponse.self, filename: cacheKey) {
                 briefing = cached
+                print("🔍 Loaded from disk cache: primaryRec=\(cached.primaryRecommendation != nil)")
                 await memoryCache.set(memoryCacheKey, value: cached)
 
                 // Check if cache is stale (older than 30 minutes)
@@ -170,6 +172,7 @@ class TodayBriefingViewModel: ObservableObject {
             }
 
             isLoading = false
+            print("🔍 Briefing fetch ERROR: \(error)")
 
             // Only show error if we have no cached data
             if briefing == nil {
@@ -242,6 +245,10 @@ class TodayBriefingViewModel: ObservableObject {
             do {
                 let briefingResponse = try decoder.decode(DailyBriefingResponse.self, from: data)
                 print("Today Briefing: Successfully decoded response")
+                print("🔍 Briefing data: primaryRec=\(briefingResponse.primaryRecommendation != nil), energyBudget=\(briefingResponse.energyBudget != nil), claraPrompts=\(briefingResponse.claraPrompts?.count ?? 0)")
+                if let rec = briefingResponse.primaryRecommendation {
+                    print("🔍 PrimaryRec: action='\(rec.action)', urgency=\(rec.urgency ?? "nil")")
+                }
                 return briefingResponse
             } catch {
                 print("Today Briefing: Decode error - \(error)")

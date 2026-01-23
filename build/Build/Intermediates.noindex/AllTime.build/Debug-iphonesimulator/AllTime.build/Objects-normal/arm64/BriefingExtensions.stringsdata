@@ -1,0 +1,40 @@
+{
+  "source": "/Users/dheeraj/Desktop/AllTime/AllTime/Utils/BriefingExtensions.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Unable to Load Briefing",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 258
+        }
+      },
+      {
+        "comment": "",
+        "key": "Try Again",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 271
+        }
+      },
+      {
+        "comment": "",
+        "key": "No Briefing Available",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 296
+        }
+      },
+      {
+        "comment": "",
+        "key": "Your daily briefing will appear here once generated. Check back soon!",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 300
+        }
+      }
+    ]
+  },
+  "version": 1
+}

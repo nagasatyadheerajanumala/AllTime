@@ -1,0 +1,40 @@
+{
+  "source": "/Users/dheeraj/Desktop/AllTime/AllTime/Views/Components/TodayTileOrder.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Customize Layout",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 422
+        }
+      },
+      {
+        "comment": "",
+        "key": "Drag tiles to reorder",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 426
+        }
+      },
+      {
+        "comment": "",
+        "key": "Reset",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 434
+        }
+      },
+      {
+        "comment": "",
+        "key": "Done",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 441
+        }
+      }
+    ]
+  },
+  "version": 1
+}

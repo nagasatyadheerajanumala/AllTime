@@ -1,0 +1,232 @@
+{
+  "source": "/Users/dheeraj/Desktop/AllTime/AllTime/Views/AddEventView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "New Event",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 502
+        }
+      },
+      {
+        "comment": "",
+        "key": "Title",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 31
+        }
+      },
+      {
+        "comment": "",
+        "key": "Event title",
+        "location": {
+          "startingColumn": 39,
+          "startingLine": 35
+        }
+      },
+      {
+        "comment": "",
+        "key": "Date & Time",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 66
+        }
+      },
+      {
+        "comment": "",
+        "key": "Start",
+        "location": {
+          "startingColumn": 40,
+          "startingLine": 70
+        }
+      },
+      {
+        "comment": "",
+        "key": "End",
+        "location": {
+          "startingColumn": 40,
+          "startingLine": 73
+        }
+      },
+      {
+        "comment": "",
+        "key": "All Day",
+        "location": {
+          "startingColumn": 36,
+          "startingLine": 76
+        }
+      },
+      {
+        "comment": "",
+        "key": "Location",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 105
+        }
+      },
+      {
+        "comment": "",
+        "key": "Add location",
+        "location": {
+          "startingColumn": 39,
+          "startingLine": 109
+        }
+      },
+      {
+        "comment": "",
+        "key": "Description",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 140
+        }
+      },
+      {
+        "comment": "",
+        "key": "Calendar",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 201
+        }
+      },
+      {
+        "comment": "",
+        "key": "Event will be saved locally only",
+        "location": {
+          "startingColumn": 42,
+          "startingLine": 250
+        }
+      },
+      {
+        "comment": "",
+        "key": "Invites will be sent from: %@",
+        "location": {
+          "startingColumn": 42,
+          "startingLine": 245
+        }
+      },
+      {
+        "comment": "",
+        "key": "Loading calendars...",
+        "location": {
+          "startingColumn": 42,
+          "startingLine": 209
+        }
+      },
+      {
+        "comment": "",
+        "key": "Local Only",
+        "location": {
+          "startingColumn": 47,
+          "startingLine": 218
+        }
+      },
+      {
+        "comment": "",
+        "key": "%@ (%@)",
+        "location": {
+          "startingColumn": 51,
+          "startingLine": 225
+        }
+      },
+      {
+        "comment": "",
+        "key": "%@ (%@)",
+        "location": {
+          "startingColumn": 82,
+          "startingLine": 230
+        }
+      },
+      {
+        "comment": "",
+        "key": "Local Only",
+        "location": {
+          "startingColumn": 184,
+          "startingLine": 230
+        }
+      },
+      {
+        "comment": "",
+        "key": "Attendees",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 281
+        }
+      },
+      {
+        "comment": "",
+        "key": "A Google Meet video conferencing link will be automatically added to this event",
+        "location": {
+          "startingColumn": 46,
+          "startingLine": 362
+        }
+      },
+      {
+        "comment": "",
+        "key": "Add attendee email",
+        "location": {
+          "startingColumn": 47,
+          "startingLine": 287
+        }
+      },
+      {
+        "comment": "",
+        "key": "Add Google Meet",
+        "location": {
+          "startingColumn": 46,
+          "startingLine": 347
+        }
+      },
+      {
+        "comment": "",
+        "key": "",
+        "location": {
+          "startingColumn": 48,
+          "startingLine": 353
+        }
+      },
+      {
+        "comment": "",
+        "key": "Creating...",
+        "location": {
+          "startingColumn": 61,
+          "startingLine": 414
+        }
+      },
+      {
+        "comment": "",
+        "key": "Create Event",
+        "location": {
+          "startingColumn": 77,
+          "startingLine": 414
+        }
+      },
+      {
+        "comment": "",
+        "key": "Error",
+        "location": {
+          "startingColumn": 42,
+          "startingLine": 450
+        }
+      },
+      {
+        "comment": "",
+        "key": "Success",
+        "location": {
+          "startingColumn": 42,
+          "startingLine": 476
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cancel",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 506
+        }
+      }
+    ]
+  },
+  "version": 1
+}

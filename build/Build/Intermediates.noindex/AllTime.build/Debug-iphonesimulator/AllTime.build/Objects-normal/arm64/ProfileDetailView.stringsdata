@@ -1,0 +1,144 @@
+{
+  "source": "/Users/dheeraj/Desktop/AllTime/AllTime/Views/ProfileDetailView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Add Photo",
+        "location": {
+          "startingColumn": 37,
+          "startingLine": 42
+        }
+      },
+      {
+        "comment": "",
+        "key": "Change Photo",
+        "location": {
+          "startingColumn": 51,
+          "startingLine": 42
+        }
+      },
+      {
+        "comment": "",
+        "key": "Profile",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 305
+        }
+      },
+      {
+        "comment": "",
+        "key": "PROFILE INFORMATION",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 191
+        }
+      },
+      {
+        "comment": "",
+        "key": "PROFILE PICTURE",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 200
+        }
+      },
+      {
+        "comment": "",
+        "key": "Full Name",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 207
+        }
+      },
+      {
+        "comment": "",
+        "key": "Email",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 211
+        }
+      },
+      {
+        "comment": "",
+        "key": "Location",
+        "location": {
+          "startingColumn": 31,
+          "startingLine": 217
+        }
+      },
+      {
+        "comment": "",
+        "key": "PERSONAL INFORMATION",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 234
+        }
+      },
+      {
+        "comment": "",
+        "key": "Save Changes",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 251
+        }
+      },
+      {
+        "comment": "",
+        "key": "User ID",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 277
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 279
+        }
+      },
+      {
+        "comment": "",
+        "key": "Member Since",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 285
+        }
+      },
+      {
+        "comment": "",
+        "key": "Profile Completed",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 293
+        }
+      },
+      {
+        "comment": "",
+        "key": "Yes",
+        "location": {
+          "startingColumn": 78,
+          "startingLine": 295
+        }
+      },
+      {
+        "comment": "",
+        "key": "No",
+        "location": {
+          "startingColumn": 86,
+          "startingLine": 295
+        }
+      },
+      {
+        "comment": "",
+        "key": "ACCOUNT INFORMATION",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 299
+        }
+      }
+    ]
+  },
+  "version": 1
+}
