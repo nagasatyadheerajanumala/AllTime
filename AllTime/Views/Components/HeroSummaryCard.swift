@@ -54,6 +54,168 @@ struct HeroSummaryCard: View {
         intelligence?.metrics?.largestFocusBlockMinutes ?? 0
     }
 
+    // MARK: - Fallback Metrics (when sleep is unavailable)
+
+    private var restingHeartRate: Double? {
+        freshHealth?.restingHeartRate
+    }
+
+    private var activeCalories: Double? {
+        freshHealth?.activeEnergyBurned
+    }
+
+    private var activeMinutes: Int? {
+        freshHealth?.activeMinutes
+    }
+
+    /// Determine which metrics to show based on data availability
+    /// Returns: (firstMetric, secondMetric) where each is a tuple of (icon, value, unit, label, color, changePercent)
+    private var adaptiveMetrics: [(icon: String, value: String, unit: String, label: String, color: Color, changePercent: Int?)] {
+        var metrics: [(icon: String, value: String, unit: String, label: String, color: Color, changePercent: Int?)] = []
+
+        // First priority: Sleep (if available)
+        if sleepHours > 0 {
+            metrics.append((
+                icon: "moon.fill",
+                value: String(format: "%.1f", sleepHours),
+                unit: "h",
+                label: "Sleep",
+                color: sleepColor,
+                changePercent: sleepChangePercent
+            ))
+        } else if let hr = restingHeartRate, hr > 0 {
+            // Fallback 1: Resting Heart Rate
+            metrics.append((
+                icon: "heart.fill",
+                value: String(format: "%.0f", hr),
+                unit: "bpm",
+                label: "Heart Rate",
+                color: heartRateColor(hr),
+                changePercent: nil
+            ))
+        } else if let cal = activeCalories, cal > 0 {
+            // Fallback 2: Active Calories
+            metrics.append((
+                icon: "flame.fill",
+                value: formatCalories(cal),
+                unit: "",
+                label: "Calories",
+                color: caloriesColor(cal),
+                changePercent: nil
+            ))
+        } else if let mins = activeMinutes, mins > 0 {
+            // Fallback 3: Active Minutes
+            metrics.append((
+                icon: "figure.run",
+                value: "\(mins)",
+                unit: "m",
+                label: "Active",
+                color: activeMinutesColor(mins),
+                changePercent: nil
+            ))
+        } else {
+            // Default: Show sleep as "--"
+            metrics.append((
+                icon: "moon.fill",
+                value: "--",
+                unit: "h",
+                label: "Sleep",
+                color: DesignSystem.Colors.secondaryText,
+                changePercent: nil
+            ))
+        }
+
+        // Second: Steps (always show if available, otherwise show alternative)
+        if steps > 0 {
+            metrics.append((
+                icon: "figure.walk",
+                value: formatSteps(steps),
+                unit: "",
+                label: "Steps",
+                color: stepsColor,
+                changePercent: stepsChangePercent
+            ))
+        } else if let mins = activeMinutes, mins > 0, sleepHours > 0 {
+            // Show active minutes if we already showed sleep
+            metrics.append((
+                icon: "figure.run",
+                value: "\(mins)",
+                unit: "m",
+                label: "Active",
+                color: activeMinutesColor(mins),
+                changePercent: nil
+            ))
+        } else if let cal = activeCalories, cal > 0, sleepHours > 0 {
+            // Show calories if we showed sleep
+            metrics.append((
+                icon: "flame.fill",
+                value: formatCalories(cal),
+                unit: "",
+                label: "Calories",
+                color: caloriesColor(cal),
+                changePercent: nil
+            ))
+        } else {
+            // Default: Show steps as "--"
+            metrics.append((
+                icon: "figure.walk",
+                value: "--",
+                unit: "",
+                label: "Steps",
+                color: DesignSystem.Colors.secondaryText,
+                changePercent: nil
+            ))
+        }
+
+        // Third: Energy (always show)
+        metrics.append((
+            icon: "bolt.fill",
+            value: "\(energyPercent)",
+            unit: "%",
+            label: "Energy",
+            color: energyColor,
+            changePercent: energyChangePercent
+        ))
+
+        // Fourth: Meetings (always show)
+        metrics.append((
+            icon: "calendar",
+            value: "\(meetingCount)",
+            unit: "",
+            label: "Meetings",
+            color: meetingsColor,
+            changePercent: meetingsChangePercent
+        ))
+
+        return metrics
+    }
+
+    // Color helpers for fallback metrics
+    private func heartRateColor(_ hr: Double) -> Color {
+        if hr >= 60 && hr <= 80 { return DesignSystem.Colors.emerald }
+        if hr >= 50 && hr <= 90 { return DesignSystem.Colors.blue }
+        return DesignSystem.Colors.amber
+    }
+
+    private func caloriesColor(_ cal: Double) -> Color {
+        if cal >= 400 { return DesignSystem.Colors.emerald }
+        if cal >= 200 { return DesignSystem.Colors.blue }
+        return DesignSystem.Colors.amber
+    }
+
+    private func activeMinutesColor(_ mins: Int) -> Color {
+        if mins >= 30 { return DesignSystem.Colors.emerald }
+        if mins >= 15 { return DesignSystem.Colors.blue }
+        return DesignSystem.Colors.amber
+    }
+
+    private func formatCalories(_ cal: Double) -> String {
+        if cal >= 1000 {
+            return String(format: "%.1fk", cal / 1000)
+        }
+        return String(format: "%.0f", cal)
+    }
+
     // MARK: - Percentage Change Calculations (vs average)
 
     private var sleepChangePercent: Int? {
@@ -86,20 +248,21 @@ struct HeroSummaryCard: View {
     // MARK: - Body
 
     var body: some View {
-        Button(action: onTap) {
-            VStack(spacing: 0) {
-                if isLoading && driftStatus == nil && overview == nil {
-                    loadingState
-                } else {
-                    mainContent
-                }
+        VStack(spacing: 0) {
+            if isLoading && driftStatus == nil && overview == nil {
+                loadingState
+            } else {
+                mainContent
             }
-            .frame(maxWidth: .infinity)
-            .background(cardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: 28))
-            .shadow(color: severityColor.opacity(0.2), radius: 20, y: 10)
         }
-        .buttonStyle(HeroScaleButtonStyle())
+        .frame(maxWidth: .infinity)
+        .background(cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 28))
+        .shadow(color: severityColor.opacity(0.2), radius: 20, y: 10)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            onTap()
+        }
         .onAppear {
             withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
                 animateIn = true
@@ -269,60 +432,29 @@ struct HeroSummaryCard: View {
     // MARK: - Metrics Grid (No Scrolling)
 
     private var metricsGrid: some View {
-        HStack(spacing: 10) {
-            // Sleep
-            HeroMetricTile(
-                icon: "moon.fill",
-                value: sleepHours > 0 ? String(format: "%.1f", sleepHours) : "--",
-                unit: "h",
-                label: "Sleep",
-                color: sleepColor,
-                delay: 0.0,
-                changePercent: sleepChangePercent
-            )
-
-            // Steps
-            HeroMetricTile(
-                icon: "figure.walk",
-                value: steps > 0 ? formatSteps(steps) : "--",
-                unit: "",
-                label: "Steps",
-                color: stepsColor,
-                delay: 0.05,
-                changePercent: stepsChangePercent
-            )
-
-            // Energy
-            HeroMetricTile(
-                icon: "bolt.fill",
-                value: "\(energyPercent)",
-                unit: "%",
-                label: "Energy",
-                color: energyColor,
-                delay: 0.1,
-                changePercent: energyChangePercent
-            )
-
-            // Meetings
-            HeroMetricTile(
-                icon: "calendar",
-                value: "\(meetingCount)",
-                unit: "",
-                label: "Meetings",
-                color: meetingsColor,
-                delay: 0.15,
-                changePercent: meetingsChangePercent
-            )
+        let metrics = adaptiveMetrics
+        return HStack(spacing: 10) {
+            ForEach(Array(metrics.enumerated()), id: \.offset) { index, metric in
+                HeroMetricTile(
+                    icon: metric.icon,
+                    value: metric.value,
+                    unit: metric.unit,
+                    label: metric.label,
+                    color: metric.color,
+                    delay: Double(index) * 0.05,
+                    changePercent: metric.changePercent
+                )
+            }
         }
     }
 
     // MARK: - Action Button
 
     private func actionButton(_ intervention: DriftIntervention) -> some View {
-        Button(action: {
+        Button {
             HapticManager.shared.mediumTap()
             onInterventionTap(intervention)
-        }) {
+        } label: {
             HStack(spacing: 10) {
                 Image(systemName: intervention.icon)
                     .font(.system(size: 16, weight: .semibold))
@@ -349,7 +481,7 @@ struct HeroSummaryCard: View {
                     )
             )
         }
-        .buttonStyle(PlainButtonStyle())
+        .buttonStyle(ActionButtonStyle())
     }
 
     // MARK: - Card Background
@@ -578,6 +710,17 @@ private struct HeroScaleButtonStyle: ButtonStyle {
         configuration.label
             .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
             .animation(.spring(response: 0.3), value: configuration.isPressed)
+    }
+}
+
+// MARK: - Action Button Style (prevents tap propagation)
+
+private struct ActionButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.97 : 1.0)
+            .opacity(configuration.isPressed ? 0.9 : 1.0)
+            .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
     }
 }
 

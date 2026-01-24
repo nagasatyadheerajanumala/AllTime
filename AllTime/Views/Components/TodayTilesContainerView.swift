@@ -157,6 +157,8 @@ struct TodaySummaryDetailView: View {
     var freshHealthMetrics: DailyHealthMetrics? = nil
     @Environment(\.dismiss) private var dismiss
     @State private var addedFocusWindowIds: Set<String> = []
+    @State private var showingRecommendationActionSheet = false
+    @State private var isBlockingFocusTime = false
 
     // Collapsible section states
     @State private var isStoryExpanded = false
@@ -257,6 +259,14 @@ struct TodaySummaryDetailView: View {
                         .foregroundColor(DesignSystem.Colors.primary)
                 }
             }
+            .sheet(isPresented: $showingRecommendationActionSheet) {
+                if let recommendation = briefing?.primaryRecommendation {
+                    PrimaryRecommendationActionSheet(
+                        recommendation: recommendation,
+                        focusWindow: briefing?.focusWindows?.first
+                    )
+                }
+            }
         }
         .presentationDragIndicator(.visible)
     }
@@ -305,11 +315,21 @@ struct TodaySummaryDetailView: View {
 
             // Action Button
             Button(action: {
-                handlePrimaryRecommendationAction(recommendation)
+                // Show the action sheet for user to confirm
+                showingRecommendationActionSheet = true
+                // Haptic feedback
+                let generator = UIImpactFeedbackGenerator(style: .medium)
+                generator.impactOccurred()
             }) {
                 HStack(spacing: 8) {
-                    Image(systemName: "plus.circle.fill")
-                        .font(.system(size: 14, weight: .semibold))
+                    if isBlockingFocusTime {
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: recommendation.urgencyColor))
+                            .scaleEffect(0.8)
+                    } else {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.system(size: 14, weight: .semibold))
+                    }
                     Text(actionButtonLabel(for: recommendation))
                         .font(.system(size: 14, weight: .semibold))
                 }
@@ -323,6 +343,7 @@ struct TodaySummaryDetailView: View {
                 )
             }
             .buttonStyle(PlainButtonStyle())
+            .disabled(isBlockingFocusTime)
             .padding(.top, 4)
         }
         .padding(16)
@@ -354,25 +375,6 @@ struct TodaySummaryDetailView: View {
         }
     }
 
-    // Handle primary recommendation action
-    private func handlePrimaryRecommendationAction(_ recommendation: PrimaryRecommendation) {
-        // Based on category, perform appropriate action
-        switch recommendation.category?.lowercased() {
-        case "protect_time", "focus":
-            // Open Quick Book to block focus time
-            NotificationCenter.default.post(name: NSNotification.Name("OpenQuickBook"), object: nil)
-        case "reduce_load":
-            // Could open calendar or decline suggestions
-            NotificationCenter.default.post(name: NSNotification.Name("OpenCalendar"), object: nil)
-        default:
-            // Default: open Plan My Day
-            NotificationCenter.default.post(name: NSNotification.Name("OpenPlanMyDay"), object: nil)
-        }
-
-        // Haptic feedback
-        let generator = UIImpactFeedbackGenerator(style: .medium)
-        generator.impactOccurred()
-    }
 
     // MARK: - Day Story Section (Clear Read More)
     private func dayStorySection(narrative: DayNarrative) -> some View {

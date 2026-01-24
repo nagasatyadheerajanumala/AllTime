@@ -288,6 +288,31 @@ struct TodayView: View {
                     await briefingViewModel.refresh()
                 }
             }
+            // Handle action notifications from detail views
+            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("OpenQuickBook"))) { _ in
+                print("📅 TodayView: Received OpenQuickBook notification")
+                // Dismiss any open sheets first, then show QuickBook
+                showingSummaryDetail = false
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    showingQuickBook = true
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("OpenPlanMyDay"))) { _ in
+                print("📅 TodayView: Received OpenPlanMyDay notification")
+                // Dismiss any open sheets first, then show Plan My Day
+                showingSummaryDetail = false
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    showingPlanMyDay = true
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("OpenCalendar"))) { _ in
+                print("📅 TodayView: Received OpenCalendar notification")
+                // Dismiss any open sheets first, then navigate to Calendar
+                showingSummaryDetail = false
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    NavigationManager.shared.navigateToCalendar()
+                }
+            }
             .onChange(of: healthMetricsService.isAuthorized) { oldValue, newValue in
                 if !oldValue && newValue {
                     Task {

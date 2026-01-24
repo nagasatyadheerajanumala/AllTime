@@ -408,7 +408,7 @@ struct PlanMyDayView: View {
                     .fill(DesignSystem.Colors.cardBackground)
             )
 
-            // Generate Button
+            // Generate Button - always enabled for weekdays
             Button(action: {
                 Task {
                     await viewModel.generateItinerary()
@@ -432,10 +432,22 @@ struct PlanMyDayView: View {
                 .padding(.vertical, 16)
                 .background(
                     RoundedRectangle(cornerRadius: 14)
-                        .fill(viewModel.needsInterestsSetup ? Color.gray : DesignSystem.Colors.primary)
+                        .fill(DesignSystem.Colors.primary)
                 )
             }
-            .disabled(viewModel.isGeneratingItinerary || viewModel.needsInterestsSetup)
+            .disabled(viewModel.isGeneratingItinerary)
+
+            // Helpful hint if interests not set up
+            if viewModel.needsInterestsSetup {
+                HStack(spacing: 8) {
+                    Image(systemName: "lightbulb.fill")
+                        .foregroundColor(DesignSystem.Colors.amber)
+                    Text("Set up your interests for personalized suggestions")
+                        .font(.caption)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                }
+                .padding(.horizontal)
+            }
         }
     }
 
