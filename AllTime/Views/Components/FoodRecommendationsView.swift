@@ -34,6 +34,10 @@ struct FoodRecommendationsView: View {
                         distanceFilterCard
                             .transition(.move(edge: .top).combined(with: .opacity))
 
+                        // Dietary Filters
+                        dietaryFilterBar
+                            .transition(.move(edge: .top).combined(with: .opacity))
+
                         // Content
                         if viewModel.isLoading {
                             loadingView
@@ -298,95 +302,252 @@ struct FoodRecommendationsView: View {
         )
     }
 
+    // MARK: - Dietary Filter Bar
+    private var dietaryFilterBar: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("Dietary Preferences")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+
+                Spacer()
+
+                if viewModel.hasActiveFilters {
+                    Button("Clear") {
+                        viewModel.clearAllFilters()
+                    }
+                    .font(.caption.weight(.medium))
+                    .foregroundColor(DesignSystem.Colors.primary)
+                }
+            }
+
+            // Filter chips
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(DietaryFilter.allCases, id: \.self) { filter in
+                        dietaryFilterChip(filter)
+                    }
+                }
+            }
+
+            // Additional filters row
+            HStack(spacing: 12) {
+                // Open Now toggle
+                Button(action: { viewModel.toggleOpenNowOnly() }) {
+                    HStack(spacing: 6) {
+                        Image(systemName: viewModel.openNowOnly ? "checkmark.circle.fill" : "circle")
+                            .font(.system(size: 14))
+                        Text("Open Now")
+                            .font(.caption.weight(.medium))
+                    }
+                    .foregroundColor(viewModel.openNowOnly ? DesignSystem.Colors.primary : DesignSystem.Colors.secondaryText)
+                }
+
+                Divider()
+                    .frame(height: 16)
+
+                // Min rating
+                HStack(spacing: 4) {
+                    Text("Min:")
+                        .font(.caption)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+
+                    ForEach([3.5, 4.0, 4.5], id: \.self) { rating in
+                        Button(action: {
+                            viewModel.setMinRating(viewModel.minRating == rating ? nil : rating)
+                        }) {
+                            HStack(spacing: 2) {
+                                Image(systemName: "star.fill")
+                                    .font(.system(size: 10))
+                                Text(String(format: "%.1f", rating))
+                                    .font(.caption.weight(.medium))
+                            }
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(viewModel.minRating == rating ? DesignSystem.Colors.primary : DesignSystem.Colors.cardBackgroundElevated)
+                            .foregroundColor(viewModel.minRating == rating ? .white : DesignSystem.Colors.secondaryText)
+                            .cornerRadius(12)
+                        }
+                    }
+                }
+            }
+        }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(DesignSystem.Colors.cardBackground)
+                .shadow(color: .black.opacity(0.04), radius: 8, y: 2)
+        )
+    }
+
+    private func dietaryFilterChip(_ filter: DietaryFilter) -> some View {
+        let isActive = viewModel.isDietaryFilterActive(filter)
+
+        return Button(action: { viewModel.toggleDietaryFilter(filter) }) {
+            HStack(spacing: 6) {
+                Image(systemName: filter.icon)
+                    .font(.system(size: 12, weight: .semibold))
+                Text(filter.rawValue)
+                    .font(.caption.weight(.semibold))
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(isActive ? filter.color : DesignSystem.Colors.cardBackgroundElevated)
+            .foregroundColor(isActive ? .white : DesignSystem.Colors.secondaryText)
+            .cornerRadius(16)
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(isActive ? filter.color : DesignSystem.Colors.tertiaryText.opacity(0.3), lineWidth: 1)
+            )
+        }
+    }
+
     // MARK: - Dietary Sections View
     private var dietarySectionsView: some View {
         VStack(spacing: 24) {
-            // Healthy Options Section
-            if !viewModel.healthyOptions.isEmpty {
-                DietarySectionView(
-                    title: "Healthy Options",
-                    icon: "leaf.fill",
-                    iconColor: .green,
-                    spots: viewModel.healthyOptions,
-                    onSpotTap: { spot in
-                        selectedSpot = spot
-                        showingMapOptions = true
+            // If filters are active, show filtered results
+            if viewModel.hasActiveFilters {
+                if viewModel.filteredFoodSpots.isEmpty {
+                    VStack(spacing: 12) {
+                        Image(systemName: "magnifyingglass")
+                            .font(.system(size: 32))
+                            .foregroundColor(DesignSystem.Colors.tertiaryText)
+                        Text("No matches for your filters")
+                            .font(.subheadline)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
+                        Button("Clear Filters") {
+                            viewModel.clearAllFilters()
+                        }
+                        .font(.caption.weight(.semibold))
+                        .foregroundColor(DesignSystem.Colors.primary)
                     }
-                )
-            }
+                    .padding(32)
+                } else {
+                    DietarySectionView(
+                        title: "Filtered Results",
+                        icon: "line.3.horizontal.decrease.circle.fill",
+                        iconColor: DesignSystem.Colors.primary,
+                        spots: viewModel.filteredFoodSpots,
+                        onSpotTap: { spot in
+                            selectedSpot = spot
+                            showingMapOptions = true
+                        }
+                    )
+                }
+            } else {
+                // No filters - show categorized sections
 
-            // Group by dietary tags
-            let veganSpots = viewModel.foodSpots.filter { $0.dietaryTags?.contains("vegan") == true }
-            let vegetarianSpots = viewModel.foodSpots.filter {
-                $0.dietaryTags?.contains("vegetarian") == true && $0.dietaryTags?.contains("vegan") != true
-            }
-            let glutenFreeSpots = viewModel.foodSpots.filter { $0.dietaryTags?.contains("gluten-free") == true }
-            let organicSpots = viewModel.foodSpots.filter { $0.dietaryTags?.contains("organic") == true }
+                // Healthy Options Section
+                if !viewModel.healthyOptions.isEmpty {
+                    DietarySectionView(
+                        title: "Healthy Options",
+                        icon: "leaf.fill",
+                        iconColor: .green,
+                        spots: viewModel.healthyOptions,
+                        onSpotTap: { spot in
+                            selectedSpot = spot
+                            showingMapOptions = true
+                        }
+                    )
+                }
 
-            if !veganSpots.isEmpty {
-                DietarySectionView(
-                    title: "Vegan",
-                    icon: "sparkle",
-                    iconColor: DesignSystem.Colors.emerald,
-                    spots: veganSpots,
-                    onSpotTap: { spot in
-                        selectedSpot = spot
-                        showingMapOptions = true
-                    }
-                )
-            }
+                // Vegan
+                if !viewModel.veganSpots.isEmpty {
+                    DietarySectionView(
+                        title: "Vegan",
+                        icon: "sparkle",
+                        iconColor: DietaryFilter.vegan.color,
+                        spots: viewModel.veganSpots,
+                        onSpotTap: { spot in
+                            selectedSpot = spot
+                            showingMapOptions = true
+                        }
+                    )
+                }
 
-            if !vegetarianSpots.isEmpty {
-                DietarySectionView(
-                    title: "Vegetarian",
-                    icon: "carrot.fill",
-                    iconColor: DesignSystem.Colors.amber,
-                    spots: vegetarianSpots,
-                    onSpotTap: { spot in
-                        selectedSpot = spot
-                        showingMapOptions = true
-                    }
-                )
-            }
+                // Vegetarian
+                if !viewModel.vegetarianSpots.isEmpty {
+                    DietarySectionView(
+                        title: "Vegetarian",
+                        icon: "carrot.fill",
+                        iconColor: DietaryFilter.vegetarian.color,
+                        spots: viewModel.vegetarianSpots,
+                        onSpotTap: { spot in
+                            selectedSpot = spot
+                            showingMapOptions = true
+                        }
+                    )
+                }
 
-            if !glutenFreeSpots.isEmpty {
-                DietarySectionView(
-                    title: "Gluten-Free",
-                    icon: "checkmark.seal.fill",
-                    iconColor: DesignSystem.Colors.violet,
-                    spots: glutenFreeSpots,
-                    onSpotTap: { spot in
-                        selectedSpot = spot
-                        showingMapOptions = true
-                    }
-                )
-            }
+                // Gluten-Free
+                if !viewModel.glutenFreeSpots.isEmpty {
+                    DietarySectionView(
+                        title: "Gluten-Free",
+                        icon: "checkmark.seal.fill",
+                        iconColor: DietaryFilter.glutenFree.color,
+                        spots: viewModel.glutenFreeSpots,
+                        onSpotTap: { spot in
+                            selectedSpot = spot
+                            showingMapOptions = true
+                        }
+                    )
+                }
 
-            if !organicSpots.isEmpty {
-                DietarySectionView(
-                    title: "Organic",
-                    icon: "leaf.arrow.circlepath",
-                    iconColor: DesignSystem.Colors.emeraldDark,
-                    spots: organicSpots,
-                    onSpotTap: { spot in
-                        selectedSpot = spot
-                        showingMapOptions = true
-                    }
-                )
-            }
+                // Organic
+                if !viewModel.organicSpots.isEmpty {
+                    DietarySectionView(
+                        title: "Organic",
+                        icon: "leaf.arrow.circlepath",
+                        iconColor: DietaryFilter.organic.color,
+                        spots: viewModel.organicSpots,
+                        onSpotTap: { spot in
+                            selectedSpot = spot
+                            showingMapOptions = true
+                        }
+                    )
+                }
 
-            // Regular Options Section
-            if !viewModel.regularOptions.isEmpty {
-                DietarySectionView(
-                    title: "All Nearby",
-                    icon: "fork.knife",
-                    iconColor: DesignSystem.Colors.primary,
-                    spots: viewModel.regularOptions,
-                    onSpotTap: { spot in
-                        selectedSpot = spot
-                        showingMapOptions = true
-                    }
-                )
+                // Halal
+                if !viewModel.halalSpots.isEmpty {
+                    DietarySectionView(
+                        title: "Halal",
+                        icon: "moon.stars.fill",
+                        iconColor: DietaryFilter.halal.color,
+                        spots: viewModel.halalSpots,
+                        onSpotTap: { spot in
+                            selectedSpot = spot
+                            showingMapOptions = true
+                        }
+                    )
+                }
+
+                // Kosher
+                if !viewModel.kosherSpots.isEmpty {
+                    DietarySectionView(
+                        title: "Kosher",
+                        icon: "star.of.david.fill",
+                        iconColor: DietaryFilter.kosher.color,
+                        spots: viewModel.kosherSpots,
+                        onSpotTap: { spot in
+                            selectedSpot = spot
+                            showingMapOptions = true
+                        }
+                    )
+                }
+
+                // All Nearby Section
+                if !viewModel.regularOptions.isEmpty {
+                    DietarySectionView(
+                        title: "All Nearby",
+                        icon: "fork.knife",
+                        iconColor: DesignSystem.Colors.primary,
+                        spots: viewModel.regularOptions,
+                        onSpotTap: { spot in
+                            selectedSpot = spot
+                            showingMapOptions = true
+                        }
+                    )
+                }
             }
         }
     }
@@ -643,11 +804,26 @@ struct FoodSpotCard: View {
                         .foregroundColor(DesignSystem.Colors.primaryText)
                         .lineLimit(1)
 
-                    // Cuisine
-                    if let cuisine = spot.cuisine {
-                        Text(cuisine)
-                            .font(.caption)
-                            .foregroundColor(DesignSystem.Colors.tertiaryText)
+                    // Cuisine and category
+                    HStack(spacing: 6) {
+                        if let cuisine = spot.cuisine {
+                            Text(cuisine)
+                                .font(.caption)
+                                .foregroundColor(DesignSystem.Colors.tertiaryText)
+                        }
+
+                        // Dietary tags (show first 2)
+                        if let tags = spot.dietaryTags, !tags.isEmpty {
+                            ForEach(tags.prefix(2), id: \.self) { tag in
+                                Text(tag)
+                                    .font(.system(size: 9, weight: .semibold))
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(dietaryTagColor(tag))
+                                    .cornerRadius(4)
+                            }
+                        }
                     }
 
                     // Stats row
@@ -674,7 +850,7 @@ struct FoodSpotCard: View {
                             .foregroundColor(DesignSystem.Colors.secondaryText)
                         }
 
-                        // Rating
+                        // Rating with review count
                         if let rating = spot.rating {
                             HStack(spacing: 2) {
                                 Image(systemName: "star.fill")
@@ -683,6 +859,11 @@ struct FoodSpotCard: View {
                                 Text(String(format: "%.1f", rating))
                                     .font(.system(size: 11, weight: .medium))
                                     .foregroundColor(DesignSystem.Colors.secondaryText)
+                                if !spot.formattedReviewCount.isEmpty {
+                                    Text("(\(spot.formattedReviewCount))")
+                                        .font(.system(size: 9))
+                                        .foregroundColor(DesignSystem.Colors.tertiaryText)
+                                }
                             }
                         }
                     }
@@ -728,6 +909,28 @@ struct FoodSpotCard: View {
             )
         }
         .buttonStyle(.plain)
+    }
+
+    // Helper function for dietary tag colors
+    private func dietaryTagColor(_ tag: String) -> Color {
+        let lowercased = tag.lowercased()
+        if lowercased.contains("vegan") {
+            return DietaryFilter.vegan.color
+        } else if lowercased.contains("vegetarian") {
+            return DietaryFilter.vegetarian.color
+        } else if lowercased.contains("gluten") {
+            return DietaryFilter.glutenFree.color
+        } else if lowercased.contains("organic") {
+            return DietaryFilter.organic.color
+        } else if lowercased.contains("halal") {
+            return DietaryFilter.halal.color
+        } else if lowercased.contains("kosher") {
+            return DietaryFilter.kosher.color
+        } else if lowercased.contains("healthy") || lowercased.contains("fresh") {
+            return DietaryFilter.healthy.color
+        } else {
+            return DesignSystem.Colors.primary
+        }
     }
 }
 

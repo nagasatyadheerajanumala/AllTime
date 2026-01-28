@@ -1106,6 +1106,7 @@ struct NextWeekForecastResponse: Codable {
     let dailyForecasts: [DayForecast]
     let riskSignals: [ForecastRiskSignal]
     let interventions: [ForecastIntervention]
+    let patternInsights: [PatternInsight]?  // Pattern-based insights
 
     enum CodingKeys: String, CodingKey {
         case weekStart = "week_start"
@@ -1115,6 +1116,7 @@ struct NextWeekForecastResponse: Codable {
         case dailyForecasts = "daily_forecasts"
         case riskSignals = "risk_signals"
         case interventions
+        case patternInsights = "pattern_insights"
     }
 
     // Computed properties
@@ -1138,6 +1140,14 @@ struct NextWeekForecastResponse: Codable {
 
     var topRisk: ForecastRiskSignal? {
         riskSignals.first
+    }
+
+    var hasPatternInsights: Bool {
+        !(patternInsights ?? []).isEmpty
+    }
+
+    var topPatternInsight: PatternInsight? {
+        patternInsights?.first
     }
 }
 
@@ -1219,6 +1229,11 @@ struct DayForecast: Codable, Identifiable {
     let intensity: String        // "open", "light", "moderate", "full", "heavy"
     let intensityLabel: String
 
+    // Pattern-based predictions
+    let historicalMatch: HistoricalMatch?
+    let predictedEnergy: ForecastEnergyPrediction?
+    let sleepRecommendation: SleepRecommendation?
+
     var id: String { date }
 
     enum CodingKeys: String, CodingKey {
@@ -1234,6 +1249,9 @@ struct DayForecast: Codable, Identifiable {
         case hasLateEvening = "has_late_evening"
         case intensity
         case intensityLabel = "intensity_label"
+        case historicalMatch = "historical_match"
+        case predictedEnergy = "predicted_energy"
+        case sleepRecommendation = "sleep_recommendation"
     }
 
     var dayDate: Date? {
@@ -1353,5 +1371,541 @@ struct ForecastIntervention: Codable, Identifiable {
         case 10...14: return DesignSystem.Colors.blue // Blue - medium
         default: return Color(hex: "6B7280") // Gray - low
         }
+    }
+}
+
+// MARK: - Pattern-Based Prediction Models
+
+/// Historical match data for a forecast day
+struct HistoricalMatch: Codable {
+    let matchCount: Int
+    let bestMatchDate: String?
+    let bestMatchDayOfWeek: String?
+    let avgOutcomeScore: Int?
+    let avgSleepHours: Double?
+    let goodOutcomePercent: Int?
+    let summary: String?
+
+    enum CodingKeys: String, CodingKey {
+        case matchCount = "match_count"
+        case bestMatchDate = "best_match_date"
+        case bestMatchDayOfWeek = "best_match_day_of_week"
+        case avgOutcomeScore = "avg_outcome_score"
+        case avgSleepHours = "avg_sleep_hours"
+        case goodOutcomePercent = "good_outcome_percent"
+        case summary
+    }
+
+    var hasGoodHistory: Bool {
+        (goodOutcomePercent ?? 0) >= 60
+    }
+
+    var outcomeColor: Color {
+        guard let percent = goodOutcomePercent else { return DesignSystem.Colors.secondaryText }
+        if percent >= 70 { return Color(hex: "10B981") } // Green
+        if percent >= 50 { return DesignSystem.Colors.amber }
+        return Color(hex: "EF4444") // Red
+    }
+}
+
+/// Energy prediction for a forecast day
+struct ForecastEnergyPrediction: Codable {
+    let level: String       // "low", "moderate", "good", "unknown"
+    let icon: String?
+    let detail: String?
+    let confidence: String? // "high", "medium", "low"
+
+    var displayIcon: String {
+        icon ?? "battery.50"
+    }
+
+    var levelColor: Color {
+        switch level {
+        case "good": return Color(hex: "10B981")
+        case "moderate": return DesignSystem.Colors.amber
+        case "low": return Color(hex: "EF4444")
+        default: return DesignSystem.Colors.secondaryText
+        }
+    }
+
+    var levelLabel: String {
+        switch level {
+        case "good": return "Good Energy"
+        case "moderate": return "Moderate"
+        case "low": return "Low Energy"
+        default: return "Unknown"
+        }
+    }
+
+    var shortLabel: String {
+        switch level {
+        case "good": return "Good"
+        case "moderate": return "OK"
+        case "low": return "Low"
+        default: return "—"
+        }
+    }
+
+    var confidenceLabel: String {
+        switch confidence {
+        case "high": return "High confidence"
+        case "medium": return "Medium confidence"
+        default: return "Low confidence"
+        }
+    }
+}
+
+/// Sleep recommendation for a forecast day
+struct SleepRecommendation: Codable {
+    let optimalHours: Double?
+    let recommendation: String?
+    let reason: String?
+
+    enum CodingKeys: String, CodingKey {
+        case optimalHours = "optimal_hours"
+        case recommendation
+        case reason
+    }
+
+    var formattedHours: String {
+        guard let hours = optimalHours else { return "7-8h" }
+        return String(format: "%.1fh", hours)
+    }
+}
+
+/// Pattern-based insight for the week
+struct PatternInsight: Codable, Identifiable {
+    let id: String
+    let title: String
+    let detail: String
+    let icon: String
+    let severity: String   // "high", "medium", "low", "positive"
+    let action: String?
+
+    var displayIcon: String {
+        icon
+    }
+
+    var severityColor: Color {
+        switch severity {
+        case "high": return Color(hex: "EF4444")
+        case "medium": return DesignSystem.Colors.amber
+        case "positive": return Color(hex: "10B981")
+        default: return DesignSystem.Colors.blue
+        }
+    }
+
+    var isPositive: Bool {
+        severity == "positive"
+    }
+}
+
+// MARK: - Pattern Intelligence (Clara Knows You)
+
+/// Response from /api/v1/insights/pattern-intelligence
+struct PatternIntelligenceReport: Codable {
+    let weekStart: String
+    let weekEnd: String
+    let generatedAt: String?
+    let totalHistoricalDays: Int
+    let days: [PatternDay]
+    let weekPatterns: [WeekPatternItem]?
+    let claraTopInsights: [ClaraInsightItem]?
+    let weekSummary: PatternWeekSummary?
+
+    enum CodingKeys: String, CodingKey {
+        case weekStart = "week_start"
+        case weekEnd = "week_end"
+        case generatedAt = "generated_at"
+        case totalHistoricalDays = "total_historical_days"
+        case days
+        case weekPatterns = "week_patterns"
+        case claraTopInsights = "clara_top_insights"
+        case weekSummary = "week_summary"
+    }
+
+    var weekLabel: String {
+        // Format: "Jan 27 - Feb 2"
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        guard let start = formatter.date(from: weekStart),
+              let end = formatter.date(from: weekEnd) else {
+            return "\(weekStart) - \(weekEnd)"
+        }
+
+        let displayFormatter = DateFormatter()
+        displayFormatter.dateFormat = "MMM d"
+        return "\(displayFormatter.string(from: start)) - \(displayFormatter.string(from: end))"
+    }
+
+    var hasPatterns: Bool {
+        !(weekPatterns?.isEmpty ?? true)
+    }
+
+    var hasTopInsights: Bool {
+        !(claraTopInsights?.isEmpty ?? true)
+    }
+}
+
+/// A day in the pattern intelligence report
+struct PatternDay: Codable, Identifiable {
+    let date: String
+    let dayOfWeek: String
+    let dayLabel: String
+    let isWeekend: Bool
+    let meetingCount: Int
+    let meetingHours: Double
+    let backToBackCount: Int
+    let firstMeetingHour: Double?
+    let lastMeetingHour: Double?
+    let hasEarlyMorning: Bool
+    let hasLateEvening: Bool
+    let meetingDensity: Double
+    let intensity: String
+    let similarDays: [SimilarDayMatch]?
+    let prediction: DayPredictionData?
+    let claraInsight: String?
+
+    enum CodingKeys: String, CodingKey {
+        case date
+        case dayOfWeek = "day_of_week"
+        case dayLabel = "day_label"
+        case isWeekend = "is_weekend"
+        case meetingCount = "meeting_count"
+        case meetingHours = "meeting_hours"
+        case backToBackCount = "back_to_back_count"
+        case firstMeetingHour = "first_meeting_hour"
+        case lastMeetingHour = "last_meeting_hour"
+        case hasEarlyMorning = "has_early_morning"
+        case hasLateEvening = "has_late_evening"
+        case meetingDensity = "meeting_density"
+        case intensity
+        case similarDays = "similar_days"
+        case prediction
+        case claraInsight = "clara_insight"
+    }
+
+    var id: String { date }
+
+    var shortDayName: String {
+        String(dayLabel.prefix(3))
+    }
+
+    var intensityColor: Color {
+        switch intensity {
+        case "extreme": return Color(hex: "DC2626")
+        case "heavy": return Color(hex: "EF4444")
+        case "moderate": return DesignSystem.Colors.amber
+        case "light": return Color(hex: "10B981")
+        case "open": return Color(hex: "06B6D4")
+        default: return DesignSystem.Colors.secondaryText
+        }
+    }
+
+    var intensityLabel: String {
+        switch intensity {
+        case "extreme": return "Extreme"
+        case "heavy": return "Heavy"
+        case "moderate": return "Moderate"
+        case "light": return "Light"
+        case "open": return "Open"
+        default: return intensity.capitalized
+        }
+    }
+
+    var hasSimilarDays: Bool {
+        !(similarDays?.isEmpty ?? true)
+    }
+
+    var hasPrediction: Bool {
+        prediction != nil
+    }
+
+    var hasInsight: Bool {
+        claraInsight != nil && !claraInsight!.isEmpty
+    }
+}
+
+/// A similar day match from history
+struct SimilarDayMatch: Codable, Identifiable {
+    let date: String
+    let dayOfWeek: String
+    let similarityScore: Int
+    let meetingCount: Int
+    let meetingHours: Double
+    let intensity: String
+    let outcomeScore: Int
+    let outcomeLabel: String?
+    let energyLevel: Int?
+    let sleepHours: Double?
+    let sleepQuality: Double?
+    let moodScore: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case date
+        case dayOfWeek = "day_of_week"
+        case similarityScore = "similarity_score"
+        case meetingCount = "meeting_count"
+        case meetingHours = "meeting_hours"
+        case intensity
+        case outcomeScore = "outcome_score"
+        case outcomeLabel = "outcome_label"
+        case energyLevel = "energy_level"
+        case sleepHours = "sleep_hours"
+        case sleepQuality = "sleep_quality"
+        case moodScore = "mood_score"
+    }
+
+    var id: String { date }
+
+    var formattedDate: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        guard let date = formatter.date(from: date) else { return self.date }
+
+        let displayFormatter = DateFormatter()
+        displayFormatter.dateFormat = "MMM d"
+        return displayFormatter.string(from: date)
+    }
+
+    var outcomeColor: Color {
+        if outcomeScore >= 65 { return Color(hex: "10B981") }
+        if outcomeScore >= 50 { return DesignSystem.Colors.amber }
+        return Color(hex: "EF4444")
+    }
+
+    var similarityLabel: String {
+        "\(similarityScore)% match"
+    }
+}
+
+/// Prediction data for a day
+struct DayPredictionData: Codable {
+    let predictedOutcome: Int?
+    let outcomeLabel: String?
+    let outcomeIcon: String?
+    let predictedEnergy: Int?
+    let energyLabel: String?
+    let energyIcon: String?
+    let recommendedSleep: Double?
+    let sleepReason: String?
+    let confidence: String?
+    let confidenceReason: String?
+
+    enum CodingKeys: String, CodingKey {
+        case predictedOutcome = "predicted_outcome"
+        case outcomeLabel = "outcome_label"
+        case outcomeIcon = "outcome_icon"
+        case predictedEnergy = "predicted_energy"
+        case energyLabel = "energy_label"
+        case energyIcon = "energy_icon"
+        case recommendedSleep = "recommended_sleep"
+        case sleepReason = "sleep_reason"
+        case confidence
+        case confidenceReason = "confidence_reason"
+    }
+
+    var outcomeColor: Color {
+        guard let outcome = predictedOutcome else { return DesignSystem.Colors.secondaryText }
+        if outcome >= 65 { return Color(hex: "10B981") }
+        if outcome >= 45 { return DesignSystem.Colors.amber }
+        return Color(hex: "EF4444")
+    }
+
+    var energyColor: Color {
+        guard let energy = predictedEnergy else { return DesignSystem.Colors.secondaryText }
+        if energy >= 65 { return Color(hex: "10B981") }
+        if energy >= 45 { return DesignSystem.Colors.amber }
+        return Color(hex: "EF4444")
+    }
+
+    var displayEnergyIcon: String {
+        energyIcon ?? "battery.50"
+    }
+
+    var displayOutcomeIcon: String {
+        outcomeIcon ?? "cloud.sun.fill"
+    }
+
+    var confidenceColor: Color {
+        switch confidence {
+        case "high": return Color(hex: "10B981")
+        case "medium": return DesignSystem.Colors.amber
+        default: return DesignSystem.Colors.tertiaryText
+        }
+    }
+}
+
+/// Week-level pattern
+struct WeekPatternItem: Codable, Identifiable {
+    let id: String
+    let title: String
+    let detail: String
+    let icon: String
+    let severity: String
+    let action: String?
+
+    var severityColor: Color {
+        switch severity {
+        case "critical": return Color(hex: "EF4444")
+        case "warning": return DesignSystem.Colors.amber
+        case "info": return DesignSystem.Colors.blue
+        case "positive": return Color(hex: "10B981")
+        default: return DesignSystem.Colors.secondaryText
+        }
+    }
+
+    var isCritical: Bool {
+        severity == "critical"
+    }
+
+    var isPositive: Bool {
+        severity == "positive"
+    }
+}
+
+/// Clara's top insight
+struct ClaraInsightItem: Codable, Identifiable {
+    let id: String
+    let title: String
+    let detail: String
+    let icon: String
+    let severity: String
+
+    var severityColor: Color {
+        switch severity {
+        case "critical": return Color(hex: "EF4444")
+        case "important", "warning": return DesignSystem.Colors.amber
+        case "positive": return Color(hex: "10B981")
+        default: return DesignSystem.Colors.blue
+        }
+    }
+}
+
+/// Week summary
+struct PatternWeekSummary: Codable {
+    let totalMeetings: Int
+    let totalMeetingHours: Double
+    let heavyDays: Int
+    let lightDays: Int
+    let avgPredictedOutcome: Int?
+    let goodDaysExpected: Int?
+    let challengingDaysExpected: Int?
+    let verdict: String?
+    let verdictIcon: String?
+
+    enum CodingKeys: String, CodingKey {
+        case totalMeetings = "total_meetings"
+        case totalMeetingHours = "total_meeting_hours"
+        case heavyDays = "heavy_days"
+        case lightDays = "light_days"
+        case avgPredictedOutcome = "avg_predicted_outcome"
+        case goodDaysExpected = "good_days_expected"
+        case challengingDaysExpected = "challenging_days_expected"
+        case verdict
+        case verdictIcon = "verdict_icon"
+    }
+
+    var verdictColor: Color {
+        guard let outcome = avgPredictedOutcome else { return DesignSystem.Colors.secondaryText }
+        if outcome >= 60 { return Color(hex: "10B981") }
+        if outcome >= 45 { return DesignSystem.Colors.amber }
+        return Color(hex: "EF4444")
+    }
+
+    var displayVerdictIcon: String {
+        verdictIcon ?? "scale.3d"
+    }
+}
+
+// MARK: - Today's Prediction (Pattern Intelligence for Today)
+
+/// Response from /api/v1/insights/today-prediction
+/// Clara's predictive insight for today based on similar historical days
+struct TodayPrediction: Codable {
+    let date: String
+    let dayOfWeek: String
+    let dayLabel: String
+    let isWeekend: Bool
+    let meetingCount: Int
+    let meetingHours: Double
+    let backToBackCount: Int
+    let intensity: String
+    let similarDays: [SimilarDayMatch]?
+    let prediction: DayPredictionData?
+    let claraInsight: String?
+    let totalHistoricalDays: Int
+
+    enum CodingKeys: String, CodingKey {
+        case date
+        case dayOfWeek = "day_of_week"
+        case dayLabel = "day_label"
+        case isWeekend = "is_weekend"
+        case meetingCount = "meeting_count"
+        case meetingHours = "meeting_hours"
+        case backToBackCount = "back_to_back_count"
+        case intensity
+        case similarDays = "similar_days"
+        case prediction
+        case claraInsight = "clara_insight"
+        case totalHistoricalDays = "total_historical_days"
+    }
+
+    var hasSimilarDays: Bool {
+        !(similarDays?.isEmpty ?? true)
+    }
+
+    var hasPrediction: Bool {
+        prediction != nil
+    }
+
+    var hasInsight: Bool {
+        claraInsight != nil && !claraInsight!.isEmpty
+    }
+
+    var intensityColor: Color {
+        switch intensity {
+        case "extreme": return Color(hex: "DC2626")
+        case "heavy": return Color(hex: "EF4444")
+        case "moderate": return DesignSystem.Colors.amber
+        case "light": return Color(hex: "10B981")
+        case "open": return Color(hex: "06B6D4")
+        default: return DesignSystem.Colors.secondaryText
+        }
+    }
+
+    var intensityLabel: String {
+        switch intensity {
+        case "extreme": return "Extreme"
+        case "heavy": return "Heavy"
+        case "moderate": return "Moderate"
+        case "light": return "Light"
+        case "open": return "Open"
+        default: return intensity.capitalized
+        }
+    }
+
+    var formattedMeetingHours: String {
+        if meetingHours < 1 {
+            return "\(Int(meetingHours * 60))m"
+        }
+        return String(format: "%.1fh", meetingHours)
+    }
+
+    /// Top similar day for display
+    var topSimilarDay: SimilarDayMatch? {
+        similarDays?.first
+    }
+
+    /// Number of similar days with good outcomes
+    var goodOutcomeCount: Int {
+        similarDays?.filter { $0.outcomeScore >= 60 }.count ?? 0
+    }
+
+    /// Average outcome from similar days
+    var avgSimilarOutcome: Int? {
+        guard let days = similarDays, !days.isEmpty else { return nil }
+        let total = days.reduce(0) { $0 + $1.outcomeScore }
+        return total / days.count
     }
 }

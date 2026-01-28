@@ -488,6 +488,211 @@ struct CompactPrimaryRecommendation: View {
     }
 }
 
+// MARK: - Opportunity Insight Card
+/// Shows leverage windows and opportunities - the positive counterbalance to risks.
+/// Part of the 1 Risk + 1 Opportunity + 1 Recommendation model.
+struct OpportunityInsightCard: View {
+    let opportunity: OpportunityInsight
+    var onTap: (() -> Void)? = nil
+
+    var body: some View {
+        Button(action: { onTap?() }) {
+            VStack(alignment: .leading, spacing: 12) {
+                // Header with type badge
+                HStack {
+                    Image(systemName: opportunity.displayIcon)
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundColor(.white)
+                        .frame(width: 36, height: 36)
+                        .background(opportunity.typeColor)
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(opportunity.typeLabel)
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(opportunity.typeColor)
+                            .textCase(.uppercase)
+
+                        if opportunity.isHighConfidence {
+                            HStack(spacing: 4) {
+                                Image(systemName: "sparkles")
+                                    .font(.system(size: 10))
+                                Text("Rare opportunity")
+                                    .font(.system(size: 11))
+                            }
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
+                        }
+                    }
+
+                    Spacer()
+
+                    if let window = opportunity.windowLabel {
+                        Text(window)
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(DesignSystem.Colors.secondaryBackground)
+                            .clipShape(Capsule())
+                    }
+                }
+
+                // Headline
+                Text(opportunity.displayHeadline)
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                // Reason
+                if let reason = opportunity.reason, !reason.isEmpty {
+                    Text(reason)
+                        .font(.system(size: 14))
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                        .multilineTextAlignment(.leading)
+                        .lineLimit(2)
+                }
+
+                // Suggested use
+                if let suggestedUse = opportunity.suggestedUse, !suggestedUse.isEmpty {
+                    HStack(spacing: 6) {
+                        Image(systemName: "lightbulb.fill")
+                            .font(.system(size: 12))
+                        Text(suggestedUse)
+                            .font(.system(size: 12))
+                    }
+                    .foregroundColor(opportunity.typeColor)
+                    .padding(.top, 4)
+                }
+            }
+            .padding(16)
+            .background(DesignSystem.Colors.cardBackground)
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(opportunity.typeColor.opacity(0.3), lineWidth: 1)
+            )
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+}
+
+// MARK: - Risk Insight Card
+/// Shows the single most important risk - uses existing CapacityInsight styling.
+struct RiskInsightCard: View {
+    let risk: CapacityInsight
+    var onTap: (() -> Void)? = nil
+
+    var body: some View {
+        Button(action: { onTap?() }) {
+            VStack(alignment: .leading, spacing: 12) {
+                // Header with severity icon
+                HStack {
+                    Image(systemName: risk.severityIcon)
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundColor(.white)
+                        .frame(width: 36, height: 36)
+                        .background(risk.severityColor)
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Today's Risk")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(risk.severityColor)
+                            .textCase(.uppercase)
+
+                        Text(risk.severity.capitalized)
+                            .font(.system(size: 11))
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
+                    }
+
+                    Spacer()
+                }
+
+                // Title
+                Text(risk.title)
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .multilineTextAlignment(.leading)
+
+                // Description
+                Text(risk.description)
+                    .font(.system(size: 14))
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .multilineTextAlignment(.leading)
+                    .lineLimit(3)
+
+                // Actionable advice
+                if let actionable = risk.actionable, !actionable.isEmpty {
+                    HStack(spacing: 6) {
+                        Image(systemName: "arrow.right.circle.fill")
+                            .font(.system(size: 12))
+                        Text(actionable)
+                            .font(.system(size: 12))
+                    }
+                    .foregroundColor(risk.severityColor)
+                    .padding(.top, 4)
+                }
+            }
+            .padding(16)
+            .background(DesignSystem.Colors.cardBackground)
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(risk.severityColor.opacity(0.3), lineWidth: 1)
+            )
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+}
+
+// MARK: - Risk + Opportunity Section
+/// Combined section showing 1 Risk + 1 Opportunity side by side or stacked
+struct RiskOpportunitySectionView: View {
+    let riskInsight: CapacityInsight?
+    let opportunityInsight: OpportunityInsight?
+    var onRiskTap: (() -> Void)? = nil
+    var onOpportunityTap: (() -> Void)? = nil
+
+    var body: some View {
+        VStack(spacing: 12) {
+            // Section header
+            HStack {
+                Text("Today's Intelligence")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .textCase(.uppercase)
+                Spacer()
+            }
+
+            // Show opportunity first (positive framing), then risk
+            if let opportunity = opportunityInsight {
+                OpportunityInsightCard(opportunity: opportunity, onTap: onOpportunityTap)
+            }
+
+            if let risk = riskInsight {
+                RiskInsightCard(risk: risk, onTap: onRiskTap)
+            }
+
+            // Empty state
+            if riskInsight == nil && opportunityInsight == nil {
+                HStack {
+                    Image(systemName: "checkmark.shield.fill")
+                        .font(.system(size: 16))
+                        .foregroundColor(DesignSystem.Colors.emerald)
+                    Text("No significant risks or special opportunities today")
+                        .font(.system(size: 14))
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                }
+                .padding(16)
+                .frame(maxWidth: .infinity)
+                .background(DesignSystem.Colors.cardBackground)
+                .clipShape(RoundedRectangle(cornerRadius: 16))
+            }
+        }
+    }
+}
+
 // MARK: - Preview Provider
 #if DEBUG
 struct ClaraInsightsComponents_Previews: PreviewProvider {

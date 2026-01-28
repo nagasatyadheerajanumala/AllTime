@@ -28,32 +28,58 @@ struct FoodSpot: Codable, Identifiable {
     let distanceMiles: Double?
     let walkingMinutes: Int?
     let rating: Double?
+    let reviewCount: Int?
     let priceLevel: String?
     let cuisine: String?
+    let category: String?  // "healthy", "fast_food", "fine_dining", "casual", "cafe"
     let openNow: Bool?
     let photoUrl: String?
     let categories: [String]?
     let healthScore: String?
     let dietaryTags: [String]?
+    let features: [String]?  // ["Outdoor Seating", "Delivery", "Takeout"]
     let latitude: Double?
     let longitude: Double?
     let placeId: String?
     let mapUrl: String?
 
+    // New dietary flags from backend
+    let isHealthy: Bool?
+    let isVegan: Bool?
+    let isVegetarian: Bool?
+    let isGlutenFree: Bool?
+    let isOrganic: Bool?
+    let isHalal: Bool?
+    let isKosher: Bool?
+    let hasVeganOptions: Bool?
+    let hasVegetarianOptions: Bool?
+    let hasGlutenFreeOptions: Bool?
+
     var id: String { placeId ?? (name + (address ?? "")) }
 
     enum CodingKeys: String, CodingKey {
-        case name, address, rating, cuisine, categories, latitude, longitude
-        case distanceKm
-        case distanceMiles
-        case walkingMinutes
-        case priceLevel
-        case openNow
-        case photoUrl
-        case healthScore
-        case dietaryTags
-        case placeId
-        case mapUrl
+        case name, address, rating, cuisine, categories, latitude, longitude, category, features
+        case distanceKm = "distance_km"
+        case distanceMiles = "distance_miles"
+        case walkingMinutes = "walking_minutes"
+        case priceLevel = "price_level"
+        case reviewCount = "review_count"
+        case openNow = "open_now"
+        case photoUrl = "photo_url"
+        case healthScore = "health_score"
+        case dietaryTags = "dietary_tags"
+        case placeId = "place_id"
+        case mapUrl = "map_url"
+        case isHealthy = "is_healthy"
+        case isVegan = "is_vegan"
+        case isVegetarian = "is_vegetarian"
+        case isGlutenFree = "is_gluten_free"
+        case isOrganic = "is_organic"
+        case isHalal = "is_halal"
+        case isKosher = "is_kosher"
+        case hasVeganOptions = "has_vegan_options"
+        case hasVegetarianOptions = "has_vegetarian_options"
+        case hasGlutenFreeOptions = "has_gluten_free_options"
     }
 
     // Computed properties for UI
@@ -74,6 +100,10 @@ struct FoodSpot: Codable, Identifiable {
     }
 
     var healthScoreColor: Color {
+        // Use isHealthy flag if available, fallback to healthScore
+        if isHealthy == true {
+            return .green
+        }
         switch healthScore?.lowercased() {
         case "excellent": return .green
         case "good": return .blue
@@ -85,6 +115,62 @@ struct FoodSpot: Codable, Identifiable {
 
     var priceLevelDisplay: String {
         priceLevel ?? ""
+    }
+
+    var formattedReviewCount: String {
+        guard let count = reviewCount else { return "" }
+        if count >= 1000 {
+            return String(format: "%.1fk", Double(count) / 1000.0)
+        }
+        return "\(count)"
+    }
+
+    /// Check if spot matches dietary preference
+    func matchesDietaryFilter(_ filter: DietaryFilter) -> Bool {
+        switch filter {
+        case .healthy: return isHealthy == true
+        case .vegan: return isVegan == true || hasVeganOptions == true
+        case .vegetarian: return isVegetarian == true || hasVegetarianOptions == true
+        case .glutenFree: return isGlutenFree == true || hasGlutenFreeOptions == true
+        case .organic: return isOrganic == true
+        case .halal: return isHalal == true
+        case .kosher: return isKosher == true
+        }
+    }
+}
+
+/// Dietary filter options
+enum DietaryFilter: String, CaseIterable {
+    case healthy = "Healthy"
+    case vegan = "Vegan"
+    case vegetarian = "Vegetarian"
+    case glutenFree = "Gluten-Free"
+    case organic = "Organic"
+    case halal = "Halal"
+    case kosher = "Kosher"
+
+    var icon: String {
+        switch self {
+        case .healthy: return "leaf.fill"
+        case .vegan: return "sparkle"
+        case .vegetarian: return "carrot.fill"
+        case .glutenFree: return "checkmark.seal.fill"
+        case .organic: return "leaf.arrow.circlepath"
+        case .halal: return "moon.stars.fill"
+        case .kosher: return "star.of.david.fill"
+        }
+    }
+
+    var color: Color {
+        switch self {
+        case .healthy: return .green
+        case .vegan: return Color(red: 0.2, green: 0.8, blue: 0.6)
+        case .vegetarian: return .orange
+        case .glutenFree: return .purple
+        case .organic: return Color(red: 0.1, green: 0.6, blue: 0.3)
+        case .halal: return .teal
+        case .kosher: return .blue
+        }
     }
 }
 

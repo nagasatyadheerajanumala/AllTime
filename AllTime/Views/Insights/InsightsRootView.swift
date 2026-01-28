@@ -16,6 +16,7 @@ struct InsightsRootView: View {
     // Track which views have been loaded to preserve their state
     @State private var dailyViewLoaded = false
     @State private var weeklyViewLoaded = false
+    @State private var forecastViewLoaded = false
     @State private var monthlyViewLoaded = false
     @State private var healthViewLoaded = false
 
@@ -32,6 +33,7 @@ struct InsightsRootView: View {
     enum InsightsSection: String, CaseIterable {
         case daily = "Daily"
         case weekly = "Weekly"
+        case forecast = "Forecast"
         case monthly = "Monthly"
         case health = "Health"
 
@@ -39,6 +41,7 @@ struct InsightsRootView: View {
             switch self {
             case .daily: return "sun.max.fill"
             case .weekly: return "calendar.badge.clock"
+            case .forecast: return "arrow.right.circle"
             case .monthly: return "calendar"
             case .health: return "heart.fill"
             }
@@ -69,6 +72,13 @@ struct InsightsRootView: View {
                         .onAppear { weeklyViewLoaded = true }
                 }
 
+                // Forecast View
+                if selectedSection == .forecast {
+                    NextWeekInsightsView()
+                        .transition(contentTransition)
+                        .onAppear { forecastViewLoaded = true }
+                }
+
                 // Monthly View
                 if selectedSection == .monthly {
                     LifeInsightsView()
@@ -84,7 +94,7 @@ struct InsightsRootView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .animation(reduceMotion ? nil : .spring(response: 0.35, dampingFraction: 0.85), value: selectedSection)
+            .animation(reduceMotion ? nil : .spring(response: 0.25, dampingFraction: 0.9), value: selectedSection)
         }
         .background(DesignSystem.Colors.background)
         .task {

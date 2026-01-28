@@ -5,6 +5,7 @@ import SwiftUI
 struct WeeklyInsightsView: View {
     @StateObject private var viewModel = WeeklyNarrativeViewModel()
     @State private var showWeekPicker = false
+    @State private var expandedDayId: String? = nil
 
     var body: some View {
         ScrollView {
@@ -12,14 +13,19 @@ struct WeeklyInsightsView: View {
                 // Week Picker Header
                 weekPickerHeader
 
-                if viewModel.isLoading && viewModel.narrative == nil {
+                // Show different content based on whether "Next Week" is selected
+                if viewModel.isNextWeekSelected {
+                    // Next Week Pattern Intelligence View
+                    nextWeekPatternIntelligenceView
+                } else if viewModel.isLoading && viewModel.narrative == nil {
                     loadingView
-                } else if let narrative = viewModel.narrative {
-                    // Report Card Sections - show narrative if we have one
+                } else if let narrative = viewModel.narrative, viewModel.hasNarrativeForSelectedWeek {
+                    // Report Card Sections - only show if narrative matches selected week
                     reportCardContent(narrative)
                 } else if viewModel.hasError {
                     errorView
-                } else if viewModel.isLoading {
+                } else if viewModel.isLoading || (viewModel.narrative != nil && !viewModel.hasNarrativeForSelectedWeek) {
+                    // Show loading if fetching OR if we have stale data from wrong week
                     loadingView
                 }
 
@@ -34,10 +40,17 @@ struct WeeklyInsightsView: View {
             await viewModel.refresh()
         }
         .task {
-            async let weeksTask: () = viewModel.fetchAvailableWeeks()
+            // Fetch weeks first so selectedWeek is set, then fetch narrative
+            await viewModel.fetchAvailableWeeks()
+            // Now fetch narrative for the current week (selectedWeek should be set now)
             async let narrativeTask: () = viewModel.fetchNarrative()
             async let forecastTask: () = viewModel.fetchNextWeekForecast()
-            _ = await (weeksTask, narrativeTask, forecastTask)
+            _ = await (narrativeTask, forecastTask)
+        }
+        .onChange(of: viewModel.isNextWeekSelected) { _, isNextWeek in
+            if isNextWeek {
+                Task { await viewModel.fetchPatternIntelligence() }
+            }
         }
         .onDisappear {
             viewModel.cancelPendingRequests()
@@ -123,8 +136,13 @@ struct WeeklyInsightsView: View {
                     HStack(spacing: 6) {
                         Image(systemName: "calendar")
                             .font(.caption)
-                        Text(viewModel.selectedWeek?.label ?? "This Week")
-                            .font(.subheadline.weight(.medium))
+                        if viewModel.isLoadingWeeks {
+                            Text("Loading...")
+                                .font(.subheadline.weight(.medium))
+                        } else {
+                            Text(viewModel.selectedWeek?.label ?? "This Week")
+                                .font(.subheadline.weight(.medium))
+                        }
                     }
                     .foregroundColor(DesignSystem.Colors.primary)
                 }
@@ -135,9 +153,14 @@ struct WeeklyInsightsView: View {
                     Circle()
                         .fill(DesignSystem.Colors.primary.opacity(0.1))
                         .frame(width: 36, height: 36)
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(DesignSystem.Colors.primary)
+                    if viewModel.isLoadingWeeks || viewModel.isLoading {
+                        ProgressView()
+                            .scaleEffect(0.7)
+                    } else {
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(DesignSystem.Colors.primary)
+                    }
                 }
             }
             .padding(DesignSystem.Spacing.md)
@@ -151,6 +174,7 @@ struct WeeklyInsightsView: View {
             )
         }
         .buttonStyle(PlainButtonStyle())
+        .disabled(viewModel.isLoadingWeeks)
     }
 
     // MARK: - Balance Score Section
@@ -1573,9 +1597,596 @@ extension WeeklyInsightsView {
         }
         .buttonStyle(PlainButtonStyle())
     }
-}
 
-// MARK: - Preview
+    // MARK: - Next Week Pattern Intelligence View
+
+    @ViewBuilder
+    private var nextWeekPatternIntelligenceView: some View {
+        if viewModel.isLoadingPatternIntelligence && !viewModel.hasPatternData {
+            // Loading state
+            VStack(spacing: 20) {
+                ProgressView()
+                    .scaleEffect(1.1)
+                Text("Analyzing next week patterns...")
+                    .font(.subheadline)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 60)
+        } else if let pattern = viewModel.patternIntelligence {
+            // Week at a Glance
+            weekAtGlanceSection(pattern)
+
+            // Stats Row
+            patternStatsRow(pattern)
+
+            // Day Cards
+            ForEach(pattern.days) { day in
+                patternDayCard(day)
+            }
+
+            // Week Patterns (if any)
+            if let weekPatterns = pattern.weekPatterns, !weekPatterns.isEmpty {
+                weekPatternsSection(weekPatterns)
+            }
+        } else if let forecast = viewModel.nextWeekForecast {
+            // Fallback to forecast data if pattern intelligence isn't available
+            weekAtGlanceFallback(forecast)
+            forecastStatsRow(forecast)
+            ForEach(forecast.dailyForecasts) { day in
+                forecastDayCard(day)
+            }
+        } else {
+            // Empty state
+            VStack(spacing: 16) {
+                Image(systemName: "calendar.badge.clock")
+                    .font(.system(size: 48))
+                    .foregroundColor(DesignSystem.Colors.tertiaryText)
+                Text("No data yet for next week")
+                    .font(.headline)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                Text("Check back when your calendar has events scheduled")
+                    .font(.subheadline)
+                    .foregroundColor(DesignSystem.Colors.tertiaryText)
+                    .multilineTextAlignment(.center)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 60)
+        }
+    }
+
+    // MARK: - Week at a Glance
+
+    private func weekAtGlanceSection(_ pattern: PatternIntelligenceReport) -> some View {
+        VStack(alignment: .leading, spacing: 16) {
+            // Header
+            HStack {
+                Text("Week at a Glance")
+                    .font(.headline)
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+
+                Spacer()
+
+                // Legend
+                HStack(spacing: 12) {
+                    legendDot(color: Color(hex: "10B981"), label: "Light")
+                    legendDot(color: DesignSystem.Colors.blue, label: "Busy")
+                    legendDot(color: Color(hex: "EF4444"), label: "Heavy")
+                }
+            }
+
+            // Calendar Strip
+            HStack(spacing: 0) {
+                ForEach(pattern.days) { day in
+                    VStack(spacing: 8) {
+                        Text(day.shortDayName)
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(day.isWeekend ? DesignSystem.Colors.tertiaryText : DesignSystem.Colors.secondaryText)
+
+                        // Intensity bar
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(day.intensityColor)
+                            .frame(height: 8)
+
+                        // Meeting count
+                        Text("\(day.meetingCount)")
+                            .font(.system(size: 14, weight: .bold, design: .rounded))
+                            .foregroundColor(day.isWeekend ? DesignSystem.Colors.tertiaryText : DesignSystem.Colors.primaryText)
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+            }
+        }
+        .padding(DesignSystem.Spacing.md)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg)
+                .fill(DesignSystem.Colors.cardBackground)
+                .overlay(
+                    RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg)
+                        .stroke(DesignSystem.Colors.calmBorder, lineWidth: 0.5)
+                )
+        )
+    }
+
+    private func weekAtGlanceFallback(_ forecast: NextWeekForecastResponse) -> some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Text("Week at a Glance")
+                    .font(.headline)
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+
+                Spacer()
+
+                HStack(spacing: 12) {
+                    legendDot(color: Color(hex: "10B981"), label: "Light")
+                    legendDot(color: DesignSystem.Colors.blue, label: "Busy")
+                    legendDot(color: Color(hex: "EF4444"), label: "Heavy")
+                }
+            }
+
+            HStack(spacing: 0) {
+                ForEach(forecast.dailyForecasts) { day in
+                    VStack(spacing: 8) {
+                        Text(day.shortDayName)
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
+
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(day.intensityColor)
+                            .frame(height: 8)
+
+                        Text("\(day.meetingCount)")
+                            .font(.system(size: 14, weight: .bold, design: .rounded))
+                            .foregroundColor(DesignSystem.Colors.primaryText)
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+            }
+        }
+        .padding(DesignSystem.Spacing.md)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg)
+                .fill(DesignSystem.Colors.cardBackground)
+                .overlay(
+                    RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg)
+                        .stroke(DesignSystem.Colors.calmBorder, lineWidth: 0.5)
+                )
+        )
+    }
+
+    private func legendDot(color: Color, label: String) -> some View {
+        HStack(spacing: 4) {
+            Circle()
+                .fill(color)
+                .frame(width: 8, height: 8)
+            Text(label)
+                .font(.system(size: 10, weight: .medium))
+                .foregroundColor(DesignSystem.Colors.tertiaryText)
+        }
+    }
+
+    // MARK: - Stats Row
+
+    @ViewBuilder
+    private func patternStatsRow(_ pattern: PatternIntelligenceReport) -> some View {
+        let summary = pattern.weekSummary
+        HStack(spacing: 0) {
+            patternStatItem(
+                icon: "calendar",
+                value: "\(summary?.totalMeetings ?? pattern.days.reduce(0) { $0 + $1.meetingCount })",
+                label: "Meetings"
+            )
+            patternStatItem(
+                icon: "clock",
+                value: String(format: "%.0fh", summary?.totalMeetingHours ?? pattern.days.reduce(0.0) { $0 + $1.meetingHours }),
+                label: "In Calls"
+            )
+            patternStatItem(
+                icon: "flame.fill",
+                value: "\(summary?.heavyDays ?? pattern.days.filter { $0.intensity == "heavy" || $0.intensity == "extreme" }.count)",
+                label: "Heavy Days"
+            )
+            patternStatItem(
+                icon: "sun.max.fill",
+                value: "\(summary?.lightDays ?? pattern.days.filter { $0.intensity == "light" || $0.intensity == "open" }.count)",
+                label: "Light Days"
+            )
+        }
+        .padding(.vertical, DesignSystem.Spacing.md)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg)
+                .fill(DesignSystem.Colors.cardBackground)
+                .overlay(
+                    RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg)
+                        .stroke(DesignSystem.Colors.calmBorder, lineWidth: 0.5)
+                )
+        )
+    }
+
+    @ViewBuilder
+    private func forecastStatsRow(_ forecast: NextWeekForecastResponse) -> some View {
+        let metrics = forecast.weekMetrics
+        HStack(spacing: 0) {
+            patternStatItem(icon: "calendar", value: "\(metrics.totalMeetings)", label: "Meetings")
+            patternStatItem(icon: "clock", value: metrics.formattedMeetingHours, label: "In Calls")
+            patternStatItem(icon: "flame.fill", value: "\(metrics.heavyDays)", label: "Heavy Days")
+            patternStatItem(icon: "sun.max.fill", value: "\(metrics.openDays)", label: "Light Days")
+        }
+        .padding(.vertical, DesignSystem.Spacing.md)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg)
+                .fill(DesignSystem.Colors.cardBackground)
+                .overlay(
+                    RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg)
+                        .stroke(DesignSystem.Colors.calmBorder, lineWidth: 0.5)
+                )
+        )
+    }
+
+    private func patternStatItem(icon: String, value: String, label: String) -> some View {
+        VStack(spacing: 4) {
+            HStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.system(size: 12))
+                    .foregroundColor(DesignSystem.Colors.primary)
+                Text(value)
+                    .font(.system(size: 18, weight: .bold, design: .rounded))
+                    .foregroundColor(DesignSystem.Colors.primary)
+            }
+            Text(label)
+                .font(.system(size: 10, weight: .medium))
+                .foregroundColor(DesignSystem.Colors.tertiaryText)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    // MARK: - Pattern Day Card (Expandable)
+
+    private func patternDayCard(_ day: PatternDay) -> some View {
+        let isExpanded = expandedDayId == day.id
+
+        return VStack(spacing: 0) {
+            // Header (always visible)
+            Button(action: {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    expandedDayId = isExpanded ? nil : day.id
+                }
+            }) {
+                HStack(spacing: 12) {
+                    // Day badge
+                    Text(day.shortDayName)
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(day.intensityColor)
+                        )
+
+                    // Meeting info
+                    HStack(spacing: 8) {
+                        Image(systemName: "calendar")
+                            .font(.system(size: 11))
+                            .foregroundColor(DesignSystem.Colors.tertiaryText)
+                        Text("\(day.meetingCount) mtgs")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
+
+                        Image(systemName: "clock")
+                            .font(.system(size: 11))
+                            .foregroundColor(DesignSystem.Colors.tertiaryText)
+                        Text(String(format: "%.1fh", day.meetingHours))
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
+                    }
+
+                    Spacer()
+
+                    // Intensity label
+                    Text(day.intensityLabel)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(day.intensityColor)
+
+                    // Chevron
+                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(DesignSystem.Colors.tertiaryText)
+                }
+                .padding(DesignSystem.Spacing.md)
+            }
+            .buttonStyle(PlainButtonStyle())
+
+            // Expanded content
+            if isExpanded {
+                VStack(alignment: .leading, spacing: 16) {
+                    // Clara's insight
+                    if let insight = day.claraInsight, !insight.isEmpty {
+                        HStack(alignment: .top, spacing: 10) {
+                            Image(systemName: "sparkles")
+                                .font(.system(size: 14))
+                                .foregroundColor(Color(hex: "8B5CF6"))
+                            Text(insight)
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundColor(DesignSystem.Colors.primaryText)
+                                .lineSpacing(3)
+                        }
+                        .padding(12)
+                        .background(
+                            RoundedRectangle(cornerRadius: 10)
+                                .fill(Color(hex: "8B5CF6").opacity(0.08))
+                        )
+                    }
+
+                    // Prediction info
+                    if let prediction = day.prediction {
+                        HStack(spacing: 16) {
+                            // Expected outcome
+                            VStack(alignment: .leading, spacing: 4) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: prediction.displayOutcomeIcon)
+                                        .font(.system(size: 12))
+                                        .foregroundColor(DesignSystem.Colors.tertiaryText)
+                                    Text("Expected")
+                                        .font(.system(size: 11, weight: .medium))
+                                        .foregroundColor(DesignSystem.Colors.tertiaryText)
+                                }
+                                Text(prediction.outcomeLabel ?? "—")
+                                    .font(.system(size: 14, weight: .bold))
+                                    .foregroundColor(prediction.outcomeColor)
+                            }
+                            .padding(12)
+                            .background(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .fill(DesignSystem.Colors.cardBackgroundElevated)
+                            )
+
+                            // Sleep recommendation
+                            if let sleepHours = prediction.recommendedSleep {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "moon.zzz.fill")
+                                            .font(.system(size: 12))
+                                            .foregroundColor(DesignSystem.Colors.tertiaryText)
+                                        Text("Sleep")
+                                            .font(.system(size: 11, weight: .medium))
+                                            .foregroundColor(DesignSystem.Colors.tertiaryText)
+                                    }
+                                    Text(String(format: "%.0fh+", sleepHours))
+                                        .font(.system(size: 14, weight: .bold))
+                                        .foregroundColor(DesignSystem.Colors.primaryText)
+                                }
+                                .padding(12)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 10)
+                                        .fill(DesignSystem.Colors.cardBackgroundElevated)
+                                )
+                            }
+                        }
+                    }
+
+                    // Similar days
+                    if let similarDays = day.similarDays, !similarDays.isEmpty {
+                        VStack(alignment: .leading, spacing: 10) {
+                            HStack(spacing: 6) {
+                                Image(systemName: "clock.arrow.circlepath")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(DesignSystem.Colors.tertiaryText)
+                                Text("Based on similar days:")
+                                    .font(.system(size: 12, weight: .medium))
+                                    .foregroundColor(DesignSystem.Colors.tertiaryText)
+                            }
+
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 10) {
+                                    ForEach(similarDays.prefix(4)) { similar in
+                                        similarDayPill(similar)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                .padding(.horizontal, DesignSystem.Spacing.md)
+                .padding(.bottom, DesignSystem.Spacing.md)
+            }
+        }
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg)
+                .fill(DesignSystem.Colors.cardBackground)
+                .overlay(
+                    RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg)
+                        .stroke(DesignSystem.Colors.calmBorder, lineWidth: 0.5)
+                )
+        )
+    }
+
+    private func similarDayPill(_ similar: SimilarDayMatch) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text(similar.formattedDate)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+
+                Text(similar.similarityLabel)
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundColor(DesignSystem.Colors.tertiaryText)
+            }
+
+            HStack(spacing: 4) {
+                Circle()
+                    .fill(similar.outcomeColor)
+                    .frame(width: 6, height: 6)
+                Text(similar.outcomeLabel ?? "—")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(similar.outcomeColor)
+            }
+        }
+        .padding(10)
+        .background(
+            RoundedRectangle(cornerRadius: 10)
+                .fill(DesignSystem.Colors.cardBackgroundElevated)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(similar.outcomeColor.opacity(0.2), lineWidth: 1)
+                )
+        )
+    }
+
+    // MARK: - Forecast Day Card (Fallback)
+
+    private func forecastDayCard(_ day: DayForecast) -> some View {
+        let isExpanded = expandedDayId == day.id
+
+        return VStack(spacing: 0) {
+            Button(action: {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    expandedDayId = isExpanded ? nil : day.id
+                }
+            }) {
+                HStack(spacing: 12) {
+                    Text(day.shortDayName)
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(day.intensityColor)
+                        )
+
+                    HStack(spacing: 8) {
+                        Image(systemName: "calendar")
+                            .font(.system(size: 11))
+                            .foregroundColor(DesignSystem.Colors.tertiaryText)
+                        Text("\(day.meetingCount) mtgs")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
+
+                        Image(systemName: "clock")
+                            .font(.system(size: 11))
+                            .foregroundColor(DesignSystem.Colors.tertiaryText)
+                        Text(String(format: "%.1fh", day.meetingHours))
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
+                    }
+
+                    Spacer()
+
+                    Text(day.intensityLabel)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(day.intensityColor)
+
+                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(DesignSystem.Colors.tertiaryText)
+                }
+                .padding(DesignSystem.Spacing.md)
+            }
+            .buttonStyle(PlainButtonStyle())
+
+            if isExpanded {
+                VStack(alignment: .leading, spacing: 12) {
+                    if day.hasLateEvening {
+                        HStack(spacing: 8) {
+                            Image(systemName: "moon.fill")
+                                .font(.system(size: 12))
+                                .foregroundColor(Color(hex: "F59E0B"))
+                            Text("Late evening event scheduled")
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundColor(DesignSystem.Colors.secondaryText)
+                        }
+                    }
+
+                    if day.backToBackCount > 0 {
+                        HStack(spacing: 8) {
+                            Image(systemName: "arrow.right.arrow.left")
+                                .font(.system(size: 12))
+                                .foregroundColor(Color(hex: "EF4444"))
+                            Text("\(day.backToBackCount) back-to-back meetings")
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundColor(DesignSystem.Colors.secondaryText)
+                        }
+                    }
+
+                    if let timeRange = day.formattedTimeRange {
+                        HStack(spacing: 8) {
+                            Image(systemName: "clock")
+                                .font(.system(size: 12))
+                                .foregroundColor(DesignSystem.Colors.tertiaryText)
+                            Text("Meetings: \(timeRange)")
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundColor(DesignSystem.Colors.secondaryText)
+                        }
+                    }
+                }
+                .padding(.horizontal, DesignSystem.Spacing.md)
+                .padding(.bottom, DesignSystem.Spacing.md)
+            }
+        }
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg)
+                .fill(DesignSystem.Colors.cardBackground)
+                .overlay(
+                    RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg)
+                        .stroke(DesignSystem.Colors.calmBorder, lineWidth: 0.5)
+                )
+        )
+    }
+
+    // MARK: - Week Patterns Section
+
+    private func weekPatternsSection(_ patterns: [WeekPatternItem]) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Key Patterns")
+                .font(.headline)
+                .foregroundColor(DesignSystem.Colors.primaryText)
+
+            ForEach(patterns) { pattern in
+                HStack(alignment: .top, spacing: 12) {
+                    ZStack {
+                        Circle()
+                            .fill(pattern.severityColor.opacity(0.15))
+                            .frame(width: 32, height: 32)
+                        Image(systemName: pattern.icon)
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(pattern.severityColor)
+                    }
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(pattern.title)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundColor(DesignSystem.Colors.primaryText)
+                        Text(pattern.detail)
+                            .font(.caption)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+
+                    Spacer()
+                }
+                .padding(DesignSystem.Spacing.md)
+                .background(
+                    RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.md)
+                        .fill(pattern.severityColor.opacity(0.05))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.md)
+                                .stroke(pattern.severityColor.opacity(0.15), lineWidth: 0.5)
+                        )
+                )
+            }
+        }
+        .padding(DesignSystem.Spacing.md)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg)
+                .fill(DesignSystem.Colors.cardBackground)
+                .overlay(
+                    RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg)
+                        .stroke(DesignSystem.Colors.calmBorder, lineWidth: 0.5)
+                )
+        )
+    }
+}
 
 #Preview {
     WeeklyInsightsView()

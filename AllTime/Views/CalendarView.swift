@@ -23,6 +23,7 @@ struct CalendarView: View {
     @State private var showingAddTask = false
     @State private var showingAddReminder = false
     @State private var showingQuickBook = false
+    @State private var showingCalendarImport = false
     
     var body: some View {
         NavigationView {
@@ -321,6 +322,16 @@ struct CalendarView: View {
                                 showFABMenu = false
                                 showingAddEvent = true
                             }
+
+                            // Import from Photo option
+                            fabMenuItem(
+                                icon: "photo.badge.plus",
+                                label: "Import from Photo",
+                                color: DesignSystem.Colors.amber
+                            ) {
+                                showFABMenu = false
+                                showingCalendarImport = true
+                            }
                         }
 
                         // Main FAB button
@@ -363,6 +374,9 @@ struct CalendarView: View {
         }
         .sheet(isPresented: $showingQuickBook) {
             QuickBookView()
+        }
+        .sheet(isPresented: $showingCalendarImport) {
+            CalendarImportView()
         }
     }
 

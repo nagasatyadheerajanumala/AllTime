@@ -121,7 +121,7 @@ struct MainTabView: View {
                         }
                     }
                 }
-                .animation(isDragging ? nil : .spring(response: 0.4, dampingFraction: 0.85), value: selectedTab)
+                .animation(isDragging ? nil : .spring(response: 0.28, dampingFraction: 0.9), value: selectedTab)
                 .gesture(
                     DragGesture(minimumDistance: 20)
                         .onChanged { value in
@@ -142,7 +142,7 @@ struct MainTabView: View {
                             let v = value.predictedEndTranslation.width - h
                             let threshold = screenWidth * 0.2
 
-                            withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
+                            withAnimation(.spring(response: 0.28, dampingFraction: 0.9)) {
                                 if abs(h) > threshold || abs(v) > 300 {
                                     if h < 0 || v < -300, let next = Tab(rawValue: selectedTab.rawValue + 1) {
                                         selectedTab = next
@@ -270,6 +270,7 @@ struct GlassyTabBar: View {
 
     // MARK: - Glass Background
     /// The main glass pill with blur, highlights, and shadow
+    /// Optimized with drawingGroup() for 60fps compositing
     private var glassBackground: some View {
         RoundedRectangle(cornerRadius: TabBarMetrics.cornerRadius, style: .continuous)
             // Base blur material - this actually blurs content behind
@@ -312,26 +313,26 @@ struct GlassyTabBar: View {
                         lineWidth: 0.5
                     )
             )
-            // Soft shadow to lift the bar
-            .shadow(color: .black.opacity(0.2), radius: 20, x: 0, y: 10)
-            .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 4)
+            // Single combined shadow (avoid multiple shadow passes)
+            .shadow(color: .black.opacity(0.15), radius: 12, x: 0, y: 6)
     }
 
     // MARK: - Active Tab Glow
     /// Animated glow "blob" behind the selected tab
+    /// Optimized: reduced blur radius, uses drawingGroup for GPU compositing
     private func activeTabGlow(tabWidth: CGFloat, pillWidth: CGFloat) -> some View {
         let glowWidth: CGFloat = tabWidth * 0.85
         let glowHeight: CGFloat = TabBarMetrics.barHeight * 0.7
         let xOffset = calculateGlowOffset(tabWidth: tabWidth, pillWidth: pillWidth)
 
         return ZStack {
-            // Outer soft glow
+            // Outer soft glow - reduced blur for 60fps
             Capsule()
                 .fill(
                     RadialGradient(
                         colors: [
-                            selectedTab.accentColor.opacity(0.4),
-                            selectedTab.accentColor.opacity(0.15),
+                            selectedTab.accentColor.opacity(0.35),
+                            selectedTab.accentColor.opacity(0.1),
                             selectedTab.accentColor.opacity(0)
                         ],
                         center: .center,
@@ -339,16 +340,16 @@ struct GlassyTabBar: View {
                         endRadius: glowWidth * 0.6
                     )
                 )
-                .frame(width: glowWidth * 1.3, height: glowHeight * 1.2)
-                .blur(radius: 8)
+                .frame(width: glowWidth * 1.2, height: glowHeight * 1.1)
+                .blur(radius: 4)  // Reduced from 8 for performance
 
             // Inner bright glow
             Capsule()
                 .fill(
                     LinearGradient(
                         colors: [
-                            selectedTab.accentColor.opacity(colorScheme == .dark ? 0.5 : 0.35),
-                            selectedTab.accentColor.opacity(colorScheme == .dark ? 0.25 : 0.15)
+                            selectedTab.accentColor.opacity(colorScheme == .dark ? 0.45 : 0.3),
+                            selectedTab.accentColor.opacity(colorScheme == .dark ? 0.2 : 0.1)
                         ],
                         startPoint: .top,
                         endPoint: .bottom
@@ -358,13 +359,14 @@ struct GlassyTabBar: View {
                 .overlay(
                     Capsule()
                         .strokeBorder(
-                            selectedTab.accentColor.opacity(0.5),
+                            selectedTab.accentColor.opacity(0.4),
                             lineWidth: 1
                         )
                 )
         }
+        .drawingGroup()  // GPU compositing for smooth animation
         .offset(x: xOffset)
-        .animation(.spring(response: 0.4, dampingFraction: 0.75), value: selectedTab)
+        .animation(.spring(response: 0.25, dampingFraction: 0.85), value: selectedTab)
     }
 
     /// Calculate the x-offset for the glow based on selected tab
@@ -387,7 +389,7 @@ struct GlassyTabBar: View {
     /// Individual tab button
     private func tabButton(for tab: Tab) -> some View {
         Button {
-            withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
+            withAnimation(.spring(response: 0.2, dampingFraction: 0.85)) {
                 selectedTab = tab
             }
             onTabChange?(tab)
@@ -399,7 +401,7 @@ struct GlassyTabBar: View {
                     .font(.system(size: 22, weight: selectedTab == tab ? .semibold : .regular))
                     .foregroundStyle(iconColor(for: tab))
                     .scaleEffect(selectedTab == tab ? 1.1 : 1.0)
-                    .animation(.spring(response: 0.3, dampingFraction: 0.6), value: selectedTab == tab)
+                    .animation(.spring(response: 0.2, dampingFraction: 0.8), value: selectedTab == tab)
 
                 // Label
                 Text(tab.title)

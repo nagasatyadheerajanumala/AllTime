@@ -7,12 +7,14 @@ struct InsightsTabView: View {
 
     enum InsightsSection: String, CaseIterable {
         case weekly = "Weekly"
+        case nextWeek = "Next Week"
         case monthly = "Monthly"
         case health = "Health"
 
         var icon: String {
             switch self {
             case .weekly: return "calendar.badge.clock"
+            case .nextWeek: return "arrow.right.circle"
             case .monthly: return "calendar.circle"
             case .health: return "heart.fill"
             }
@@ -21,6 +23,7 @@ struct InsightsTabView: View {
         var description: String {
             switch self {
             case .weekly: return "7 days"
+            case .nextWeek: return "Upcoming"
             case .monthly: return "30-60 days"
             case .health: return "Wellness"
             }
@@ -40,6 +43,8 @@ struct InsightsTabView: View {
                 switch selectedSection {
                 case .weekly:
                     WeeklyInsightsView()
+                case .nextWeek:
+                    NextWeekInsightsView()
                 case .monthly:
                     LifeInsightsView()
                 case .health:
@@ -92,7 +97,7 @@ struct InsightsTabView: View {
     }
 
     private var sectionPicker: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 6) {
             ForEach(InsightsSection.allCases, id: \.self) { section in
                 sectionButton(section)
             }
@@ -109,20 +114,17 @@ struct InsightsTabView: View {
             }
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
         }) {
-            VStack(spacing: 4) {
-                HStack(spacing: 6) {
-                    Image(systemName: section.icon)
-                        .font(.system(size: 12, weight: .semibold))
-                    Text(section.rawValue)
-                        .font(.subheadline.weight(.semibold))
-                }
-                Text(section.description)
-                    .font(.caption2)
-                    .opacity(selectedSection == section ? 0.8 : 0.6)
+            VStack(spacing: 3) {
+                Image(systemName: section.icon)
+                    .font(.system(size: 14, weight: .semibold))
+                Text(section.rawValue)
+                    .font(.system(size: 11, weight: .semibold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
             }
             .foregroundColor(selectedSection == section ? .white : DesignSystem.Colors.secondaryText)
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 12)
+            .padding(.vertical, 10)
             .background(
                 RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.md)
                     .fill(selectedSection == section ?

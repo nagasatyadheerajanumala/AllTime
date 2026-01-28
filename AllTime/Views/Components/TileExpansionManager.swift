@@ -44,26 +44,34 @@ final class TileExpansionManager: ObservableObject {
     /// Toggle a tile's expansion state
     /// If expanding, collapses any other expanded tile first
     func toggle(_ tileId: String) {
-        guard !isAnimating else { return }
+        print("🔲 TileExpansion: toggle(\(tileId)) called, isAnimating=\(isAnimating)")
+        guard !isAnimating else {
+            print("⚠️ TileExpansion: BLOCKED - isAnimating is true!")
+            return
+        }
 
         isAnimating = true
+        print("🔲 TileExpansion: Setting isAnimating=true, expandedTileId before: \(expandedTileId ?? "nil")")
 
         // Provide haptic feedback
         HapticManager.shared.lightTap()
 
-        withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+        withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
             if expandedTileId == tileId {
                 // Collapse if already expanded
                 expandedTileId = nil
+                print("🔲 TileExpansion: Collapsing \(tileId)")
             } else {
                 // Expand this tile (automatically collapses others)
                 expandedTileId = tileId
+                print("🔲 TileExpansion: Expanding \(tileId)")
             }
         }
 
         // Reset animation lock after animation completes
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
             self?.isAnimating = false
+            print("🔲 TileExpansion: Reset isAnimating=false")
         }
     }
 
@@ -78,7 +86,7 @@ final class TileExpansionManager: ObservableObject {
 
         HapticManager.shared.lightTap()
 
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+        withAnimation(.spring(response: 0.2, dampingFraction: 0.85)) {
             expandedTileId = nil
         }
     }
@@ -89,7 +97,7 @@ final class TileExpansionManager: ObservableObject {
 
         HapticManager.shared.lightTap()
 
-        withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+        withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
             expandedTileId = tileId
         }
     }

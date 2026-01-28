@@ -54,14 +54,19 @@ class HealthSyncService: ObservableObject {
             os_log("Sync already in progress, skipping", log: Self.logger, type: .info)
             return
         }
-        
+
         isSyncing = true
         syncError = nil
-        
+
         do {
+            // Update timezone on backend to ensure accurate date calculations
+            let timezone = TimeZone.current.identifier
+            try? await apiService.updateTimezone(timezone)
+            os_log("🌐 Updated backend timezone to %@", log: Self.logger, type: .info, timezone)
+
             // Check authorization state using HealthMetricsService
             await healthMetricsService.checkAuthorizationStatus()
-            
+
             if !healthMetricsService.isAuthorized {
                 os_log("HealthKit readiness uncertain, attempting sync anyway", log: Self.logger, type: .info)
             } else {
@@ -113,24 +118,32 @@ class HealthSyncService: ObservableObject {
             }
             
             await cacheService.mergeHealthMetricsHistory(metrics)
-            
+
             // HealthMetricsService already returns DailyHealthMetrics, so use directly
             // Submit to backend
             let response = try await apiService.submitDailyHealthMetrics(metrics)
-            
+
             os_log("Successfully synced %d records", log: Self.logger, type: .info, response.recordsUpserted)
-            
+
+            // Log any failures for debugging
+            if let failedCount = response.recordsFailed, failedCount > 0 {
+                os_log("⚠️ %d records failed to sync", log: Self.logger, type: .error, failedCount)
+                if let failedDates = response.failedDates {
+                    os_log("⚠️ Failed dates: %@", log: Self.logger, type: .error, failedDates.joined(separator: ", "))
+                }
+            }
+
             isSyncing = false
             lastSyncDate = endDate
             userDefaults.set(Self.dateFormatter.string(from: endDate), forKey: lastSyncKey)
-            
+
         } catch {
             os_log("Sync failed: %@", log: Self.logger, type: .error, error.localizedDescription)
             isSyncing = false
             syncError = error.localizedDescription
         }
     }
-    
+
     /// Sync last N days to backend (for initial sync after authorization)
     func syncLastNDaysToBackend(_ n: Int) async {
         guard !isSyncing else {
@@ -173,25 +186,33 @@ class HealthSyncService: ObservableObject {
             }
             
             await cacheService.mergeHealthMetricsHistory(metrics)
-            
+
             // HealthMetricsService already returns DailyHealthMetrics, so use directly
             // Submit to backend
             let response = try await apiService.submitDailyHealthMetrics(metrics)
-            
+
             os_log("Successfully synced %d records", log: Self.logger, type: .info, response.recordsUpserted)
-            
+
+            // Log any failures for debugging
+            if let failedCount = response.recordsFailed, failedCount > 0 {
+                os_log("⚠️ %d records failed to sync", log: Self.logger, type: .error, failedCount)
+                if let failedDates = response.failedDates {
+                    os_log("⚠️ Failed dates: %@", log: Self.logger, type: .error, failedDates.joined(separator: ", "))
+                }
+            }
+
             isSyncing = false
             lastSyncDate = today
             userDefaults.set(Self.dateFormatter.string(from: today), forKey: lastSyncKey)
-            
+
         } catch {
             os_log("Sync failed: %@", log: Self.logger, type: .error, error.localizedDescription)
             isSyncing = false
             syncError = error.localizedDescription
         }
     }
-    
-    
+
+
     private static let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"

@@ -1,121 +1,155 @@
 import SwiftUI
+import UIKit
 
 // MARK: - Centralized Animation System
 struct AppAnimations {
-    
+
+    // MARK: - Ultra-Fast Animations (60fps feel)
+
+    /// Instant response (for immediate feedback - button presses)
+    static let instant = Animation.spring(
+        response: 0.15,
+        dampingFraction: 0.9,
+        blendDuration: 0
+    )
+
+    /// Snappy response (for taps, selections)
+    static let snappy = Animation.spring(
+        response: 0.2,
+        dampingFraction: 0.85,
+        blendDuration: 0
+    )
+
     // MARK: - Spring Animations (Apple-like)
-    
+
     /// Quick, snappy spring (for buttons, taps)
     static let quickSpring = Animation.spring(
-        response: 0.3,
-        dampingFraction: 0.7,
-        blendDuration: 0.2
+        response: 0.25,
+        dampingFraction: 0.8,
+        blendDuration: 0
     )
-    
+
     /// Smooth, fluid spring (for card transitions)
     static let smoothSpring = Animation.spring(
-        response: 0.4,
-        dampingFraction: 0.8,
-        blendDuration: 0.3
+        response: 0.35,
+        dampingFraction: 0.82,
+        blendDuration: 0
     )
-    
+
     /// Gentle, bouncy spring (for hero animations)
     static let gentleSpring = Animation.spring(
-        response: 0.5,
-        dampingFraction: 0.75,
-        blendDuration: 0.4
+        response: 0.4,
+        dampingFraction: 0.78,
+        blendDuration: 0
     )
-    
+
     /// Slow, elegant spring (for page transitions)
     static let elegantSpring = Animation.spring(
-        response: 0.6,
+        response: 0.5,
         dampingFraction: 0.85,
-        blendDuration: 0.5
+        blendDuration: 0
     )
-    
+
     // MARK: - Easing Animations
-    
-    /// Ease out (for exits)
-    static let easeOut = Animation.easeOut(duration: 0.3)
-    
-    /// Ease in (for entries)
-    static let easeIn = Animation.easeIn(duration: 0.3)
-    
-    /// Ease in-out (for general transitions)
-    static let easeInOut = Animation.easeInOut(duration: 0.35)
+
+    /// Ease out (for exits) - faster
+    static let easeOut = Animation.easeOut(duration: 0.2)
+
+    /// Ease in (for entries) - faster
+    static let easeIn = Animation.easeIn(duration: 0.2)
+
+    /// Ease in-out (for general transitions) - faster
+    static let easeInOut = Animation.easeInOut(duration: 0.25)
     
     // MARK: - Specialized Animations
-    
-    /// Card enter animation (fade + slide up)
+
+    /// Card enter animation (fade + slide up) - faster
     static let cardEnter = Animation.spring(
-        response: 0.4,
+        response: 0.3,
+        dampingFraction: 0.85
+    )
+
+    /// Card exit animation (fade + slide down) - faster
+    static let cardExit = Animation.easeOut(duration: 0.15)
+
+    /// Hero animation (scale + fade) - snappier
+    static let hero = Animation.spring(
+        response: 0.35,
         dampingFraction: 0.8
     )
-    
-    /// Card exit animation (fade + slide down)
-    static let cardExit = Animation.easeOut(duration: 0.25)
-    
-    /// Hero animation (scale + fade)
-    static let hero = Animation.spring(
-        response: 0.5,
-        dampingFraction: 0.75
-    )
-    
+
     /// Parallax animation (smooth scroll-based)
-    static let parallax = Animation.easeOut(duration: 0.5)
-    
+    static let parallax = Animation.easeOut(duration: 0.3)
+
     /// Pulse animation (for attention)
-    static let pulse = Animation.easeInOut(duration: 1.5).repeatForever(autoreverses: true)
-    
-    /// Shimmer animation (for loading)
-    static let shimmer = Animation.linear(duration: 1.5).repeatForever(autoreverses: false)
-    
+    static let pulse = Animation.easeInOut(duration: 1.2).repeatForever(autoreverses: true)
+
+    /// Shimmer animation (for loading) - faster
+    static let shimmer = Animation.linear(duration: 1.0).repeatForever(autoreverses: false)
+
     /// Bounce animation (for playful interactions)
     static let bounce = Animation.spring(
-        response: 0.4,
+        response: 0.3,
         dampingFraction: 0.5
+    )
+
+    /// Sheet presentation animation
+    static let sheet = Animation.spring(
+        response: 0.35,
+        dampingFraction: 0.88
+    )
+
+    /// Tab switch animation
+    static let tabSwitch = Animation.spring(
+        response: 0.25,
+        dampingFraction: 0.9
+    )
+
+    /// List item animation (for ForEach)
+    static let listItem = Animation.spring(
+        response: 0.2,
+        dampingFraction: 0.85
     )
 }
 
 // MARK: - Animation Timing Constants
 struct AnimationTiming {
-    static let quick: Double = 0.2
-    static let standard: Double = 0.3
-    static let smooth: Double = 0.4
-    static let slow: Double = 0.6
-    
-    // Stagger delays for choreography
-    static let stagger: Double = 0.05
-    static let cardStagger: Double = 0.1
+    static let instant: Double = 0.1
+    static let quick: Double = 0.15
+    static let standard: Double = 0.25
+    static let smooth: Double = 0.35
+    static let slow: Double = 0.5
+
+    // Stagger delays for choreography - faster
+    static let stagger: Double = 0.03
+    static let cardStagger: Double = 0.05
 }
 
 // MARK: - View Extensions for Easy Animation
 extension View {
-    /// Apply quick spring animation
-    func quickSpring() -> some View {
-        self.animation(AppAnimations.quickSpring, value: UUID())
+    /// Apply instant animation for immediate feedback
+    func instantAnimation<V: Equatable>(value: V) -> some View {
+        self.animation(AppAnimations.instant, value: value)
     }
-    
-    /// Apply smooth spring animation
-    func smoothSpring() -> some View {
-        self.animation(AppAnimations.smoothSpring, value: UUID())
+
+    /// Apply snappy animation for quick interactions
+    func snappyAnimation<V: Equatable>(value: V) -> some View {
+        self.animation(AppAnimations.snappy, value: value)
     }
-    
-    /// Apply gentle spring animation
-    func gentleSpring() -> some View {
-        self.animation(AppAnimations.gentleSpring, value: UUID())
+
+    /// Apply quick spring animation with value binding
+    func quickSpringAnimation<V: Equatable>(value: V) -> some View {
+        self.animation(AppAnimations.quickSpring, value: value)
     }
-    
-    /// Apply card enter animation
-    func cardEnter(delay: Double = 0) -> some View {
-        self
-            .opacity(0)
-            .offset(y: 20)
-            .onAppear {
-                withAnimation(AppAnimations.cardEnter.delay(delay)) {
-                    // Animation applied via state change
-                }
-            }
+
+    /// Apply smooth spring animation with value binding
+    func smoothSpringAnimation<V: Equatable>(value: V) -> some View {
+        self.animation(AppAnimations.smoothSpring, value: value)
+    }
+
+    /// Apply gentle spring animation with value binding
+    func gentleSpringAnimation<V: Equatable>(value: V) -> some View {
+        self.animation(AppAnimations.gentleSpring, value: value)
     }
 }
 

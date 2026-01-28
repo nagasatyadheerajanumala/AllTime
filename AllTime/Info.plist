@@ -18,6 +18,10 @@
 	<string>My Clara needs access to your reminders to help you stay organized.</string>
 	<key>NSRemindersFullAccessUsageDescription</key>
 	<string>My Clara needs full access to your reminders to sync reminders created in the app to your iOS Reminders app.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>My Clara needs camera access to take photos of your calendar for event import.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>My Clara needs photo library access to select calendar screenshots for event import.</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>

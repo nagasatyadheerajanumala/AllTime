@@ -229,10 +229,16 @@ struct NotificationRowView: View {
             return Color.indigo.opacity(0.15)
         case .eventReminder:
             return Color.blue.opacity(0.15)
-        case .reminderDue:
+        case .reminderDue, .reminder:
             return Color.purple.opacity(0.15)
         case .calendarSync:
             return Color.green.opacity(0.15)
+        case .nudge:
+            return Color.yellow.opacity(0.15)
+        case .dailySummary:
+            return Color.cyan.opacity(0.15)
+        case .test:
+            return Color.mint.opacity(0.15)
         case .system:
             return Color.gray.opacity(0.15)
         }
@@ -246,10 +252,16 @@ struct NotificationRowView: View {
             return .indigo
         case .eventReminder:
             return .blue
-        case .reminderDue:
+        case .reminderDue, .reminder:
             return .purple
         case .calendarSync:
             return .green
+        case .nudge:
+            return .yellow
+        case .dailySummary:
+            return .cyan
+        case .test:
+            return .mint
         case .system:
             return .gray
         }

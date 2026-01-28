@@ -102,7 +102,7 @@ class TodayBriefingViewModel: ObservableObject {
     /// Fetch briefing from API with optional force refresh
     /// Uses request de-duplication to prevent duplicate API calls
     func fetchBriefing(forceRefresh: Bool = false) async {
-        print("🔍 fetchBriefing called, forceRefresh=\(forceRefresh)")
+        print("📋 TodayBriefingViewModel: fetchBriefing called, forceRefresh=\(forceRefresh), currentBriefing=\(briefing != nil)")
         // Reset error state
         hasError = false
         errorMessage = nil

@@ -383,22 +383,21 @@ class CalendarViewModel: ObservableObject {
                 return Self.filterEventsByConnectedProvidersStatic(allEvents, connectedProviders: connectedProviders)
             }.value
             
-            // Update UI on main actor - merge events instead of replacing to preserve future events
+            // Update UI on main actor - optimized merge to reduce redraws
             await MainActor.run {
-                // Merge new events with existing events, avoiding duplicates
-                let existingEventIds = Set(self.events.map { $0.id })
-                let newEvents = filteredEvents.filter { !existingEventIds.contains($0.id) }
-                
-                // Add new events
-                self.events.append(contentsOf: newEvents)
-                
-                // Update existing events that might have changed
-                for newEvent in filteredEvents {
-                    if let index = self.events.firstIndex(where: { $0.id == newEvent.id }) {
-                        self.events[index] = newEvent
-                    }
+                // Use dictionary for O(1) lookups instead of O(n) firstIndex
+                var eventDict = Dictionary(uniqueKeysWithValues: self.events.map { ($0.id, $0) })
+
+                // Merge filtered events (updates existing, adds new)
+                for event in filteredEvents {
+                    eventDict[event.id] = event
                 }
-                
+
+                // Single assignment to trigger only one view update
+                self.events = Array(eventDict.values).sorted {
+                    ($0.startDate ?? .distantPast) < ($1.startDate ?? .distantPast)
+                }
+
                 // Rebuild index for fast lookups
                 self.rebuildEventIndex()
             }
@@ -869,261 +868,45 @@ class CalendarViewModel: ObservableObject {
         }
     }
     
-    // Optimized: Use pre-computed index instead of filtering every time
+    // Optimized: Use pre-computed index for O(1) lookup
     func eventsForDate(_ date: Date) -> [Event] {
-        // CRITICAL: Normalize to start of day in LOCAL timezone
-        // This MUST match how events are indexed in rebuildEventIndex()
         let normalizedDate = calendar.startOfDay(for: date)
-        
-        #if DEBUG
-        // Diagnostic: Log normalization details
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss Z"
-        dateFormatter.timeZone = TimeZone.current
-        let localFormatter = DateFormatter()
-        localFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
-        localFormatter.timeZone = TimeZone.current
-        print("🔍 eventsForDate: Input date: \(dateFormatter.string(from: date))")
-        print("🔍 eventsForDate: Normalized date: \(dateFormatter.string(from: normalizedDate))")
-        print("🔍 eventsForDate: Normalized date (local): \(localFormatter.string(from: normalizedDate))")
-        print("🔍 eventsForDate: Index has \(eventsByDate.keys.count) keys")
-        
-        // Check if normalized date exists in index
-        let indexKeysAsStrings = eventsByDate.keys.map { dateFormatter.string(from: $0) }
-        let normalizedDateString = dateFormatter.string(from: normalizedDate)
-        if indexKeysAsStrings.contains(normalizedDateString) {
-            print("🔍 eventsForDate: ✅ Normalized date found in index")
-        } else {
-            print("🔍 eventsForDate: ❌ Normalized date NOT in index")
-            print("🔍 eventsForDate: Looking for: \(normalizedDateString)")
-            print("🔍 eventsForDate: Nearest keys: \(indexKeysAsStrings.filter { $0.contains("2025-12") }.prefix(5).joined(separator: ", "))")
-        }
-        #endif
-        
+
         // Fast O(1) lookup from pre-computed index
-        // Date comparison in Swift uses absolute time, so this should work even if timezone representation differs
         if let cachedEvents = eventsByDate[normalizedDate] {
-            #if DEBUG
-            print("🔍 eventsForDate: Found \(cachedEvents.count) events in cache for normalized date")
-            if cachedEvents.isEmpty {
-                print("🔍 eventsForDate: ⚠️ Index entry exists but is empty - no events on this date")
-            }
-            #endif
             return cachedEvents
         }
-        
-        #if DEBUG
-        // If not in index, check if we should have indexed it
-        // This helps debug why a date might be missing from the index
-        let hasEventsForNearbyDates = eventsByDate.keys.contains { key in
-            abs(key.timeIntervalSince(normalizedDate)) < 86400 * 2 // Within 2 days
-        }
-        if hasEventsForNearbyDates {
-            print("🔍 eventsForDate: ⚠️ Date not in index but nearby dates are - possible indexing issue")
-        }
-        #endif
-        
-        // Fallback: filter if index not built yet (shouldn't happen, but safe)
-        // Also try direct date comparison in case of timezone representation differences
+
+        // Fallback: filter if index not built yet
         let filteredEvents = events.filter { event in
             guard let eventDate = event.startDate else { return false }
-            let normalizedEventDate = calendar.startOfDay(for: eventDate)
-            // Use calendar.isDate for timezone-aware comparison
-            let isSameDay = calendar.isDate(normalizedEventDate, inSameDayAs: normalizedDate)
-            
-            #if DEBUG
-            if isSameDay {
-                print("🔍 eventsForDate: Event '\(event.title)' matches - eventDate: \(dateFormatter.string(from: eventDate)), normalized: \(dateFormatter.string(from: normalizedEventDate))")
-            }
-            #endif
-            
-            return isSameDay
+            return calendar.isDate(calendar.startOfDay(for: eventDate), inSameDayAs: normalizedDate)
         }
-        
-        #if DEBUG
-        print("🔍 eventsForDate: Found \(filteredEvents.count) events via fallback filtering")
-        #endif
-        
+
         // Cache the result
         eventsByDate[normalizedDate] = filteredEvents
         return filteredEvents
     }
     
     // Rebuild event index when events change (called after loading events)
-    // Build index synchronously on main actor to avoid race conditions
-    // This ensures the index is ready immediately when events are updated
+    // Optimized: Minimal logging, efficient grouping
     private func rebuildEventIndex() {
-        print("🔍 CalendarViewModel: ===== REBUILDING EVENT INDEX =====")
-        print("🔍 CalendarViewModel: Starting index rebuild at \(Date())")
-        print("🔍 CalendarViewModel: Total events to index: \(events.count)")
-        
-        var index: [Date: [Event]] = [:]
         let cal = Calendar.current
-        
-        #if DEBUG
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss Z"
-        dateFormatter.timeZone = TimeZone.current
-        var indexStats: [String: Int] = [:]
-        var skippedCount = 0
-        #endif
-        
-        // Process events synchronously (startDate is a computed property, safe to access)
+
+        // Use Dictionary grouping for O(n) performance
+        var index: [Date: [Event]] = [:]
+
         for event in events {
-            guard let eventDate = event.startDate else { 
-                #if DEBUG
-                skippedCount += 1
-                print("⚠️ rebuildEventIndex: Event '\(event.title)' has no startDate - skipping")
-                #endif
-                continue 
-            }
-            // CRITICAL: Normalize to start of day in LOCAL timezone
-            // Use calendar.isDate for timezone-aware date comparison
+            guard let eventDate = event.startDate else { continue }
             let normalizedDate = cal.startOfDay(for: eventDate)
-            
-            if index[normalizedDate] == nil {
-                index[normalizedDate] = []
-            }
-            index[normalizedDate]?.append(event)
-            
-            #if DEBUG
-            let dateKey = dateFormatter.string(from: normalizedDate)
-            indexStats[dateKey, default: 0] += 1
-            #endif
+            index[normalizedDate, default: []].append(event)
         }
-        
-        #if DEBUG
-        print("🔍 CalendarViewModel: Indexed \(events.count - skippedCount) events, skipped \(skippedCount)")
-        print("🔍 CalendarViewModel: Index contains \(index.keys.count) unique dates")
-        #endif
-        
-        #if DEBUG
-        // Log empty index entries (dates with no events) for December 2025
-        let dec2025EmptyEntries = index.filter { key, events in
-            let components = cal.dateComponents([.year, .month], from: key)
-            return components.year == 2025 && components.month == 12 && events.isEmpty
-        }
-        if !dec2025EmptyEntries.isEmpty {
-            print("🔍 rebuildEventIndex: ⚠️ Found \(dec2025EmptyEntries.count) empty index entries for December 2025:")
-            for (date, _) in dec2025EmptyEntries.sorted(by: { $0.key < $1.key }) {
-                print("🔍 rebuildEventIndex:   \(dateFormatter.string(from: date)): 0 events")
-            }
-        }
-        #endif
-        
-        // Update index immediately (we're already on main actor)
+
+        // Single assignment
         eventsByDate = index
-        
-        print("✅ CalendarViewModel: Event index rebuilt successfully")
-        print("✅ CalendarViewModel: Index now contains \(index.keys.count) date keys")
-        
+
         #if DEBUG
-        // Log index statistics for December 2025
-        let dec2025Events = indexStats.filter { key, _ in
-            key.contains("2025-12")
-        }
-        if !dec2025Events.isEmpty {
-            print("🔍 rebuildEventIndex: Events indexed for December 2025:")
-            for (dateKey, count) in dec2025Events.sorted(by: { $0.key < $1.key }) {
-                print("🔍 rebuildEventIndex:   \(dateKey): \(count) events")
-            }
-        }
-        #endif
-        
-        #if DEBUG
-        // Diagnostic logging for date filtering issues
-        let normalizedSelected = cal.startOfDay(for: selectedDate)
-        let matchingEvents = index[normalizedSelected] ?? []
-        
-        if matchingEvents.isEmpty && !events.isEmpty {
-            print("🔍 CalendarViewModel: ===== DATE FILTERING DIAGNOSTICS =====")
-            
-            // Format dates for better readability
-            let dateFormatter = DateFormatter()
-            dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss Z"
-            dateFormatter.timeZone = TimeZone.current
-            let localFormatter = DateFormatter()
-            localFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
-            localFormatter.timeZone = TimeZone.current
-            
-            print("🔍 CalendarViewModel: Selected date (raw): \(dateFormatter.string(from: selectedDate))")
-            print("🔍 CalendarViewModel: Selected date (normalized): \(dateFormatter.string(from: normalizedSelected))")
-            print("🔍 CalendarViewModel: Selected date (normalized, local): \(localFormatter.string(from: normalizedSelected))")
-            print("🔍 CalendarViewModel: Total events loaded: \(events.count)")
-            print("🔍 CalendarViewModel: Events matching selected date: \(matchingEvents.count)")
-            print("🔍 CalendarViewModel: Index keys count: \(index.keys.count)")
-            
-            // Show index keys around the selected date
-            let sortedIndexKeys = index.keys.sorted()
-            let nearbyKeys = sortedIndexKeys.filter { key in
-                abs(key.timeIntervalSince(normalizedSelected)) < 86400 * 7 // Within 7 days
-            }
-            print("🔍 CalendarViewModel: Index keys within 7 days of selected date:")
-            for key in nearbyKeys.prefix(10) {
-                let eventCount = index[key]?.count ?? 0
-                print("🔍 CalendarViewModel:   \(dateFormatter.string(from: key)): \(eventCount) events")
-            }
-            
-            // Show first few event dates for debugging
-            let sortedEvents = events.sorted { event1, event2 in
-                guard let date1 = event1.startDate, let date2 = event2.startDate else { return false }
-                return date1 < date2
-            }
-            
-            print("🔍 CalendarViewModel: First 5 event dates:")
-            for (idx, event) in sortedEvents.prefix(5).enumerated() {
-                if let eventDate = event.startDate {
-                    let normalizedEventDate = cal.startOfDay(for: eventDate)
-                    let isSameDay = cal.isDate(normalizedEventDate, inSameDayAs: normalizedSelected)
-                    print("🔍 CalendarViewModel:   Event #\(idx + 1): '\(event.title)' on \(dateFormatter.string(from: normalizedEventDate)) - matches: \(isSameDay)")
-                }
-            }
-            
-            // Check if there are events in the same month
-            let selectedComponents = cal.dateComponents([.year, .month], from: normalizedSelected)
-            let eventsInSameMonth = sortedEvents.filter { event in
-                guard let eventDate = event.startDate else { return false }
-                let normalizedEventDate = cal.startOfDay(for: eventDate)
-                let eventComponents = cal.dateComponents([.year, .month], from: normalizedEventDate)
-                return eventComponents.year == selectedComponents.year && eventComponents.month == selectedComponents.month
-            }
-            
-            print("🔍 CalendarViewModel: Events in same month (\(selectedComponents.year ?? 0)-\(selectedComponents.month ?? 0)): \(eventsInSameMonth.count)")
-            
-            // Show ALL December 2025 events with their exact dates
-            if eventsInSameMonth.count > 0 {
-                print("🔍 CalendarViewModel: All December 2025 events:")
-                for (idx, event) in eventsInSameMonth.enumerated() {
-                    if let eventDate = event.startDate {
-                        let normalizedEventDate = cal.startOfDay(for: eventDate)
-                        let isSameDay = cal.isDate(normalizedEventDate, inSameDayAs: normalizedSelected)
-                        let dayComponent = cal.dateComponents([.day], from: normalizedEventDate).day ?? 0
-                        print("🔍 CalendarViewModel:   Event #\(idx + 1): '\(event.title)' on Dec \(dayComponent) (normalized: \(dateFormatter.string(from: normalizedEventDate))) - matches Dec 1: \(isSameDay)")
-                    }
-                }
-            }
-            
-            // Show date range of all events
-            if let firstEvent = sortedEvents.first, let lastEvent = sortedEvents.last,
-               let firstDate = firstEvent.startDate, let lastDate = lastEvent.startDate {
-                print("🔍 CalendarViewModel: Event date range: \(dateFormatter.string(from: firstDate)) to \(dateFormatter.string(from: lastDate))")
-            }
-            
-            // Check timezone info
-            let timezone = TimeZone.current
-            let secondsFromGMT = timezone.secondsFromGMT(for: normalizedSelected)
-            print("🔍 CalendarViewModel: Current timezone: \(timezone.identifier), offset: \(secondsFromGMT) seconds (\(secondsFromGMT / 3600) hours)")
-            print("🔍 CalendarViewModel: Selected date components: year=\(selectedComponents.year ?? 0), month=\(selectedComponents.month ?? 0), day=\(selectedComponents.day ?? 0)")
-            
-            // Check if the normalized selected date exists in the index
-            let indexKeysAsStrings = index.keys.map { dateFormatter.string(from: $0) }
-            let normalizedSelectedString = dateFormatter.string(from: normalizedSelected)
-            print("🔍 CalendarViewModel: Normalized selected date in index: \(indexKeysAsStrings.contains(normalizedSelectedString))")
-            if !indexKeysAsStrings.contains(normalizedSelectedString) {
-                print("🔍 CalendarViewModel: ⚠️ Normalized selected date NOT found in index keys!")
-                print("🔍 CalendarViewModel: Looking for: \(normalizedSelectedString)")
-            }
-        }
+        print("📅 Event index rebuilt: \(events.count) events, \(index.keys.count) dates")
         #endif
     }
     
@@ -1193,11 +976,13 @@ class CalendarViewModel: ObservableObject {
         guard !connectedProviders.isEmpty else {
             return events
         }
-        
+
         // Fast filter without logging
+        // Always include imported events (from screenshot import feature)
         return events.filter { event in
             let eventSource = event.source.lowercased()
-            return connectedProviders.contains(eventSource)
+            // Include events from connected providers OR imported events
+            return connectedProviders.contains(eventSource) || eventSource.contains("_import") || eventSource.contains("import_")
         }
     }
 }

@@ -13,6 +13,9 @@ import os.log
 
 @main
 struct AllTimeApp: App {
+    // AppDelegate adapter to handle APNs device token registration
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+
     @State private var authService = AuthenticationService()
     @State private var userManager = UserManager()
     @State private var calendarManager = CalendarManager()

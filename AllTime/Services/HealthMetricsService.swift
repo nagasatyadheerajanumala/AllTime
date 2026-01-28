@@ -465,9 +465,10 @@ class HealthMetricsService: ObservableObject {
 
                 print("🛏️ Found \(sessions.count) sleep sessions")
 
-                // Find the longest session (main overnight sleep)
-                var longestSessionMinutes: Double = 0
-                var longestSessionIndex = -1
+                // Sum ALL sleep sessions for total sleep time
+                // This fixes the bug where only the longest session was counted,
+                // causing incorrect data when users wake up briefly during the night
+                var totalSleepMinutes: Double = 0
 
                 for (index, session) in sessions.enumerated() {
                     var sessionMinutes: Double = 0
@@ -489,13 +490,11 @@ class HealthMetricsService: ObservableObject {
                         print("      \(dateFormatter.string(from: start)) to \(dateFormatter.string(from: end))")
                     }
 
-                    if sessionMinutes > longestSessionMinutes {
-                        longestSessionMinutes = sessionMinutes
-                        longestSessionIndex = index
-                    }
+                    // Add this session to total (not just tracking the longest)
+                    totalSleepMinutes += sessionMinutes
                 }
 
-                let hours = longestSessionMinutes / 60.0
+                let hours = totalSleepMinutes / 60.0
                 let qualityScore: Double
                 if hours >= 7 && hours <= 9 {
                     qualityScore = 100.0
@@ -507,8 +506,8 @@ class HealthMetricsService: ObservableObject {
                     qualityScore = max(0, 100.0 - abs(hours - 8) * 15)
                 }
 
-                let minutes = longestSessionMinutes > 0 ? Int(longestSessionMinutes) : nil
-                print("🛏️ RESULT: Longest session = \(longestSessionMinutes) min (\(String(format: "%.1f", hours))h)")
+                let minutes = totalSleepMinutes > 0 ? Int(totalSleepMinutes) : nil
+                print("🛏️ RESULT: Total sleep = \(totalSleepMinutes) min (\(String(format: "%.1f", hours))h) across \(sessions.count) sessions")
                 continuation.resume(returning: (minutes, qualityScore > 0 ? qualityScore : nil))
             }
             healthStore.execute(query)

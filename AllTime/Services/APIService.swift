@@ -1180,8 +1180,8 @@ class APIService: ObservableObject {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
         
-        // Backend expects camelCase: deviceToken
-        let body = ["deviceToken": deviceToken]
+        // Backend expects snake_case: device_token
+        let body = ["device_token": deviceToken]
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
         
         let (data, response) = try await session.data(for: request)
@@ -4077,7 +4077,50 @@ class APIService: ObservableObject {
             throw error
         }
     }
-    
+
+    /// Update user's timezone on the backend for accurate date calculations
+    /// - Parameter timezone: The timezone identifier (e.g., "America/Los_Angeles")
+    func updateTimezone(_ timezone: String) async throws {
+        guard let token = accessToken else {
+            throw NSError(
+                domain: "AllTime",
+                code: 401,
+                userInfo: [NSLocalizedDescriptionKey: "Authentication required"]
+            )
+        }
+
+        let url = try makeURL("\(baseURL)/api/v1/health/timezone")
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "PUT"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = Constants.API.timeout
+
+        let body = ["timezone": timezone]
+        request.httpBody = try JSONEncoder().encode(body)
+
+        print("🌐 APIService: Updating timezone to \(timezone)")
+
+        let (data, response) = try await session.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw NSError(domain: "AllTime", code: 500, userInfo: [NSLocalizedDescriptionKey: "Invalid response"])
+        }
+
+        if httpResponse.statusCode == 200 {
+            print("✅ APIService: Timezone updated successfully")
+        } else {
+            let responseString = String(data: data, encoding: .utf8) ?? "Unknown error"
+            print("❌ APIService: Failed to update timezone: \(responseString)")
+            throw NSError(
+                domain: "AllTime",
+                code: httpResponse.statusCode,
+                userInfo: [NSLocalizedDescriptionKey: "Failed to update timezone: \(responseString)"]
+            )
+        }
+    }
+
     /// Fetch health insights for a date range
     /// - Parameters:
     ///   - startDate: Start date (optional, defaults to 7 days ago)
@@ -6000,6 +6043,52 @@ class APIService: ObservableObject {
         return try decoder.decode(NextWeekForecastResponse.self, from: data)
     }
 
+    /// Get pattern intelligence for next week - Clara's deep understanding
+    func getPatternIntelligence() async throws -> PatternIntelligenceReport {
+        let timezone = TimeZone.current.identifier
+        let urlString = "\(baseURL)/api/v1/insights/pattern-intelligence?timezone=\(timezone)"
+
+        let url = try makeURL(urlString)
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+
+        print("🧠 APIService: Fetching pattern intelligence")
+        let (data, response) = try await session.data(for: request)
+
+        if let responseString = String(data: data, encoding: .utf8) {
+            print("🧠 APIService: Pattern intelligence response: \(responseString.prefix(500))...")
+        }
+
+        try await validateResponse(response, data: data)
+
+        let decoder = JSONDecoder()
+        return try decoder.decode(PatternIntelligenceReport.self, from: data)
+    }
+
+    /// Get today's prediction based on pattern intelligence - Clara's insight for today
+    func getTodayPrediction() async throws -> TodayPrediction {
+        let timezone = TimeZone.current.identifier
+        let urlString = "\(baseURL)/api/v1/insights/today-prediction?timezone=\(timezone)"
+
+        let url = try makeURL(urlString)
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+
+        print("🔮 APIService: Fetching today's prediction")
+        let (data, response) = try await session.data(for: request)
+
+        if let responseString = String(data: data, encoding: .utf8) {
+            print("🔮 APIService: Today's prediction response: \(responseString.prefix(500))...")
+        }
+
+        try await validateResponse(response, data: data)
+
+        let decoder = JSONDecoder()
+        return try decoder.decode(TodayPrediction.self, from: data)
+    }
+
     /// Get weekly narrative insights (calm, notebook-style with OpenAI)
     func getWeeklyNarrativeInsights(weekStart: String? = nil) async throws -> WeeklyNarrativeResponse {
         let timezone = TimeZone.current.identifier
@@ -6451,5 +6540,180 @@ class APIService: ObservableObject {
         print("🧠 APIService: Dismissing decline recommendation \(recommendationId)")
         let (data, response) = try await session.data(for: request)
         try await validateResponse(response, data: data)
+    }
+
+    // MARK: - Notification Preferences
+
+    /// Get user's notification preferences.
+    /// GET /api/notification-preferences
+    func getNotificationPreferences() async throws -> NotificationPreferences {
+        let url = try makeURL("\(baseURL)/api/notification-preferences")
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+
+        print("🔔 APIService: Fetching notification preferences")
+        let (data, response) = try await session.data(for: request)
+        try await validateResponse(response, data: data)
+
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        return try decoder.decode(NotificationPreferences.self, from: data)
+    }
+
+    /// Update user's notification preferences.
+    /// PUT /api/notification-preferences
+    func updateNotificationPreferences(_ preferences: NotificationPreferences) async throws -> NotificationPreferences {
+        let url = try makeURL("\(baseURL)/api/notification-preferences")
+        var request = URLRequest(url: url)
+        request.httpMethod = "PUT"
+        request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let encoder = JSONEncoder()
+        encoder.keyEncodingStrategy = .convertToSnakeCase
+        request.httpBody = try encoder.encode(preferences)
+
+        print("🔔 APIService: Updating notification preferences")
+        let (data, response) = try await session.data(for: request)
+        try await validateResponse(response, data: data)
+
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        return try decoder.decode(NotificationPreferences.self, from: data)
+    }
+
+    /// Send a test notification.
+    /// POST /api/notification-preferences/test
+    func sendTestNotificationWithType(_ type: String) async throws -> TestNotificationResponse {
+        let url = try makeURL("\(baseURL)/api/notification-preferences/test")
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let body = ["type": type]
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+
+        print("🔔 APIService: Sending test notification of type: \(type)")
+        let (data, response) = try await session.data(for: request)
+        try await validateResponse(response, data: data)
+
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        return try decoder.decode(TestNotificationResponse.self, from: data)
+    }
+
+    /// Check quiet hours status.
+    /// GET /api/notification-preferences/quiet-hours/status
+    func getQuietHoursStatus() async throws -> QuietHoursStatusResponse {
+        let url = try makeURL("\(baseURL)/api/notification-preferences/quiet-hours/status")
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+
+        print("🔔 APIService: Checking quiet hours status")
+        let (data, response) = try await session.data(for: request)
+        try await validateResponse(response, data: data)
+
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        return try decoder.decode(QuietHoursStatusResponse.self, from: data)
+    }
+
+    // MARK: - Notification Engagement Tracking
+
+    /// Mark a notification as opened.
+    /// POST /api/notifications/{id}/opened
+    func markNotificationOpened(notificationId: Int64) async throws {
+        let url = try makeURL("\(baseURL)/api/notifications/\(notificationId)/opened")
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+
+        print("🔔 APIService: Marking notification \(notificationId) as opened")
+        let (data, response) = try await session.data(for: request)
+        try await validateResponse(response, data: data)
+    }
+
+    /// Mark a notification as clicked.
+    /// POST /api/notifications/{id}/clicked
+    func markNotificationClicked(notificationId: Int64) async throws {
+        let url = try makeURL("\(baseURL)/api/notifications/\(notificationId)/clicked")
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+
+        print("🔔 APIService: Marking notification \(notificationId) as clicked")
+        let (data, response) = try await session.data(for: request)
+        try await validateResponse(response, data: data)
+    }
+
+    /// Mark a notification as acted upon.
+    /// POST /api/notifications/{id}/acted
+    func markNotificationActed(notificationId: Int64) async throws {
+        let url = try makeURL("\(baseURL)/api/notifications/\(notificationId)/acted")
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+
+        print("🔔 APIService: Marking notification \(notificationId) as acted")
+        let (data, response) = try await session.data(for: request)
+        try await validateResponse(response, data: data)
+    }
+
+    /// Mark a notification as dismissed.
+    /// POST /api/notifications/{id}/dismissed
+    func markNotificationDismissed(notificationId: Int64) async throws {
+        let url = try makeURL("\(baseURL)/api/notifications/\(notificationId)/dismissed")
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+
+        print("🔔 APIService: Marking notification \(notificationId) as dismissed")
+        let (data, response) = try await session.data(for: request)
+        try await validateResponse(response, data: data)
+    }
+
+    /// Get notification history.
+    /// GET /api/notifications/history?days=7
+    func getNotificationHistory(days: Int = 7) async throws -> NotificationHistoryResponse {
+        var components = try makeURLComponents("\(baseURL)/api/notifications/history")
+        components.queryItems = [URLQueryItem(name: "days", value: String(days))]
+
+        guard let url = components.url else {
+            throw NSError(domain: "AllTime", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid URL"])
+        }
+
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+
+        print("🔔 APIService: Fetching notification history for \(days) days")
+        let (data, response) = try await session.data(for: request)
+        try await validateResponse(response, data: data)
+
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        return try decoder.decode(NotificationHistoryResponse.self, from: data)
+    }
+
+    /// Get notification engagement stats.
+    /// GET /api/notifications/stats?days=30
+    func getNotificationStats(days: Int = 30) async throws -> NotificationStatsResponse {
+        var components = try makeURLComponents("\(baseURL)/api/notifications/stats")
+        components.queryItems = [URLQueryItem(name: "days", value: String(days))]
+
+        guard let url = components.url else {
+            throw NSError(domain: "AllTime", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid URL"])
+        }
+
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+
+        print("🔔 APIService: Fetching notification stats for \(days) days")
+        let (data, response) = try await session.data(for: request)
+        try await validateResponse(response, data: data)
+
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        return try decoder.decode(NotificationStatsResponse.self, from: data)
     }
 }

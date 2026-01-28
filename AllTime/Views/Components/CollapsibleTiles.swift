@@ -542,10 +542,13 @@ private struct CollapsibleActionCard: View {
 
     var body: some View {
         Button(action: {
+            print("🔘 CollapsibleActionCard: Button tapped! tileId=\(tileId), isExpanded=\(isExpanded)")
             // If collapsed, expand first. If expanded, trigger action.
             if isExpanded {
+                print("🔘 CollapsibleActionCard: Calling onTap()")
                 onTap()
             } else {
+                print("🔘 CollapsibleActionCard: Calling toggle(\(tileId))")
                 expansionManager.toggle(tileId)
             }
         }) {
@@ -566,6 +569,12 @@ private struct CollapsibleActionCard: View {
                                 .font(.title3.weight(.semibold))
                                 .foregroundColor(DesignSystem.Colors.primaryText)
                         }
+
+                        // Chevron indicator for expansion state
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundColor(DesignSystem.Colors.tertiaryText)
+                            .rotationEffect(.degrees(isExpanded ? 180 : 0))
                     }
 
                     // Title
@@ -584,15 +593,30 @@ private struct CollapsibleActionCard: View {
                             .font(.caption)
                             .foregroundColor(DesignSystem.Colors.secondaryText)
                     }
+
+                    // Show "Tap to open" hint when expanded
+                    if isExpanded {
+                        HStack {
+                            Spacer()
+                            Text("Tap to open")
+                                .font(.caption2)
+                                .foregroundColor(iconColor)
+                            Image(systemName: "arrow.up.right")
+                                .font(.system(size: 9, weight: .medium))
+                                .foregroundColor(iconColor)
+                        }
+                        .transition(.opacity.combined(with: .move(edge: .bottom)))
+                    }
                 }
             }
             .padding(DesignSystem.Spacing.md)
-            .background(DesignSystem.Colors.cardBackground)
+            .background(isExpanded ? iconColor.opacity(0.08) : DesignSystem.Colors.cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg))
             .overlay(
                 RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg)
-                    .stroke(isExpanded ? iconColor.opacity(0.2) : Color.clear, lineWidth: 1)
+                    .stroke(isExpanded ? iconColor.opacity(0.4) : Color.clear, lineWidth: 1.5)
             )
+            .animation(.spring(response: 0.25, dampingFraction: 0.8), value: isExpanded)
         }
         .buttonStyle(TileButtonStyle())
     }

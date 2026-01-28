@@ -18,6 +18,11 @@ class FoodRecommendationsViewModel: ObservableObject {
     @Published var maxDistanceMiles: Double = 1.5
     @Published var searchRadiusKm: Double = 2.5
 
+    // Dietary filters
+    @Published var activeDietaryFilters: Set<DietaryFilter> = []
+    @Published var minRating: Double? = nil
+    @Published var openNowOnly: Bool = false
+
     // MARK: - Private Properties
     private let apiService = APIService()
     private let locationManager = LocationManager.shared
@@ -36,16 +41,70 @@ class FoodRecommendationsViewModel: ObservableObject {
             baseList = regularOptions
         }
 
-        // Filter by distance
+        // Apply all filters
         return baseList.filter { spot in
-            guard let distanceKm = spot.distanceKm else { return true }
-            let distanceMiles = distanceKm * 0.621371
-            return distanceMiles <= maxDistanceMiles
+            // Filter by distance
+            if let distanceKm = spot.distanceKm {
+                let distanceMiles = distanceKm * 0.621371
+                if distanceMiles > maxDistanceMiles {
+                    return false
+                }
+            }
+
+            // Filter by dietary preferences
+            for filter in activeDietaryFilters {
+                if !spot.matchesDietaryFilter(filter) {
+                    return false
+                }
+            }
+
+            // Filter by minimum rating
+            if let minRating = minRating, let rating = spot.rating {
+                if rating < minRating {
+                    return false
+                }
+            }
+
+            // Filter by open now
+            if openNowOnly && spot.openNow != true {
+                return false
+            }
+
+            return true
         }
     }
 
     var hasResults: Bool {
         !filteredFoodSpots.isEmpty
+    }
+
+    var hasActiveFilters: Bool {
+        !activeDietaryFilters.isEmpty || minRating != nil || openNowOnly
+    }
+
+    // Filtered lists by dietary type for section display
+    var veganSpots: [FoodSpot] {
+        foodSpots.filter { $0.isVegan == true || $0.hasVeganOptions == true }
+    }
+
+    var vegetarianSpots: [FoodSpot] {
+        foodSpots.filter { ($0.isVegetarian == true || $0.hasVegetarianOptions == true) && $0.isVegan != true }
+    }
+
+    var glutenFreeSpots: [FoodSpot] {
+        foodSpots.filter { $0.isGlutenFree == true || $0.hasGlutenFreeOptions == true }
+    }
+
+    var organicSpots: [FoodSpot] {
+        foodSpots.filter { $0.isOrganic == true }
+    }
+
+    var halalSpots: [FoodSpot] {
+        foodSpots.filter { $0.isHalal == true }
+    }
+
+    var kosherSpots: [FoodSpot] {
+        foodSpots.filter { $0.isKosher == true }
     }
 
     // MARK: - Public Methods
@@ -133,5 +192,33 @@ class FoodRecommendationsViewModel: ObservableObject {
 
     func updateMaxDistance(_ miles: Double) {
         maxDistanceMiles = miles
+    }
+
+    // MARK: - Dietary Filter Methods
+
+    func toggleDietaryFilter(_ filter: DietaryFilter) {
+        if activeDietaryFilters.contains(filter) {
+            activeDietaryFilters.remove(filter)
+        } else {
+            activeDietaryFilters.insert(filter)
+        }
+    }
+
+    func isDietaryFilterActive(_ filter: DietaryFilter) -> Bool {
+        activeDietaryFilters.contains(filter)
+    }
+
+    func clearAllFilters() {
+        activeDietaryFilters.removeAll()
+        minRating = nil
+        openNowOnly = false
+    }
+
+    func setMinRating(_ rating: Double?) {
+        minRating = rating
+    }
+
+    func toggleOpenNowOnly() {
+        openNowOnly.toggle()
     }
 }

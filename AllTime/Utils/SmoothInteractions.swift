@@ -199,7 +199,7 @@ struct StaggeredAppearModifier: ViewModifier {
     let scale: CGFloat
     @State private var isVisible = false
 
-    init(index: Int, baseDelay: Double = 0.1, duration: Double = 0.05, offset: CGFloat = 20, scale: CGFloat = 0.95) {
+    init(index: Int, baseDelay: Double = 0.05, duration: Double = 0.03, offset: CGFloat = 15, scale: CGFloat = 0.97) {
         self.index = index
         self.baseDelay = baseDelay
         self.duration = duration
@@ -213,13 +213,12 @@ struct StaggeredAppearModifier: ViewModifier {
             .offset(y: reduceMotion ? 0 : (isVisible ? 0 : offset))
             .scaleEffect(reduceMotion ? 1 : (isVisible ? 1 : scale))
             .animation(
-                reduceMotion ? .none : .spring(response: 0.4, dampingFraction: 0.8)
+                reduceMotion ? .none : .spring(response: 0.28, dampingFraction: 0.85)
                     .delay(baseDelay + Double(index) * duration),
                 value: isVisible
             )
             .onAppear {
-                // Small dispatch to ensure animation triggers after view layout
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.01) {
+                Task { @MainActor in
                     isVisible = true
                 }
             }
@@ -238,15 +237,16 @@ struct CardStaggerModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
             .opacity(isVisible ? 1 : 0)
-            .offset(y: reduceMotion ? 0 : (isVisible ? 0 : 30))
-            .scaleEffect(reduceMotion ? 1 : (isVisible ? 1 : 0.92))
+            .offset(y: reduceMotion ? 0 : (isVisible ? 0 : 20))  // Reduced offset
+            .scaleEffect(reduceMotion ? 1 : (isVisible ? 1 : 0.95))  // Less scale change
             .animation(
-                reduceMotion ? .none : .spring(response: 0.5, dampingFraction: 0.75)
-                    .delay(0.15 + Double(index) * 0.08),
+                reduceMotion ? .none : .spring(response: 0.3, dampingFraction: 0.85)  // Faster, snappier
+                    .delay(0.05 + Double(index) * 0.04),  // Faster stagger
                 value: isVisible
             )
             .onAppear {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.01) {
+                // Use Task for cleaner async handling
+                Task { @MainActor in
                     isVisible = true
                 }
             }

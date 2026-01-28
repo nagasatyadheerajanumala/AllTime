@@ -394,6 +394,19 @@ class LifeInsightsViewModel: ObservableObject {
         placesRecommendations?.categories ?? []
     }
 
+    // New enhanced insight sections
+    var displayFutureImpact: FutureImpact? {
+        insights?.futureImpact
+    }
+
+    var displayRecoveryDebt: RecoveryDebt? {
+        insights?.recoveryDebt
+    }
+
+    var displayCognitiveForecast: CognitiveForecast? {
+        insights?.cognitiveForecast
+    }
+
     var canRegenerate: Bool {
         rateLimitStatus?.remaining ?? 5 > 0
     }

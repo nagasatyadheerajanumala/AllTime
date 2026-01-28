@@ -13,6 +13,9 @@ struct HeroSummaryCard: View {
     let onTap: () -> Void
     let onInterventionTap: (DriftIntervention) -> Void
 
+    /// Fallback meeting count from calendar events (used when intelligence is nil)
+    var fallbackMeetingCount: Int = 0
+
     // Animation
     @State private var animateIn = false
     @State private var pulseScale: CGFloat = 1.0
@@ -47,7 +50,8 @@ struct HeroSummaryCard: View {
     }
 
     private var meetingCount: Int {
-        intelligence?.metrics?.meetingCount ?? 0
+        // Use intelligence data if available, otherwise fall back to calendar events count
+        intelligence?.metrics?.meetingCount ?? fallbackMeetingCount
     }
 
     private var focusMinutes: Int {
@@ -485,6 +489,7 @@ struct HeroSummaryCard: View {
     }
 
     // MARK: - Card Background
+    /// Optimized: Removed GeometryReader for 60fps, uses static pattern
 
     private var cardBackground: some View {
         ZStack {
@@ -503,19 +508,12 @@ struct HeroSummaryCard: View {
                 endRadius: 300
             )
 
-            // Subtle pattern overlay
-            GeometryReader { geo in
-                Path { path in
-                    let spacing: CGFloat = 30
-                    for i in 0..<Int(geo.size.width / spacing) {
-                        let x = CGFloat(i) * spacing
-                        path.move(to: CGPoint(x: x, y: 0))
-                        path.addLine(to: CGPoint(x: x + geo.size.height, y: geo.size.height))
-                    }
-                }
-                .stroke(Color.white.opacity(0.02), lineWidth: 1)
-            }
+            // Subtle pattern overlay - static, no GeometryReader for 60fps
+            // Using a fixed-size pattern that tiles naturally
+            DiagonalPatternView()
+                .opacity(0.02)
         }
+        .drawingGroup()  // GPU compositing for smooth scrolling
     }
 
     // MARK: - Loading State
@@ -810,4 +808,25 @@ extension HeroSummaryCard {
     }
     .padding()
     .background(DesignSystem.Colors.background)
+}
+
+// MARK: - Optimized Diagonal Pattern (no GeometryReader)
+/// Static diagonal pattern that doesn't recalculate on every frame
+/// Used for subtle card backgrounds without performance penalty
+private struct DiagonalPatternView: View {
+    var body: some View {
+        Canvas { context, size in
+            let spacing: CGFloat = 30
+            let lineCount = Int(max(size.width, size.height) / spacing) + 5
+
+            var path = Path()
+            for i in -5..<lineCount {
+                let x = CGFloat(i) * spacing
+                path.move(to: CGPoint(x: x, y: 0))
+                path.addLine(to: CGPoint(x: x + size.height, y: size.height))
+            }
+
+            context.stroke(path, with: .color(.white), lineWidth: 1)
+        }
+    }
 }

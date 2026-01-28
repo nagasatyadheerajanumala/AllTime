@@ -135,10 +135,23 @@ struct DailyHealthMetrics: Codable, Equatable {
 struct SubmitHealthMetricsResponse: Codable {
     let status: String
     let recordsUpserted: Int
-    
+    let recordsFailed: Int?
+    let syncedDates: [String]?
+    let failedDates: [String]?
+    let errors: [String]?
+
     enum CodingKeys: String, CodingKey {
         case status
         case recordsUpserted = "recordsUpserted"
+        case recordsFailed = "recordsFailed"
+        case syncedDates = "syncedDates"
+        case failedDates = "failedDates"
+        case errors
+    }
+
+    /// Returns true if all records were synced successfully
+    var isComplete: Bool {
+        return (recordsFailed ?? 0) == 0
     }
 }
 

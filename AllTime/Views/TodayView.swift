@@ -53,6 +53,21 @@ struct TodayView: View {
         }
     }
 
+    /// Count of meetings today (excludes all-day events, focus time, etc.)
+    private var todayMeetingCount: Int {
+        todayEvents.filter { event in
+            // Exclude all-day events
+            guard !event.allDay else { return false }
+            // Exclude focus time, lunch, breaks, etc.
+            let title = event.title.lowercased()
+            let nonMeetingKeywords = ["focus", "lunch", "break", "blocked", "hold", "personal", "commute", "travel", "holiday", "birthday", "pto", "vacation", "out of office", "ooo"]
+            for keyword in nonMeetingKeywords {
+                if title.contains(keyword) { return false }
+            }
+            return true
+        }.count
+    }
+
     private var upcomingEvents: [Event] {
         let now = Date()
         return todayEvents.filter { event in
@@ -99,7 +114,7 @@ struct TodayView: View {
 
                 // Main scrollable content
                 ScrollView {
-                    VStack(spacing: DesignSystem.Spacing.md) {
+                    LazyVStack(spacing: DesignSystem.Spacing.md) {
                         // Safe area padding
                         Color.clear.frame(height: 8)
                             .contentShape(Rectangle())
@@ -123,14 +138,15 @@ struct TodayView: View {
                             intelligence: timeIntelligenceService.todayIntelligence,
                             isLoading: weekDriftLoading || overviewViewModel.isLoading || briefingViewModel.isLoading,
                             onTap: { showingSummaryDetail = true },
-                            onInterventionTap: handleInterventionTap
+                            onInterventionTap: handleInterventionTap,
+                            fallbackMeetingCount: todayMeetingCount
                         )
                         .padding(.horizontal, DesignSystem.Spacing.md)
                         .cardStagger(index: 0)
 
                         // Reorderable tiles (user-customizable order)
-                        ForEach(Array(tileOrderManager.tileOrder.enumerated()), id: \.element) { index, tileType in
-                            renderTile(tileType, index: index)
+                        ForEach(tileOrderManager.tileOrder, id: \.self) { tileType in
+                            renderTile(tileType, index: tileOrderManager.tileOrder.firstIndex(of: tileType) ?? 0)
                         }
 
                         // Health Access Card (only if not authorized)
@@ -293,7 +309,8 @@ struct TodayView: View {
                 print("📅 TodayView: Received OpenQuickBook notification")
                 // Dismiss any open sheets first, then show QuickBook
                 showingSummaryDetail = false
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                Task { @MainActor in
+                    try? await Task.sleep(nanoseconds: 200_000_000) // 0.2s - faster
                     showingQuickBook = true
                 }
             }
@@ -301,7 +318,8 @@ struct TodayView: View {
                 print("📅 TodayView: Received OpenPlanMyDay notification")
                 // Dismiss any open sheets first, then show Plan My Day
                 showingSummaryDetail = false
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                Task { @MainActor in
+                    try? await Task.sleep(nanoseconds: 200_000_000) // 0.2s - faster
                     showingPlanMyDay = true
                 }
             }
@@ -309,7 +327,8 @@ struct TodayView: View {
                 print("📅 TodayView: Received OpenCalendar notification")
                 // Dismiss any open sheets first, then navigate to Calendar
                 showingSummaryDetail = false
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                Task { @MainActor in
+                    try? await Task.sleep(nanoseconds: 200_000_000) // 0.2s - faster
                     NavigationManager.shared.navigateToCalendar()
                 }
             }
@@ -411,6 +430,24 @@ struct TodayView: View {
                 PrimaryRecommendationCard(recommendation: primaryRec) {
                     handleDeepLink(primaryRec.deepLink)
                 }
+                .padding(.horizontal, DesignSystem.Spacing.md)
+            }
+
+            // (1.5) RISK + OPPORTUNITY SECTION - 1 Risk + 1 Opportunity model
+            // Shows the key intelligence: what's the risk and what's the opportunity
+            if briefing.riskInsight != nil || briefing.opportunityInsight != nil {
+                RiskOpportunitySectionView(
+                    riskInsight: briefing.riskInsight,
+                    opportunityInsight: briefing.opportunityInsight,
+                    onRiskTap: {
+                        // Could open detail sheet or navigate
+                    },
+                    onOpportunityTap: {
+                        if let deepLink = briefing.opportunityInsight?.deepLink {
+                            handleDeepLink(deepLink)
+                        }
+                    }
+                )
                 .padding(.horizontal, DesignSystem.Spacing.md)
             }
 
@@ -616,6 +653,8 @@ struct TodayView: View {
     }
 
     // MARK: - Refresh Button
+    @State private var refreshRotation: Double = 0
+
     private var refreshButton: some View {
         Button(action: {
             Task { await briefingViewModel.refresh() }
@@ -623,15 +662,17 @@ struct TodayView: View {
             Image(systemName: "arrow.clockwise")
                 .font(.system(size: 14, weight: .medium))
                 .foregroundColor(DesignSystem.Colors.primary)
-                .rotationEffect(.degrees(briefingViewModel.isLoading ? 360 : 0))
-                .animation(
-                    briefingViewModel.isLoading ?
-                        Animation.linear(duration: 1).repeatForever(autoreverses: false) :
-                        .default,
-                    value: briefingViewModel.isLoading
-                )
+                .rotationEffect(.degrees(refreshRotation))
         }
         .disabled(briefingViewModel.isLoading)
+        .onChange(of: briefingViewModel.isLoading) { _, isLoading in
+            if isLoading {
+                // Single rotation animation instead of infinite
+                withAnimation(.linear(duration: 0.8)) {
+                    refreshRotation += 360
+                }
+            }
+        }
     }
 
     // MARK: - FAB Buttons

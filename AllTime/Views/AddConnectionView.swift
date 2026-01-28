@@ -8,6 +8,7 @@ struct AddConnectionView: View {
     @StateObject private var calendarManager = CalendarManager()
     @Environment(\.dismiss) private var dismiss
     @State private var showingManualOAuth = false
+    @State private var showingCalendarImport = false
     @State private var selectedProvider = ""
     @State private var isEventKitSyncing = false
     @State private var eventKitSyncMessage: String?
@@ -91,6 +92,23 @@ struct AddConnectionView: View {
                             if !microsoftAuthManager.isConnected {
                                 microsoftAuthManager.startMicrosoftOAuth()
                             }
+                        }
+
+                        Divider()
+                            .padding(.vertical, 8)
+
+                        Text("Or import from screenshot:")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+
+                        // Import from Screenshot
+                        ProviderCard(
+                            title: "Import from Screenshot",
+                            description: "Upload a photo of your calendar to extract events",
+                            icon: "photo.badge.plus",
+                            color: .orange
+                        ) {
+                            showingCalendarImport = true
                         }
                     }
                     .padding(.horizontal)
@@ -214,6 +232,9 @@ struct AddConnectionView: View {
             }
             .sheet(isPresented: $showingManualOAuth) {
                 ManualOAuthView(provider: selectedProvider)
+            }
+            .sheet(isPresented: $showingCalendarImport) {
+                CalendarImportView()
             }
         }
         .animation(.easeInOut(duration: 0.3), value: googleAuthManager.isAuthenticating)

@@ -135,6 +135,10 @@ class PushNotificationManager: NSObject, ObservableObject {
 // MARK: - UNUserNotificationCenterDelegate
 extension PushNotificationManager: UNUserNotificationCenterDelegate {
     func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        // Track that notification was displayed
+        let userInfo = notification.request.content.userInfo
+        trackNotificationDisplayed(userInfo: userInfo)
+
         // Show notification even when app is in foreground
         completionHandler([.banner, .sound, .badge])
     }
@@ -144,10 +148,20 @@ extension PushNotificationManager: UNUserNotificationCenterDelegate {
         let userInfo = response.notification.request.content.userInfo
         let type = userInfo["type"] as? String
         let destination = userInfo["destination"] as? String
+        let title = response.notification.request.content.title
+        let body = response.notification.request.content.body
 
         diagnostics.logDeepLinkReceived(url: nil, type: type, destination: destination)
         os_log("[DEEPLINK] Notification tapped: type=%{public}@, destination=%{public}@",
                log: log, type: .info, type ?? "nil", destination ?? "nil")
+
+        // Track engagement with backend
+        if let notificationId = extractNotificationId(from: userInfo) {
+            trackNotificationEngagement(notificationId: notificationId, action: response.actionIdentifier)
+        }
+
+        // Save notification to history
+        saveNotificationToHistory(type: type, title: title, body: body, userInfo: userInfo)
 
         // Handle morning briefing notifications
         if type == "morning_briefing" {
@@ -291,6 +305,127 @@ extension PushNotificationManager: UNUserNotificationCenterDelegate {
             default:
                 print("🔔 PushNotificationManager: Unknown action: \(actionIdentifier)")
             }
+        }
+    }
+
+    // MARK: - Notification History
+
+    /// Save received notification to history for display in the app
+    private func saveNotificationToHistory(type: String?, title: String, body: String, userInfo: [AnyHashable: Any]) {
+        guard let typeString = type,
+              let notificationType = NotificationHistoryItem.NotificationType(rawValue: typeString) else {
+            print("🔔 PushNotificationManager: Unknown notification type '\(type ?? "nil")' - not saving to history")
+            return
+        }
+
+        // Build notification data based on type
+        var data = NotificationData(destination: userInfo["destination"] as? String)
+
+        switch notificationType {
+        case .morningBriefing:
+            data.meetingsCount = userInfo["meetings_count"] as? Int
+            data.focusTimeAvailable = userInfo["focus_time"] as? String
+
+        case .eveningSummary:
+            data.meetingsCompleted = userInfo["meetings_completed"] as? Int
+            data.totalMeetings = userInfo["total_meetings"] as? Int
+            data.completionPercentage = userInfo["completion_percentage"] as? Int
+
+        case .eventReminder:
+            data.eventId = userInfo["event_id"] as? String
+            data.eventTitle = userInfo["event_title"] as? String
+            data.eventTime = userInfo["event_time"] as? String
+
+        case .reminder, .reminderDue:
+            if let reminderId = userInfo["reminder_id"] as? Int64 {
+                data.reminderId = reminderId
+            }
+
+        case .nudge:
+            data.nudgeType = userInfo["nudge_type"] as? String
+            data.actionUrl = userInfo["action_url"] as? String
+
+        case .calendarSync, .dailySummary, .test, .system:
+            break
+        }
+
+        let historyItem = NotificationHistoryItem(
+            type: notificationType,
+            title: title,
+            body: body,
+            data: data
+        )
+
+        NotificationHistoryService.shared.addNotification(historyItem)
+        print("🔔 PushNotificationManager: Saved \(typeString) notification to history")
+    }
+
+    // MARK: - Engagement Tracking
+
+    /// Extract notification ID from push payload
+    private func extractNotificationId(from userInfo: [AnyHashable: Any]) -> Int64? {
+        // The backend sends notification_id or history_id in the payload
+        if let notificationId = userInfo["notification_id"] as? Int64 {
+            return notificationId
+        }
+        if let notificationId = userInfo["notification_id"] as? Int {
+            return Int64(notificationId)
+        }
+        if let notificationId = userInfo["history_id"] as? Int64 {
+            return notificationId
+        }
+        if let notificationId = userInfo["history_id"] as? Int {
+            return Int64(notificationId)
+        }
+        // Try string conversion
+        if let notificationIdString = userInfo["notification_id"] as? String,
+           let notificationId = Int64(notificationIdString) {
+            return notificationId
+        }
+        if let notificationIdString = userInfo["history_id"] as? String,
+           let notificationId = Int64(notificationIdString) {
+            return notificationId
+        }
+        return nil
+    }
+
+    /// Track notification engagement with backend
+    private func trackNotificationEngagement(notificationId: Int64, action: String) {
+        let tracker = NotificationEngagementTracker.shared
+
+        switch action {
+        case UNNotificationDefaultActionIdentifier:
+            // User tapped the notification
+            tracker.trackClicked(notificationId: notificationId)
+            print("🔔 PushNotificationManager: Tracked click for notification \(notificationId)")
+
+        case UNNotificationDismissActionIdentifier:
+            // User dismissed the notification
+            tracker.trackDismissed(notificationId: notificationId)
+            print("🔔 PushNotificationManager: Tracked dismiss for notification \(notificationId)")
+
+        case "COMPLETE_ACTION", "DONE_ACTION":
+            // User took action on the notification
+            tracker.trackActed(notificationId: notificationId)
+            print("🔔 PushNotificationManager: Tracked action for notification \(notificationId)")
+
+        default:
+            // Custom action - also count as acted
+            if action.hasSuffix("_ACTION") {
+                tracker.trackActed(notificationId: notificationId)
+                print("🔔 PushNotificationManager: Tracked custom action '\(action)' for notification \(notificationId)")
+            } else {
+                // Default to clicked for unknown actions
+                tracker.trackClicked(notificationId: notificationId)
+            }
+        }
+    }
+
+    /// Track that a notification was displayed (for foreground notifications)
+    func trackNotificationDisplayed(userInfo: [AnyHashable: Any]) {
+        if let notificationId = extractNotificationId(from: userInfo) {
+            NotificationEngagementTracker.shared.trackOpened(notificationId: notificationId)
+            print("🔔 PushNotificationManager: Tracked display for notification \(notificationId)")
         }
     }
 }

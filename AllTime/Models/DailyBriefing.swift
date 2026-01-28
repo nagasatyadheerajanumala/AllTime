@@ -23,6 +23,10 @@ struct DailyBriefingResponse: Codable, Identifiable {
     let energyBudget: EnergyBudget?                    // Time → Energy transformation
     let claraPrompts: [ClaraPrompt]?                   // Contextual prompts for Clara
 
+    // 1 Risk + 1 Opportunity + 1 Recommendation model
+    let riskInsight: CapacityInsight?                  // Single most important risk
+    let opportunityInsight: OpportunityInsight?        // Leverage window/opportunity
+
     var id: String { date }
 
     enum CodingKeys: String, CodingKey {
@@ -43,6 +47,8 @@ struct DailyBriefingResponse: Codable, Identifiable {
         case primaryRecommendation = "primary_recommendation"
         case energyBudget = "energy_budget"
         case claraPrompts = "clara_prompts"
+        case riskInsight = "risk_insight"
+        case opportunityInsight = "opportunity_insight"
     }
 }
 
@@ -977,16 +983,27 @@ struct EnergyWindow: Codable {
     let energyLevel: Int?                 // 0-100
     let reason: String?
 
+    // Opportunity framing - frame peak windows positively
+    let isOpportunity: Bool?              // True if this is an actionable opportunity
+    let leverageReason: String?           // "Good sleep + light calendar = use for hardest work"
+
     enum CodingKeys: String, CodingKey {
         case startTime = "start_time"
         case endTime = "end_time"
         case label
         case energyLevel = "energy_level"
         case reason
+        case isOpportunity = "is_opportunity"
+        case leverageReason = "leverage_reason"
     }
 
     var displayLabel: String {
         label ?? TimeRangeFormatter.format(start: startTime ?? "", end: endTime ?? "", compact: true)
+    }
+
+    /// True if this window should be framed as an opportunity
+    var shouldShowAsOpportunity: Bool {
+        isOpportunity == true && leverageReason != nil
     }
 }
 
@@ -1041,5 +1058,86 @@ struct ClaraPrompt: Codable, Identifiable {
 
     var isContextSpecific: Bool {
         contextSpecific ?? false
+    }
+}
+
+// MARK: - Opportunity Insight (Balance risks with leverage windows)
+/// Clara's Philosophy: Don't just surface problems - highlight opportunities.
+/// This creates the positive/actionable counterbalance to risk insights.
+struct OpportunityInsight: Codable, Identifiable {
+    let rawId: String?
+    let type: String?                     // "leverage_window", "peak_capacity", "protected_time", "momentum_opportunity"
+    let headline: String?                 // "Rare leverage window today"
+    let windowStart: String?
+    let windowEnd: String?
+    let reason: String?                   // "Good sleep + open calendar = rare opportunity"
+    let suggestedUse: String?             // "Strategic thinking or deep work"
+    let confidence: Int?                  // 0-100
+    let icon: String?
+    let deepLink: String?
+
+    var id: String { rawId ?? type ?? UUID().uuidString }
+
+    enum CodingKeys: String, CodingKey {
+        case rawId = "id"
+        case type
+        case headline
+        case windowStart = "window_start"
+        case windowEnd = "window_end"
+        case reason
+        case suggestedUse = "suggested_use"
+        case confidence
+        case icon
+        case deepLink = "deep_link"
+    }
+
+    // Type constants
+    static let typeLeverageWindow = "leverage_window"
+    static let typePeakCapacity = "peak_capacity"
+    static let typeProtectedTime = "protected_time"
+    static let typeMomentumOpportunity = "momentum_opportunity"
+
+    var displayIcon: String {
+        if let icon = icon, !icon.isEmpty { return icon }
+        switch (type ?? "").lowercased() {
+        case "leverage_window": return "bolt.fill"
+        case "peak_capacity": return "brain.head.profile"
+        case "protected_time": return "sunrise.fill"
+        case "momentum_opportunity": return "hare.fill"
+        default: return "star.fill"
+        }
+    }
+
+    var displayHeadline: String {
+        headline ?? "Opportunity today"
+    }
+
+    var typeColor: Color {
+        switch (type ?? "").lowercased() {
+        case "leverage_window": return DesignSystem.Colors.amber       // Gold/amber for high value
+        case "peak_capacity": return DesignSystem.Colors.violet        // Purple for cognitive
+        case "protected_time": return DesignSystem.Colors.blue         // Blue for time
+        case "momentum_opportunity": return DesignSystem.Colors.emerald // Green for momentum
+        default: return DesignSystem.Colors.primary
+        }
+    }
+
+    var typeLabel: String {
+        switch (type ?? "").lowercased() {
+        case "leverage_window": return "Leverage Window"
+        case "peak_capacity": return "Peak Capacity"
+        case "protected_time": return "Protected Time"
+        case "momentum_opportunity": return "Momentum Day"
+        default: return "Opportunity"
+        }
+    }
+
+    var windowLabel: String? {
+        guard let start = windowStart, let end = windowEnd else { return nil }
+        return TimeRangeFormatter.format(start: start, end: end, compact: true)
+    }
+
+    var isHighConfidence: Bool {
+        (confidence ?? 0) >= 80
     }
 }

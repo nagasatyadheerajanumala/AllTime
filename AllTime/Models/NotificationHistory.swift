@@ -33,7 +33,11 @@ struct NotificationHistoryItem: Codable, Identifiable {
         case eveningSummary = "evening_summary"
         case eventReminder = "event_reminder"
         case reminderDue = "reminder_due"
+        case reminder = "reminder"           // Generic reminder from backend schedulers
         case calendarSync = "calendar_sync"
+        case nudge = "nudge"                 // Proactive nudge notifications
+        case dailySummary = "daily_summary"  // Alternative daily summary
+        case test = "test"                   // Test notifications
         case system = "system"
 
         var icon: String {
@@ -42,7 +46,11 @@ struct NotificationHistoryItem: Codable, Identifiable {
             case .eveningSummary: return "moon.stars.fill"
             case .eventReminder: return "calendar.badge.clock"
             case .reminderDue: return "bell.fill"
+            case .reminder: return "bell.badge"
             case .calendarSync: return "arrow.triangle.2.circlepath"
+            case .nudge: return "lightbulb.fill"
+            case .dailySummary: return "doc.text.fill"
+            case .test: return "checkmark.circle.fill"
             case .system: return "gear"
             }
         }
@@ -53,7 +61,11 @@ struct NotificationHistoryItem: Codable, Identifiable {
             case .eveningSummary: return "Evening Summary"
             case .eventReminder: return "Event Reminder"
             case .reminderDue: return "Reminder"
+            case .reminder: return "Reminder"
             case .calendarSync: return "Calendar Sync"
+            case .nudge: return "Smart Nudge"
+            case .dailySummary: return "Daily Summary"
+            case .test: return "Test"
             case .system: return "System"
             }
         }
@@ -77,6 +89,10 @@ struct NotificationData: Codable {
     var reminderId: Int64?
     var eventTitle: String?
     var eventTime: String?
+
+    // Nudge data
+    var nudgeType: String?
+    var actionUrl: String?
 
     // Deep link destination
     var destination: String?

@@ -18,11 +18,16 @@ class WeeklyNarrativeViewModel: ObservableObject {
     @Published var nextWeekForecast: NextWeekForecastResponse?
     @Published var isLoadingForecast = false
 
+    // Pattern Intelligence (Clara Knows You)
+    @Published var patternIntelligence: PatternIntelligenceReport?
+    @Published var isLoadingPatternIntelligence = false
+
     private let apiService = APIService.shared
     private let cacheService = CacheService.shared
     private let memoryCache = InMemoryCache.shared
     private var currentTask: Task<Void, Never>?
     private var forecastTask: Task<Void, Never>?
+    private var patternTask: Task<Void, Never>?
 
     // MARK: - Cache Keys
     private var memoryCacheKey: String { "mem_weekly_narrative_\(selectedWeek?.weekStart ?? currentWeekStart)" }
@@ -30,6 +35,8 @@ class WeeklyNarrativeViewModel: ObservableObject {
     private var weeksCacheKey: String { "mem_available_weeks" }
     private let forecastMemCacheKey = "mem_next_week_forecast"
     private let forecastDiskCacheKey = "next_week_forecast"
+    private let patternMemCacheKey = "mem_pattern_intelligence"
+    private let patternDiskCacheKey = "pattern_intelligence"
 
     init() {
         loadCachedData()
@@ -80,9 +87,13 @@ class WeeklyNarrativeViewModel: ObservableObject {
         // Load available weeks
         if let cached = cacheService.loadJSONSync(AvailableWeeksResponse.self, filename: "available_weeks") {
             print("WeeklyNarrative: Loaded available weeks from cache")
-            availableWeeks = cached.weeks
-            if selectedWeek == nil, let firstWeek = availableWeeks.first {
-                selectedWeek = firstWeek
+            // Always prepend "Next Week" to cached weeks
+            availableWeeks = prependNextWeek(to: cached.weeks)
+            if selectedWeek == nil {
+                // Find "This Week" by matching currentWeekStart, not by array index
+                selectedWeek = availableWeeks.first { $0.weekStart == currentWeekStart }
+                    ?? availableWeeks.first { $0.label == "This Week" }
+                    ?? (availableWeeks.count > 1 ? availableWeeks[1] : availableWeeks.first)
             }
         }
     }
@@ -117,7 +128,9 @@ class WeeklyNarrativeViewModel: ObservableObject {
     /// Fetch weekly narrative insights for the specified or current week.
     /// Uses request deduplication to prevent duplicate API calls.
     func fetchNarrative(weekStart: String? = nil, forceRefresh: Bool = false) async {
-        let targetWeek = weekStart ?? currentWeekStart
+        // Use provided weekStart, then selectedWeek if set, then compute current week
+        let targetWeek = weekStart ?? selectedWeek?.weekStart ?? currentWeekStart
+        print("📊 WeeklyNarrative: fetchNarrative for week \(targetWeek), selectedWeek=\(selectedWeek?.weekStart ?? "nil"), currentWeekStart=\(currentWeekStart)")
         let memCacheKey = "mem_weekly_narrative_\(targetWeek)"
         let diskFilename = "weekly_narrative_\(targetWeek)"
 
@@ -241,9 +254,13 @@ class WeeklyNarrativeViewModel: ObservableObject {
     func fetchAvailableWeeks() async {
         // Check memory cache first
         if let memCached: AvailableWeeksResponse = await memoryCache.get(weeksCacheKey) {
-            availableWeeks = memCached.weeks
-            if selectedWeek == nil, let firstWeek = availableWeeks.first {
-                selectedWeek = firstWeek
+            // Always prepend "Next Week" to cached weeks
+            availableWeeks = prependNextWeek(to: memCached.weeks)
+            if selectedWeek == nil {
+                // Find "This Week" by matching currentWeekStart, not by array index
+                selectedWeek = availableWeeks.first { $0.weekStart == currentWeekStart }
+                    ?? availableWeeks.first { $0.label == "This Week" }
+                    ?? (availableWeeks.count > 1 ? availableWeeks[1] : availableWeeks.first)
             }
             return
         }
@@ -263,7 +280,8 @@ class WeeklyNarrativeViewModel: ObservableObject {
 
             guard !Task.isCancelled else { return }
 
-            availableWeeks = response.weeks
+            // Always prepend "Next Week" to the API response
+            availableWeeks = prependNextWeek(to: response.weeks)
 
             // Cache to memory (instant for next access)
             await memoryCache.set(weeksCacheKey, value: response, ttl: 3600)
@@ -274,8 +292,11 @@ class WeeklyNarrativeViewModel: ObservableObject {
             }
 
             // Set current week as selected if none selected
-            if selectedWeek == nil, let firstWeek = availableWeeks.first {
-                selectedWeek = firstWeek
+            if selectedWeek == nil {
+                // Find "This Week" by matching currentWeekStart, not by array index
+                selectedWeek = availableWeeks.first { $0.weekStart == currentWeekStart }
+                    ?? availableWeeks.first { $0.label == "This Week" }
+                    ?? (availableWeeks.count > 1 ? availableWeeks[1] : availableWeeks.first)
             }
 
             isLoadingWeeks = false
@@ -289,11 +310,49 @@ class WeeklyNarrativeViewModel: ObservableObject {
         }
     }
 
+    /// Prepends "Next Week" option to a list of weeks
+    private func prependNextWeek(to weeks: [WeekOption]) -> [WeekOption] {
+        let calendar = Calendar.current
+        let today = Date()
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+
+        guard let nextWeekDate = calendar.date(byAdding: .weekOfYear, value: 1, to: today),
+              let nextMonday = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: nextWeekDate)),
+              let nextSunday = calendar.date(byAdding: .day, value: 6, to: nextMonday) else {
+            return weeks
+        }
+
+        let startStr = formatter.string(from: nextMonday)
+        let endStr = formatter.string(from: nextSunday)
+        let nextWeekOption = WeekOption(weekStart: startStr, weekEnd: endStr, label: "Next Week")
+
+        // Don't duplicate if already present
+        if weeks.contains(where: { $0.label == "Next Week" }) {
+            return weeks
+        }
+
+        return [nextWeekOption] + weeks
+    }
+
     private func generateFallbackWeeks() {
         let calendar = Calendar.current
         let today = Date()
         var weeks: [WeekOption] = []
 
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+
+        // Add "Next Week" first
+        if let nextWeekDate = calendar.date(byAdding: .weekOfYear, value: 1, to: today),
+           let nextMonday = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: nextWeekDate)),
+           let nextSunday = calendar.date(byAdding: .day, value: 6, to: nextMonday) {
+            let startStr = formatter.string(from: nextMonday)
+            let endStr = formatter.string(from: nextSunday)
+            weeks.append(WeekOption(weekStart: startStr, weekEnd: endStr, label: "Next Week"))
+        }
+
+        // Add past weeks
         for i in 0..<8 {
             guard let weekStart = calendar.date(byAdding: .weekOfYear, value: -i, to: today),
                   let monday = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: weekStart)),
@@ -301,8 +360,6 @@ class WeeklyNarrativeViewModel: ObservableObject {
                 continue
             }
 
-            let formatter = DateFormatter()
-            formatter.dateFormat = "yyyy-MM-dd"
             let startStr = formatter.string(from: monday)
             let endStr = formatter.string(from: sunday)
 
@@ -321,8 +378,11 @@ class WeeklyNarrativeViewModel: ObservableObject {
         }
 
         availableWeeks = weeks
-        if selectedWeek == nil, let firstWeek = weeks.first {
-            selectedWeek = firstWeek
+        // Default to "This Week" by matching currentWeekStart
+        if selectedWeek == nil {
+            selectedWeek = weeks.first { $0.weekStart == currentWeekStart }
+                ?? weeks.first { $0.label == "This Week" }
+                ?? (weeks.count > 1 ? weeks[1] : weeks.first)
         }
     }
 
@@ -544,5 +604,89 @@ class WeeklyNarrativeViewModel: ObservableObject {
     /// Whether to show forecast (only for current week view)
     var shouldShowForecast: Bool {
         isCurrentWeek && hasForecastData
+    }
+
+    // MARK: - Next Week Selection & Pattern Intelligence
+
+    /// Check if "Next Week" is selected
+    var isNextWeekSelected: Bool {
+        guard let selected = selectedWeek else { return false }
+        return selected.label == "Next Week" || selected.weekStart == nextWeekStart
+    }
+
+    /// Get next week's start date string
+    var nextWeekStart: String {
+        let calendar = Calendar.current
+        let today = Date()
+        guard let nextWeekDate = calendar.date(byAdding: .weekOfYear, value: 1, to: today),
+              let nextMonday = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: nextWeekDate)) else {
+            return ""
+        }
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.string(from: nextMonday)
+    }
+
+    /// Whether we have pattern intelligence data
+    var hasPatternData: Bool {
+        guard let pattern = patternIntelligence else { return false }
+        return !pattern.days.isEmpty
+    }
+
+    /// Fetch pattern intelligence for next week
+    func fetchPatternIntelligence(forceRefresh: Bool = false) async {
+        // 1. Try memory cache first
+        if !forceRefresh {
+            if let memCached: PatternIntelligenceReport = await memoryCache.get(patternMemCacheKey) {
+                patternIntelligence = memCached
+                print("PatternIntelligence: Loaded from memory cache")
+                return
+            }
+        }
+
+        // 2. Try disk cache
+        if !forceRefresh {
+            if let diskCached = cacheService.loadJSONSync(PatternIntelligenceReport.self, filename: patternDiskCacheKey) {
+                patternIntelligence = diskCached
+                print("PatternIntelligence: Loaded from disk cache")
+
+                Task {
+                    await memoryCache.set(patternMemCacheKey, value: diskCached, ttl: 600)
+                }
+                return
+            }
+        }
+
+        // 3. Show loading if no cached data
+        if patternIntelligence == nil {
+            isLoadingPatternIntelligence = true
+        }
+
+        // 4. Fetch from API
+        do {
+            let response = try await RequestDeduplicator.shared.dedupe(key: "pattern_intelligence") {
+                try await self.apiService.getPatternIntelligence()
+            }
+
+            guard !Task.isCancelled else { return }
+
+            patternIntelligence = response
+            isLoadingPatternIntelligence = false
+
+            // Cache to memory
+            await memoryCache.set(patternMemCacheKey, value: response, ttl: 600)
+
+            // Cache to disk in background
+            Task.detached(priority: .utility) {
+                CacheService.shared.saveJSONSync(response, filename: self.patternDiskCacheKey, expiration: 3600)
+            }
+
+            print("PatternIntelligence: Fetched successfully - \(response.totalHistoricalDays) historical days analyzed")
+        } catch {
+            if Task.isCancelled { return }
+
+            print("PatternIntelligence: Error - \(error.localizedDescription)")
+            isLoadingPatternIntelligence = false
+        }
     }
 }
