@@ -1061,30 +1061,150 @@ struct WeeklyInsightsView: View {
     }
 
     private func stressSignalRow(_ signal: StressSignal) -> some View {
-        HStack(alignment: .top, spacing: 12) {
-            Image(systemName: "exclamationmark.circle")
-                .font(.body)
-                .foregroundColor(DesignSystem.Colors.amber)
-                .padding(.top, 2)
+        StressSignalRowView(signal: signal)
+    }
+}
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text(signal.title)
-                    .font(.subheadline.weight(.medium))
-                    .foregroundColor(DesignSystem.Colors.primaryText)
-                Text(signal.evidence)
-                    .font(.caption)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .fixedSize(horizontal: false, vertical: true)
+// MARK: - Stress Signal Row View (Expandable)
+
+struct StressSignalRowView: View {
+    let signal: StressSignal
+    @State private var isExpanded = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Main row
+            Button(action: {
+                if signal.details != nil && !signal.details!.isEmpty {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        isExpanded.toggle()
+                    }
+                } else if let deepLink = signal.deepLink {
+                    NavigationManager.shared.handleDestination(deepLink)
+                }
+            }) {
+                HStack(alignment: .top, spacing: 12) {
+                    Image(systemName: signal.icon ?? "exclamationmark.circle")
+                        .font(.body)
+                        .foregroundColor(DesignSystem.Colors.amber)
+                        .padding(.top, 2)
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(signal.title)
+                            .font(.subheadline.weight(.medium))
+                            .foregroundColor(DesignSystem.Colors.primaryText)
+                        Text(signal.evidence)
+                            .font(.caption)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+
+                    Spacer()
+
+                    // Show chevron if there are details
+                    if signal.details != nil && !signal.details!.isEmpty {
+                        Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                            .font(.caption)
+                            .foregroundColor(DesignSystem.Colors.tertiaryText)
+                    }
+                }
             }
+            .buttonStyle(PlainButtonStyle())
+            .padding(12)
 
-            Spacer()
+            // Expanded details
+            if isExpanded, let details = signal.details, !details.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    Divider()
+                        .padding(.horizontal, 12)
+
+                    ForEach(details) { pair in
+                        backToBackPairRow(pair)
+                    }
+
+                    // Action button
+                    if let deepLink = signal.deepLink {
+                        Button(action: {
+                            NavigationManager.shared.handleDestination(deepLink)
+                        }) {
+                            HStack {
+                                Image(systemName: "clock.badge.checkmark")
+                                    .font(.caption)
+                                Text("Add buffer time")
+                                    .font(.caption.weight(.medium))
+                            }
+                            .foregroundColor(DesignSystem.Colors.primary)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(DesignSystem.Colors.primary.opacity(0.1))
+                            )
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.bottom, 8)
+                    }
+                }
+                .padding(.top, 4)
+            }
         }
-        .padding(12)
         .background(
             RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.md)
                 .fill(DesignSystem.Colors.amber.opacity(0.05))
         )
     }
+
+    private func backToBackPairRow(_ pair: BackToBackPair) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(pair.date)
+                .font(.caption2.weight(.semibold))
+                .foregroundColor(DesignSystem.Colors.tertiaryText)
+
+            HStack(spacing: 8) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(pair.firstMeeting)
+                        .font(.caption.weight(.medium))
+                        .foregroundColor(DesignSystem.Colors.primaryText)
+                        .lineLimit(1)
+                    Text(pair.firstTime)
+                        .font(.caption2)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                Image(systemName: "arrow.right")
+                    .font(.caption2)
+                    .foregroundColor(DesignSystem.Colors.amber)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(pair.secondMeeting)
+                        .font(.caption.weight(.medium))
+                        .foregroundColor(DesignSystem.Colors.primaryText)
+                        .lineLimit(1)
+                    Text(pair.secondTime)
+                        .font(.caption2)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
+            if pair.gapMinutes == 0 {
+                Text("No break")
+                    .font(.caption2)
+                    .foregroundColor(DesignSystem.Colors.errorRed)
+            } else {
+                Text("\(pair.gapMinutes) min break")
+                    .font(.caption2)
+                    .foregroundColor(DesignSystem.Colors.amber)
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+    }
+}
+
+// Continue WeeklyInsightsView extension for remaining methods
+extension WeeklyInsightsView {
 
     // MARK: - Suggestions Section
 
@@ -1136,20 +1256,25 @@ struct WeeklyInsightsView: View {
                 .foregroundColor(DesignSystem.Colors.secondaryText)
                 .fixedSize(horizontal: false, vertical: true)
 
-            HStack(spacing: 6) {
-                Image(systemName: "arrow.right.circle.fill")
-                    .font(.caption)
-                    .foregroundColor(DesignSystem.Colors.emerald)
-                Text(suggestion.action)
-                    .font(.caption.weight(.medium))
-                    .foregroundColor(DesignSystem.Colors.emerald)
+            Button(action: {
+                handleSuggestionAction(suggestion.action)
+            }) {
+                HStack(spacing: 6) {
+                    Image(systemName: suggestionActionIcon(suggestion.action))
+                        .font(.caption)
+                        .foregroundColor(DesignSystem.Colors.emerald)
+                    Text(suggestionActionLabel(suggestion.action))
+                        .font(.caption.weight(.medium))
+                        .foregroundColor(DesignSystem.Colors.emerald)
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(DesignSystem.Colors.emerald.opacity(0.1))
+                )
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(DesignSystem.Colors.emerald.opacity(0.1))
-            )
+            .buttonStyle(PlainButtonStyle())
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -1161,6 +1286,37 @@ struct WeeklyInsightsView: View {
                         .stroke(DesignSystem.Colors.emerald.opacity(0.1), lineWidth: 0.5)
                 )
         )
+    }
+
+    private func handleSuggestionAction(_ action: String) {
+        switch action {
+        case "ADD_FOCUS_BLOCK":
+            NavigationManager.shared.handleDestination("alltime://calendar?action=block")
+        case "PROTECT_EVENINGS":
+            NavigationManager.shared.handleDestination("alltime://calendar?filter=evening")
+        case "ADD_BREAKS":
+            NavigationManager.shared.handleDestination("alltime://calendar?action=buffers")
+        default:
+            NavigationManager.shared.navigateToCalendar()
+        }
+    }
+
+    private func suggestionActionIcon(_ action: String) -> String {
+        switch action {
+        case "ADD_FOCUS_BLOCK": return "brain.head.profile"
+        case "PROTECT_EVENINGS": return "moon.fill"
+        case "ADD_BREAKS": return "clock.badge.checkmark"
+        default: return "arrow.right.circle.fill"
+        }
+    }
+
+    private func suggestionActionLabel(_ action: String) -> String {
+        switch action {
+        case "ADD_FOCUS_BLOCK": return "Add focus block"
+        case "PROTECT_EVENINGS": return "Protect evenings"
+        case "ADD_BREAKS": return "Add buffer time"
+        default: return action
+        }
     }
 
     // MARK: - Loading View

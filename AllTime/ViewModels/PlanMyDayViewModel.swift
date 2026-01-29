@@ -159,8 +159,26 @@ class PlanMyDayViewModel: ObservableObject {
                 throw URLError(.badServerResponse)
             }
 
-            self.itinerary = try JSONDecoder().decode(ItineraryResponse.self, from: data)
-            print("Generated itinerary with \(itinerary?.days.count ?? 0) days")
+            let decoded = try JSONDecoder().decode(ItineraryResponse.self, from: data)
+
+            // Check if itinerary has actual content
+            let hasContent = decoded.days.contains { day in
+                !(day.timeSlots?.isEmpty ?? true)
+            }
+
+            if hasContent {
+                self.itinerary = decoded
+                print("Generated itinerary with \(decoded.days.count) days")
+            } else {
+                // Itinerary is empty - show the message from backend or default
+                self.itinerary = nil
+                if let message = decoded.message, !message.isEmpty {
+                    errorMessage = message
+                } else {
+                    errorMessage = "No activities found. Please set up your interests to get personalized suggestions."
+                }
+                print("Generated itinerary is empty: \(decoded.message ?? "no message")")
+            }
 
         } catch {
             errorMessage = "Failed to generate itinerary: \(error.localizedDescription)"

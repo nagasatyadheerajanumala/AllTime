@@ -106,6 +106,13 @@ class NavigationManager: ObservableObject {
     /// Handle a destination string (from notification deep link)
     func handleDestination(_ destination: String) {
         print("📱 NavigationManager: Handling destination: \(destination)")
+
+        // Handle alltime:// deep links with query parameters
+        if destination.starts(with: "alltime://") {
+            handleDeepLink(destination)
+            return
+        }
+
         switch destination {
         case "day-review":
             navigateToDayReview()
@@ -121,6 +128,77 @@ class NavigationManager: ObservableObject {
             navigateToSettings()
         default:
             print("📱 NavigationManager: Unknown destination: \(destination)")
+        }
+    }
+
+    /// Handle alltime:// deep links with query parameters
+    func handleDeepLink(_ urlString: String) {
+        guard let url = URL(string: urlString),
+              let components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
+            print("📱 NavigationManager: Invalid deep link URL: \(urlString)")
+            return
+        }
+
+        let path = url.host ?? ""
+        let queryItems = components.queryItems ?? []
+        let params = Dictionary(uniqueKeysWithValues: queryItems.compactMap { item -> (String, String)? in
+            guard let value = item.value else { return nil }
+            return (item.name, value)
+        })
+
+        print("📱 NavigationManager: Deep link path=\(path), params=\(params)")
+
+        switch path {
+        case "calendar":
+            navigateToCalendar()
+            // Handle calendar-specific actions
+            if let action = params["action"] {
+                handleCalendarAction(action, params: params)
+            }
+            if let date = params["date"] {
+                // TODO: Navigate to specific date
+                print("📱 NavigationManager: Navigate to date: \(date)")
+            }
+        case "today":
+            navigateToToday()
+        case "insights":
+            navigateToInsights()
+            if let section = params["section"] {
+                insightsSection = section
+            }
+        case "health":
+            navigateToHealth()
+        case "reminders":
+            navigateToReminders()
+        case "settings":
+            navigateToSettings()
+        default:
+            print("📱 NavigationManager: Unknown deep link path: \(path)")
+            navigateToToday() // Default fallback
+        }
+    }
+
+    /// Handle calendar-specific actions from deep links
+    private func handleCalendarAction(_ action: String, params: [String: String]) {
+        print("📱 NavigationManager: Calendar action: \(action)")
+
+        switch action {
+        case "buffers":
+            // Show buffer time suggestion UI
+            NotificationCenter.default.post(name: .showBufferTimeSuggestion, object: nil)
+        case "block":
+            // Show focus time blocking UI
+            NotificationCenter.default.post(name: .showFocusTimeBlocking, object: nil, userInfo: params)
+        case "lunch":
+            // Show lunch break blocking UI
+            NotificationCenter.default.post(name: .showLunchBreakSuggestion, object: nil)
+        case "filter":
+            // Apply filter (e.g., evening events)
+            if let filter = params["filter"] {
+                NotificationCenter.default.post(name: .applyCalendarFilter, object: nil, userInfo: ["filter": filter])
+            }
+        default:
+            print("📱 NavigationManager: Unknown calendar action: \(action)")
         }
     }
 

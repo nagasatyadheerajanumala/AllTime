@@ -6089,6 +6089,29 @@ class APIService: ObservableObject {
         return try decoder.decode(TodayPrediction.self, from: data)
     }
 
+    /// Get tomorrow's forecast based on pattern intelligence - Clara's insight for tomorrow
+    func getTomorrowForecast() async throws -> NextDayForecast {
+        let timezone = TimeZone.current.identifier
+        let urlString = "\(baseURL)/api/v1/insights/tomorrow?timezone=\(timezone)"
+
+        let url = try makeURL(urlString)
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+
+        print("🌅 APIService: Fetching tomorrow's forecast")
+        let (data, response) = try await session.data(for: request)
+
+        if let responseString = String(data: data, encoding: .utf8) {
+            print("🌅 APIService: Tomorrow's forecast response: \(responseString.prefix(500))...")
+        }
+
+        try await validateResponse(response, data: data)
+
+        let decoder = JSONDecoder()
+        return try decoder.decode(NextDayForecast.self, from: data)
+    }
+
     /// Get weekly narrative insights (calm, notebook-style with OpenAI)
     func getWeeklyNarrativeInsights(weekStart: String? = nil) async throws -> WeeklyNarrativeResponse {
         let timezone = TimeZone.current.identifier

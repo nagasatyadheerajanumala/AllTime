@@ -69,10 +69,36 @@ struct PlanMyDayView: View {
 
                     // Error Message
                     if let error = viewModel.errorMessage {
-                        Text(error)
-                            .font(.caption)
-                            .foregroundColor(.red)
-                            .padding(.horizontal)
+                        HStack(spacing: 12) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundColor(DesignSystem.Colors.amber)
+
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(error)
+                                    .font(.subheadline)
+                                    .foregroundColor(DesignSystem.Colors.primaryText)
+
+                                if viewModel.needsInterestsSetup {
+                                    Button(action: { showingInterestsSetup = true }) {
+                                        Text("Set up interests →")
+                                            .font(.caption.weight(.semibold))
+                                            .foregroundColor(DesignSystem.Colors.primary)
+                                    }
+                                }
+                            }
+
+                            Spacer()
+
+                            Button(action: { viewModel.errorMessage = nil }) {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundColor(DesignSystem.Colors.tertiaryText)
+                            }
+                        }
+                        .padding()
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(DesignSystem.Colors.amber.opacity(0.1))
+                        )
                     }
 
                     Spacer(minLength: 40)
@@ -414,6 +440,9 @@ struct PlanMyDayView: View {
                     await viewModel.generateItinerary()
                     if viewModel.itinerary != nil {
                         showingItinerary = true
+                    } else if viewModel.needsInterestsSetup {
+                        // Show interests setup if that's the issue
+                        showingInterestsSetup = true
                     }
                 }
             }) {
@@ -987,11 +1016,17 @@ struct ItineraryDetailView: View {
     let itinerary: ItineraryResponse
     @Environment(\.dismiss) private var dismiss
 
+    private var hasContent: Bool {
+        itinerary.days.contains { day in
+            !(day.timeSlots?.isEmpty ?? true)
+        }
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 20) {
-                    // Header
+                    // Header message
                     if let message = itinerary.message {
                         Text(message)
                             .font(.subheadline)
@@ -1000,9 +1035,29 @@ struct ItineraryDetailView: View {
                             .padding()
                     }
 
-                    // Day Plans
-                    ForEach(itinerary.days) { day in
-                        DayPlanCard(day: day)
+                    if hasContent {
+                        // Day Plans
+                        ForEach(itinerary.days) { day in
+                            DayPlanCard(day: day)
+                        }
+                    } else {
+                        // Empty state
+                        VStack(spacing: 16) {
+                            Image(systemName: "calendar.badge.exclamationmark")
+                                .font(.system(size: 48))
+                                .foregroundColor(DesignSystem.Colors.tertiaryText)
+
+                            Text("No Activities Found")
+                                .font(.headline)
+                                .foregroundColor(DesignSystem.Colors.primaryText)
+
+                            Text("Set up your interests to get personalized activity suggestions for your day.")
+                                .font(.subheadline)
+                                .foregroundColor(DesignSystem.Colors.secondaryText)
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal)
+                        }
+                        .padding(.vertical, 40)
                     }
 
                     Spacer(minLength: 40)

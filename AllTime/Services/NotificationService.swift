@@ -233,5 +233,11 @@ extension Notification.Name {
     static let navigateToToday = Notification.Name("navigateToToday")
     static let navigateToDayReview = Notification.Name("navigateToDayReview")
     static let navigateToDailyInsights = Notification.Name("navigateToDailyInsights")
+
+    // Calendar deep link actions
+    static let showBufferTimeSuggestion = Notification.Name("showBufferTimeSuggestion")
+    static let showFocusTimeBlocking = Notification.Name("showFocusTimeBlocking")
+    static let showLunchBreakSuggestion = Notification.Name("showLunchBreakSuggestion")
+    static let applyCalendarFilter = Notification.Name("applyCalendarFilter")
 }
 

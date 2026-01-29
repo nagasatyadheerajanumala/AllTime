@@ -404,8 +404,38 @@ struct EnergyAlignment: Codable {
 struct StressSignal: Codable, Identifiable {
     let title: String
     let evidence: String
+    let details: [BackToBackPair]?  // Specific meeting pairs
+    let deepLink: String?           // Action deep link
+    let icon: String?
 
     var id: String { title }
+
+    enum CodingKeys: String, CodingKey {
+        case title, evidence, details, icon
+        case deepLink = "deep_link"
+    }
+}
+
+// MARK: - Back-to-Back Pair (for stress signal details)
+
+struct BackToBackPair: Codable, Identifiable {
+    let firstMeeting: String
+    let secondMeeting: String
+    let firstTime: String
+    let secondTime: String
+    let date: String
+    let gapMinutes: Int
+
+    var id: String { "\(date)-\(firstMeeting)-\(secondMeeting)" }
+
+    enum CodingKeys: String, CodingKey {
+        case firstMeeting = "first_meeting"
+        case secondMeeting = "second_meeting"
+        case firstTime = "first_time"
+        case secondTime = "second_time"
+        case date
+        case gapMinutes = "gap_minutes"
+    }
 }
 
 // MARK: - Weekly Suggestion

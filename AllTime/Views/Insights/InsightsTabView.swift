@@ -7,6 +7,7 @@ struct InsightsTabView: View {
 
     enum InsightsSection: String, CaseIterable {
         case weekly = "Weekly"
+        case tomorrow = "Tomorrow"
         case nextWeek = "Next Week"
         case monthly = "Monthly"
         case health = "Health"
@@ -14,6 +15,7 @@ struct InsightsTabView: View {
         var icon: String {
             switch self {
             case .weekly: return "calendar.badge.clock"
+            case .tomorrow: return "sunrise.fill"
             case .nextWeek: return "arrow.right.circle"
             case .monthly: return "calendar.circle"
             case .health: return "heart.fill"
@@ -23,6 +25,7 @@ struct InsightsTabView: View {
         var description: String {
             switch self {
             case .weekly: return "7 days"
+            case .tomorrow: return "Prep"
             case .nextWeek: return "Upcoming"
             case .monthly: return "30-60 days"
             case .health: return "Wellness"
@@ -43,6 +46,8 @@ struct InsightsTabView: View {
                 switch selectedSection {
                 case .weekly:
                     WeeklyInsightsView()
+                case .tomorrow:
+                    NextDayForecastView()
                 case .nextWeek:
                     NextWeekInsightsView()
                 case .monthly:
