@@ -376,11 +376,12 @@ struct UpNextResponse: Codable {
     let overdueCount: Int
     let highPriorityCount: Int
 
+    // Backend uses snake_case globally
     enum CodingKeys: String, CodingKey {
         case tasks
-        case totalCount = "totalCount"
-        case overdueCount = "overdueCount"
-        case highPriorityCount = "highPriorityCount"
+        case totalCount = "total_count"
+        case overdueCount = "overdue_count"
+        case highPriorityCount = "high_priority_count"
     }
 }
 
@@ -391,9 +392,10 @@ struct ScheduleResponse: Codable {
     let scheduledCount: Int
     let message: String
 
+    // Backend uses snake_case globally
     enum CodingKeys: String, CodingKey {
-        case scheduledTasks = "scheduledTasks"
-        case scheduledCount = "scheduledCount"
+        case scheduledTasks = "scheduled_tasks"
+        case scheduledCount = "scheduled_count"
         case message
     }
 }
@@ -415,13 +417,14 @@ struct TaskListResponse: Codable {
     let catchUpCount: Int
     let doneToday: Int
 
+    // Backend uses snake_case globally (spring.jackson.property-naming-strategy: SNAKE_CASE)
     enum CodingKeys: String, CodingKey {
         case tasks
-        case openTasks = "openTasks"
-        case catchUpTasks = "catchUpTasks"
-        case doneTasks = "doneTasks"
-        case openCount = "openCount"
-        case catchUpCount = "catchUpCount"
-        case doneToday = "doneToday"
+        case openTasks = "open_tasks"
+        case catchUpTasks = "catch_up_tasks"
+        case doneTasks = "done_tasks"
+        case openCount = "open_count"
+        case catchUpCount = "catch_up_count"
+        case doneToday = "done_today"
     }
 }
