@@ -58,8 +58,20 @@ struct Reminder: Codable, Identifiable, Equatable {
         isCompleted = try container.decodeIfPresent(Bool.self, forKey: .isCompleted) ?? false
 
         // Helper function to parse date from string in multiple formats
+        // IMPORTANT: Backend sends LocalDateTime without timezone suffix (e.g., "2026-01-29T09:00:00")
+        // These should be interpreted as the USER'S LOCAL TIME when the reminder was created,
+        // NOT as UTC. The backend stores what the user entered in their local timezone.
         func parseDate(from string: String?) -> Date? {
             guard let string = string, !string.isEmpty else { return nil }
+
+            // Check if string has timezone info (ends with Z, +HH:mm, or -HH:mm)
+            let hasTimezone = string.hasSuffix("Z") ||
+                              string.contains("+") ||
+                              (string.count > 19 && string.dropFirst(19).contains("-"))
+
+            // For dates WITHOUT timezone suffix, interpret as user's local timezone
+            // (backend stores user's intended local time)
+            let targetTimezone = hasTimezone ? nil : TimeZone.current
 
             // Try formats in order of likelihood
             let formatters: [DateFormatter] = [
@@ -67,12 +79,14 @@ struct Reminder: Codable, Identifiable, Equatable {
                     let f = DateFormatter()
                     f.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
                     f.locale = Locale(identifier: "en_US_POSIX")
+                    if let tz = targetTimezone { f.timeZone = tz }
                     return f
                 }(),
                 {
                     let f = DateFormatter()
                     f.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS"
                     f.locale = Locale(identifier: "en_US_POSIX")
+                    if let tz = targetTimezone { f.timeZone = tz }
                     return f
                 }(),
                 {

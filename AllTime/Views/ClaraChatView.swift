@@ -360,8 +360,26 @@ class ClaraChatViewModel: ObservableObject {
                 isTyping = false
                 sessionId = response.sessionId
 
-                let claraMessage = ClaraMessage(content: response.response, isClara: true)
+                // Create Clara message with structured data and action results
+                var claraMessage = ClaraMessage(content: response.response, isClara: true)
+                claraMessage.insights = response.insights
+                claraMessage.contextMetrics = response.contextMetrics
+                claraMessage.actionResult = response.actionResult
                 messages.append(claraMessage)
+
+                // Post notifications to refresh relevant views after Clara actions
+                if let actionResult = response.actionResult, actionResult.success {
+                    switch actionResult.actionType {
+                    case "create_reminder", "complete_reminder", "delete_reminder":
+                        NotificationCenter.default.post(name: NSNotification.Name("RefreshReminders"), object: nil)
+                    case "create_task", "complete_task", "delete_task":
+                        NotificationCenter.default.post(name: NSNotification.Name("TaskCreated"), object: nil)
+                    case "create_event", "edit_event", "delete_event":
+                        NotificationCenter.default.post(name: NSNotification.Name("RefreshCalendar"), object: nil)
+                    default:
+                        break
+                    }
+                }
 
             } catch {
                 isTyping = false
@@ -395,6 +413,13 @@ struct ClaraMessage: Identifiable {
     let isClara: Bool
     let timestamp: Date = Date()
     var isError: Bool = false
+
+    // Structured data for enhanced UI
+    var insights: [ResponseInsight]?
+    var contextMetrics: ContextMetrics?
+
+    // Action result (places, tasks, itinerary, etc.)
+    var actionResult: ActionResult?
 }
 
 // MARK: - Message Bubble
@@ -437,17 +462,42 @@ struct ClaraMessageBubble: View {
                         .foregroundColor(.white)
                 }
 
-                // Clara message with markdown support
-                VStack(alignment: .leading, spacing: 6) {
-                    markdownText(message.content, isClara: true)
+                // Clara message with markdown support + structured data
+                VStack(alignment: .leading, spacing: 12) {
+                    // Text response bubble
+                    VStack(alignment: .leading, spacing: 6) {
+                        markdownText(message.content, isClara: true)
 
-                    Text(formatTime(message.timestamp))
-                        .font(.system(size: 11))
-                        .foregroundColor(DesignSystem.Colors.tertiaryText)
+                        Text(formatTime(message.timestamp))
+                            .font(.system(size: 11))
+                            .foregroundColor(DesignSystem.Colors.tertiaryText)
+                    }
+                    .padding(14)
+                    .background(DesignSystem.Colors.cardBackground)
+                    .clipShape(ClaraBubbleShape(isFromUser: false))
+
+                    // Action result (places, tasks, itinerary, etc.)
+                    if let actionResult = message.actionResult {
+                        ClaraActionResultView(actionResult: actionResult)
+                    }
+
+                    // Metrics row (if available and no action result)
+                    if message.actionResult == nil,
+                       let metrics = message.contextMetrics,
+                       (metrics.meetingCount ?? 0) > 0 || (metrics.freeMinutes ?? 0) > 0 {
+                        ClaraMetricsRow(metrics: metrics)
+                    }
+
+                    // Insight cards (if available and no action result)
+                    if message.actionResult == nil,
+                       let insights = message.insights, !insights.isEmpty {
+                        VStack(spacing: 8) {
+                            ForEach(insights) { insight in
+                                ClaraInsightCard(insight: insight)
+                            }
+                        }
+                    }
                 }
-                .padding(14)
-                .background(DesignSystem.Colors.cardBackground)
-                .clipShape(ClaraBubbleShape(isFromUser: false))
 
                 Spacer(minLength: 40)
             } else {
