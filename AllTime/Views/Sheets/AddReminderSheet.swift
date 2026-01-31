@@ -241,30 +241,45 @@ struct AddReminderSheet: View {
 
         Task {
             do {
-                let taskRequest = TaskRequest(
+                // Build recurrence rule if needed
+                let recurrenceRule: String? = switch repeatOption {
+                case .never: nil
+                case .daily: "FREQ=DAILY"
+                case .weekly: "FREQ=WEEKLY"
+                case .monthly: "FREQ=MONTHLY"
+                }
+
+                // Create actual reminder (not task!)
+                let reminderRequest = ReminderRequest(
                     title: title,
                     description: notes.isEmpty ? nil : notes,
-                    durationMinutes: nil,
-                    preferredTimeSlot: nil,
-                    preferredTime: nil,
-                    targetDate: reminderDate,
-                    deadline: hasTime ? reminderDate : nil,
-                    deadlineType: hasTime ? "SPECIFIC_TIME" : "END_OF_DAY",
-                    notifyMinutesBefore: 15,
-                    isReminder: true,
-                    reminderTime: reminderDate,
-                    syncToReminders: true,
-                    priority: "MEDIUM",
-                    category: nil,
-                    tags: nil,
-                    source: "ios_fab_reminder"
+                    dueDate: reminderDate,
+                    reminderTime: hasTime ? reminderDate : nil,
+                    reminderMinutesBefore: 15,
+                    priority: .medium,
+                    eventId: nil,
+                    recurrenceRule: recurrenceRule,
+                    notificationEnabled: true,
+                    notificationSound: nil
                 )
 
-                let _ = try await APIService.shared.createTask(taskRequest)
+                let createdReminder = try await APIService.shared.createReminder(reminderRequest)
+
+                // Also sync to iOS Reminders app if authorized
+                let eventKitManager = EventKitReminderManager.shared
+                if eventKitManager.isAuthorized {
+                    do {
+                        try await eventKitManager.syncReminderToEventKit(createdReminder)
+                        print("✅ Synced reminder to iOS Reminders")
+                    } catch {
+                        print("⚠️ Failed to sync to EventKit: \(error.localizedDescription)")
+                    }
+                }
 
                 await MainActor.run {
                     isSaving = false
-                    NotificationCenter.default.post(name: NSNotification.Name("TaskCreated"), object: nil)
+                    // Post notification to refresh Reminders list
+                    NotificationCenter.default.post(name: NSNotification.Name("RefreshReminders"), object: nil)
                     dismiss()
                 }
             } catch {

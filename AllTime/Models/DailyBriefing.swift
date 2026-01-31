@@ -27,6 +27,10 @@ struct DailyBriefingResponse: Codable, Identifiable {
     let riskInsight: CapacityInsight?                  // Single most important risk
     let opportunityInsight: OpportunityInsight?        // Leverage window/opportunity
 
+    // Sleep data visibility control
+    let showSleepUI: Bool?                             // Whether to show sleep-related UI
+    let sleepTrackingStatus: String?                   // Reason if sleep data is unreliable
+
     var id: String { date }
 
     enum CodingKeys: String, CodingKey {
@@ -49,6 +53,8 @@ struct DailyBriefingResponse: Codable, Identifiable {
         case claraPrompts = "clara_prompts"
         case riskInsight = "risk_insight"
         case opportunityInsight = "opportunity_insight"
+        case showSleepUI = "show_sleep_ui"
+        case sleepTrackingStatus = "sleep_tracking_status"
     }
 }
 

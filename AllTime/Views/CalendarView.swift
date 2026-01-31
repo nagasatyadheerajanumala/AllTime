@@ -409,163 +409,322 @@ struct CalendarView: View {
     }
 }
 
-// MARK: - Meeting Clashes Section
+/// MARK: - Meeting Clashes Section (Clean, focused design)
 
 struct MeetingClashesSection: View {
     let selectedDate: Date
     @StateObject private var viewModel = MeetingClashesViewModel()
-    
+    @State private var showAllClashes = false
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            if viewModel.isLoading {
-                HStack {
+        let dateClashes = viewModel.clashesForDate(selectedDate)
+
+        Group {
+            if viewModel.isLoading && dateClashes.isEmpty {
+                // Loading state
+                HStack(spacing: 10) {
                     ProgressView()
                         .scaleEffect(0.8)
-                    Text("Checking for meeting clashes...")
-                        .font(DesignSystem.Typography.caption)
-                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                    Text("Checking conflicts...")
+                        .font(.system(size: 14))
+                        .foregroundColor(.secondary)
                 }
-                .padding(DesignSystem.Spacing.md)
-            } else if let clashes = viewModel.clashes, clashes.effectiveTotalClashes > 0 {
-                // Show clashes for selected date
-                let dateClashes = viewModel.clashesForDate(selectedDate)
-                
-                if !dateClashes.isEmpty {
-                    VStack(alignment: .leading, spacing: 12) {
-                        HStack {
-                            Image(systemName: "exclamationmark.triangle.fill")
-                                .font(.system(size: 16, weight: .medium))
-                                .foregroundColor(.orange)
-                            
-                            Text("Meeting Clashes")
-                                .font(DesignSystem.Typography.title3)
-                                .fontWeight(.bold)
-                                .foregroundColor(DesignSystem.Colors.primaryText)
-                            
-                            Spacer()
-                            
-                            Text("\(dateClashes.count)")
-                                .font(DesignSystem.Typography.caption)
-                                .foregroundColor(DesignSystem.Colors.secondaryText)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(
-                                    Capsule()
-                                        .fill(Color.orange.opacity(0.2))
-                                )
-                        }
-                        
-                        VStack(spacing: 8) {
-                            ForEach(dateClashes) { clash in
-                                ClashCard(clash: clash)
-                            }
-                        }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 16)
+                .background(Color(.systemBackground))
+                .cornerRadius(12)
+            } else if dateClashes.isEmpty {
+                // No conflicts
+                HStack(spacing: 10) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 20))
+                        .foregroundColor(.green)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("No Conflicts")
+                            .font(.system(size: 15, weight: .semibold))
+                        Text("Your schedule is clear for this day")
+                            .font(.system(size: 13))
+                            .foregroundColor(.secondary)
                     }
-                    .padding(DesignSystem.Spacing.md)
-                    .background(
-                        RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.md)
-                            .fill(DesignSystem.Colors.cardBackground)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.md)
-                                    .stroke(clashSeverityColor(dateClashes.first?.severity ?? "none"), lineWidth: 1)
-                            )
-                    )
+                    Spacer()
+                }
+                .padding(14)
+                .background(Color(.systemBackground))
+                .cornerRadius(12)
+            } else {
+                // Show only top clash
+                VStack(spacing: 0) {
+                    if let topClash = dateClashes.first {
+                        CleanClashCard(
+                            clash: topClash,
+                            totalCount: dateClashes.count,
+                            onSeeAll: { showAllClashes = true }
+                        )
+                    }
                 }
             }
-            // Silently ignore errors - don't show error message to user
+        }
+        .sheet(isPresented: $showAllClashes) {
+            AllClashesView(clashes: dateClashes)
         }
         .onAppear {
-            // Load clashes for selected date ± 7 days
-            let calendar = Calendar.current
-            let start = calendar.date(byAdding: .day, value: -7, to: selectedDate) ?? selectedDate
-            let end = calendar.date(byAdding: .day, value: 7, to: selectedDate) ?? selectedDate
-            
-            Task {
-                await viewModel.loadClashes(startDate: start, endDate: end)
-            }
+            loadClashes()
         }
-        .onChange(of: selectedDate) { oldDate, newDate in
-            // Reload clashes when date changes
-            let calendar = Calendar.current
-            let start = calendar.date(byAdding: .day, value: -7, to: newDate) ?? newDate
-            let end = calendar.date(byAdding: .day, value: 7, to: newDate) ?? newDate
-            
-            Task {
-                await viewModel.loadClashes(startDate: start, endDate: end)
-            }
+        .onChange(of: selectedDate) { _, _ in
+            loadClashes()
         }
     }
-    
-    private func clashSeverityColor(_ severity: String) -> Color {
-        switch severity.lowercased() {
-        case "red": return .red
-        case "orange": return .orange
-        default: return .clear
+
+    private func loadClashes() {
+        let calendar = Calendar.current
+        let start = calendar.date(byAdding: .day, value: -7, to: selectedDate) ?? selectedDate
+        let end = calendar.date(byAdding: .day, value: 7, to: selectedDate) ?? selectedDate
+        Task {
+            await viewModel.loadClashes(startDate: start, endDate: end)
         }
     }
 }
 
-struct ClashCard: View {
+/// Clean, focused clash card - shows one conflict clearly
+struct CleanClashCard: View {
     let clash: ClashInfo
-    
+    let totalCount: Int
+    let onSeeAll: () -> Void
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 14) {
+            // Header
             HStack {
-                Image(systemName: clash.severityIcon)
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(clash.severityColor)
-                
-                Text("Overlap: \(clash.overlapMinutes) min")
-                    .font(DesignSystem.Typography.subheadline)
-                    .fontWeight(.semibold)
-                    .foregroundColor(clash.severityColor)
-                
+                HStack(spacing: 8) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 14))
+                        .foregroundColor(.orange)
+                    Text("Conflict")
+                        .font(.system(size: 15, weight: .semibold))
+                }
+
                 Spacer()
-            }
-            
-            VStack(alignment: .leading, spacing: 6) {
-                HStack(alignment: .top, spacing: 8) {
-                    Circle()
-                        .fill(Color.blue)
-                        .frame(width: 8, height: 8)
-                        .padding(.top, 6)
-                    
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(clash.eventA.title)
-                            .font(DesignSystem.Typography.body)
-                            .fontWeight(.medium)
-                            .foregroundColor(DesignSystem.Colors.primaryText)
-                        
-                        Text(clash.eventA.formattedTimeRange)
-                            .font(DesignSystem.Typography.caption)
-                            .foregroundColor(DesignSystem.Colors.secondaryText)
+
+                if totalCount > 1 {
+                    Button(action: onSeeAll) {
+                        Text("\(totalCount) total →")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundColor(.blue)
                     }
                 }
-                
-                HStack(alignment: .top, spacing: 8) {
-                    Circle()
-                        .fill(Color.orange)
-                        .frame(width: 8, height: 8)
-                        .padding(.top, 6)
-                    
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(clash.eventB.title)
-                            .font(DesignSystem.Typography.body)
-                            .fontWeight(.medium)
-                            .foregroundColor(DesignSystem.Colors.primaryText)
-                        
-                        Text(clash.eventB.formattedTimeRange)
-                            .font(DesignSystem.Typography.caption)
-                            .foregroundColor(DesignSystem.Colors.secondaryText)
+            }
+
+            // Two events - uniform height boxes
+            HStack(spacing: 10) {
+                // Event A
+                eventBox(clash.eventA, isKeep: clash.recommendedKeep == clash.eventA.id)
+
+                // Overlap indicator
+                VStack(spacing: 2) {
+                    Image(systemName: "arrow.left.arrow.right")
+                        .font(.system(size: 11))
+                        .foregroundColor(.orange)
+                    Text("\(clash.overlapMinutes)m")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundColor(.orange)
+                }
+                .frame(width: 36)
+
+                // Event B
+                eventBox(clash.eventB, isKeep: clash.recommendedKeep == clash.eventB.id)
+            }
+        }
+        .padding(14)
+        .background(
+            RoundedRectangle(cornerRadius: 14)
+                .fill(Color(.systemBackground))
+                .shadow(color: .black.opacity(0.06), radius: 8, y: 3)
+        )
+    }
+
+    private func eventBox(_ event: ClashEventInfo, isKeep: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            // Title - single line, truncated
+            Text(event.title)
+                .font(.system(size: 13, weight: .medium))
+                .lineLimit(1)
+                .foregroundColor(.primary)
+
+            // Time only (no date)
+            Text(parseTime(event.startTime))
+                .font(.system(size: 12, weight: .medium, design: .monospaced))
+                .foregroundColor(.secondary)
+
+            // Keep badge or spacer for uniform height
+            if isKeep {
+                Text("KEEP")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundColor(.green)
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 2)
+                    .background(Color.green.opacity(0.15))
+                    .cornerRadius(3)
+            } else {
+                Color.clear.frame(height: 16)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(height: 60)
+        .padding(10)
+        .background(
+            RoundedRectangle(cornerRadius: 10)
+                .fill(isKeep ? Color.green.opacity(0.08) : Color(.secondarySystemBackground))
+        )
+    }
+
+    private func parseTime(_ isoString: String) -> String {
+        // Try ISO8601 first
+        let iso = ISO8601DateFormatter()
+        iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let date = iso.date(from: isoString) {
+            let tf = DateFormatter()
+            tf.dateFormat = "h:mm a"
+            return tf.string(from: date)
+        }
+
+        // Try without fractional seconds
+        iso.formatOptions = [.withInternetDateTime]
+        if let date = iso.date(from: isoString) {
+            let tf = DateFormatter()
+            tf.dateFormat = "h:mm a"
+            return tf.string(from: date)
+        }
+
+        // Try simple format (no timezone)
+        let simple = DateFormatter()
+        simple.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
+        if let date = simple.date(from: String(isoString.prefix(19))) {
+            let tf = DateFormatter()
+            tf.dateFormat = "h:mm a"
+            return tf.string(from: date)
+        }
+
+        // Fallback: extract time from string directly
+        if let tIndex = isoString.firstIndex(of: "T"),
+           isoString.distance(from: tIndex, to: isoString.endIndex) >= 6 {
+            let timeStart = isoString.index(after: tIndex)
+            let timeEnd = isoString.index(timeStart, offsetBy: 5)
+            let timeStr = String(isoString[timeStart..<timeEnd])
+            if let hour = Int(timeStr.prefix(2)), let minute = Int(timeStr.suffix(2)) {
+                let period = hour >= 12 ? "PM" : "AM"
+                let hour12 = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour)
+                return String(format: "%d:%02d %@", hour12, minute, period)
+            }
+        }
+
+        return "—"
+    }
+}
+
+/// Sheet showing all clashes - uniform cards, time only
+struct AllClashesView: View {
+    let clashes: [ClashInfo]
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                LazyVStack(spacing: 10) {
+                    ForEach(clashes) { clash in
+                        clashRow(clash)
                     }
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+            }
+            .background(Color(.systemGroupedBackground))
+            .navigationTitle("All Conflicts")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done") { dismiss() }
                 }
             }
         }
-        .padding(DesignSystem.Spacing.sm)
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.sm)
-                .fill(clash.severityColor.opacity(0.1))
-        )
+    }
+
+    private func clashRow(_ clash: ClashInfo) -> some View {
+        HStack(spacing: 8) {
+            // Event A box
+            eventBox(title: clash.eventA.title, time: parseTime(clash.eventA.startTime), alignment: .leading)
+
+            // Overlap badge
+            Text("\(clash.overlapMinutes)m")
+                .font(.system(size: 10, weight: .bold, design: .rounded))
+                .foregroundColor(.orange)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 3)
+                .background(Color.orange.opacity(0.15))
+                .cornerRadius(4)
+
+            // Event B box
+            eventBox(title: clash.eventB.title, time: parseTime(clash.eventB.startTime), alignment: .trailing)
+        }
+        .padding(10)
+        .background(Color(.systemBackground))
+        .cornerRadius(12)
+    }
+
+    private func eventBox(title: String, time: String, alignment: HorizontalAlignment) -> some View {
+        VStack(alignment: alignment, spacing: 3) {
+            Text(title)
+                .font(.system(size: 13, weight: .medium))
+                .lineLimit(1)
+                .foregroundColor(.primary)
+            Text(time)
+                .font(.system(size: 11, weight: .medium, design: .monospaced))
+                .foregroundColor(.secondary)
+        }
+        .frame(maxWidth: .infinity, alignment: alignment == .leading ? .leading : .trailing)
+        .frame(height: 36)
+    }
+
+    private func parseTime(_ isoString: String) -> String {
+        // Try ISO8601 with fractional seconds
+        let iso = ISO8601DateFormatter()
+        iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let date = iso.date(from: isoString) {
+            let tf = DateFormatter()
+            tf.dateFormat = "h:mm a"
+            return tf.string(from: date)
+        }
+
+        // Try without fractional seconds
+        iso.formatOptions = [.withInternetDateTime]
+        if let date = iso.date(from: isoString) {
+            let tf = DateFormatter()
+            tf.dateFormat = "h:mm a"
+            return tf.string(from: date)
+        }
+
+        // Try simple format
+        let simple = DateFormatter()
+        simple.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
+        if let date = simple.date(from: String(isoString.prefix(19))) {
+            let tf = DateFormatter()
+            tf.dateFormat = "h:mm a"
+            return tf.string(from: date)
+        }
+
+        // Fallback: extract time manually
+        if let tIndex = isoString.firstIndex(of: "T"),
+           isoString.distance(from: tIndex, to: isoString.endIndex) >= 6 {
+            let timeStart = isoString.index(after: tIndex)
+            let timeEnd = isoString.index(timeStart, offsetBy: 5)
+            let timeStr = String(isoString[timeStart..<timeEnd])
+            if let hour = Int(timeStr.prefix(2)), let minute = Int(timeStr.suffix(2)) {
+                let period = hour >= 12 ? "PM" : "AM"
+                let hour12 = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour)
+                return String(format: "%d:%02d %@", hour12, minute, period)
+            }
+        }
+
+        return "—"
     }
 }
 

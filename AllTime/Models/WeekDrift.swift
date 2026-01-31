@@ -93,6 +93,10 @@ struct DriftSignals: Codable {
     let lightStructure: Bool?              // True if structure is present but very light
     let significantlyLighter: Bool?        // True if much lighter than baseline
 
+    // Tomorrow's meeting info (for intervention relevance)
+    let tomorrowMeetingCount: Int?         // Number of meetings tomorrow
+    let tomorrowMeetingHours: Double?      // Meeting hours tomorrow
+
     enum CodingKeys: String, CodingKey {
         case meetingHoursThisWeek = "meeting_hours_this_week"
         case meetingHoursRemaining = "meeting_hours_remaining"
@@ -109,6 +113,8 @@ struct DriftSignals: Codable {
         case unstructuredDriftReason = "unstructured_drift_reason"
         case lightStructure = "light_structure"
         case significantlyLighter = "significantly_lighter"
+        case tomorrowMeetingCount = "tomorrow_meeting_count"
+        case tomorrowMeetingHours = "tomorrow_meeting_hours"
     }
 
     // Helper computed properties

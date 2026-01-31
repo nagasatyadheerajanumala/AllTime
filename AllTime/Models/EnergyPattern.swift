@@ -10,6 +10,14 @@ struct EnergyPatternsResponse: Codable {
     let analysisWindow: String
     let hasEnoughData: Bool
     let message: String?
+
+    enum CodingKeys: String, CodingKey {
+        case patterns
+        case dataPoints = "data_points"
+        case analysisWindow = "analysis_window"
+        case hasEnoughData = "has_enough_data"
+        case message
+    }
 }
 
 /// Individual energy pattern insight
@@ -25,6 +33,12 @@ struct EnergyPatternInsight: Codable, Identifiable {
     let patternDescription: String?  // Detailed description for tooltip
 
     var id: String { "\(pattern)-\(metric)" }
+
+    enum CodingKeys: String, CodingKey {
+        case pattern, metric, impact, comparison, icon, color, significance
+        case sampleSize = "sample_size"
+        case patternDescription = "pattern_description"
+    }
 
     // MARK: - Computed Properties
 

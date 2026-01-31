@@ -501,9 +501,80 @@ struct FitnessBreakdown: Codable {
 // MARK: - Mindfulness Breakdown
 struct MindfulnessBreakdown: Codable {
     let mindfulnessMinutesAvg: Double?
-    
+
     enum CodingKeys: String, CodingKey {
         case mindfulnessMinutesAvg = "mindfulness_minutes_avg"
     }
+}
+
+// MARK: - Sleep Data Reliability
+/// Response from GET /api/v1/health/sleep-reliability
+/// Used to determine if user reliably tracks sleep data
+struct SleepReliabilityResponse: Codable {
+    let confidenceScore: Int
+    let reliabilityTier: String  // "RELIABLE", "MARGINAL", "UNRELIABLE"
+    let isReliable: Bool
+    let showSleepUI: Bool
+    let showWarning: Bool
+    let reason: String
+    let suggestion: String?
+
+    // Pattern detection
+    let patterns: SleepPatterns?
+
+    // Trend analysis
+    let trend: SleepTrend?
+
+    // Detailed metrics
+    let details: SleepReliabilityDetails?
+
+    // Sleep statistics (when reliable)
+    let sleepStats: SleepStats?
+
+    enum CodingKeys: String, CodingKey {
+        case confidenceScore = "confidenceScore"
+        case reliabilityTier = "reliabilityTier"
+        case isReliable = "isReliable"
+        case showSleepUI = "showSleepUI"
+        case showWarning = "showWarning"
+        case reason
+        case suggestion
+        case patterns
+        case trend
+        case details
+        case sleepStats
+    }
+}
+
+struct SleepPatterns: Codable {
+    let isNapOnlyPattern: Bool?
+    let isWeekendOnlyPattern: Bool?
+    let possibleShiftWorker: Bool?
+    let isNewUser: Bool?
+}
+
+struct SleepTrend: Codable {
+    let isDegrading: Bool?
+    let isImproving: Bool?
+    let description: String?
+    let recentCoverage: Double?
+    let olderCoverage: Double?
+}
+
+struct SleepReliabilityDetails: Codable {
+    let totalDaysAnalyzed: Int?
+    let daysWithSleepData: Int?
+    let coveragePercent: Double?
+    let zeroValuePercent: Double?
+    let napPatternPercent: Double?
+    let weekendTrackingPercent: Double?
+    let daysSinceLastSleepRecord: Int?
+    let sleepVarianceMinutes: Double?
+}
+
+struct SleepStats: Codable {
+    let averageSleepHours: Double?
+    let minSleepHours: Double?
+    let maxSleepHours: Double?
 }
 

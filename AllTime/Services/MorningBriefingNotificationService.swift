@@ -9,6 +9,7 @@ class MorningBriefingNotificationService: ObservableObject {
     static let shared = MorningBriefingNotificationService()
 
     private let historyService = NotificationHistoryService.shared
+    private let patternService = EnergyPatternInsightService.shared
 
     // MARK: - Published Properties
 
@@ -41,106 +42,193 @@ class MorningBriefingNotificationService: ObservableObject {
 
     private let notificationIdentifier = "morning-briefing"
 
-    // MARK: - Engaging Copy Templates
+    // MARK: - Creative Notification Content
+    // Goal: Sound like a witty friend who gets your work life, not a boring app
 
-    /// Generate an engaging title based on briefing data
-    /// Uses insights to create curiosity-driven titles
+    /// Generate an engaging, contextual title based on briefing data
     private func getEngagingTitle(from briefing: DailyBriefingResponse?) -> String {
         let firstName = UserDefaults.standard.string(forKey: "user_first_name")
         let name = firstName ?? ""
         let hasName = !name.isEmpty
 
-        // If we have briefing data, create insight-driven titles
-        if let briefing = briefing {
-            // Based on energy trajectory
-            if let energy = briefing.energyBudget, let trajectory = energy.trajectory?.lowercased() {
-                if trajectory == "declining" {
-                    return hasName ? "\(name), heads up about today" : "Heads up about today"
-                }
-            }
+        let weekday = Calendar.current.component(.weekday, from: Date())
+        let hour = Calendar.current.component(.hour, from: Date())
+        let isMonday = weekday == 2
+        let isFriday = weekday == 6
+        let isWeekend = weekday == 1 || weekday == 7
 
-            // Based on meeting load
-            if let metrics = briefing.keyMetrics {
-                let meetings = metrics.effectiveMeetingsCount
-                if meetings == 0 {
-                    return hasName ? "\(name), today's different" : "Today's different"
-                } else if meetings >= 6 {
-                    return hasName ? "\(name), brace yourself" : "Brace yourself"
-                }
-            }
+        guard let briefing = briefing else {
+            return getPersonalizedTitle()
+        }
 
-            // Based on day mood/type
-            let mood = briefing.mood.lowercased()
-            switch mood {
-            case "focus_day":
-                return hasName ? "Deep work day, \(name)" : "Deep work day ahead"
-            case "rest_day":
-                return hasName ? "Easy day, \(name)" : "Easy day ahead"
-            case "intense_meetings":
-                return hasName ? "\(name), marathon day" : "Marathon day ahead"
-            default:
-                break
-            }
+        let meetings = briefing.keyMetrics?.effectiveMeetingsCount ?? 0
+        // Estimate meeting minutes (assume 45 min avg meeting)
+        let totalMeetingMinutes = meetings * 45
 
-            // Based on primary recommendation urgency
-            if let rec = briefing.primaryRecommendation, let urgency = rec.urgency?.lowercased() {
-                if urgency == "now" {
-                    return hasName ? "\(name), act now" : "Before you start"
-                }
+        // Weekend work detection
+        if isWeekend && meetings > 0 {
+            return hasName ? "\(name), working on a weekend?" : "Working on the weekend? Respect."
+        }
+
+        // Very early morning (before 6am)
+        if hour < 6 {
+            return hasName ? "\(name), you're up before the sun" : "You're up before the sun ☀️"
+        }
+
+        // Monday morning dread/motivation
+        if isMonday {
+            if meetings >= 6 {
+                return hasName ? "\(name), Monday chose violence" : "Monday chose violence today"
+            }
+            if meetings == 0 {
+                return hasName ? "A Monday without meetings, \(name)? Unicorn day." : "Monday without meetings? Is this real?"
+            }
+            if hour < 9 {
+                return hasName ? "\(name), deep breath. It's Monday." : "Deep breath. It's just Monday."
+            }
+            return hasName ? "Let's get this Monday, \(name)" : "Let's get this Monday"
+        }
+
+        // Friday vibes
+        if isFriday {
+            if meetings >= 5 {
+                return hasName ? "\(name), who scheduled 5 meetings on Friday?" : "5 meetings on a Friday? Who did this?"
+            }
+            if meetings == 0 {
+                return hasName ? "Zero meetings Friday, \(name). Chef's kiss." : "Zero meetings Friday. Perfection."
+            }
+            if hour >= 14 {
+                return hasName ? "Home stretch, \(name) 🏁" : "Home stretch to the weekend 🏁"
+            }
+            return hasName ? "Happy Friday, \(name)! Almost there." : "Happy Friday! The end is near."
+        }
+
+        // Sleep deprivation awareness
+        if let metrics = briefing.keyMetrics, let sleepLast = metrics.sleepHoursLastNight {
+            if sleepLast < 5 {
+                return hasName ? "\(name), running on \(String(format: "%.0f", sleepLast))h sleep? Brave." : "Running on fumes today"
+            }
+            if sleepLast < 6 {
+                return hasName ? "Rough night, \(name)? I see you." : "Rough night? Today's about survival."
             }
         }
 
-        // Fallback to simple personalized greeting
-        return hasName ? "Morning, \(name)" : "Your morning brief"
+        // Meeting chaos levels
+        if meetings == 0 {
+            return [
+                hasName ? "\(name), your calendar is suspiciously empty" : "Your calendar is suspiciously empty",
+                hasName ? "No meetings, \(name). What's the catch?" : "No meetings. What's the catch?",
+                hasName ? "\(name), zero meetings. Use this power wisely." : "Zero meetings. A rare gift."
+            ].randomElement()!
+        }
+
+        if meetings >= 8 {
+            return [
+                hasName ? "\(name), 8 meetings? That's not a day, it's a marathon." : "8 meetings? That's not work, it's endurance.",
+                hasName ? "I'm sorry, \(name). 8 meetings." : "I counted. It's 8 meetings. I'm sorry.",
+                hasName ? "\(name), your calendar needs an intervention" : "Your calendar needs an intervention"
+            ].randomElement()!
+        }
+
+        if meetings >= 6 {
+            let meetingHours = totalMeetingMinutes / 60
+            return [
+                hasName ? "\(name), \(meetings) meetings today. Pace yourself." : "\(meetings) meetings. \(meetingHours)h of talking. Godspeed.",
+                hasName ? "Heavy day ahead, \(name). \(meetings) meetings." : "Heavy day: \(meetings) meetings on deck",
+                hasName ? "\(name), today's a talker — \(meetings) meetings" : "\(meetings) meetings. Your voice will need rest."
+            ].randomElement()!
+        }
+
+        // Mid-range meetings with personality
+        if meetings >= 4 {
+            return [
+                hasName ? "\(name), \(meetings) meetings — not light, not brutal" : "\(meetings) meetings — survivable but busy",
+                hasName ? "Moderate chaos today, \(name). \(meetings) meetings." : "Moderate chaos: \(meetings) meetings",
+                hasName ? "\(name), \(meetings) meetings. Find your gaps." : "\(meetings) meetings. Guard your gaps."
+            ].randomElement()!
+        }
+
+        // Light days
+        if meetings <= 2 {
+            return [
+                hasName ? "\(name), light day — just \(meetings) meeting\(meetings == 1 ? "" : "s")" : "Light day: \(meetings) meeting\(meetings == 1 ? "" : "s"). Breathe.",
+                hasName ? "Breathing room today, \(name)" : "Breathing room in your schedule",
+                hasName ? "\(name), \(meetings) meeting\(meetings == 1 ? "" : "s"). The rest is yours." : "\(meetings) meeting\(meetings == 1 ? "" : "s"). Freedom awaits."
+            ].randomElement()!
+        }
+
+        // Default
+        return hasName ? "Here's your day, \(name)" : "Here's what's ahead"
     }
 
     /// Simple personalized title without briefing data
     private func getPersonalizedTitle() -> String {
         let firstName = UserDefaults.standard.string(forKey: "user_first_name")
-        if let name = firstName, !name.isEmpty {
-            return "Morning, \(name)"
+        let weekday = Calendar.current.component(.weekday, from: Date())
+        let hour = Calendar.current.component(.hour, from: Date())
+
+        let hasName = firstName != nil && !firstName!.isEmpty
+        let name = firstName ?? ""
+
+        // Time-aware greetings
+        if hour < 6 {
+            return hasName ? "\(name), you're up early" : "Early riser detected"
         }
-        return "Your morning brief"
+
+        // Day-specific
+        switch weekday {
+        case 2: // Monday
+            return hasName ? "Monday, \(name). Let's go." : "Monday. Deep breath. Let's go."
+        case 6: // Friday
+            return hasName ? "It's Friday, \(name) 🎉" : "TGIF 🎉"
+        case 7, 1: // Weekend
+            return hasName ? "Weekend mode, \(name)" : "Weekend warrior mode"
+        default:
+            return hasName ? "Morning, \(name)" : "Good morning"
+        }
     }
 
-    // MARK: - Insight-Driven Notification Generation
-    // The goal: Tell them something they DON'T already know
-    // Not "you have 3 meetings" but WHY that matters
-
-    /// Generate personalized fallback messages
-    /// Note: For repeating notifications, we use day-agnostic messages since content is
-    /// set at schedule time, not fire time. Day-specific content is set via updateNotificationContent.
+    /// Generate personalized fallback messages with personality
     private func getPersonalizedFallbackMessage() -> String {
         let firstName = UserDefaults.standard.string(forKey: "user_first_name")
+        let weekday = Calendar.current.component(.weekday, from: Date())
+        let hour = Calendar.current.component(.hour, from: Date())
 
-        // Use day-agnostic messages for repeating notifications
-        // The notification content will be updated with day-specific info when the app refreshes
-        if let name = firstName, !name.isEmpty {
-            let personalizedMessages = [
-                "\(name), here's your day at a glance.",
-                "Ready to make today great, \(name)?",
-                "\(name), let's see what's ahead today.",
-                "Your day is planned and ready, \(name)!",
-                "\(name), tap to see your schedule."
-            ]
-            return personalizedMessages.randomElement() ?? "Your briefing is ready, \(name)."
+        let hasName = firstName != nil && !firstName!.isEmpty
+        let name = firstName ?? ""
+
+        // Super early (before 6am)
+        if hour < 6 {
+            return hasName
+                ? "\(name), you're up before most alarms. Respect."
+                : "Up before dawn? Your ambition is showing."
         }
 
-        // Generic fallback
-        let genericMessages = [
-            "Tap to see what's on your agenda today.",
-            "Your daily briefing is ready.",
-            "See how your day looks at a glance.",
-            "Ready to take on the day? Here's your plan."
-        ]
-        return genericMessages.randomElement() ?? "Your daily briefing is ready."
-    }
+        // Monday
+        if weekday == 2 {
+            return [
+                hasName ? "\(name), coffee first. Strategy second." : "Coffee first. Everything else second.",
+                hasName ? "New week energy, \(name). Channel it." : "New week, clean slate. What matters today?",
+                hasName ? "\(name), Monday is just Friday's origin story." : "Monday: Friday's origin story."
+            ].randomElement()!
+        }
 
-    private let fallbackMessages = [
-        "Tap to see what's on your agenda today.",
-        "Your daily briefing is ready.",
-        "See how your day looks at a glance."
-    ]
+        // Friday
+        if weekday == 6 {
+            return [
+                hasName ? "\(name), you can see the weekend from here." : "Weekend's in sight. Push through.",
+                hasName ? "Finish line's close, \(name)." : "Almost there. One more day.",
+                hasName ? "\(name), make Friday count, then log off." : "Make it count, then log off."
+            ].randomElement()!
+        }
+
+        // Mid-week
+        return [
+            hasName ? "\(name), your day awaits. Make it count." : "Your day awaits.",
+            hasName ? "What's the one thing today, \(name)?" : "What's your ONE thing today?",
+            hasName ? "\(name), you've got this." : "You've got this."
+        ].randomElement()!
+    }
 
     // MARK: - Initialization
 
@@ -282,9 +370,34 @@ class MorningBriefingNotificationService: ObservableObject {
 
     /// Send a test notification immediately (for debugging/preview)
     func sendTestNotification() {
+        let firstName = UserDefaults.standard.string(forKey: "user_first_name")
+        let weekday = Calendar.current.component(.weekday, from: Date())
+
+        // Creative test bodies based on day
+        let testBodies: [String]
+        if weekday == 2 { // Monday
+            testBodies = [
+                "5 meetings today. Your 2h focus block at 2pm is gold — protect it.",
+                "Monday loaded: 4 meetings, but you've got a 90min window at 10am. Use it wisely.",
+                "Back-to-back from 9-12, then freedom. Front-load your energy."
+            ]
+        } else if weekday == 6 { // Friday
+            testBodies = [
+                "Light Friday: 2 meetings, then coast. Perfect for wrapping up loose ends.",
+                "3 meetings, done by 3pm. Weekend mode loading...",
+                "Friday focus: 1 meeting at 10am, rest is yours. Finish strong."
+            ]
+        } else {
+            testBodies = [
+                "4 meetings leave you 3h of focus time. Your 2pm block is prime real estate.",
+                "Heavy morning (3 meetings), light afternoon. Save your hardest task for 2pm.",
+                "Only 2 meetings today. Rare gift — tackle that thing you've been avoiding."
+            ]
+        }
+
         let content = UNMutableNotificationContent()
         content.title = getPersonalizedTitle()
-        content.body = "3 meetings, 2h focus time available. Let's do this!"
+        content.body = testBodies.randomElement()!
         content.sound = .default
         content.userInfo = [
             "type": "morning_briefing",
@@ -311,90 +424,153 @@ class MorningBriefingNotificationService: ObservableObject {
     // MARK: - Private Methods
 
     private func generateNotificationBody(from briefing: DailyBriefingResponse) -> String {
-        // PRIORITY 1: Day Narrative headline - AI-generated insight about the day
-        // This is the most valuable piece of content
-        if let narrative = briefing.dayNarrative, !narrative.headline.isEmpty {
+        let meetings = briefing.keyMetrics?.effectiveMeetingsCount ?? 0
+        // Estimate meeting minutes (assume 45 min avg meeting)
+        let totalMeetingMinutes = meetings * 45
+        let weekday = Calendar.current.component(.weekday, from: Date())
+
+        // Extract key metrics for compelling numbers
+        let metrics = briefing.keyMetrics
+        let sleepLast = metrics?.sleepHoursLastNight
+        let sleepAvg = metrics?.sleepHoursAverage
+        let meetingsAvg = metrics?.meetingsAverageCount
+        let longestFreeBlock = metrics?.effectiveLongestFreeBlock ?? 0
+
+        // Check for late meetings and back-to-back meetings
+        let hasLateMeeting = briefing.focusWindows?.contains { window in
+            if let hour = Int(window.startTime.prefix(2)), hour >= 18 {
+                return true
+            }
+            return false
+        } ?? false
+
+        let hasBackToBack = meetings >= 3 && longestFreeBlock < 30
+
+        // PRIORITY 0: Energy pattern-based insight (personalized data)
+        if let patternInsight = patternService.morningInsight(
+            meetingCount: meetings,
+            hasLateMeeting: hasLateMeeting,
+            hasBackToBack: hasBackToBack
+        ) {
+            return patternInsight
+        }
+
+        // PRIORITY 1: AI-generated narrative headline (if good)
+        if let narrative = briefing.dayNarrative, !narrative.headline.isEmpty, narrative.headline.count < 100 {
             return narrative.headline
         }
 
-        // PRIORITY 2: Primary recommendation with consequence
-        // Tell them THE one thing they should do and why
-        if let rec = briefing.primaryRecommendation {
-            if let consequence = rec.ignoredConsequence, !consequence.isEmpty {
-                // e.g., "Block 90 min for deep work or you'll hit afternoon with nothing done"
-                return "\(rec.action) — \(consequence.lowercased())"
+        // PRIORITY 2: Sleep with comparison numbers
+        if let sleep = sleepLast {
+            if sleep < 5 {
+                if let avg = sleepAvg {
+                    let deficit = avg - sleep
+                    return "\(String(format: "%.0f", sleep))h sleep — \(String(format: "%.1f", deficit))h below your average. Go easy today."
+                }
+                return "\(String(format: "%.0f", sleep))h sleep. Your brain is at 60% capacity. Plan accordingly."
             }
-            if let reason = rec.reason, !reason.isEmpty && reason.count < 80 {
-                return "\(rec.action): \(reason)"
+            if sleep < 6 {
+                if let avg = sleepAvg, avg > sleep + 0.5 {
+                    return "\(String(format: "%.1f", sleep))h vs your usual \(String(format: "%.1f", avg))h. Skip ambitious decisions today."
+                }
+                return "\(String(format: "%.1f", sleep))h sleep. Front-load easy tasks, save hard thinking for tomorrow."
+            }
+            // Great sleep highlight
+            if sleep >= 8, let avg = sleepAvg, sleep > avg + 0.5 {
+                return "\(String(format: "%.1f", sleep))h sleep — \(String(format: "%.1f", sleep - avg))h more than usual. Peak performance day."
+            }
+        }
+
+        // PRIORITY 3: Meeting load with comparisons
+        if meetings >= 8 {
+            if let avg = meetingsAvg {
+                let diff = Double(meetings) - avg
+                if diff > 2 {
+                    return "\(meetings) meetings — \(Int(diff)) more than your average (\(String(format: "%.0f", avg))). Brutal day ahead."
+                }
+            }
+            return "\(meetings) meetings = ~\(totalMeetingMinutes/60)h of talking. Block 15min for yourself somewhere."
+        }
+
+        if meetings >= 6 {
+            let freeMinutes = max(0, (8 * 60) - totalMeetingMinutes)
+            if let avg = meetingsAvg, Double(meetings) > avg + 1.5 {
+                return "\(meetings) meetings (avg: \(String(format: "%.0f", avg))). Only \(freeMinutes)min free. Triage ruthlessly."
+            }
+            return "\(meetings) meetings, \(freeMinutes)min of free time. Your lunch break is non-negotiable."
+        }
+
+        // PRIORITY 4: Zero meetings with opportunity framing
+        if meetings == 0 {
+            if longestFreeBlock >= 240 {
+                return "0 meetings + \(longestFreeBlock/60)h uninterrupted. When did you last have this? Use it."
+            }
+            if let avg = meetingsAvg, avg >= 3 {
+                return "0 meetings vs your usual \(String(format: "%.0f", avg)). Rare gift. What's the ONE thing?"
+            }
+            if weekday == 2 {
+                return "Zero Monday meetings. That's not luck, that's strategy (or everyone forgot you)."
+            }
+            return "Meeting-free day. Your calendar gave you a gift. Don't waste it on email."
+        }
+
+        // PRIORITY 5: Focus windows with specific times
+        if let focusWindows = briefing.focusWindows,
+           let longest = focusWindows.max(by: { $0.durationMinutes < $1.durationMinutes }) {
+            let duration = longest.durationMinutes
+            let startTime = formatTimeString(longest.startTime)
+
+            if duration >= 180 {
+                if meetings >= 3 {
+                    return "\(duration/60)h focus block at \(startTime) despite \(meetings) meetings. That's your power window."
+                }
+                return "\(duration/60)-hour block starting \(startTime). Perfect for that thing you keep postponing."
+            }
+
+            if duration >= 90 && meetings >= 4 {
+                return "\(meetings) meetings but you have \(duration)min at \(startTime). Protect it like treasure."
+            }
+
+            if duration >= 60 && duration < 90 && meetings >= 5 {
+                return "Only \(duration)min of focus time today (\(startTime)). Make every minute count."
+            }
+        }
+
+        // PRIORITY 6: Well-rested + light calendar with numbers
+        if let sleep = sleepLast, sleep >= 7.5, meetings <= 2 {
+            if let avg = sleepAvg, sleep > avg {
+                return "\(String(format: "%.0f", sleep))h sleep (above avg) + only \(meetings) meetings. Peak conditions."
+            }
+            return "\(String(format: "%.0f", sleep))h sleep, \(meetings) meetings. Your brain is ready for hard problems."
+        }
+
+        // PRIORITY 7: Meeting comparison insights
+        if let avg = meetingsAvg {
+            if meetings == 1 && avg >= 3 {
+                return "Just 1 meeting vs your usual \(String(format: "%.0f", avg)). Rare quiet day. Make it count."
+            }
+            if Double(meetings) <= avg - 2 && meetings <= 3 {
+                return "\(meetings) meetings — \(Int(avg - Double(meetings))) fewer than average. Deep work opportunity."
+            }
+            if Double(meetings) >= avg + 2 {
+                return "\(meetings) meetings — \(Int(Double(meetings) - avg)) more than your average. Pace yourself."
+            }
+        }
+
+        // PRIORITY 8: Moderate days with context
+        if meetings >= 2 && meetings <= 4 {
+            if longestFreeBlock >= 90 {
+                return "\(meetings) meetings + \(longestFreeBlock)min focus block. Balanced day. Use both."
+            }
+            return "\(meetings) meetings today. Manageable. What's your ONE priority?"
+        }
+
+        // PRIORITY 9: Primary recommendation
+        if let rec = briefing.primaryRecommendation {
+            if let consequence = rec.ignoredConsequence, !consequence.isEmpty, consequence.count < 50 {
+                return "\(rec.action) — or \(consequence.lowercased())"
             }
             return rec.action
-        }
-
-        // PRIORITY 3: Energy-based insights - what they don't know about their day
-        if let energy = briefing.energyBudget {
-            // Peak energy window insight
-            if let peak = energy.peakWindow, let startTime = peak.startTime {
-                let timeStr = formatTimeString(startTime)
-                return "Your energy peaks at \(timeStr) — that's your best window for important work."
-            }
-            // Energy trajectory warning
-            if let trajectory = energy.trajectory?.lowercased(), trajectory == "declining" {
-                if let recovery = energy.recoveryRecommendation, !recovery.isEmpty {
-                    return "Energy declining today. \(recovery)"
-                }
-                return "Energy will decline through the day. Front-load your important tasks."
-            }
-            // Recovery needed
-            if energy.recoveryNeeded == true, let recovery = energy.recoveryRecommendation {
-                return recovery
-            }
-        }
-
-        // PRIORITY 4: Comparison-based insights - how today differs
-        if let metrics = briefing.keyMetrics {
-            // Sleep comparison
-            if let sleepLast = metrics.sleepHoursLastNight, let sleepAvg = metrics.sleepHoursAverage {
-                let diff = sleepLast - sleepAvg
-                if diff < -1.0 {
-                    return String(format: "You slept %.1fh less than usual. Consider lighter tasks this morning.", abs(diff))
-                } else if diff > 1.0 {
-                    return String(format: "%.1fh extra sleep last night — you're primed for deep work today.", diff)
-                }
-            }
-            // Meeting load comparison
-            let meetingsToday = metrics.effectiveMeetingsCount
-            if let avgMeetings = metrics.meetingsAverageCount {
-                let diff = Double(meetingsToday) - avgMeetings
-                if diff >= 2 {
-                    return "\(meetingsToday) meetings — \(Int(diff)) more than usual. Pace yourself."
-                } else if diff <= -2 && meetingsToday <= 2 {
-                    return "Only \(meetingsToday) meeting\(meetingsToday == 1 ? "" : "s") today. Rare opportunity for deep work."
-                }
-            }
-        }
-
-        // PRIORITY 5: Focus window insight
-        if let focusWindows = briefing.focusWindows, let firstWindow = focusWindows.first {
-            let duration = firstWindow.durationMinutes
-            if duration >= 60 {
-                let hours = duration / 60
-                let startTime = firstWindow.startTime
-                if hours >= 2 {
-                    return "\(hours)h uninterrupted block at \(startTime) — protect this for your hardest task."
-                }
-            }
-        }
-
-        // PRIORITY 6: First observation from day narrative
-        if let narrative = briefing.dayNarrative,
-           let observations = narrative.keyObservations,
-           let first = observations.first, !first.isEmpty {
-            return first
-        }
-
-        // PRIORITY 7: Summary line from API
-        if !briefing.summaryLine.isEmpty && briefing.summaryLine.count < 100 {
-            return briefing.summaryLine
         }
 
         // Final fallback

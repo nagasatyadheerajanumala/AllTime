@@ -76,7 +76,7 @@ class CalendarViewModel: ObservableObject {
                        print("📅 CalendarViewModel: Step 3: Forcing fresh sync after reconnection...")
                        do {
                            let syncResponse = try await self?.apiService.syncGoogleCalendar()
-                           print("✅ CalendarViewModel: Sync after reconnection completed: \(syncResponse?.eventsSynced ?? 0) events synced")
+                           print("✅ CalendarViewModel: Sync after reconnection completed: \(syncResponse?.totalEventsSynced ?? 0) events synced")
                        } catch {
                            print("❌ CalendarViewModel: Sync after reconnection failed: \(error.localizedDescription)")
                        }
@@ -621,7 +621,7 @@ class CalendarViewModel: ObservableObject {
             print("✅ CalendarViewModel: ===== SYNC COMPLETE =====")
             print("✅ CalendarViewModel: Sync status: \(syncResponse.status)")
             print("✅ CalendarViewModel: Sync message: \(syncResponse.message)")
-            print("✅ CalendarViewModel: Events synced: \(syncResponse.eventsSynced)")
+            print("✅ CalendarViewModel: Events synced: \(syncResponse.totalEventsSynced)")
             print("✅ CalendarViewModel: User ID: \(syncResponse.userId)")
             
             // Check sync status from response
@@ -649,15 +649,15 @@ class CalendarViewModel: ObservableObject {
                 print("❌ CalendarViewModel: Error message: \(syncResponse.message)")
             }
             
-            if syncResponse.eventsSynced == 0 && syncStatusValue != "failed" {
+            if syncResponse.totalEventsSynced == 0 && syncStatusValue != "failed" {
                 print("⚠️ CalendarViewModel: ===== SYNC RETURNED 0 EVENTS =====")
                 print("⚠️ CalendarViewModel: Backend message: '\(syncResponse.message)'")
                 print("⚠️ CalendarViewModel: This could mean:")
                 print("   1. Google Calendar is empty (no events in date range)")
                 print("   2. Events are outside the sync date range")
                 print("   3. Backend sync logic may not be fetching events correctly")
-            } else if syncResponse.eventsSynced > 0 {
-                print("✅ CalendarViewModel: Backend synced \(syncResponse.eventsSynced) events")
+            } else if syncResponse.totalEventsSynced > 0 {
+                print("✅ CalendarViewModel: Backend synced \(syncResponse.totalEventsSynced) events")
             }
             
             // Step 4: Fetch events with proper date range (NOT getUpcomingEvents)

@@ -5,8 +5,8 @@ import SwiftUI
 /// This is the main Insights tab replacing the old Health tab
 /// Optimized with task cancellation and proper ViewModel lifecycle management
 struct InsightsRootView: View {
-    @State private var selectedSection: InsightsSection = .daily
-    @State private var previousSection: InsightsSection = .daily
+    @State private var selectedSection: InsightsSection = .forecast
+    @State private var previousSection: InsightsSection = .forecast
     @StateObject private var weeklyNarrativeViewModel = WeeklyNarrativeViewModel()
     @ObservedObject private var healthMetricsService = HealthMetricsService.shared
     @State private var loadTask: Task<Void, Never>?
@@ -14,9 +14,9 @@ struct InsightsRootView: View {
     @Environment(\.accessibilityReduceMotion) var reduceMotion
 
     // Track which views have been loaded to preserve their state
+    @State private var forecastViewLoaded = false
     @State private var dailyViewLoaded = false
     @State private var weeklyViewLoaded = false
-    @State private var forecastViewLoaded = false
     @State private var monthlyViewLoaded = false
     @State private var healthViewLoaded = false
 
@@ -31,17 +31,17 @@ struct InsightsRootView: View {
     }
 
     enum InsightsSection: String, CaseIterable {
+        case forecast = "Forecast"
         case daily = "Daily"
         case weekly = "Weekly"
-        case forecast = "Forecast"
         case monthly = "Monthly"
         case health = "Health"
 
         var icon: String {
             switch self {
+            case .forecast: return "sparkles"
             case .daily: return "sun.max.fill"
             case .weekly: return "calendar.badge.clock"
-            case .forecast: return "arrow.right.circle"
             case .monthly: return "calendar"
             case .health: return "heart.fill"
             }
@@ -58,7 +58,14 @@ struct InsightsRootView: View {
 
             // Content - direction-aware transitions for smooth tab switching
             ZStack {
-                // Daily View
+                // Forecast View (Tomorrow)
+                if selectedSection == .forecast {
+                    NextDayForecastView()
+                        .transition(contentTransition)
+                        .onAppear { forecastViewLoaded = true }
+                }
+
+                // Daily View (Today)
                 if selectedSection == .daily {
                     DailyInsightsTabView()
                         .transition(contentTransition)
@@ -70,13 +77,6 @@ struct InsightsRootView: View {
                     WeeklyInsightsView()
                         .transition(contentTransition)
                         .onAppear { weeklyViewLoaded = true }
-                }
-
-                // Forecast View
-                if selectedSection == .forecast {
-                    NextWeekInsightsView()
-                        .transition(contentTransition)
-                        .onAppear { forecastViewLoaded = true }
                 }
 
                 // Monthly View

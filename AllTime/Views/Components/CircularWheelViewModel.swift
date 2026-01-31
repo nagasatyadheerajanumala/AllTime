@@ -9,43 +9,60 @@ class CircularWheelViewModel: ObservableObject {
     @Published var highlightedIndex: Int = 0
     @Published var centerDate: Date = Date()
     @Published var isDragging: Bool = false
-    
+    @Published var severityLoaded: Bool = false
+    @Published var problemDay: ProblemDay?
+
     // Cached data (computed once, never recalculated)
     private(set) var days: [Date] = []
     private(set) var dayPositions: [CGPoint] = []
     private(set) var eventFlags: [Bool] = []
     private(set) var eventCounts: [Int] = []  // Number of events per day
+    private(set) var daySeverities: [String: DayMetrics] = [:]  // Day severity data by date string
+    private(set) var problemDayDate: String?  // The most problematic day's date string
     private(set) var angleToIndexMap: [Double: Int] = [:]
-    
+
     private let calendar = Calendar.current
     private var events: [Event] = []
     private var displayLink: CADisplayLink?
     private var pendingAngle: Double?
+    private let apiService = APIService()
     
-    // Apple-grade: Display link for 120fps updates
+    // Apple-grade: Display link for 120fps updates (only active during drag)
     init() {
         setupDisplayLink()
     }
-    
+
     deinit {
         displayLink?.invalidate()
     }
-    
+
     // MARK: - Display Link
-    
+
     private func setupDisplayLink() {
         displayLink = CADisplayLink(target: DisplayLinkTarget { [weak self] in
             Task { @MainActor [weak self] in
                 self?.updateFromDisplayLink()
             }
         }, selector: #selector(DisplayLinkTarget.tick))
-        displayLink?.preferredFramesPerSecond = 120 // 120fps
+        displayLink?.preferredFramesPerSecond = 120
+        displayLink?.isPaused = true  // Start paused - only run during drag
         displayLink?.add(to: .main, forMode: .common)
     }
-    
+
     private func updateFromDisplayLink() {
         guard let angle = pendingAngle else { return }
         applyAngleUpdate(angle: angle, animated: false)
+        pendingAngle = nil
+    }
+
+    /// Resume display link during drag
+    private func resumeDisplayLink() {
+        displayLink?.isPaused = false
+    }
+
+    /// Pause display link when idle
+    private func pauseDisplayLink() {
+        displayLink?.isPaused = true
         pendingAngle = nil
     }
     
@@ -89,20 +106,23 @@ class CircularWheelViewModel: ObservableObject {
     // MARK: - Drag Handling
     
     func updateFromDrag(value: DragGesture.Value, center: CGPoint) -> Date? {
-        isDragging = true
-        
+        // Resume display link on first drag
+        if !isDragging {
+            isDragging = true
+            resumeDisplayLink()
+        }
+
         let touchLocation = value.location
         let relativeX = touchLocation.x - center.x
         let relativeY = touchLocation.y - center.y
-        
-        // Calculate distance
+
+        // Calculate distance using squared values (avoid expensive sqrt)
         let distanceSquared = relativeX * relativeX + relativeY * relativeY
-        let distanceFromCenter = sqrt(distanceSquared)
-        
-        // Hit region check
-        let inner: CGFloat = 140 - 35
-        let outer: CGFloat = 140 + 35
-        guard distanceFromCenter >= inner && distanceFromCenter <= outer else {
+
+        // Hit region check using squared distances
+        let innerSquared: CGFloat = 105 * 105  // (140 - 35)²
+        let outerSquared: CGFloat = 175 * 175  // (140 + 35)²
+        guard distanceSquared >= innerSquared && distanceSquared <= outerSquared else {
             return nil
         }
         
@@ -134,18 +154,17 @@ class CircularWheelViewModel: ObservableObject {
     
     func finishDrag(value: DragGesture.Value, center: CGPoint) -> Date? {
         isDragging = false
-        pendingAngle = nil
-        
+        pauseDisplayLink()  // Stop 120fps updates immediately
+
         let touchLocation = value.location
         let relativeX = touchLocation.x - center.x
         let relativeY = touchLocation.y - center.y
-        
+
+        // Use squared distance (avoid sqrt)
         let distanceSquared = relativeX * relativeX + relativeY * relativeY
-        let distanceFromCenter = sqrt(distanceSquared)
-        
-        let inner: CGFloat = 140 - 35
-        let outer: CGFloat = 140 + 35
-        guard distanceFromCenter >= inner && distanceFromCenter <= outer else {
+        let innerSquared: CGFloat = 105 * 105
+        let outerSquared: CGFloat = 175 * 175
+        guard distanceSquared >= innerSquared && distanceSquared <= outerSquared else {
             return nil
         }
         
@@ -239,15 +258,12 @@ class CircularWheelViewModel: ObservableObject {
     func handleTap(at location: CGPoint, center: CGPoint) -> Date? {
         let relativeX = location.x - center.x
         let relativeY = location.y - center.y
-        
-        // Calculate distance from center
+
+        // Use squared distance (avoid sqrt)
         let distanceSquared = relativeX * relativeX + relativeY * relativeY
-        let distanceFromCenter = sqrt(distanceSquared)
-        
-        // Hit region check (same as drag)
-        let inner: CGFloat = 140 - 35
-        let outer: CGFloat = 140 + 35
-        guard distanceFromCenter >= inner && distanceFromCenter <= outer else {
+        let innerSquared: CGFloat = 105 * 105
+        let outerSquared: CGFloat = 175 * 175
+        guard distanceSquared >= innerSquared && distanceSquared <= outerSquared else {
             return nil
         }
         
@@ -301,10 +317,55 @@ class CircularWheelViewModel: ObservableObject {
         guard index >= 0 && index < eventCounts.count else { return 0 }
         return eventCounts[index]
     }
-    
+
     func position(at index: Int) -> CGPoint {
         guard index >= 0 && index < dayPositions.count else { return .zero }
         return dayPositions[index]
+    }
+
+    // MARK: - Day Severity
+
+    /// Get severity for a specific date
+    func severity(at index: Int) -> DayMetrics? {
+        guard index >= 0 && index < days.count else { return nil }
+        let dateString = formatDateString(days[index])
+        return daySeverities[dateString]
+    }
+
+    /// Get severity level for a specific date
+    func severityLevel(at index: Int) -> SeverityLevel {
+        guard let metrics = severity(at: index) else { return .balanced }
+        return metrics.severityLevel
+    }
+
+    /// Fetch day severity data from API
+    func loadSeverityData() async {
+        do {
+            let timezone = TimeZone.current.identifier
+            let response = try await apiService.getDaySeverity(days: 45, timezone: timezone)
+            daySeverities = response.days
+            problemDay = response.problemDay
+            problemDayDate = response.problemDay?.date
+            severityLoaded = true
+            print("✅ Loaded severity for \(daySeverities.count) days, problem day: \(problemDayDate ?? "none")")
+        } catch {
+            print("⚠️ Failed to load day severity: \(error)")
+            // Don't block UI on failure - severity is enhancement, not critical
+        }
+    }
+
+    /// Check if the date at index is the problem day
+    func isProblemDay(at index: Int) -> Bool {
+        guard let problemDate = problemDayDate,
+              index >= 0 && index < days.count else { return false }
+        let dateString = formatDateString(days[index])
+        return dateString == problemDate
+    }
+
+    private func formatDateString(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.string(from: date)
     }
 }
 

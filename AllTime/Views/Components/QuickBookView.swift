@@ -340,78 +340,49 @@ struct QuickBookView: View {
     }
 
     private func bookToReminder(activity: QuickActivity) {
-        let eventStore = EKEventStore()
+        Task {
+            do {
+                // 1. Create reminder in AllTime backend (source of truth)
+                let reminderRequest = ReminderRequest(
+                    title: activity.title,
+                    description: "Added via Quick Book",
+                    dueDate: selectedDate,
+                    reminderTime: selectedDate,
+                    reminderMinutesBefore: 15,
+                    priority: .medium,
+                    eventId: nil,
+                    recurrenceRule: nil,
+                    notificationEnabled: true,
+                    notificationSound: nil
+                )
 
-        // Request access to reminders
-        if #available(iOS 17.0, *) {
-            Task {
-                do {
-                    let granted = try await eventStore.requestFullAccessToReminders()
-                    if granted {
-                        await createReminder(eventStore: eventStore, activity: activity)
-                    } else {
-                        await MainActor.run {
-                            isBooking = false
-                            bookingError = "Please allow access to Reminders in Settings"
-                            HapticManager.shared.error()
-                        }
-                    }
-                } catch {
-                    await MainActor.run {
-                        isBooking = false
-                        bookingError = "Failed to access Reminders: \(error.localizedDescription)"
-                        HapticManager.shared.error()
-                    }
-                }
-            }
-        } else {
-            eventStore.requestAccess(to: .reminder) { granted, error in
-                if granted {
-                    Task {
-                        await createReminder(eventStore: eventStore, activity: activity)
-                    }
-                } else {
-                    DispatchQueue.main.async {
-                        isBooking = false
-                        bookingError = error?.localizedDescription ?? "Please allow access to Reminders in Settings"
-                        HapticManager.shared.error()
+                let createdReminder = try await APIService.shared.createReminder(reminderRequest)
+
+                // 2. Also sync to iOS Reminders app
+                let eventKitManager = EventKitReminderManager.shared
+                if eventKitManager.isAuthorized {
+                    do {
+                        try await eventKitManager.syncReminderToEventKit(createdReminder)
+                        print("✅ QuickBook: Synced reminder to iOS Reminders")
+                    } catch {
+                        print("⚠️ QuickBook: Failed to sync to EventKit: \(error.localizedDescription)")
+                        // Don't fail the operation - backend reminder was created successfully
                     }
                 }
-            }
-        }
-    }
 
-    private func createReminder(eventStore: EKEventStore, activity: QuickActivity) async {
-        let reminder = EKReminder(eventStore: eventStore)
-        reminder.title = activity.title
-        reminder.notes = "Added via Quick Book"
-
-        // Set the due date
-        let calendar = Calendar.current
-        var dueDateComponents = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: selectedDate)
-        reminder.dueDateComponents = dueDateComponents
-
-        // Add alarm at the scheduled time
-        let alarm = EKAlarm(absoluteDate: selectedDate)
-        reminder.addAlarm(alarm)
-
-        // Use default reminders list
-        reminder.calendar = eventStore.defaultCalendarForNewReminders()
-
-        do {
-            try eventStore.save(reminder, commit: true)
-            await MainActor.run {
-                isBooking = false
-                HapticManager.shared.success()
-                bookingSuccess = true
-                // Post notification so views know a reminder was created
-                NotificationCenter.default.post(name: NSNotification.Name("ReminderCreated"), object: nil)
-            }
-        } catch {
-            await MainActor.run {
-                isBooking = false
-                bookingError = "Failed to create reminder: \(error.localizedDescription)"
-                HapticManager.shared.error()
+                await MainActor.run {
+                    isBooking = false
+                    HapticManager.shared.success()
+                    bookingSuccess = true
+                    // Post notification so Reminders list refreshes
+                    NotificationCenter.default.post(name: NSNotification.Name("RefreshReminders"), object: nil)
+                }
+            } catch {
+                await MainActor.run {
+                    isBooking = false
+                    bookingError = "Failed to create reminder: \(error.localizedDescription)"
+                    HapticManager.shared.error()
+                }
             }
         }
     }

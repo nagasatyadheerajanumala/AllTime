@@ -48,6 +48,8 @@ struct CircularDateWheelView: View {
                         isHighlighted: index == viewModel.highlightedIndex,
                         isSelected: calendar.isDate(date, inSameDayAs: selectedDate),
                         eventCount: viewModel.eventCount(at: index),
+                        severityLevel: viewModel.severityLevel(at: index),
+                        isProblemDay: viewModel.isProblemDay(at: index),
                         position: viewModel.position(at: index),
                         size: dateBubbleSize
                     )
@@ -63,6 +65,10 @@ struct CircularDateWheelView: View {
                     dayNumber: calendar.component(.day, from: viewModel.centerDate),
                     isToday: calendar.isDate(viewModel.centerDate, inSameDayAs: Date()),
                     eventCount: viewModel.eventCount(at: viewModel.highlightedIndex),
+                    severityLevel: viewModel.severityLevel(at: viewModel.highlightedIndex),
+                    daySummary: viewModel.severity(at: viewModel.highlightedIndex)?.summary,
+                    isProblemDay: viewModel.isProblemDay(at: viewModel.highlightedIndex),
+                    problemDayLabel: viewModel.problemDay?.label,
                     size: centerCapsuleSize
                 )
                 .transaction { $0.animation = nil }
@@ -151,6 +157,10 @@ struct CircularDateWheelView: View {
             viewModel.setupDays(daysInMonth, events: events)
             viewModel.centerDate = selectedDate
         }
+        .task {
+            // Load day severity data in background
+            await viewModel.loadSeverityData()
+        }
         .onChange(of: daysInMonth) { oldDays, newDays in
             viewModel.setupDays(newDays, events: events)
         }
@@ -183,284 +193,216 @@ struct CircularDateWheelView: View {
     }
 }
 
-// MARK: - Static Background (never changes)
+// MARK: - Static Background (clean glass effect)
 struct WheelBackground: View {
     var body: some View {
-        ZStack {
-            Circle()
-                .fill(.ultraThinMaterial)
-            
-            Circle()
-                .fill(
-                    RadialGradient(
-                        colors: [
-                            Color.white.opacity(0.12),
-                            Color.clear,
-                            Color.purple.opacity(0.08)
-                        ],
-                        center: .center,
-                        startRadius: 0,
-                        endRadius: 180
-                    )
-                )
-        }
-        .overlay(
-            Circle()
-                .stroke(
-                    LinearGradient(
-                        colors: [
-                            Color.white.opacity(0.3),
-                            Color.purple.opacity(0.2),
-                            Color.blue.opacity(0.15)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
-                    lineWidth: 1.5
-                )
-        )
-        .shadow(color: .black.opacity(0.12), radius: 20, x: 0, y: 8)
-        .transaction { $0.animation = nil }
+        Circle()
+            .fill(.ultraThinMaterial)
+            .overlay(
+                Circle()
+                    .stroke(Color.white.opacity(0.2), lineWidth: 1)
+            )
+            .shadow(color: .black.opacity(0.1), radius: 16, y: 6)
+            .transaction { $0.animation = nil }
     }
 }
 
-// MARK: - Optimized Date Bubble (minimal SwiftUI)
+// MARK: - Optimized Date Bubble (Clean - only busy days highlighted)
 struct OptimizedDateBubble: View {
     let date: Date
     let dayNumber: Int
-    let dayAbbreviation: String  // "Mon", "Tue", etc.
+    let dayAbbreviation: String
     let isToday: Bool
     let isHighlighted: Bool
     let isSelected: Bool
     let eventCount: Int
+    let severityLevel: SeverityLevel
+    let isProblemDay: Bool
     let position: CGPoint
     let size: CGFloat
 
+    /// Only highlight truly busy days (5+ events) or problem days
+    private var isBusyDay: Bool {
+        isProblemDay || eventCount >= 5
+    }
+
+    /// Tint color - only for busy/problem days
+    private var tintColor: Color {
+        if isProblemDay { return Color.red }
+        if eventCount >= 7 { return Color.orange }
+        if eventCount >= 5 { return Color(red: 0.95, green: 0.6, blue: 0.2) } // Amber
+        return .clear
+    }
+
+    /// Ring color
+    private var ringColor: Color {
+        if isHighlighted { return .white.opacity(0.8) }
+        if isProblemDay { return .red.opacity(0.5) }
+        if eventCount >= 5 { return tintColor.opacity(0.4) }
+        return .white.opacity(0.2)
+    }
+
     var body: some View {
         ZStack {
-            // Liquid glass bubble
-            ZStack {
-                Circle()
-                    .fill(
-                        isHighlighted
-                            ? AnyShapeStyle(.ultraThinMaterial)
-                            : AnyShapeStyle(.ultraThinMaterial.opacity(0.8))
-                    )
+            // Glass base
+            Circle()
+                .fill(.ultraThinMaterial.opacity(0.6))
+                .frame(width: size, height: size)
 
-                if isHighlighted {
-                    Circle()
-                        .fill(
-                            RadialGradient(
-                                colors: [
-                                    Color.white.opacity(0.25),
-                                    Color.purple.opacity(0.15)
-                                ],
-                                center: .center,
-                                startRadius: 0,
-                                endRadius: size / 2
-                            )
-                        )
-                }
+            // Color tint - ONLY for busy days
+            if isBusyDay {
+                Circle()
+                    .fill(tintColor.opacity(0.35))
+                    .frame(width: size, height: size)
             }
-            .frame(width: size, height: size)
-            .overlay(
-                Circle()
-                    .stroke(
-                        isHighlighted
-                            ? LinearGradient(
-                                colors: [
-                                    Color.white.opacity(0.7),
-                                    Color.white.opacity(0.4),
-                                    Color.purple.opacity(0.3)
-                                ],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                            : LinearGradient(
-                                colors: [
-                                    Color.white.opacity(0.4),
-                                    Color.white.opacity(0.2)
-                                ],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                        lineWidth: isHighlighted ? 2.5 : 1
-                    )
-            )
-            .shadow(
-                color: isHighlighted
-                    ? Color.purple.opacity(0.6)
-                    : Color.black.opacity(0.1),
-                radius: isHighlighted ? 16 : 4,
-                x: 0,
-                y: isHighlighted ? 6 : 2
-            )
 
-            // Content: Day abbreviation, Date number, Event count
-            VStack(spacing: 1) {
-                // Day abbreviation (Mon, Tue, etc.)
+            // Ring
+            Circle()
+                .stroke(ringColor, lineWidth: isHighlighted ? 2 : 1)
+                .frame(width: size, height: size)
+
+            // Content
+            VStack(spacing: 2) {
                 Text(dayAbbreviation)
-                    .font(.system(size: size * 0.18, weight: .medium, design: .rounded))
-                    .foregroundColor(isHighlighted || isSelected ? .white.opacity(0.85) : .white.opacity(0.7))
+                    .font(.system(size: size * 0.17, weight: .medium, design: .rounded))
+                    .foregroundColor(.white.opacity(0.7))
 
-                // Day number (main focus)
                 Text("\(dayNumber)")
-                    .font(.system(size: size * 0.36, weight: isHighlighted || isSelected ? .bold : .semibold, design: .rounded))
-                    .foregroundColor(isHighlighted || isSelected ? .white : .white.opacity(0.9))
+                    .font(.system(size: size * 0.38, weight: isHighlighted ? .bold : .semibold, design: .rounded))
+                    .foregroundColor(.white)
 
-                // Event count indicator
-                if eventCount > 0 {
+                // Event indicator
+                if isBusyDay {
                     Text("\(eventCount)")
-                        .font(.system(size: size * 0.16, weight: .semibold, design: .rounded))
+                        .font(.system(size: size * 0.18, weight: .bold, design: .rounded))
                         .foregroundColor(.white)
-                        .padding(.horizontal, 4)
-                        .padding(.vertical, 1)
-                        .background(
-                            Capsule()
-                                .fill(Color.orange.opacity(0.9))
-                        )
+                } else if eventCount > 0 {
+                    Circle()
+                        .fill(.white.opacity(0.5))
+                        .frame(width: 4, height: 4)
                 } else {
-                    // Placeholder to maintain consistent spacing
-                    Color.clear
-                        .frame(height: size * 0.16 + 2)
+                    Color.clear.frame(height: size * 0.18)
                 }
             }
-            .shadow(color: .black.opacity(0.4), radius: 2, x: 0, y: 1)
         }
+        .compositingGroup()  // Faster than drawingGroup, works with materials
         .offset(x: position.x, y: position.y)
-        .scaleEffect(isHighlighted ? 1.2 : (isSelected ? 1.08 : 1.0))
-        .transaction { $0.animation = nil }
-        .animation(nil, value: isHighlighted)
+        .scaleEffect(isHighlighted ? 1.12 : 1.0)
     }
 }
 
-// MARK: - Center Highlight Capsule
+// MARK: - Center Highlight Capsule (Premium glass design)
 struct CenterHighlightCapsule: View {
     let date: Date
     let dayNumber: Int
     let isToday: Bool
     let eventCount: Int
+    let severityLevel: SeverityLevel
+    let daySummary: String?
+    let isProblemDay: Bool
+    let problemDayLabel: String?
     let size: CGFloat
 
-    private var dayNameFormatter: DateFormatter {
+    private var dayName: String {
         let formatter = DateFormatter()
         formatter.dateFormat = "EEEE"
-        return formatter
+        return formatter.string(from: date)
     }
 
-    private var dayName: String {
-        dayNameFormatter.string(from: date)
+    /// Subtle severity indicator color
+    private var indicatorColor: Color {
+        if isProblemDay || severityLevel == .overloaded { return Color(red: 0.95, green: 0.3, blue: 0.3) }
+        if severityLevel == .heavy { return Color(red: 1.0, green: 0.6, blue: 0.3) }
+        if severityLevel == .moderate { return Color(red: 0.3, green: 0.7, blue: 0.9) }
+        return Color(red: 0.4, green: 0.8, blue: 0.5)
     }
+
+    /// Status text for busy days (kept short)
+    private var statusText: String? {
+        if isProblemDay || problemDayLabel != nil { return "Overloaded" }
+        if eventCount >= 7 { return "Very busy" }
+        if eventCount >= 5 { return "Busy" }
+        return nil
+    }
+
+    // Cached gradient for performance
+    private static let topEdgeGradient = LinearGradient(
+        colors: [Color.white.opacity(0.35), Color.white.opacity(0.1), Color.clear],
+        startPoint: .top,
+        endPoint: .bottom
+    )
 
     var body: some View {
         ZStack {
-            // Clean capsule background - increased height for better content fit
+            // Premium frosted glass (single layer, no shadow for perf)
             RoundedRectangle(cornerRadius: 24)
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            Color.purple.opacity(0.6),
-                            Color.blue.opacity(0.5),
-                            Color.purple.opacity(0.7)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .frame(width: size, height: size * 0.95)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 24)
-                        .stroke(
-                            LinearGradient(
-                                colors: [
-                                    Color.white.opacity(0.8),
-                                    Color.white.opacity(0.5)
-                                ],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            lineWidth: 2
-                        )
-                )
-                .shadow(color: Color.purple.opacity(0.6), radius: 20, x: 0, y: 8)
-                .shadow(color: Color.blue.opacity(0.4), radius: 12, x: 0, y: 4)
+                .fill(.ultraThinMaterial)
+                .frame(width: size, height: size)
 
-            // Date display with proper spacing
-            VStack(spacing: 2) {
+            // Subtle inner highlight (cached gradient)
+            RoundedRectangle(cornerRadius: 24)
+                .stroke(Self.topEdgeGradient, lineWidth: 1)
+                .frame(width: size, height: size)
+
+            // Content - constrained to box
+            VStack(spacing: 5) {
+                // Day name
                 Text(dayName)
-                    .font(.system(size: 13, weight: .semibold, design: .rounded))
-                    .foregroundColor(.white.opacity(0.9))
-                    .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 1)
+                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .foregroundColor(.white.opacity(0.75))
 
+                // Day number (large, elegant)
                 Text("\(dayNumber)")
                     .font(.system(size: 38, weight: .bold, design: .rounded))
                     .foregroundColor(.white)
-                    .shadow(color: .black.opacity(0.4), radius: 3, x: 0, y: 2)
 
-                // Event count badge
+                // Event info
                 if eventCount > 0 {
-                    Text("\(eventCount) event\(eventCount == 1 ? "" : "s")")
-                        .font(.system(size: 12, weight: .semibold, design: .rounded))
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 4)
-                        .background(
-                            Capsule()
-                                .fill(Color.orange.opacity(0.9))
-                        )
-                        .shadow(color: Color.orange.opacity(0.5), radius: 4)
+                    HStack(spacing: 4) {
+                        Circle()
+                            .fill(indicatorColor)
+                            .frame(width: 5, height: 5)
+                        Text("\(eventCount) event\(eventCount == 1 ? "" : "s")")
+                            .font(.system(size: 11, weight: .medium, design: .rounded))
+                            .foregroundColor(.white.opacity(0.85))
+                    }
+
+                    // Status for busy/problem days
+                    if let status = statusText {
+                        Text(status)
+                            .font(.system(size: 9, weight: .semibold, design: .rounded))
+                            .foregroundColor(indicatorColor.opacity(0.9))
+                            .lineLimit(1)
+                    }
+                } else {
+                    Text("No events")
+                        .font(.system(size: 11, weight: .medium, design: .rounded))
+                        .foregroundColor(.white.opacity(0.6))
                 }
             }
-            .padding(.vertical, 8)
+            .frame(width: size - 16) // Constrain content width
         }
         .transaction { $0.animation = nil }
     }
 }
 
-// MARK: - Today Button
+// MARK: - Today Button (Clean, minimal)
 struct TodayButton: View {
     let action: () -> Void
-    
+
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 6) {
-                Image(systemName: "calendar.badge.clock")
-                    .font(.system(size: 14, weight: .semibold))
-                Text("Today")
-                    .font(.system(size: 14, weight: .semibold))
-            }
-            .foregroundColor(.white)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 8)
-            .background(
-                Capsule()
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                Color.blue.opacity(0.8),
-                                Color.purple.opacity(0.7)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-            )
-            .overlay(
-                Capsule()
-                    .stroke(
-                        LinearGradient(
-                            colors: [
-                                Color.white.opacity(0.5),
-                                Color.white.opacity(0.2)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
-                        lineWidth: 1.5
-                    )
-            )
-            .shadow(color: Color.blue.opacity(0.4), radius: 12, x: 0, y: 4)
-            .shadow(color: Color.black.opacity(0.2), radius: 6, x: 0, y: 2)
+            Text("Today")
+                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                .foregroundColor(.white.opacity(0.9))
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(.ultraThinMaterial)
+                .clipShape(Capsule())
+                .overlay(
+                    Capsule()
+                        .stroke(Color.white.opacity(0.3), lineWidth: 1)
+                )
         }
         .buttonStyle(PlainButtonStyle())
     }

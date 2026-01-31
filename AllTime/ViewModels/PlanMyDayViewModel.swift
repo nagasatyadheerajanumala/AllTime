@@ -144,7 +144,8 @@ class PlanMyDayViewModel: ObservableObject {
                 preferences: ItineraryPreferences(
                     pace: pace,
                     includeMeals: includeMeals,
-                    budget: "moderate"
+                    budget: "moderate",
+                    timezone: TimeZone.current.identifier
                 )
             )
 
@@ -153,10 +154,20 @@ class PlanMyDayViewModel: ObservableObject {
             let (data, response) = try await URLSession.shared.data(for: request)
 
             guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
+                let statusCode = (response as? HTTPURLResponse)?.statusCode ?? -1
+                var errorDetail = "HTTP \(statusCode)"
                 if let responseStr = String(data: data, encoding: .utf8) {
-                    print("Generate itinerary failed: \(responseStr)")
+                    print("Generate itinerary failed (\(statusCode)): \(responseStr)")
+                    // Try to extract detail from JSON response
+                    if let jsonData = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                       let detail = jsonData["detail"] as? String {
+                        errorDetail = detail
+                    } else if let jsonData = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                              let error = jsonData["error"] as? String {
+                        errorDetail = error
+                    }
                 }
-                throw URLError(.badServerResponse)
+                throw NSError(domain: "ItineraryError", code: statusCode, userInfo: [NSLocalizedDescriptionKey: errorDetail])
             }
 
             let decoded = try JSONDecoder().decode(ItineraryResponse.self, from: data)

@@ -229,32 +229,214 @@ class EventNotificationService: ObservableObject {
         notificationCenter.setNotificationCategories([category])
     }
 
-    // MARK: - Notification Content
+    // MARK: - Creative Notification Content
+    // Goal: Be a helpful friend, not a nagging alarm
 
     private func getNotificationTitle(for event: CalendarEvent) -> String {
-        let timeText = notificationMinutesBefore == 1 ? "1 minute" : "\(notificationMinutesBefore) minutes"
-        return "Starting in \(timeText)"
-    }
+        let minutes = notificationMinutesBefore
+        let titleLower = event.title.lowercased()
+        let hour = Calendar.current.component(.hour, from: Date())
+        let weekday = Calendar.current.component(.weekday, from: Date())
 
-    private func getNotificationBody(for event: CalendarEvent) -> String {
-        var body = event.title
-
-        if let location = event.location, let locationName = location.name, !locationName.isEmpty {
-            body += " at \(locationName)"
-        }
-
-        // Add event type indicator
+        // Special event types
         if let eventType = event.eventType {
             switch eventType {
             case "flight":
-                body = "Flight: \(event.title)"
+                return "✈️ Flight's coming up"
             case "hotel":
-                body = "Hotel check-in: \(event.title)"
+                return "🏨 Check-in time soon"
             case "birthday":
-                body = "\(event.title)"
+                return "🎂 Birthday alert!"
             default:
                 break
             }
+        }
+
+        // Friday 4pm+ meetings deserve special treatment
+        if weekday == 6 && hour >= 16 {
+            return [
+                "Friday EOD meeting 😅",
+                "Late Friday meeting...",
+                "Almost weekend, but first..."
+            ].randomElement()!
+        }
+
+        // Early morning (before 9am) meetings
+        if hour < 9 && minutes <= 15 {
+            return [
+                "Early bird meeting",
+                "Morning meeting incoming",
+                "Rise and meet"
+            ].randomElement()!
+        }
+
+        // 1:1 meetings — personal touch
+        if titleLower.contains("1:1") || titleLower.contains("1-1") || titleLower.contains("one on one") {
+            if titleLower.contains("manager") || titleLower.contains("skip") {
+                return "1:1 with leadership soon"
+            }
+            return [
+                "1:1 time",
+                "1:1 coming up",
+                "Heads up: 1:1"
+            ].randomElement()!
+        }
+
+        // Standup/daily sync — quick acknowledgment
+        if titleLower.contains("standup") || titleLower.contains("stand-up") || titleLower.contains("daily sync") || titleLower.contains("daily scrum") {
+            return [
+                "Standup time",
+                "Daily sync incoming",
+                "Standup in \(minutes)"
+            ].randomElement()!
+        }
+
+        // Interview — supportive
+        if titleLower.contains("interview") {
+            return "🎯 Interview time — you've got this"
+        }
+
+        // All-hands, town hall — FYI energy
+        if titleLower.contains("all-hands") || titleLower.contains("town hall") || titleLower.contains("all hands") {
+            return [
+                "All-hands starting soon",
+                "Company meeting incoming",
+                "All-hands time"
+            ].randomElement()!
+        }
+
+        // Lunch/coffee/social — positive
+        if titleLower.contains("lunch") || titleLower.contains("coffee") || titleLower.contains("catch up") || titleLower.contains("happy hour") {
+            return [
+                "Social time ☕",
+                "Break incoming",
+                "Time for humans"
+            ].randomElement()!
+        }
+
+        // Training/workshop — heads up it's long
+        if titleLower.contains("training") || titleLower.contains("workshop") || titleLower.contains("session") {
+            return [
+                "Training starting",
+                "Workshop time",
+                "Learning session ahead"
+            ].randomElement()!
+        }
+
+        // Long meeting warning (90+ min)
+        if let duration = event.duration, duration >= 90 {
+            return [
+                "Long one ahead (\(duration/60)h)",
+                "Buckle up — long meeting",
+                "Marathon meeting incoming"
+            ].randomElement()!
+        }
+
+        // Imminent (5 min or less)
+        if minutes <= 5 {
+            return [
+                "Starting now",
+                "It's time",
+                "Go time"
+            ].randomElement()!
+        }
+
+        // Standard timing variations
+        if minutes <= 10 {
+            return [
+                "\(minutes) min warning",
+                "Starting soon",
+                "Almost time"
+            ].randomElement()!
+        }
+
+        if minutes == 15 {
+            return [
+                "15 min heads up",
+                "Meeting in 15",
+                "Quick heads up"
+            ].randomElement()!
+        }
+
+        // Default
+        return [
+            "In \(minutes) minutes",
+            "\(minutes) min warning",
+            "Coming up"
+        ].randomElement()!
+    }
+
+    private func getNotificationBody(for event: CalendarEvent) -> String {
+        let title = event.title
+        let titleLower = title.lowercased()
+        let weekday = Calendar.current.component(.weekday, from: Date())
+        let hour = Calendar.current.component(.hour, from: Date())
+
+        // Special event types with personality
+        if let eventType = event.eventType {
+            switch eventType {
+            case "flight":
+                if let location = event.location, let name = location.name, !name.isEmpty {
+                    return "✈️ \(title) → \(name). Gate info ready?"
+                }
+                return "✈️ \(title). Boarding pass + ID. Let's go."
+            case "hotel":
+                return "🏨 \(title). Got your confirmation number?"
+            case "birthday":
+                return "🎂 \(title) — don't forget to say happy birthday!"
+            default:
+                break
+            }
+        }
+
+        var body = title
+
+        // Location context with personality
+        if let location = event.location, let locationName = location.name, !locationName.isEmpty {
+            let locLower = locationName.lowercased()
+
+            if locLower.contains("zoom") {
+                body += " 📹 Zoom"
+            } else if locLower.contains("meet.google") || locLower.contains("google meet") {
+                body += " 📹 Google Meet"
+            } else if locLower.contains("teams") {
+                body += " 📹 Teams"
+            } else if locLower.contains("http") || locLower.contains("://") {
+                body += " (virtual)"
+            } else {
+                // Physical location
+                let shortLoc = locationName.prefix(25)
+                body += " 📍 \(shortLoc)"
+            }
+        }
+
+        // Context-aware additions
+        // Interview support
+        if titleLower.contains("interview") {
+            body += ". Deep breath. You're prepared."
+        }
+        // Presentation/review encouragement
+        else if titleLower.contains("presentation") || titleLower.contains("present") {
+            body += ". You know your stuff."
+        }
+        else if titleLower.contains("review") && (titleLower.contains("perf") || titleLower.contains("annual")) {
+            body += ". You've got this."
+        }
+        // Friday late meeting sympathy
+        else if weekday == 6 && hour >= 16 {
+            body += ". Then: weekend."
+        }
+        // Early meeting acknowledgment
+        else if hour < 9 {
+            body += ". Coffee first?"
+        }
+        // 1:1 with specific person — keep it clean
+        else if titleLower.contains("1:1") || titleLower.contains("1-1") {
+            // Don't add extra text for 1:1s
+        }
+        // Long meeting prep
+        else if let duration = event.duration, duration >= 90 {
+            body += ". It's a long one — snacks recommended."
         }
 
         return body

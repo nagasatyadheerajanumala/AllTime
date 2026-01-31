@@ -6,6 +6,22 @@ class APIService: ObservableObject {
     private let baseURL = Constants.API.baseURL
     private let session = URLSession.shared
 
+    // MARK: - JSON Decoder Factory
+    // IMPORTANT: JSONDecoder is a reference type. If we return a shared instance,
+    // any code that modifies it (setting keyDecodingStrategy, dateDecodingStrategy)
+    // will affect ALL other code using the same decoder.
+    // Therefore, we return a NEW instance each time to avoid cross-contamination.
+    static var sharedDecoder: JSONDecoder {
+        JSONDecoder()
+    }
+
+    /// Decoder with ISO8601 date strategy
+    static var sharedDateDecoder: JSONDecoder {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return decoder
+    }
+
     // MARK: - Safe URL Creation
     /// Creates a URL from the given string, throwing an error if invalid
     private func makeURL(_ path: String) throws -> URL {
@@ -358,7 +374,7 @@ class APIService: ObservableObject {
         do {
             // Decode AuthResponse
             // Note: AuthResponse and User both have explicit CodingKeys, so we don't need keyDecodingStrategy
-            let decoder = JSONDecoder()
+            let decoder = APIService.sharedDecoder
             let authResponse = try decoder.decode(AuthResponse.self, from: data)
             print("🌐 APIService: Response decoded successfully, token: \(authResponse.accessToken.prefix(20))...")
             return authResponse
@@ -452,7 +468,7 @@ class APIService: ObservableObject {
         
         do {
             // Backend returns snake_case, so convert to camelCase
-            let decoder = JSONDecoder()
+            let decoder = APIService.sharedDecoder
             decoder.keyDecodingStrategy = .convertFromSnakeCase
             let refreshResponse = try decoder.decode(RefreshTokenResponse.self, from: data)
             print("🔄 APIService: Token refresh successful")
@@ -493,7 +509,7 @@ class APIService: ObservableObject {
             let (data, response) = try await session.data(for: request)
             try await validateResponse(response, data: data)
 
-            let decoder = JSONDecoder()
+            let decoder = APIService.sharedDecoder
             decoder.keyDecodingStrategy = .convertFromSnakeCase
             return try decoder.decode(User.self, from: data)
         }
@@ -569,7 +585,7 @@ class APIService: ObservableObject {
             
             try await validateResponse(response, data: data)
             
-            let decoder = JSONDecoder()
+            let decoder = APIService.sharedDecoder
             decoder.keyDecodingStrategy = .convertFromSnakeCase
             let user = try decoder.decode(User.self, from: data)
             
@@ -658,7 +674,7 @@ class APIService: ObservableObject {
         
         try await validateResponse(response, data: data)
         
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         
         do {
@@ -717,7 +733,7 @@ class APIService: ObservableObject {
         
         try await validateResponse(response, data: data)
         
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         
         do {
@@ -798,7 +814,7 @@ class APIService: ObservableObject {
             try await validateResponse(response, data: data)
             
             // Note: EventsResponse uses explicit CodingKeys, so keyDecodingStrategy is not needed
-            let decoder = JSONDecoder()
+            let decoder = APIService.sharedDecoder
             return try decoder.decode(EventsResponse.self, from: data)
         } catch let error as APIError where error.code == "401_REFRESHED" {
             // Token was refreshed, retry the request with new token
@@ -817,7 +833,7 @@ class APIService: ObservableObject {
             let (data, response) = try await session.data(for: retryRequest)
             try await validateResponse(response, data: data)
 
-            let decoder = JSONDecoder()
+            let decoder = APIService.sharedDecoder
             return try decoder.decode(EventsResponse.self, from: data)
         }
     }
@@ -831,7 +847,7 @@ class APIService: ObservableObject {
         let (data, response) = try await session.data(for: request)
         try await validateResponse(response, data: data)
         
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         // SyncResponse now includes optional diagnostics
         return try decoder.decode(SyncResponse.self, from: data)
@@ -846,7 +862,7 @@ class APIService: ObservableObject {
         let (data, response) = try await session.data(for: request)
         try await validateResponse(response, data: data)
         
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         return try decoder.decode(SyncResponse.self, from: data)
     }
@@ -860,7 +876,7 @@ class APIService: ObservableObject {
         let (data, response) = try await session.data(for: request)
         try await validateResponse(response, data: data)
         
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         return try decoder.decode(SyncResponse.self, from: data)
     }
@@ -1058,7 +1074,7 @@ class APIService: ObservableObject {
         try await validateResponse(response, data: data)
 
         // Decode using OAuthStartResponse model
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         let oauthResponse = try decoder.decode(OAuthStartResponse.self, from: data)
 
         print("✅ APIService: OAuth URL received: \(oauthResponse.authorizationUrl)")
@@ -1095,7 +1111,7 @@ class APIService: ObservableObject {
         try await validateResponse(response, data: data)
 
         // Decode using OAuthStartResponse model
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         let oauthResponse = try decoder.decode(OAuthStartResponse.self, from: data)
 
         print("✅ APIService: OAuth URL received: \(oauthResponse.authorizationUrl)")
@@ -1126,7 +1142,7 @@ class APIService: ObservableObject {
         let (data, response) = try await session.data(for: request)
         try await validateResponse(response, data: data)
         
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         return try decoder.decode(CalendarDiagnosticsResponse.self, from: data)
     }
@@ -1141,7 +1157,7 @@ class APIService: ObservableObject {
         let (data, response) = try await session.data(for: request)
         try await validateResponse(response, data: data)
         
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         return try decoder.decode(SyncStatusResponse.self, from: data)
     }
@@ -1166,7 +1182,7 @@ class APIService: ObservableObject {
         let (data, response) = try await session.data(for: request)
         try await validateResponse(response, data: data)
         
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         return try decoder.decode(SummaryPreferencesResponse.self, from: data)
     }
@@ -1228,7 +1244,7 @@ class APIService: ObservableObject {
         let (data, response) = try await session.data(for: request)
         try await validateResponse(response, data: data)
         
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         return try decoder.decode(PushNotificationStatus.self, from: data)
     }
@@ -1241,7 +1257,7 @@ class APIService: ObservableObject {
         let (data, response) = try await session.data(for: request)
         try await validateResponse(response, data: data)
         
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         return try decoder.decode(ConnectionStatus.self, from: data)
     }
@@ -1254,7 +1270,7 @@ class APIService: ObservableObject {
         let (data, response) = try await session.data(for: request)
         try await validateResponse(response, data: data)
         
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         return try decoder.decode(ConnectionStatus.self, from: data)
     }
@@ -1272,7 +1288,7 @@ class APIService: ObservableObject {
         let (data, response) = try await session.data(for: request)
         try await validateResponse(response, data: data)
         
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         return try decoder.decode(SummaryHistoryResponse.self, from: data)
     }
@@ -1527,6 +1543,72 @@ class APIService: ObservableObject {
         return clashResponse
     }
 
+    /// Resolve a meeting clash by declining or rescheduling an event
+    /// - Parameters:
+    ///   - eventId: The ID of the event to act on
+    ///   - action: "decline" to cancel the event, "reschedule" to get reschedule info
+    /// - Returns: ClashResolutionResponse with success status and message
+    func resolveClash(eventId: Int64, action: String) async throws -> ClashResolutionResponse {
+        let url = try makeURL("\(baseURL)/calendar/clashes/resolve")
+
+        print("🔧 APIService: Resolving clash - \(action) event \(eventId)")
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.timeoutInterval = Constants.API.timeout
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        if let token = accessToken {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+
+        let body: [String: Any] = [
+            "eventId": eventId,
+            "action": action
+        ]
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+
+        let (data, response) = try await session.data(for: request)
+        try await validateResponse(response, data: data)
+
+        let result = try JSONDecoder().decode(ClashResolutionResponse.self, from: data)
+        print("✅ APIService: Clash resolution - \(result.message ?? "done")")
+
+        return result
+    }
+
+    /// Fetch day severity metrics for calendar visualization
+    /// - Parameters:
+    ///   - days: Number of days to fetch (default 30)
+    ///   - timezone: User's timezone identifier
+    /// - Returns: DaySeverityResponse with metrics for each day
+    func getDaySeverity(days: Int = 30, timezone: String? = nil) async throws -> DaySeverityResponse {
+        var urlString = "\(baseURL)/calendars/day-severity?days=\(days)"
+        if let tz = timezone {
+            urlString += "&timezone=\(tz.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? tz)"
+        }
+
+        let url = try makeURL(urlString)
+
+        print("📊 APIService: Fetching day severity from \(url)")
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.timeoutInterval = Constants.API.timeout
+
+        if let token = accessToken {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+
+        let (data, response) = try await session.data(for: request)
+        try await validateResponse(response, data: data)
+
+        let result = try JSONDecoder().decode(DaySeverityResponse.self, from: data)
+        print("✅ APIService: Got severity for \(result.days.count) days")
+
+        return result
+    }
+
     func getUpcomingEvents(days: Int = 7) async throws -> EventsResponse {
         // Use the new structured GET /calendars/events/upcoming endpoint
         // This endpoint returns the same structure as GET /events
@@ -1561,7 +1643,7 @@ class APIService: ObservableObject {
         // Parse response with detailed error handling
         // Note: All structs (EventsResponse, CalendarEvent, EventLocation, EventAttendee, etc.)
         // have explicit CodingKeys, so we don't need keyDecodingStrategy
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         
         do {
             let eventsResponse = try decoder.decode(EventsResponse.self, from: data)
@@ -1858,7 +1940,7 @@ class APIService: ObservableObject {
         
         // Use standard decoder - SyncResponse has explicit CodingKeys for field mapping
         // Note: When using explicit CodingKeys, keyDecodingStrategy is ignored
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         let responseString = String(data: data, encoding: .utf8) ?? "No response body"
         
         do {
@@ -1867,10 +1949,10 @@ class APIService: ObservableObject {
             print("✅ APIService: Status: \(syncResponse.status)")
             print("✅ APIService: Message: \(syncResponse.message)")
             print("✅ APIService: User ID: \(syncResponse.userId)")
-            print("✅ APIService: Events Synced: \(syncResponse.eventsSynced)")
+            print("✅ APIService: Events Synced: \(syncResponse.totalEventsSynced)")
             print("✅ APIService: ===== END SYNC RESPONSE =====")
             
-            if syncResponse.eventsSynced == 0 {
+            if syncResponse.totalEventsSynced == 0 {
                 print("⚠️ APIService: ===== WARNING: SYNC RETURNED 0 EVENTS =====")
                 print("⚠️ APIService: This means:")
                 print("   - Either Google Calendar has no events in the sync date range")
@@ -1879,7 +1961,7 @@ class APIService: ObservableObject {
                 print("⚠️ APIService: Check backend logs to see what Google Calendar API returned")
                 print("⚠️ APIService: The backend should now check ALL calendars, not just 'primary'")
             } else {
-                print("✅ APIService: SUCCESS - \(syncResponse.eventsSynced) events were synced from Google Calendar")
+                print("✅ APIService: SUCCESS - \(syncResponse.totalEventsSynced) events were synced from Google Calendar")
             }
             
             return syncResponse
@@ -2086,7 +2168,7 @@ class APIService: ObservableObject {
             switch httpResponse.statusCode {
             case 200:
                 // Success - decode response
-                let decoder = JSONDecoder()
+                let decoder = APIService.sharedDecoder
                 decoder.keyDecodingStrategy = .convertFromSnakeCase
                 
                 do {
@@ -2175,7 +2257,7 @@ class APIService: ObservableObject {
         try await validateResponse(response, data: data)
 
         // If we get here, decode the response
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         return try decoder.decode(DeleteCalendarResponse.self, from: data)
     }
@@ -2217,7 +2299,7 @@ class APIService: ObservableObject {
 
         try await validateResponse(response, data: data)
 
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         return try decoder.decode(DeleteCalendarResponse.self, from: data)
     }
@@ -2314,7 +2396,7 @@ class APIService: ObservableObject {
                 // Note: EventDetails uses explicit CodingKeys for snake_case fields
                 // Attendees may use either camelCase (displayName, responseStatus) or snake_case (display_name, response_status)
                 // The Attendee model's custom decoder handles both formats
-                let decoder = JSONDecoder()
+                let decoder = APIService.sharedDecoder
                 
                 do {
                     let eventDetails = try decoder.decode(EventDetails.self, from: data)
@@ -2448,7 +2530,7 @@ class APIService: ObservableObject {
         
         // If we get here, decode the response
         // Note: EventDetails uses explicit CodingKeys, so we don't need keyDecodingStrategy
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         return try decoder.decode(EventDetails.self, from: data)
     }
     
@@ -2913,7 +2995,7 @@ class APIService: ObservableObject {
         
         // Parse response using CreateEventResponse model
         // Note: Don't use keyDecodingStrategy since CreateEventResponse has explicit CodingKeys
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         
         do {
             let eventResponse = try decoder.decode(CreateEventResponse.self, from: data)
@@ -3046,7 +3128,7 @@ class APIService: ObservableObject {
             
             switch httpResponse.statusCode {
             case 200:
-                let decoder = JSONDecoder()
+                let decoder = APIService.sharedDecoder
                 // Don't use keyDecodingStrategy since DailyAISummaryResponse has explicit CodingKeys
                 
                 do {
@@ -3179,7 +3261,7 @@ class APIService: ObservableObject {
 
             switch httpResponse.statusCode {
             case 200:
-                let decoder = JSONDecoder()
+                let decoder = APIService.sharedDecoder
 
                 do {
                     let summary = try decoder.decode(DailySummary.self, from: data)
@@ -3344,7 +3426,7 @@ class APIService: ObservableObject {
 
             switch httpResponse.statusCode {
             case 200:
-                let decoder = JSONDecoder()
+                let decoder = APIService.sharedDecoder
                 do {
                     let recommendations = try decoder.decode(FoodRecommendationsResponse.self, from: data)
                     print("✅ APIService: Successfully decoded food recommendations")
@@ -3429,7 +3511,7 @@ class APIService: ObservableObject {
 
             switch httpResponse.statusCode {
             case 200:
-                let decoder = JSONDecoder()
+                let decoder = APIService.sharedDecoder
                 decoder.dateDecodingStrategy = .iso8601
                 do {
                     let result = try decoder.decode(MeetingSpotRecommendations.self, from: data)
@@ -3520,7 +3602,7 @@ class APIService: ObservableObject {
 
             switch httpResponse.statusCode {
             case 200:
-                let decoder = JSONDecoder()
+                let decoder = APIService.sharedDecoder
                 do {
                     let result = try decoder.decode(SimilarWeekInsight.self, from: data)
                     if result.hasSimilarWeek {
@@ -3633,7 +3715,7 @@ class APIService: ObservableObject {
 
             switch httpResponse.statusCode {
             case 200:
-                let decoder = JSONDecoder()
+                let decoder = APIService.sharedDecoder
                 do {
                     let recommendations = try decoder.decode(WalkRecommendationsResponse.self, from: data)
                     print("✅ APIService: Successfully decoded walk recommendations")
@@ -3727,7 +3809,7 @@ class APIService: ObservableObject {
             
             switch httpResponse.statusCode {
             case 200:
-                let decoder = JSONDecoder()
+                let decoder = APIService.sharedDecoder
                 // Don't use keyDecodingStrategy - EnhancedDailySummaryResponse has explicit CodingKeys
                 
                 do {
@@ -3828,7 +3910,7 @@ class APIService: ObservableObject {
             
             switch httpResponse.statusCode {
             case 200:
-                let decoder = JSONDecoder()
+                let decoder = APIService.sharedDecoder
                 // Don't use keyDecodingStrategy - TimelineDayResponse has explicit CodingKeys
                 
                 do {
@@ -3938,7 +4020,7 @@ class APIService: ObservableObject {
             
             switch httpResponse.statusCode {
             case 200:
-                let decoder = JSONDecoder()
+                let decoder = APIService.sharedDecoder
                 // Don't use keyDecodingStrategy - LifeWheelResponse has explicit CodingKeys
                 
                 do {
@@ -4036,7 +4118,7 @@ class APIService: ObservableObject {
             
             switch httpResponse.statusCode {
             case 200, 201:
-                let decoder = JSONDecoder()
+                let decoder = APIService.sharedDecoder
                 decoder.keyDecodingStrategy = .convertFromSnakeCase
                 
                 do {
@@ -4186,7 +4268,7 @@ class APIService: ObservableObject {
             
             switch httpResponse.statusCode {
             case 200:
-                let decoder = JSONDecoder()
+                let decoder = APIService.sharedDecoder
                 // Don't use keyDecodingStrategy - HealthInsightsResponse has explicit CodingKeys
                 
                 do {
@@ -4308,7 +4390,7 @@ class APIService: ObservableObject {
             
             switch httpResponse.statusCode {
             case 200:
-                let decoder = JSONDecoder()
+                let decoder = APIService.sharedDecoder
                 // Don't use keyDecodingStrategy - HealthInsightsResponse has explicit CodingKeys
                 
                 do {
@@ -4396,7 +4478,7 @@ class APIService: ObservableObject {
 
             switch httpResponse.statusCode {
             case 200:
-                let decoder = JSONDecoder()
+                let decoder = APIService.sharedDecoder
                 do {
                     let patterns = try decoder.decode(EnergyPatternsResponse.self, from: data)
                     print("✅ APIService: Successfully decoded energy patterns")
@@ -4471,7 +4553,7 @@ class APIService: ObservableObject {
         }
 
         // Don't use .iso8601 or .convertFromSnakeCase - Reminder model has custom decoder
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
 
         switch httpResponse.statusCode {
         case 201:
@@ -4522,7 +4604,7 @@ class APIService: ObservableObject {
         }
 
         // Don't use .iso8601 or .convertFromSnakeCase - Reminder model has custom decoder
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
 
         let responseData = try decoder.decode(RemindersResponse.self, from: data)
         print("✅ APIService: Fetched \(responseData.reminders.count) reminders")
@@ -4559,7 +4641,7 @@ class APIService: ObservableObject {
             throw NSError(domain: "AllTime", code: (response as? HTTPURLResponse)?.statusCode ?? 500, userInfo: [NSLocalizedDescriptionKey: "Failed to fetch prioritized reminders"])
         }
 
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         let responseData = try decoder.decode(PrioritizedRemindersResponse.self, from: data)
         print("✅ APIService: Fetched prioritized reminders with \(responseData.prioritized.count) suggestions")
         return responseData
@@ -4602,7 +4684,7 @@ class APIService: ObservableObject {
         }
 
         // Don't use .iso8601 or .convertFromSnakeCase - Reminder model has custom decoder
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
 
         let responseData = try decoder.decode(RemindersRangeResponse.self, from: data)
         print("✅ APIService: Fetched \(responseData.reminders.count) reminders in range")
@@ -4635,7 +4717,7 @@ class APIService: ObservableObject {
         }
 
         // Don't use .iso8601 or .convertFromSnakeCase - Reminder model has custom decoder
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
 
         switch httpResponse.statusCode {
         case 200:
@@ -4682,7 +4764,7 @@ class APIService: ObservableObject {
         }
 
         // Don't use .iso8601 or .convertFromSnakeCase - Reminder model has custom decoder
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
 
         switch httpResponse.statusCode {
         case 200:
@@ -4725,7 +4807,7 @@ class APIService: ObservableObject {
         }
 
         // Don't use .iso8601 or .convertFromSnakeCase - Reminder model has custom decoder
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
 
         switch httpResponse.statusCode {
         case 200:
@@ -4772,7 +4854,7 @@ class APIService: ObservableObject {
         }
 
         // Don't use .iso8601 or .convertFromSnakeCase - Reminder model has custom decoder
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
 
         switch httpResponse.statusCode {
         case 200:
@@ -4852,7 +4934,7 @@ class APIService: ObservableObject {
         }
 
         // Don't use .iso8601 or .convertFromSnakeCase - Reminder model has custom decoder
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
 
         switch httpResponse.statusCode {
         case 200:
@@ -4902,7 +4984,7 @@ class APIService: ObservableObject {
         }
 
         // Don't use .iso8601 or .convertFromSnakeCase - Reminder model has custom decoder
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
 
         switch httpResponse.statusCode {
         case 200:
@@ -4957,7 +5039,7 @@ class APIService: ObservableObject {
         
         switch httpResponse.statusCode {
         case 200:
-            let decoder = JSONDecoder()
+            let decoder = APIService.sharedDecoder
             decoder.dateDecodingStrategy = .iso8601
             decoder.keyDecodingStrategy = .convertFromSnakeCase
             
@@ -5041,7 +5123,7 @@ class APIService: ObservableObject {
         
         try await validateResponse(response, data: data)
         
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         decoder.dateDecodingStrategy = .iso8601
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         
@@ -5150,7 +5232,7 @@ class APIService: ObservableObject {
         
         // Use standard decoder - ClashResponse has explicit CodingKeys for snake_case conversion
         // Don't use .convertFromSnakeCase as it conflicts with explicit CodingKeys
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
 
         do {
             let result = try decoder.decode(ClashResponse.self, from: data)
@@ -5212,7 +5294,7 @@ class APIService: ObservableObject {
         
         switch httpResponse.statusCode {
         case 200:
-            let decoder = JSONDecoder()
+            let decoder = APIService.sharedDecoder
             decoder.dateDecodingStrategy = .iso8601
             decoder.keyDecodingStrategy = .convertFromSnakeCase
             
@@ -5303,7 +5385,7 @@ class APIService: ObservableObject {
         
         switch httpResponse.statusCode {
         case 200, 201:
-            let decoder = JSONDecoder()
+            let decoder = APIService.sharedDecoder
             decoder.dateDecodingStrategy = .iso8601
             decoder.keyDecodingStrategy = .convertFromSnakeCase
             
@@ -5353,6 +5435,58 @@ class APIService: ObservableObject {
         }
     }
 
+    // MARK: - Sleep Data Reliability
+
+    /// Check if user's sleep data is reliable (GET /api/v1/health/sleep-reliability)
+    /// Returns detailed assessment of sleep tracking reliability
+    func getSleepReliability() async throws -> SleepReliabilityResponse {
+        guard let token = accessToken else {
+            throw NSError(
+                domain: "AllTime",
+                code: 401,
+                userInfo: [NSLocalizedDescriptionKey: "Authentication required. Please sign in again."]
+            )
+        }
+
+        let url = try makeURL("\(baseURL)/api/v1/health/sleep-reliability")
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.timeoutInterval = Constants.API.timeout
+
+        let (data, response) = try await session.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw NSError(
+                domain: "AllTime",
+                code: 500,
+                userInfo: [NSLocalizedDescriptionKey: "Invalid response from server"]
+            )
+        }
+
+        switch httpResponse.statusCode {
+        case 200:
+            let decoder = JSONDecoder()
+            return try decoder.decode(SleepReliabilityResponse.self, from: data)
+
+        case 401:
+            throw NSError(
+                domain: "AllTime",
+                code: 401,
+                userInfo: [NSLocalizedDescriptionKey: "Authentication failed. Please sign in again."]
+            )
+
+        default:
+            throw NSError(
+                domain: "AllTime",
+                code: httpResponse.statusCode,
+                userInfo: [NSLocalizedDescriptionKey: "Server error (code: \(httpResponse.statusCode))"]
+            )
+        }
+    }
+
     // MARK: - Intelligent Up Next
 
     /// Get intelligent "Up Next" suggestions based on calendar gaps and context.
@@ -5391,7 +5525,7 @@ class APIService: ObservableObject {
             print(String(responseStr.prefix(1500)))
         }
 
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         decoder.dateDecodingStrategy = .custom(flexibleDateDecoder)
         return try decoder.decode(UpNextItemsResponse.self, from: data)
     }
@@ -5418,7 +5552,7 @@ class APIService: ObservableObject {
         let (data, response) = try await session.data(for: request)
         try await validateResponse(response, data: data)
 
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         decoder.dateDecodingStrategy = .custom(flexibleDateDecoder)
         return try decoder.decode(UserTask.self, from: data)
     }
@@ -5515,7 +5649,7 @@ class APIService: ObservableObject {
         let (data, response) = try await session.data(for: request)
         try await validateResponse(response, data: data)
 
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         decoder.dateDecodingStrategy = .custom(flexibleDateDecoder)
         return try decoder.decode(UserTask.self, from: data)
     }
@@ -5536,7 +5670,7 @@ class APIService: ObservableObject {
         let (data, response) = try await session.data(for: request)
         try await validateResponse(response, data: data)
 
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         decoder.dateDecodingStrategy = .custom(flexibleDateDecoder)
         return try decoder.decode(UserTask.self, from: data)
     }
@@ -5568,7 +5702,7 @@ class APIService: ObservableObject {
         let (data, response) = try await session.data(for: request)
         try await validateResponse(response, data: data)
 
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         decoder.dateDecodingStrategy = .custom(flexibleDateDecoder)
         return try decoder.decode(UserTask.self, from: data)
     }
@@ -5587,7 +5721,7 @@ class APIService: ObservableObject {
         let (data, response) = try await session.data(for: request)
         try await validateResponse(response, data: data)
 
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         decoder.dateDecodingStrategy = .custom(flexibleDateDecoder)
         return try decoder.decode(UpNextResponse.self, from: data)
     }
@@ -5602,7 +5736,7 @@ class APIService: ObservableObject {
         let (data, response) = try await session.data(for: request)
         try await validateResponse(response, data: data)
 
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         decoder.dateDecodingStrategy = .custom(flexibleDateDecoder)
         return try decoder.decode([UserTask].self, from: data)
     }
@@ -5617,7 +5751,7 @@ class APIService: ObservableObject {
         let (data, response) = try await session.data(for: request)
         try await validateResponse(response, data: data)
 
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         decoder.dateDecodingStrategy = .custom(flexibleDateDecoder)
         return try decoder.decode([UserTask].self, from: data)
     }
@@ -5637,7 +5771,7 @@ class APIService: ObservableObject {
         let (data, response) = try await session.data(for: request)
         try await validateResponse(response, data: data)
 
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         decoder.dateDecodingStrategy = .custom(flexibleDateDecoder)
         return try decoder.decode(TaskListResponse.self, from: data)
     }
@@ -5661,7 +5795,7 @@ class APIService: ObservableObject {
         let (data, response) = try await session.data(for: request)
         try await validateResponse(response, data: data)
 
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         decoder.dateDecodingStrategy = .custom(flexibleDateDecoder)
         return try decoder.decode(ScheduleResponse.self, from: data)
     }
@@ -5685,7 +5819,7 @@ class APIService: ObservableObject {
         let (data, response) = try await session.data(for: request)
         try await validateResponse(response, data: data)
 
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         decoder.dateDecodingStrategy = .custom(flexibleDateDecoder)
         return try decoder.decode(UserTask.self, from: data)
     }
@@ -5715,7 +5849,7 @@ class APIService: ObservableObject {
 
         try await validateResponse(response, data: data)
 
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         decoder.dateDecodingStrategy = .custom(flexibleDateDecoder)
         return try decoder.decode(TodayOverviewResponse.self, from: data)
     }
@@ -5746,7 +5880,7 @@ class APIService: ObservableObject {
         let (data, response) = try await session.data(for: request)
         try await validateResponse(response, data: data)
 
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         decoder.dateDecodingStrategy = .custom(flexibleDateDecoder)
         return try decoder.decode(UserTask.self, from: data)
     }
@@ -5774,7 +5908,7 @@ class APIService: ObservableObject {
 
         try await validateResponse(response, data: data)
 
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         return try decoder.decode(PredictionsResponse.self, from: data)
     }
 
@@ -5794,7 +5928,7 @@ class APIService: ObservableObject {
 
         try await validateResponse(response, data: data)
 
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         return try decoder.decode(PredictionsResponse.self, from: data)
     }
 
@@ -5810,7 +5944,7 @@ class APIService: ObservableObject {
 
         try await validateResponse(response, data: data)
 
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         return try decoder.decode(TravelPredictionsResponse.self, from: data)
     }
 
@@ -5830,7 +5964,7 @@ class APIService: ObservableObject {
 
         try await validateResponse(response, data: data)
 
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         return try decoder.decode(TravelPredictionsResponse.self, from: data)
     }
 
@@ -5846,7 +5980,7 @@ class APIService: ObservableObject {
 
         try await validateResponse(response, data: data)
 
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         return try decoder.decode(CapacityPrediction.self, from: data)
     }
 
@@ -5866,7 +6000,7 @@ class APIService: ObservableObject {
 
         try await validateResponse(response, data: data)
 
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         return try decoder.decode(CapacityPrediction.self, from: data)
     }
 
@@ -5891,7 +6025,7 @@ class APIService: ObservableObject {
 
         try await validateResponse(response, data: data)
 
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         return try decoder.decode(WeekCapacityResponse.self, from: data)
     }
 
@@ -5907,7 +6041,7 @@ class APIService: ObservableObject {
 
         try await validateResponse(response, data: data)
 
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         return try decoder.decode(PatternsResponse.self, from: data)
     }
 
@@ -5930,7 +6064,7 @@ class APIService: ObservableObject {
 
         try await validateResponse(response, data: data)
 
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         return try decoder.decode(CapacityAnalysisResponse.self, from: data)
     }
 
@@ -5947,7 +6081,7 @@ class APIService: ObservableObject {
 
         try await validateResponse(response, data: data)
 
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         return try decoder.decode([CapacityInsight].self, from: data)
     }
 
@@ -5976,7 +6110,7 @@ class APIService: ObservableObject {
 
         try await validateResponse(response, data: data)
 
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         return try decoder.decode(WeeklyInsightsSummaryResponse.self, from: data)
     }
 
@@ -6000,7 +6134,7 @@ class APIService: ObservableObject {
 
         try await validateResponse(response, data: data)
 
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         return try decoder.decode(WeeklyInsightsSummaryResponse.self, from: data)
     }
 
@@ -6016,7 +6150,7 @@ class APIService: ObservableObject {
 
         try await validateResponse(response, data: data)
 
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         return try decoder.decode(AvailableWeeksResponse.self, from: data)
     }
 
@@ -6039,7 +6173,7 @@ class APIService: ObservableObject {
 
         try await validateResponse(response, data: data)
 
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         return try decoder.decode(NextWeekForecastResponse.self, from: data)
     }
 
@@ -6062,7 +6196,7 @@ class APIService: ObservableObject {
 
         try await validateResponse(response, data: data)
 
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         return try decoder.decode(PatternIntelligenceReport.self, from: data)
     }
 
@@ -6085,7 +6219,7 @@ class APIService: ObservableObject {
 
         try await validateResponse(response, data: data)
 
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         return try decoder.decode(TodayPrediction.self, from: data)
     }
 
@@ -6108,7 +6242,34 @@ class APIService: ObservableObject {
 
         try await validateResponse(response, data: data)
 
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
+        return try decoder.decode(NextDayForecast.self, from: data)
+    }
+
+    /// Get forecast for a specific date - Clara's insight for any day
+    func getDayForecast(date: Date) async throws -> NextDayForecast {
+        let timezone = TimeZone.current.identifier
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd"
+        let dateString = dateFormatter.string(from: date)
+
+        let urlString = "\(baseURL)/api/v1/insights/day-forecast?date=\(dateString)&timezone=\(timezone)"
+
+        let url = try makeURL(urlString)
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+
+        print("📅 APIService: Fetching forecast for \(dateString)")
+        let (data, response) = try await session.data(for: request)
+
+        if let responseString = String(data: data, encoding: .utf8) {
+            print("📅 APIService: Day forecast response: \(responseString.prefix(500))...")
+        }
+
+        try await validateResponse(response, data: data)
+
+        let decoder = APIService.sharedDecoder
         return try decoder.decode(NextDayForecast.self, from: data)
     }
 
@@ -6136,7 +6297,7 @@ class APIService: ObservableObject {
 
         try await validateResponse(response, data: data)
 
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         return try decoder.decode(WeeklyNarrativeResponse.self, from: data)
     }
 
@@ -6161,7 +6322,7 @@ class APIService: ObservableObject {
 
         try await validateResponse(response, data: data)
 
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         return try decoder.decode(WeekDriftStatus.self, from: data)
     }
 
@@ -6188,7 +6349,7 @@ class APIService: ObservableObject {
 
         try await validateResponse(response, data: data)
 
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         do {
             let result = try decoder.decode(LifeInsightsResponse.self, from: data)
             print("🧠 APIService: Decode SUCCESS - headline=\(result.headline ?? "nil"), patterns=\(result.yourLifePatterns?.count ?? 0)")
@@ -6234,7 +6395,7 @@ class APIService: ObservableObject {
 
         try await validateResponse(response, data: data)
 
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         return try decoder.decode(RegenerateInsightsResponse.self, from: data)
     }
 
@@ -6250,7 +6411,7 @@ class APIService: ObservableObject {
 
         try await validateResponse(response, data: data)
 
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         return try decoder.decode(RateLimitStatus.self, from: data)
     }
 
@@ -6278,7 +6439,7 @@ class APIService: ObservableObject {
 
         try await validateResponse(response, data: data)
 
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         return try decoder.decode(PlacesRecommendationResponse.self, from: data)
     }
 
@@ -6305,7 +6466,7 @@ class APIService: ObservableObject {
 
         try await validateResponse(response, data: data)
 
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         let suggestionsResponse = try decoder.decode(TaskSuggestionsResponse.self, from: data)
         return suggestionsResponse.suggestions
     }
@@ -6337,7 +6498,7 @@ class APIService: ObservableObject {
 
         try await validateResponse(response, data: data)
 
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         return try decoder.decode(AcceptSuggestionResponse.self, from: data)
     }
 
@@ -6420,7 +6581,7 @@ class APIService: ObservableObject {
 
         try await validateResponse(response, data: data)
 
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         let result = try decoder.decode(UpdateMeetingLinksResponse.self, from: data)
         print("✅ APIService: Updated \(result.updatedCount ?? 0) events with meeting links")
@@ -6442,7 +6603,7 @@ class APIService: ObservableObject {
 
         try await validateResponse(response, data: data)
 
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         return try decoder.decode(UserInterestsResponse.self, from: data)
     }
@@ -6465,7 +6626,7 @@ class APIService: ObservableObject {
 
         try await validateResponse(response, data: data)
 
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         return try decoder.decode(UserInterestsResponse.self, from: data)
     }
@@ -6498,7 +6659,7 @@ class APIService: ObservableObject {
 
         try await validateResponse(response, data: data)
 
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         return try decoder.decode(WeekendPlanResponse.self, from: data)
     }
@@ -6578,7 +6739,7 @@ class APIService: ObservableObject {
         let (data, response) = try await session.data(for: request)
         try await validateResponse(response, data: data)
 
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         return try decoder.decode(NotificationPreferences.self, from: data)
     }
@@ -6600,7 +6761,7 @@ class APIService: ObservableObject {
         let (data, response) = try await session.data(for: request)
         try await validateResponse(response, data: data)
 
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         return try decoder.decode(NotificationPreferences.self, from: data)
     }
@@ -6621,7 +6782,7 @@ class APIService: ObservableObject {
         let (data, response) = try await session.data(for: request)
         try await validateResponse(response, data: data)
 
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         return try decoder.decode(TestNotificationResponse.self, from: data)
     }
@@ -6637,7 +6798,7 @@ class APIService: ObservableObject {
         let (data, response) = try await session.data(for: request)
         try await validateResponse(response, data: data)
 
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         return try decoder.decode(QuietHoursStatusResponse.self, from: data)
     }
@@ -6713,7 +6874,7 @@ class APIService: ObservableObject {
         let (data, response) = try await session.data(for: request)
         try await validateResponse(response, data: data)
 
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         return try decoder.decode(NotificationHistoryResponse.self, from: data)
     }
@@ -6735,7 +6896,7 @@ class APIService: ObservableObject {
         let (data, response) = try await session.data(for: request)
         try await validateResponse(response, data: data)
 
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         return try decoder.decode(NotificationStatsResponse.self, from: data)
     }

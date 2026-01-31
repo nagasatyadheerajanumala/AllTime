@@ -28,13 +28,14 @@ class CacheService {
         try? fileManager.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
         
         // Configure encoder/decoder
+        // NOTE: Do NOT use keyEncodingStrategy/keyDecodingStrategy here!
+        // Models use explicit CodingKeys which handle snake_case<->camelCase mapping.
+        // Using .convertFromSnakeCase conflicts with explicit CodingKeys and causes decoding failures.
         encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
-        encoder.keyEncodingStrategy = .convertToSnakeCase
-        
+
         decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        decoder.keyDecodingStrategy = .convertFromSnakeCase
         
         #if DEBUG
         print("💾 CacheService: Cache directory: \(cacheDirectory.path)")
@@ -68,10 +69,10 @@ class CacheService {
                 let fileURL = self.cacheDirectory.appendingPathComponent("\(filename).json")
                 let metadataURL = self.cacheDirectory.appendingPathComponent("\(filename).meta.json")
                 
-                // Create encoder/decoder in detached context
+                // Create encoder in detached context
+                // NOTE: Do NOT use keyEncodingStrategy - models use explicit CodingKeys
                 let encoder = JSONEncoder()
                 encoder.dateEncodingStrategy = .iso8601
-                encoder.keyEncodingStrategy = .convertToSnakeCase
                 
                 // Encode data
                 let data = try encoder.encode(object)
@@ -126,13 +127,9 @@ class CacheService {
             
             do {
                 let data = try Data(contentsOf: fileURL)
-                
-                // Create decoder in detached context
-                let decoder = JSONDecoder()
-                decoder.dateDecodingStrategy = .iso8601
-                decoder.keyDecodingStrategy = .convertFromSnakeCase
-                
-                let object = try decoder.decode(type, from: data)
+
+                // Use the cache service's own decoder (already configured)
+                let object = try self.decoder.decode(type, from: data)
                 
                 let duration = Date().timeIntervalSince(startTime)
                 #if DEBUG
@@ -169,13 +166,10 @@ class CacheService {
         
         do {
             let data = try Data(contentsOf: fileURL)
-            
-            let decoder = JSONDecoder()
-            decoder.dateDecodingStrategy = .iso8601
-            decoder.keyDecodingStrategy = .convertFromSnakeCase
-            
+
+            // Use the cache service's own decoder (already configured)
             let object = try decoder.decode(type, from: data)
-            
+
             let duration = Date().timeIntervalSince(startTime)
             #if DEBUG
             let formatter = ByteCountFormatter()
@@ -205,9 +199,6 @@ class CacheService {
         
         do {
             let data = try Data(contentsOf: metadataURL)
-            let decoder = JSONDecoder()
-            decoder.dateDecodingStrategy = .iso8601
-            decoder.keyDecodingStrategy = .convertFromSnakeCase
             return try decoder.decode(CacheMetadata.self, from: data)
         } catch {
             return nil
@@ -294,11 +285,8 @@ class CacheService {
             
             do {
                 let data = try Data(contentsOf: metadataURL)
-                let decoder = JSONDecoder()
-                decoder.dateDecodingStrategy = .iso8601
-                decoder.keyDecodingStrategy = .convertFromSnakeCase
-                let metadata = try decoder.decode(CacheMetadata.self, from: data)
-                
+                let metadata = try self.decoder.decode(CacheMetadata.self, from: data)
+
                 let timeSinceUpdate = Date().timeIntervalSince(metadata.lastUpdated)
                 return timeSinceUpdate < expiration
             } catch {
@@ -306,25 +294,22 @@ class CacheService {
             }
         }.value
     }
-    
+
     /// Get cache metadata
     func getCacheMetadata(filename: String) async -> CacheMetadata? {
         let fileManager = FileManager.default
         return await Task.detached(priority: .utility) { [weak self] in
             guard let self = self else { return nil }
-            
+
             let metadataURL = self.cacheDirectory.appendingPathComponent("\(filename).meta.json")
-            
+
             guard fileManager.fileExists(atPath: metadataURL.path) else {
                 return nil
             }
-            
+
             do {
                 let data = try Data(contentsOf: metadataURL)
-                let decoder = JSONDecoder()
-                decoder.dateDecodingStrategy = .iso8601
-                decoder.keyDecodingStrategy = .convertFromSnakeCase
-                return try decoder.decode(CacheMetadata.self, from: data)
+                return try self.decoder.decode(CacheMetadata.self, from: data)
             } catch {
                 return nil
             }

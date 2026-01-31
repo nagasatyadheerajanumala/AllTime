@@ -30,8 +30,9 @@ struct NextWeekInsightsView: View {
         }
         .background(DesignSystem.Colors.background)
         .refreshable {
-            await viewModel.fetchPatternIntelligence()
-            await viewModel.fetchNextWeekForecast()
+            // Force refresh to bypass cache
+            await viewModel.fetchPatternIntelligence(forceRefresh: true)
+            await viewModel.fetchNextWeekForecast(forceRefresh: true)
         }
         .task {
             async let patternTask: () = viewModel.fetchPatternIntelligence()

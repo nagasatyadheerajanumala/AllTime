@@ -101,7 +101,7 @@ class LocationAPI {
             print(responseString)
         }
         
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         do {
             let recommendations = try decoder.decode(LunchRecommendations.self, from: data)
             print("✅ LocationAPI: Found \(recommendations.nearbySpots.count) lunch spots")
@@ -160,7 +160,7 @@ class LocationAPI {
             print(responseString)
         }
         
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         do {
             let routes = try decoder.decode(WalkRoutes.self, from: data)
             print("✅ LocationAPI: Found \(routes.routes.count) walk routes")
@@ -224,7 +224,7 @@ class LocationAPI {
             throw LocationError.updateFailed(httpResponse.statusCode)
         }
 
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         return try decoder.decode(PlaceVisitResponse.self, from: data)
     }
 
@@ -261,7 +261,7 @@ class LocationAPI {
             throw LocationError.fetchFailed(httpResponse.statusCode)
         }
 
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         return try decoder.decode(ProximityCheckResponse.self, from: data)
     }
 
@@ -298,7 +298,7 @@ class LocationAPI {
             throw LocationError.updateFailed(httpResponse.statusCode)
         }
 
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         return try decoder.decode(AutoRecordResponse.self, from: data)
     }
 
@@ -325,7 +325,7 @@ class LocationAPI {
             throw LocationError.fetchFailed(httpResponse.statusCode)
         }
 
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         let result = try decoder.decode(SuggestionsResponse.self, from: data)
         return result.suggestions
     }

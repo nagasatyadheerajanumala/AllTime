@@ -53,7 +53,7 @@ class CheckInService {
             throw CheckInError.serverError(statusCode: httpResponse.statusCode)
         }
 
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         return try decoder.decode(CheckInStatusResponse.self, from: data)
     }
 
@@ -89,7 +89,7 @@ class CheckInService {
             throw CheckInError.serverError(statusCode: httpResponse.statusCode)
         }
 
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         return try decoder.decode(CheckInResponse.self, from: data)
     }
 
@@ -129,7 +129,7 @@ class CheckInService {
             throw CheckInError.serverError(statusCode: httpResponse.statusCode)
         }
 
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         return try decoder.decode(CheckInResponse.self, from: data)
     }
 
@@ -165,7 +165,7 @@ class CheckInService {
             throw CheckInError.serverError(statusCode: httpResponse.statusCode)
         }
 
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         return try decoder.decode(CheckInResponse.self, from: data)
     }
 
@@ -201,7 +201,7 @@ class CheckInService {
             throw CheckInError.serverError(statusCode: httpResponse.statusCode)
         }
 
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         return try decoder.decode(CheckInResponse.self, from: data)
     }
 
@@ -234,7 +234,7 @@ class CheckInService {
             throw CheckInError.serverError(statusCode: httpResponse.statusCode)
         }
 
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         return try decoder.decode(PatternsSummary.self, from: data)
     }
 
@@ -265,7 +265,7 @@ class CheckInService {
             throw CheckInError.serverError(statusCode: httpResponse.statusCode)
         }
 
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         return try decoder.decode(EnergyPrediction.self, from: data)
     }
 
@@ -311,7 +311,7 @@ class CheckInService {
             throw CheckInError.serverError(statusCode: httpResponse.statusCode)
         }
 
-        let decoder = JSONDecoder()
+        let decoder = APIService.sharedDecoder
         return try decoder.decode(MoodSuggestionsResponse.self, from: data)
     }
 }

@@ -16,19 +16,49 @@ struct HeroSummaryCard: View {
     /// Fallback meeting count from calendar events (used when intelligence is nil)
     var fallbackMeetingCount: Int = 0
 
+    /// Whether to show sleep-related UI (false if user doesn't reliably track sleep)
+    var showSleepUI: Bool = true
+
     // Animation
     @State private var animateIn = false
     @State private var pulseScale: CGFloat = 1.0
 
     // MARK: - Derived State
 
+    /// Use briefing mood for daily status (not week drift severity)
+    /// The briefing mood reflects TODAY's actual load, not accumulated week signals
+    private var dailyStatusLabel: String {
+        briefing?.moodLabel ?? "Today"
+    }
+
+    private var dailyStatusColor: Color {
+        // Map briefing mood to appropriate color
+        guard let moodValue = briefing?.mood.lowercased() else {
+            return Color(hex: "10B981") // Default green
+        }
+        switch moodValue {
+        case "balanced", "light_day", "light", "rest_day", "rest":
+            return Color(hex: "10B981") // Green - good day
+        case "focus_day", "focused":
+            return Color(hex: "6366F1") // Indigo - focus mode
+        case "intense_meetings", "intense", "busy":
+            return Color(hex: "F59E0B") // Amber - busy but manageable
+        case "overloaded", "critical":
+            return Color(hex: "EF4444") // Red - actually overloaded
+        default:
+            return Color(hex: "10B981") // Default to green
+        }
+    }
+
+    /// Only use drift severity for the intervention, not for the status badge
     private var severity: DriftSeverity {
         guard let drift = driftStatus else { return .onTrack }
         return DriftSeverity(rawValue: drift.severity) ?? .onTrack
     }
 
     private var severityColor: Color {
-        Color(hex: severity.color)
+        // Use daily status color, not week drift color
+        dailyStatusColor
     }
 
     private var primaryIntervention: DriftIntervention? {
@@ -77,8 +107,8 @@ struct HeroSummaryCard: View {
     private var adaptiveMetrics: [(icon: String, value: String, unit: String, label: String, color: Color, changePercent: Int?)] {
         var metrics: [(icon: String, value: String, unit: String, label: String, color: Color, changePercent: Int?)] = []
 
-        // First priority: Sleep (if available)
-        if sleepHours > 0 {
+        // First priority: Sleep (if available AND user reliably tracks sleep)
+        if showSleepUI && sleepHours > 0 {
             metrics.append((
                 icon: "moon.fill",
                 value: String(format: "%.1f", sleepHours),
@@ -117,8 +147,8 @@ struct HeroSummaryCard: View {
                 color: activeMinutesColor(mins),
                 changePercent: nil
             ))
-        } else {
-            // Default: Show sleep as "--"
+        } else if showSleepUI {
+            // Default: Show sleep as "--" (only if user reliably tracks sleep)
             metrics.append((
                 icon: "moon.fill",
                 value: "--",
@@ -139,7 +169,7 @@ struct HeroSummaryCard: View {
                 color: stepsColor,
                 changePercent: stepsChangePercent
             ))
-        } else if let mins = activeMinutes, mins > 0, sleepHours > 0 {
+        } else if let mins = activeMinutes, mins > 0, showSleepUI && sleepHours > 0 {
             // Show active minutes if we already showed sleep
             metrics.append((
                 icon: "figure.run",
@@ -149,7 +179,7 @@ struct HeroSummaryCard: View {
                 color: activeMinutesColor(mins),
                 changePercent: nil
             ))
-        } else if let cal = activeCalories, cal > 0, sleepHours > 0 {
+        } else if let cal = activeCalories, cal > 0, showSleepUI && sleepHours > 0 {
             // Show calories if we showed sleep
             metrics.append((
                 icon: "flame.fill",
@@ -417,11 +447,11 @@ struct HeroSummaryCard: View {
     private var statusBadge: some View {
         HStack(spacing: 6) {
             Circle()
-                .fill(severityColor)
+                .fill(dailyStatusColor)
                 .frame(width: 8, height: 8)
                 .scaleEffect(pulseScale)
 
-            Text(severity.shortLabel)
+            Text(dailyStatusLabel)
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundColor(.white.opacity(0.9))
         }
@@ -429,7 +459,7 @@ struct HeroSummaryCard: View {
         .padding(.vertical, 6)
         .background(
             Capsule()
-                .fill(severityColor.opacity(0.2))
+                .fill(dailyStatusColor.opacity(0.2))
         )
     }
 

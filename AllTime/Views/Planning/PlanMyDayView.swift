@@ -1137,27 +1137,101 @@ struct DayPlanCard: View {
 struct TimeSlotRow: View {
     let slot: ItineraryTimeSlot
 
-    var body: some View {
-        HStack(spacing: 12) {
-            // Time
-            Text(slot.formattedTimeRange)
-                .font(.caption.weight(.medium))
-                .foregroundColor(slot.categoryColor)
-                .frame(width: 100, alignment: .leading)
+    private var isExistingEvent: Bool {
+        slot.isExisting ?? false
+    }
 
-            // Activity
-            HStack(spacing: 8) {
-                Image(systemName: slot.categoryIcon)
-                    .font(.caption)
-                    .foregroundColor(slot.categoryColor)
-                Text(slot.activity)
-                    .font(.subheadline)
-                    .foregroundColor(DesignSystem.Colors.primaryText)
+    private var slotIcon: String {
+        if isExistingEvent {
+            return "calendar.circle.fill"
+        }
+        return slot.categoryIcon
+    }
+
+    private var slotColor: Color {
+        if isExistingEvent {
+            return DesignSystem.Colors.blue
+        }
+        return slot.categoryColor
+    }
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            // Time column
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(formatTimeDisplay(slot.startTime))
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(slotColor)
+                if let endTime = slot.endTime {
+                    Text(formatTimeDisplay(endTime))
+                        .font(.caption2)
+                        .foregroundColor(DesignSystem.Colors.tertiaryText)
+                }
+            }
+            .frame(width: 55)
+
+            // Icon with connecting line
+            VStack(spacing: 4) {
+                ZStack {
+                    Circle()
+                        .fill(slotColor.opacity(0.15))
+                        .frame(width: 32, height: 32)
+                    Image(systemName: slotIcon)
+                        .font(.system(size: 14))
+                        .foregroundColor(slotColor)
+                }
+            }
+
+            // Content
+            VStack(alignment: .leading, spacing: 4) {
+                // Activity title with existing event badge
+                HStack(spacing: 8) {
+                    Text(slot.activity)
+                        .font(.subheadline.weight(.medium))
+                        .foregroundColor(DesignSystem.Colors.primaryText)
+
+                    if isExistingEvent {
+                        Text("Calendar")
+                            .font(.caption2.weight(.medium))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Capsule().fill(DesignSystem.Colors.blue))
+                    } else {
+                        Text("Clara")
+                            .font(.caption2.weight(.medium))
+                            .foregroundColor(slotColor)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Capsule().fill(slotColor.opacity(0.15)))
+                    }
+                }
+
+                // Description (PA-style explanation)
+                if let description = slot.description, !description.isEmpty {
+                    Text(description)
+                        .font(.caption)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                        .lineLimit(2)
+                }
             }
 
             Spacer()
         }
-        .padding(.vertical, 8)
+        .padding(.vertical, 10)
+        .padding(.horizontal, 12)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(isExistingEvent ? DesignSystem.Colors.blue.opacity(0.05) : slotColor.opacity(0.05))
+        )
+    }
+
+    private func formatTimeDisplay(_ time: String) -> String {
+        let parts = time.split(separator: ":")
+        guard parts.count >= 2, let hour = Int(parts[0]) else { return time }
+        let period = hour >= 12 ? "PM" : "AM"
+        let displayHour = hour > 12 ? hour - 12 : (hour == 0 ? 12 : hour)
+        return "\(displayHour):\(parts[1]) \(period)"
     }
 }
 

@@ -168,14 +168,13 @@ struct SyncResponse: Codable {
     let status: String
     let message: String
     let userId: Int
-    let eventsSynced: Int
+    let totalEventsSynced: Int
     let diagnostics: SyncDiagnostics?
-    
+
     enum CodingKeys: String, CodingKey {
-        case status, message
+        case status, message, diagnostics
         case userId = "user_id"
-        case eventsSynced = "total_events_synced"
-        case diagnostics
+        case totalEventsSynced = "total_events_synced"
     }
 }
 
@@ -189,12 +188,11 @@ struct ProviderSyncDiagnostics: Codable {
     let eventsSynced: Int?
     let calendarsProcessed: Int?
     let error: String?
-    
+
     enum CodingKeys: String, CodingKey {
-        case status
+        case status, error
         case eventsSynced = "events_synced"
         case calendarsProcessed = "calendars_processed"
-        case error
     }
 }
 

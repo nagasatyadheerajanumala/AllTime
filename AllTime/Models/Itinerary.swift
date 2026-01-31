@@ -159,7 +159,9 @@ struct ItineraryTimeSlot: Codable, Identifiable {
     let endTime: String?
     let activity: String
     let category: String?
+    let description: String?  // PA-style explanation of why this activity
     let location: PlaceInfo?
+    let isExisting: Bool?     // true if this is an existing calendar event
 
     var id: String { "\(startTime)-\(activity)" }
 
@@ -168,7 +170,9 @@ struct ItineraryTimeSlot: Codable, Identifiable {
         case endTime = "end_time"
         case activity
         case category
+        case description
         case location
+        case isExisting = "is_existing"
     }
 
     var formattedTimeRange: String {
@@ -192,6 +196,11 @@ struct ItineraryTimeSlot: Codable, Identifiable {
         case "activity": return DesignSystem.Colors.emerald
         case "lifestyle": return DesignSystem.Colors.violet
         case "social": return DesignSystem.Colors.amber
+        case "meeting": return DesignSystem.Colors.blue
+        case "focus": return DesignSystem.Colors.violet
+        case "break": return DesignSystem.Colors.amber
+        case "health": return DesignSystem.Colors.emerald
+        case "planning": return DesignSystem.Colors.indigo
         default: return DesignSystem.Colors.blue
         }
     }
@@ -201,6 +210,11 @@ struct ItineraryTimeSlot: Codable, Identifiable {
         case "activity": return "figure.run"
         case "lifestyle": return "book.fill"
         case "social": return "person.3.fill"
+        case "meeting": return "calendar.circle.fill"
+        case "focus": return "brain.head.profile"
+        case "break": return "cup.and.saucer.fill"
+        case "health": return "figure.walk"
+        case "planning": return "checklist"
         default: return "star.fill"
         }
     }
@@ -240,18 +254,25 @@ struct ItineraryRequest: Codable {
     let endDate: String?
     let preferences: ItineraryPreferences?
 
-    // Note: Backend expects camelCase keys (startDate, endDate), not snake_case
+    // Backend uses SNAKE_CASE naming strategy
+    enum CodingKeys: String, CodingKey {
+        case startDate = "start_date"
+        case endDate = "end_date"
+        case preferences
+    }
 }
 
 struct ItineraryPreferences: Codable {
     var pace: String?
     var includeMeals: Bool?
     var budget: String?
+    var timezone: String?
 
     enum CodingKeys: String, CodingKey {
         case pace
         case includeMeals = "include_meals"
         case budget
+        case timezone
     }
 }
 

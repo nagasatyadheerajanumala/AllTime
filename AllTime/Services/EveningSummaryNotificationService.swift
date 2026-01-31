@@ -10,6 +10,7 @@ class EveningSummaryNotificationService: ObservableObject {
 
     private let apiService = APIService()
     private let historyService = NotificationHistoryService.shared
+    private let patternService = EnergyPatternInsightService.shared
 
     // MARK: - Published Properties
 
@@ -42,197 +43,172 @@ class EveningSummaryNotificationService: ObservableObject {
 
     private let notificationIdentifier = "evening-summary"
 
-    // MARK: - Engaging Copy Templates
+    // MARK: - Creative Notification Content
+    // Goal: Celebrate wins, acknowledge struggles, be genuinely helpful — not corporate
 
-    /// Generate a personalized evening title using the user's first name
-    /// Uses engaging, curiosity-inducing titles that make users want to tap
+    /// Generate a personalized, witty evening title
     private func getPersonalizedTitle() -> String {
         let firstName = UserDefaults.standard.string(forKey: "user_first_name")
+        let weekday = Calendar.current.component(.weekday, from: Date())
+        let hour = Calendar.current.component(.hour, from: Date())
 
-        if let name = firstName, !name.isEmpty {
-            // Engaging titles that create curiosity and encourage tapping
-            let personalizedOptions = [
-                "\(name), see what you accomplished",
-                "Your day decoded, \(name)",
-                "\(name)'s wins today",
-                "\(name), you might be surprised...",
-                "Look what you did today, \(name)",
-                "\(name), your day in numbers",
-                "Guess what, \(name)?",
-                "\(name), check this out"
-            ]
-            return personalizedOptions.randomElement() ?? "\(name), see what you accomplished"
-        } else {
-            // Generic engaging titles
-            let genericOptions = [
-                "See what you accomplished",
-                "Your day decoded",
-                "Today's wins inside",
-                "You might be surprised...",
-                "Look what you did today",
-                "Your day in numbers",
-                "Check this out"
-            ]
-            return genericOptions.randomElement() ?? "See what you accomplished"
+        let hasName = firstName != nil && !firstName!.isEmpty
+        let name = firstName ?? ""
+
+        // Friday evening — celebrate
+        if weekday == 6 {
+            return hasName
+                ? ["\(name), you survived another week", "TGIF, \(name). You made it.", "\(name), weekend loading..."].randomElement()!
+                : ["Another week survived", "TGIF. You made it.", "Weekend loading..."].randomElement()!
         }
+
+        // Thursday — almost there
+        if weekday == 5 {
+            return hasName
+                ? ["\(name), one more day", "Thursday done, \(name). Almost there.", "\(name), Friday's tomorrow 👀"].randomElement()!
+                : ["One more day", "Almost there", "Friday's tomorrow 👀"].randomElement()!
+        }
+
+        // Monday evening — you did it
+        if weekday == 2 {
+            return hasName
+                ? ["\(name), Monday: defeated", "You beat Monday, \(name)", "\(name) 1, Monday 0"].randomElement()!
+                : ["Monday: defeated", "You beat Monday", "Monday down, 4 to go"].randomElement()!
+        }
+
+        // Late evening (after 9pm)
+        if hour >= 21 {
+            return hasName
+                ? ["\(name), log off already", "Still working, \(name)? Day's over.", "\(name), your couch misses you"].randomElement()!
+                : ["Log off already", "Day's done. Close the laptop.", "Your couch is calling"].randomElement()!
+        }
+
+        // Default
+        return hasName
+            ? ["Day done, \(name)", "\(name), that's a wrap", "How'd today go, \(name)?"].randomElement()!
+            : ["That's a wrap", "Day complete", "How'd today go?"].randomElement()!
     }
 
-    /// Generate an engaging title based on day tone (used when we have insights data)
-    /// This creates context-aware titles that are even more compelling
+    /// Generate an engaging title based on actual day data
     private func getEngagingTitle(dayTone: String?, eventCount: Int?, stepsGoalMet: Bool?) -> String {
         let firstName = UserDefaults.standard.string(forKey: "user_first_name")
+        let weekday = Calendar.current.component(.weekday, from: Date())
+        let hasName = firstName != nil && !firstName!.isEmpty
         let name = firstName ?? ""
-        let hasName = !name.isEmpty
 
-        // Achievement-based titles when goals are met
+        // Achievement: Steps goal
         if stepsGoalMet == true {
-            if hasName {
-                return [
-                    "\(name), you crushed your goals!",
-                    "Way to go, \(name)!",
-                    "\(name), look at those numbers!"
-                ].randomElement()!
-            } else {
-                return ["You crushed your goals!", "Way to go!", "Look at those numbers!"].randomElement()!
-            }
+            return hasName
+                ? ["\(name), 10K steps! Your future knees thank you.", "Step goal crushed, \(name) 🏆", "\(name)'s legs did the work today"].randomElement()!
+                : ["10K steps! Your future knees thank you.", "Step goal crushed 🏆", "Your legs did work today"].randomElement()!
         }
 
-        // Tone-based engaging titles
+        // Tone-based celebrations/commiserations
         if let tone = dayTone?.lowercased() {
             switch tone {
             case "intense", "busy":
-                if hasName {
-                    return [
-                        "\(name), you survived!",
-                        "What a day, \(name)!",
-                        "\(name), you earned this break"
-                    ].randomElement()!
-                } else {
-                    return ["You survived!", "What a day!", "You earned this break"].randomElement()!
-                }
+                return hasName
+                    ? ["\(name), you survived. That's the win.", "Brutal day done, \(name). Breathe.", "\(name), today was A LOT"].randomElement()!
+                    : ["You survived. That's the win.", "Brutal day done. Breathe.", "Today was A LOT"].randomElement()!
 
             case "productive":
-                if hasName {
-                    return [
-                        "\(name), productive much?",
-                        "On fire today, \(name)!",
-                        "\(name), boss moves only"
-                    ].randomElement()!
-                } else {
-                    return ["Productive much?", "On fire today!", "Boss moves only"].randomElement()!
-                }
+                return hasName
+                    ? ["\(name) was in the zone today", "Productive \(name) is scary productive", "\(name), you actually got stuff done"].randomElement()!
+                    : ["You were in the zone", "Scary productive today", "Stuff actually got done"].randomElement()!
 
             case "calm", "relaxed":
-                if hasName {
-                    return [
-                        "Chill day, \(name)?",
-                        "\(name), easy does it",
-                        "Nice pace today, \(name)"
-                    ].randomElement()!
-                } else {
-                    return ["Chill day?", "Easy does it", "Nice pace today"].randomElement()!
-                }
+                return hasName
+                    ? ["\(name), that was a chill one", "Low-key day, \(name). Nice change?", "\(name) took it easy. As one should."].randomElement()!
+                    : ["That was a chill one", "Low-key day. Nice change?", "Easy day. As it should be."].randomElement()!
 
             case "balanced":
-                if hasName {
-                    return [
-                        "Perfect balance, \(name)",
-                        "\(name), nailed the mix",
-                        "Harmony achieved, \(name)"
-                    ].randomElement()!
-                } else {
-                    return ["Perfect balance", "Nailed the mix", "Harmony achieved"].randomElement()!
-                }
+                return hasName
+                    ? ["\(name), you found the sweet spot today", "Balance achieved, \(name). Rare.", "\(name), meetings AND focus time? Sorcery."].randomElement()!
+                    : ["Sweet spot achieved", "Balance is rare. You found it.", "Meetings AND focus time? Witchcraft."].randomElement()!
 
             default:
                 break
             }
         }
 
-        // Event-count based titles
+        // Event-count based observations
         if let events = eventCount {
+            if events >= 8 {
+                return hasName
+                    ? ["\(name), \(events) events. How are you still standing?", "\(events) events survived, \(name). Medal incoming.", "\(name), \(events) events is not normal. Rest."].randomElement()!
+                    : ["\(events) events. How are you standing?", "\(events) events survived. Legend.", "\(events) events is NOT normal"].randomElement()!
+            }
+
             if events >= 6 {
-                if hasName {
-                    return ["\(name), marathon day!", "Busy bee, \(name)!", "\(name), what a hustle"].randomElement()!
-                } else {
-                    return ["Marathon day!", "Busy bee!", "What a hustle"].randomElement()!
-                }
-            } else if events <= 2 {
-                if hasName {
-                    return ["\(name), breathing room!", "Space to think, \(name)", "\(name), light and easy"].randomElement()!
-                } else {
-                    return ["Breathing room!", "Space to think", "Light and easy"].randomElement()!
-                }
+                return hasName
+                    ? ["\(name), heavy day done", "\(events) events behind you, \(name)", "\(name), your voice needs a break"].randomElement()!
+                    : ["Heavy day done", "\(events) events in the books", "Your voice needs a break"].randomElement()!
+            }
+
+            if events == 0 {
+                return hasName
+                    ? ["\(name), how was the meeting detox?", "Zero meetings, \(name). How'd you spend it?", "\(name) had peace and quiet today"].randomElement()!
+                    : ["How was the meeting detox?", "Zero meetings. Rare W.", "Peace and quiet achieved"].randomElement()!
+            }
+
+            if events <= 2 {
+                return hasName
+                    ? ["\(name), light day. Hope you used it.", "Minimal meetings, \(name). Productive?", "\(name) had breathing room today"].randomElement()!
+                    : ["Light day. Hope you used it.", "Minimal meetings. Productive?", "Breathing room achieved"].randomElement()!
             }
         }
 
-        // Default to generic engaging title
+        // Day-specific
+        if weekday == 6 {
+            return hasName
+                ? ["\(name) made it to Friday night", "Week DONE, \(name) 🎉", "\(name), you earned this weekend"].randomElement()!
+                : ["Made it to Friday night", "Week DONE 🎉", "Weekend earned"].randomElement()!
+        }
+
+        if weekday == 2 {
+            return hasName
+                ? ["Monday defeated, \(name)", "\(name) beat Monday. 4 to go.", "Monday's done, \(name). Onward."].randomElement()!
+                : ["Monday defeated", "Monday down. 4 to go.", "Monday done. Onward."].randomElement()!
+        }
+
         return getPersonalizedTitle()
     }
 
-    private let titles = [
-        "Day in review",
-        "How was your day?",
-        "Daily wrap-up",
-        "End of day recap",
-        "Your day, summarized"
-    ]
-
-    private let productiveDayMessages = [
-        "Productive day! You completed %d of %d meetings.",
-        "Great work today! %d meetings done, %@ focus time used.",
-        "You crushed it! %d meetings and stayed focused.",
-        "Strong finish! Here's how your day went."
-    ]
-
-    private let busyDayMessages = [
-        "Busy day done! %d meetings behind you.",
-        "Marathon day complete - %d meetings in the books.",
-        "You made it through %d meetings today!",
-        "Intense day wrapped up. Time to unwind."
-    ]
-
-    private let lightDayMessages = [
-        "Relaxed day complete. Just %d meetings today.",
-        "Easy day in the books - hope you enjoyed the breathing room!",
-        "Light schedule wrapped up nicely.",
-        "Peaceful day done. Well deserved!"
-    ]
-
-    /// Generate personalized fallback messages for evening summary
-    /// Uses summary-style messages, not questions/questionnaires
-    /// Note: For repeating notifications, we use day-agnostic messages since content is
-    /// set at schedule time, not fire time. Day-specific content is set via refreshNotificationWithSummaryData.
+    /// Generate personalized fallback messages
     private func getPersonalizedFallbackMessage() -> String {
         let firstName = UserDefaults.standard.string(forKey: "user_first_name")
+        let weekday = Calendar.current.component(.weekday, from: Date())
+        let hour = Calendar.current.component(.hour, from: Date())
 
-        // Use day-agnostic summary-style messages for repeating notifications
-        if let name = firstName, !name.isEmpty {
-            let personalizedMessages = [
-                "\(name), here's how your day went.",
-                "Your day wrapped up, \(name). See the highlights.",
-                "\(name), your daily summary is ready.",
-                "Day done! Tap to see your summary, \(name)."
-            ]
-            return personalizedMessages.randomElement() ?? "Your daily summary is ready, \(name)."
+        let hasName = firstName != nil && !firstName!.isEmpty
+        let name = firstName ?? ""
+
+        // Late night
+        if hour >= 21 {
+            return hasName
+                ? ["\(name), stop working. Recap's ready.", "Day's over, \(name). Here's the summary.", "\(name), close the laptop. Reflect tomorrow."].randomElement()!
+                : ["Stop working. Recap's ready.", "Day's over. Here's the summary.", "Close the laptop."].randomElement()!
         }
 
-        // Generic summary-style fallback (not questions)
-        let genericMessages = [
-            "Here's how your day went.",
-            "Your daily summary is ready.",
-            "Day complete. See your highlights.",
-            "Tap to see today's summary."
-        ]
-        return genericMessages.randomElement() ?? "Your daily summary is ready."
-    }
+        // Friday
+        if weekday == 6 {
+            return hasName
+                ? ["\(name), another week survived. See the stats.", "Week done, \(name). How'd you do?", "\(name), Friday recap ready. Then relax."].randomElement()!
+                : ["Another week survived.", "Week done. How'd you do?", "Friday recap ready."].randomElement()!
+        }
 
-    private let fallbackMessages = [
-        "See how your day went and reflect.",
-        "Your day review is ready.",
-        "Review your day and rate how it went.",
-        "Time to reflect on your day."
-    ]
+        // Monday
+        if weekday == 2 {
+            return hasName
+                ? ["\(name), Monday's over. You made it.", "First day done, \(name). 4 more to go.", "\(name), Monday defeated. See the proof."].randomElement()!
+                : ["Monday's over. You made it.", "First day done. 4 more to go.", "Monday defeated."].randomElement()!
+        }
+
+        // Generic
+        return hasName
+            ? ["\(name), your day decoded. Tap to see.", "Day done, \(name). Here's how it went.", "\(name), time to reflect. Or not. Your call."].randomElement()!
+            : ["Your day decoded.", "Here's how today went.", "Time to reflect."].randomElement()!
+    }
 
     // MARK: - Initialization
 
@@ -578,61 +554,95 @@ class EveningSummaryNotificationService: ObservableObject {
         }
     }
 
-    /// Generate an enhanced summary body using API data and activity information
+    /// Generate an enhanced summary body with compelling numbers
     private func generateEnhancedSummaryBody(
         summaryMessage: String,
         meetingsCompleted: Int,
         totalMeetings: Int,
         completionPercentage: Int,
-        activities: [ActivityStatus]
+        activities: [ActivityStatus],
+        hadLateMeeting: Bool = false,
+        hadBackToBack: Bool = false
     ) -> String {
+        // PRIORITY 0: Energy pattern-based insight for recovery advice
+        if let patternInsight = patternService.eveningInsight(
+            meetingCount: totalMeetings,
+            hadLateMeeting: hadLateMeeting,
+            hadBackToBack: hadBackToBack
+        ) {
+            return patternInsight
+        }
+
         // If we have a good summary message from the API, use it
         if !summaryMessage.isEmpty && summaryMessage.count < 120 {
             return summaryMessage
         }
 
-        // Build a summary based on activities
+        let weekday = Calendar.current.component(.weekday, from: Date())
         let completedActivities = activities.filter { $0.isCompleted }
-        let firstName = UserDefaults.standard.string(forKey: "user_first_name")
-        let name = firstName ?? ""
 
-        // No activities case
+        // Calculate meeting hours (estimate 45min avg)
+        let meetingHours = (totalMeetings * 45) / 60
+        let meetingMinutes = (totalMeetings * 45) % 60
+
+        // Zero activities
         if totalMeetings == 0 {
-            if !name.isEmpty {
-                return "\(name), you had a free day today. Time to relax and reflect!"
+            if weekday == 6 {
+                return "Zero meetings on Friday. You spent 0h in calls today. That's the dream."
             }
-            return "You had a free day today. Time to relax and reflect!"
+            return "No meetings today = 8h of potential focus time. How'd you spend it?"
         }
 
-        // Build activity summary
-        var summary = ""
+        // Chaos day (8+ meetings)
+        if totalMeetings >= 8 {
+            return "\(totalMeetings) meetings = \(meetingHours)h \(meetingMinutes)min of your day in calls. Your voice needs a vacation."
+        }
 
-        // High completion rate
+        // Heavy day (6-7 meetings)
+        if totalMeetings >= 6 {
+            let focusMinutes = max(0, 480 - (totalMeetings * 45))
+            return "\(totalMeetings) meetings (\(meetingHours)h+) done. You had ~\(focusMinutes)min of free time today. Respect."
+        }
+
+        // Perfect execution with specific activity mention
+        if completionPercentage == 100 && totalMeetings >= 3 {
+            if let topActivity = completedActivities.first {
+                let shortTitle = String(topActivity.title.prefix(25))
+                return "\(totalMeetings)/\(totalMeetings) done including \"\(shortTitle)\". 100% follow-through today."
+            }
+            return "\(totalMeetings)/\(totalMeetings) complete. 100% execution rate. Screenshot-worthy day."
+        }
+
+        // High completion with numbers
         if completionPercentage >= 80 {
-            if !name.isEmpty {
-                summary = "Great job, \(name)! You completed \(meetingsCompleted) of \(totalMeetings) activities today (\(completionPercentage)%)."
-            } else {
-                summary = "Great job! You completed \(meetingsCompleted) of \(totalMeetings) activities today (\(completionPercentage)%)."
+            let incompleteCount = totalMeetings - meetingsCompleted
+            if incompleteCount == 1 {
+                return "\(meetingsCompleted)/\(totalMeetings) done (\(completionPercentage)%). Just 1 thing slipped. Solid day."
             }
-        } else if completionPercentage >= 50 {
-            summary = "You completed \(meetingsCompleted) of \(totalMeetings) activities today. Tap to reflect on your day."
-        } else if totalMeetings >= 5 {
-            summary = "Busy day with \(totalMeetings) activities! You got through \(meetingsCompleted). Time to unwind."
-        } else {
-            summary = "You had \(totalMeetings) activities today and completed \(meetingsCompleted). How did your day feel?"
+            if totalMeetings >= 5 {
+                return "\(completionPercentage)% completion on a \(totalMeetings)-activity day. Above average execution."
+            }
+            return "\(meetingsCompleted) of \(totalMeetings) done. \(completionPercentage)% completion rate today."
         }
 
-        // Add top completed activity if available
-        if let topActivity = completedActivities.first {
-            let shortTitle = topActivity.title.prefix(30)
-            if shortTitle.count < topActivity.title.count {
-                summary += " Including \"\(shortTitle)...\"."
-            } else if summary.count + topActivity.title.count < 140 {
-                summary += " Including \"\(topActivity.title)\"."
-            }
+        // Medium completion
+        if completionPercentage >= 50 {
+            let remaining = totalMeetings - meetingsCompleted
+            return "\(meetingsCompleted)/\(totalMeetings) activities done. \(remaining) rolled to tomorrow. Progress over perfection."
         }
 
-        return summary
+        // Lower completion with context
+        if completionPercentage >= 25 {
+            return "\(meetingsCompleted) of \(totalMeetings) planned activities done (\(completionPercentage)%). Some days are like that."
+        }
+
+        // Very low - empathetic
+        if totalMeetings >= 3 {
+            return "Planned \(totalMeetings), completed \(meetingsCompleted). Life had other plans. Tomorrow's fresh."
+        }
+
+        // Light day
+        return "\(meetingsCompleted)/\(totalMeetings) activities. Light day, \(completionPercentage)% done."
     }
 
     /// Generate a summary-specific notification body
@@ -693,41 +703,59 @@ class EveningSummaryNotificationService: ObservableObject {
         focusTimeUsed: String?,
         mood: String?
     ) -> String {
-        // Determine day type based on meeting count
-        if totalMeetings >= 6 {
-            // Busy day
-            if let template = busyDayMessages.randomElement() {
-                if template.contains("%d") {
-                    return String(format: template, meetingsCompleted)
-                }
-                return template
-            }
-        } else if totalMeetings <= 2 {
-            // Light day
-            if let template = lightDayMessages.randomElement() {
-                if template.contains("%d") {
-                    return String(format: template, meetingsCompleted)
-                }
-                return template
-            }
-        } else {
-            // Productive/balanced day
-            if let template = productiveDayMessages.randomElement() {
-                if template.contains("%d") && template.contains("%@") {
-                    return String(format: template, meetingsCompleted, focusTimeUsed ?? "some")
-                } else if template.contains("%d") {
-                    // Check if it needs two %d
-                    let count = template.components(separatedBy: "%d").count - 1
-                    if count >= 2 {
-                        return String(format: template, meetingsCompleted, totalMeetings)
-                    }
-                    return String(format: template, meetingsCompleted)
-                }
-                return template
-            }
+        // Check for pattern-based insight first
+        if let patternInsight = patternService.eveningInsight(
+            meetingCount: totalMeetings,
+            hadLateMeeting: false,  // Could be enhanced with actual data
+            hadBackToBack: totalMeetings >= 4
+        ) {
+            return patternInsight
         }
 
-        return getPersonalizedFallbackMessage()
+        // Calculate specific numbers
+        let meetingHours = (totalMeetings * 45) / 60
+        let meetingMinutes = (totalMeetings * 45) % 60
+        let freeMinutes = max(0, 480 - (totalMeetings * 45))
+
+        // Heavy meeting day (6+)
+        if totalMeetings >= 6 {
+            return [
+                "\(totalMeetings) meetings = \(meetingHours)h \(meetingMinutes)min in calls. Only \(freeMinutes)min was yours.",
+                "\(totalMeetings) meetings done. That's \(meetingHours)+ hours of talking today.",
+                "You survived \(totalMeetings) meetings (~\(meetingHours)h). Your evening is earned."
+            ].randomElement()!
+        }
+
+        // Light day (0-2 meetings)
+        if totalMeetings <= 2 {
+            if totalMeetings == 0 {
+                return [
+                    "0 meetings = 8h of potential deep work today. How'd it go?",
+                    "Zero meetings. You had 480 uninterrupted minutes. Rare.",
+                    "Meeting-free day. That's ~\(freeMinutes)min of focus time you controlled."
+                ].randomElement()!
+            }
+            return [
+                "Only \(totalMeetings) meeting\(totalMeetings == 1 ? "" : "s") = ~\(freeMinutes)min of free time today.",
+                "\(totalMeetings) meeting\(totalMeetings == 1 ? "" : "s"), \(freeMinutes)min of focus time. Light day done.",
+                "Just \(totalMeetings) meeting\(totalMeetings == 1 ? "" : "s"). Most of your 8h was yours."
+            ].randomElement()!
+        }
+
+        // Moderate day (3-5 meetings)
+        if let focusTime = focusTimeUsed, !focusTime.isEmpty {
+            return [
+                "\(meetingsCompleted) meetings + \(focusTime) focus time. ~\(freeMinutes)min was yours today.",
+                "\(meetingsCompleted) meetings (\(meetingHours)h) + \(focusTime) deep work. Balanced day.",
+                "Meetings: \(meetingsCompleted) (\(meetingHours)h). Focus: \(focusTime). Good split."
+            ].randomElement()!
+        }
+
+        return [
+            "\(meetingsCompleted) meetings (\(meetingHours)h \(meetingMinutes)min). \(freeMinutes)min of free time today.",
+            "\(meetingsCompleted) of \(totalMeetings) meetings done. ~\(freeMinutes)min was yours.",
+            "Day done: \(meetingsCompleted) meetings, \(freeMinutes)min of breathing room."
+        ].randomElement()!
     }
 
     private func formattedTime(_ date: Date) -> String {

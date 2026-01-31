@@ -109,46 +109,55 @@ struct ClaraChatView: View {
         .background(DesignSystem.Colors.background)
     }
 
+    // MARK: - Time-aware greeting
+    private var timeAwareGreeting: String {
+        let hour = Calendar.current.component(.hour, from: Date())
+        switch hour {
+        case 5..<12: return "Good morning"
+        case 12..<17: return "Good afternoon"
+        case 17..<21: return "Good evening"
+        default: return "Hey there"
+        }
+    }
+
     // MARK: - Empty State
     private var emptyStateView: some View {
         ScrollView {
-            VStack(spacing: 32) {
-                Spacer(minLength: 40)
+            VStack(spacing: 28) {
+                Spacer(minLength: 32)
 
-                // Clara intro
-                VStack(spacing: 16) {
-                    ZStack {
-                        Circle()
-                            .fill(claraGradient)
-                            .frame(width: 80, height: 80)
-                            .shadow(color: DesignSystem.Colors.violet.opacity(0.5), radius: 20, y: 10)
+                // Clara intro with animated avatar
+                VStack(spacing: 20) {
+                    // Animated glowing avatar
+                    ClaraAnimatedAvatar()
 
-                        Image(systemName: "sparkles")
-                            .font(.system(size: 32, weight: .semibold))
-                            .foregroundColor(.white)
+                    VStack(spacing: 8) {
+                        Text("\(timeAwareGreeting), I'm Clara")
+                            .font(.system(size: 26, weight: .bold))
+                            .foregroundColor(DesignSystem.Colors.primaryText)
+
+                        Text("Your personal AI assistant")
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundColor(DesignSystem.Colors.violet)
                     }
-
-                    Text("Hi, I'm Clara!")
-                        .font(.system(size: 28, weight: .bold))
-                        .foregroundColor(DesignSystem.Colors.primaryText)
-
-                    Text("I know your calendar, health data, tasks, and habits.\nAsk me anything about your life and I'll give you\nhonest, data-driven insights.")
-                        .font(.system(size: 15))
-                        .foregroundColor(DesignSystem.Colors.secondaryText)
-                        .multilineTextAlignment(.center)
-                        .lineSpacing(4)
                 }
 
-                // Suggested prompts
-                VStack(alignment: .leading, spacing: 16) {
+                // Capability pills
+                capabilityPills
+                    .padding(.horizontal, 20)
+
+                // Suggested prompts with categories
+                VStack(alignment: .leading, spacing: 14) {
                     Text("Try asking...")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(DesignSystem.Colors.tertiaryText)
+                        .textCase(.uppercase)
+                        .tracking(0.5)
                         .padding(.horizontal, 20)
 
-                    VStack(spacing: 12) {
+                    VStack(spacing: 10) {
                         ForEach(viewModel.suggestedPrompts, id: \.self) { prompt in
-                            SuggestedPromptButton(prompt: prompt) {
+                            EnhancedSuggestedPromptButton(prompt: prompt) {
                                 viewModel.sendMessage(prompt)
                             }
                         }
@@ -157,6 +166,33 @@ struct ClaraChatView: View {
                 }
 
                 Spacer(minLength: 100)
+            }
+        }
+    }
+
+    // MARK: - Capability Pills
+    private var capabilityPills: some View {
+        let capabilities: [(icon: String, text: String, color: Color)] = [
+            ("calendar", "Calendar", DesignSystem.Colors.blue),
+            ("heart.fill", "Health", DesignSystem.Colors.errorRed),
+            ("checkmark.circle", "Tasks", DesignSystem.Colors.emerald),
+            ("chart.bar.fill", "Insights", DesignSystem.Colors.amber)
+        ]
+
+        return HStack(spacing: 8) {
+            ForEach(capabilities, id: \.text) { cap in
+                HStack(spacing: 6) {
+                    Image(systemName: cap.icon)
+                        .font(.system(size: 12))
+                        .foregroundColor(cap.color)
+                    Text(cap.text)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(cap.color.opacity(0.1))
+                .clipShape(Capsule())
             }
         }
     }
@@ -203,20 +239,6 @@ struct ClaraChatView: View {
                 .background(DesignSystem.Colors.calmBorder)
 
             VStack(spacing: 12) {
-                // Quick suggestions (context-aware)
-                if viewModel.messages.isEmpty {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 8) {
-                            ForEach(viewModel.quickPrompts, id: \.self) { prompt in
-                                QuickPromptChip(prompt: prompt) {
-                                    viewModel.sendMessage(prompt)
-                                }
-                            }
-                        }
-                        .padding(.horizontal, 16)
-                    }
-                }
-
                 // Text input
                 HStack(spacing: 12) {
                     // Text field
@@ -370,7 +392,11 @@ class ClaraChatViewModel: ObservableObject {
                 // Post notifications to refresh relevant views after Clara actions
                 if let actionResult = response.actionResult, actionResult.success {
                     switch actionResult.actionType {
-                    case "create_reminder", "complete_reminder", "delete_reminder":
+                    case "create_reminder":
+                        NotificationCenter.default.post(name: NSNotification.Name("RefreshReminders"), object: nil)
+                        // Sync to iOS Reminders app
+                        await self.syncClaraReminderToEventKit(actionResult.data)
+                    case "complete_reminder", "delete_reminder":
                         NotificationCenter.default.post(name: NSNotification.Name("RefreshReminders"), object: nil)
                     case "create_task", "complete_task", "delete_task":
                         NotificationCenter.default.post(name: NSNotification.Name("TaskCreated"), object: nil)
@@ -403,6 +429,104 @@ class ClaraChatViewModel: ObservableObject {
         sessionId = nil
         inputText = ""
         error = nil
+    }
+
+    /// Syncs a Clara-created reminder to the iOS Reminders app
+    private func syncClaraReminderToEventKit(_ actionData: ActionData?) async {
+        guard let data = actionData else { return }
+
+        let eventKitManager = EventKitReminderManager.shared
+
+        // Check if authorized
+        guard eventKitManager.isAuthorized else {
+            print("⚠️ ClaraChat: EventKit not authorized, skipping sync")
+            return
+        }
+
+        // Get reminder data - try reminders array first, then direct fields
+        let reminderId: Int64
+        let reminderTitle: String
+        let reminderDueDate: String?
+        let reminderDueTime: String?
+
+        if let firstReminder = data.reminders?.first {
+            // Reminder data in array format
+            guard let id = firstReminder.id else {
+                print("⚠️ ClaraChat: No reminder ID in action data, skipping EventKit sync")
+                return
+            }
+            reminderId = id
+            reminderTitle = firstReminder.title
+            reminderDueDate = firstReminder.dueDate
+            reminderDueTime = firstReminder.dueTime
+        } else if let id = data.id, let title = data.title {
+            // Reminder data in direct fields format
+            reminderId = id
+            reminderTitle = title
+            reminderDueDate = data.dueDate ?? data.date
+            reminderDueTime = data.dueTime ?? data.startTime
+        } else {
+            print("⚠️ ClaraChat: No reminder data found in action result")
+            return
+        }
+
+        // Parse the due date
+        var dueDate = Date()
+        if let dateStr = reminderDueDate {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "yyyy-MM-dd"
+            if let parsed = formatter.date(from: dateStr) {
+                dueDate = parsed
+            }
+        }
+
+        // Add time if available
+        if let timeStr = reminderDueTime {
+            let timeFormatter = DateFormatter()
+            // Try multiple time formats
+            for format in ["HH:mm:ss", "HH:mm", "h:mm a"] {
+                timeFormatter.dateFormat = format
+                if let parsedTime = timeFormatter.date(from: timeStr) {
+                    let calendar = Calendar.current
+                    let timeComponents = calendar.dateComponents([.hour, .minute], from: parsedTime)
+                    if let combined = calendar.date(bySettingHour: timeComponents.hour ?? 9,
+                                                      minute: timeComponents.minute ?? 0,
+                                                      second: 0,
+                                                      of: dueDate) {
+                        dueDate = combined
+                        break
+                    }
+                }
+            }
+        }
+
+        // Create reminder for EventKit sync
+        let reminder = Reminder(
+            id: reminderId,
+            userId: 0,
+            title: reminderTitle,
+            description: nil,
+            dueDate: dueDate,
+            reminderTime: dueDate.addingTimeInterval(-15 * 60), // 15 min before
+            isCompleted: false,
+            priority: nil,
+            status: .pending,
+            eventId: nil,
+            recurrenceRule: nil,
+            snoozeUntil: nil,
+            notificationEnabled: true,
+            notificationSound: nil,
+            createdAt: Date(),
+            updatedAt: Date(),
+            completedAt: nil
+        )
+
+        do {
+            try await eventKitManager.syncReminderToEventKit(reminder)
+            print("✅ ClaraChat: Synced reminder '\(reminder.title)' to iOS Reminders")
+        } catch {
+            print("⚠️ ClaraChat: Failed to sync to EventKit: \(error.localizedDescription)")
+        }
     }
 }
 
@@ -692,6 +816,155 @@ struct QuickPromptChip: View {
                 )
         }
         .buttonStyle(PlainButtonStyle())
+    }
+}
+
+// MARK: - Animated Clara Avatar
+struct ClaraAnimatedAvatar: View {
+    @State private var isAnimating = false
+    @State private var innerPulse = false
+
+    private let claraGradient = LinearGradient(
+        colors: [DesignSystem.Colors.violet, DesignSystem.Colors.claraPurpleLight, DesignSystem.Colors.violetDark],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+
+    var body: some View {
+        ZStack {
+            // Outer glow rings
+            ForEach(0..<3) { i in
+                Circle()
+                    .stroke(
+                        DesignSystem.Colors.violet.opacity(0.15 - Double(i) * 0.04),
+                        lineWidth: 2
+                    )
+                    .frame(width: 90 + CGFloat(i) * 20, height: 90 + CGFloat(i) * 20)
+                    .scaleEffect(isAnimating ? 1.1 : 1.0)
+                    .opacity(isAnimating ? 0.0 : 1.0)
+                    .animation(
+                        Animation.easeOut(duration: 2.5)
+                            .repeatForever(autoreverses: false)
+                            .delay(Double(i) * 0.4),
+                        value: isAnimating
+                    )
+            }
+
+            // Main avatar circle
+            Circle()
+                .fill(claraGradient)
+                .frame(width: 88, height: 88)
+                .shadow(color: DesignSystem.Colors.violet.opacity(0.5), radius: 20, y: 8)
+                .scaleEffect(innerPulse ? 1.03 : 1.0)
+                .animation(
+                    Animation.easeInOut(duration: 2.0).repeatForever(autoreverses: true),
+                    value: innerPulse
+                )
+
+            // Inner glow
+            Circle()
+                .fill(
+                    RadialGradient(
+                        colors: [.white.opacity(0.3), .clear],
+                        center: .topLeading,
+                        startRadius: 0,
+                        endRadius: 50
+                    )
+                )
+                .frame(width: 88, height: 88)
+
+            // Sparkle icon
+            Image(systemName: "sparkles")
+                .font(.system(size: 34, weight: .semibold))
+                .foregroundColor(.white)
+                .shadow(color: .white.opacity(0.3), radius: 4)
+        }
+        .onAppear {
+            isAnimating = true
+            innerPulse = true
+        }
+    }
+}
+
+// MARK: - Enhanced Suggested Prompt Button
+struct EnhancedSuggestedPromptButton: View {
+    let prompt: String
+    let action: () -> Void
+
+    private var promptCategory: (icon: String, color: Color, bgColor: Color) {
+        let lowercased = prompt.lowercased()
+        if lowercased.contains("sleep") || lowercased.contains("rest") {
+            return ("moon.stars.fill", DesignSystem.Colors.indigo, DesignSystem.Colors.indigo.opacity(0.12))
+        }
+        if lowercased.contains("productive") || lowercased.contains("focus") || lowercased.contains("deep work") {
+            return ("target", DesignSystem.Colors.amber, DesignSystem.Colors.amber.opacity(0.12))
+        }
+        if lowercased.contains("schedule") || lowercased.contains("calendar") || lowercased.contains("meeting") {
+            return ("calendar", DesignSystem.Colors.blue, DesignSystem.Colors.blue.opacity(0.12))
+        }
+        if lowercased.contains("balance") || lowercased.contains("life") {
+            return ("scale.3d", DesignSystem.Colors.info, DesignSystem.Colors.info.opacity(0.12))
+        }
+        if lowercased.contains("pattern") || lowercased.contains("trend") {
+            return ("chart.line.uptrend.xyaxis", DesignSystem.Colors.emerald, DesignSystem.Colors.emerald.opacity(0.12))
+        }
+        if lowercased.contains("energy") || lowercased.contains("tired") {
+            return ("bolt.fill", DesignSystem.Colors.amber, DesignSystem.Colors.amber.opacity(0.12))
+        }
+        if lowercased.contains("today") || lowercased.contains("overview") {
+            return ("sun.max.fill", DesignSystem.Colors.amber, DesignSystem.Colors.amber.opacity(0.12))
+        }
+        return ("sparkles", DesignSystem.Colors.violet, DesignSystem.Colors.violet.opacity(0.12))
+    }
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 14) {
+                // Category icon with background
+                ZStack {
+                    Circle()
+                        .fill(promptCategory.bgColor)
+                        .frame(width: 40, height: 40)
+
+                    Image(systemName: promptCategory.icon)
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(promptCategory.color)
+                }
+
+                // Prompt text
+                Text(prompt)
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+
+                Spacer()
+
+                // Arrow indicator
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(DesignSystem.Colors.tertiaryText)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .background(DesignSystem.Colors.cardBackground)
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(promptCategory.color.opacity(0.15), lineWidth: 1)
+            )
+        }
+        .buttonStyle(PromptButtonStyle())
+    }
+}
+
+// MARK: - Prompt Button Style (with press effect)
+struct PromptButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
+            .opacity(configuration.isPressed ? 0.9 : 1.0)
+            .animation(.easeInOut(duration: 0.15), value: configuration.isPressed)
     }
 }
 

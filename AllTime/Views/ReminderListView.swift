@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct ReminderListView: View {
-    @StateObject private var viewModel = ReminderViewModel()
+    @EnvironmentObject var viewModel: ReminderViewModel
     @State private var showingCreateReminder = false
     @State private var selectedReminder: Reminder?
     @State private var showingDetail = false
@@ -405,5 +405,6 @@ struct DoThisFirstCard: View {
 
 #Preview {
     ReminderListView()
+        .environmentObject(ReminderViewModel())
 }
 

@@ -53,6 +53,8 @@ struct CircularWeekWheelView: View {
                         isHighlighted: index == viewModel.highlightedIndex,
                         isSelected: calendar.isDate(date, inSameDayAs: selectedDate),
                         eventCount: viewModel.eventCount(at: index),
+                        severityLevel: viewModel.severityLevel(at: index),
+                        isProblemDay: viewModel.isProblemDay(at: index),
                         position: viewModel.position(at: index),
                         size: dateBubbleSize
                     )
@@ -68,6 +70,10 @@ struct CircularWeekWheelView: View {
                     dayNumber: calendar.component(.day, from: viewModel.centerDate),
                     isToday: calendar.isDate(viewModel.centerDate, inSameDayAs: Date()),
                     eventCount: viewModel.eventCount(at: viewModel.highlightedIndex),
+                    severityLevel: viewModel.severityLevel(at: viewModel.highlightedIndex),
+                    daySummary: viewModel.severity(at: viewModel.highlightedIndex)?.summary,
+                    isProblemDay: viewModel.isProblemDay(at: viewModel.highlightedIndex),
+                    problemDayLabel: viewModel.problemDay?.label,
                     size: centerCapsuleSize
                 )
                 .transaction { $0.animation = nil }
@@ -155,6 +161,10 @@ struct CircularWeekWheelView: View {
         .onAppear {
             viewModel.setupDays(weekDays, events: events)
             viewModel.centerDate = selectedDate
+        }
+        .task {
+            // Load day severity data in background
+            await viewModel.loadSeverityData()
         }
         .onChange(of: weekDays) { oldDays, newDays in
             viewModel.setupDays(newDays, events: events)

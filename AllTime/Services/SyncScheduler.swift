@@ -131,9 +131,9 @@ class SyncScheduler: ObservableObject {
             do {
                 print("🔄 SyncScheduler: Starting Google Calendar sync...")
                 let googleSyncResponse = try await apiService.syncGoogleCalendar()
-                totalEventsSynced += googleSyncResponse.eventsSynced
+                totalEventsSynced += googleSyncResponse.totalEventsSynced
                 syncResponse = googleSyncResponse
-                print("✅ SyncScheduler: Google Calendar sync completed - \(googleSyncResponse.eventsSynced) events synced")
+                print("✅ SyncScheduler: Google Calendar sync completed - \(googleSyncResponse.totalEventsSynced) events synced")
                 print("✅ SyncScheduler: Sync status: \(googleSyncResponse.status)")
                 
                 // Check if sync failed
@@ -149,11 +149,11 @@ class SyncScheduler: ObservableObject {
             // Sync Microsoft Calendar
             do {
                 let microsoftSyncResponse = try await apiService.syncMicrosoftCalendar()
-                totalEventsSynced += microsoftSyncResponse.eventsSynced
+                totalEventsSynced += microsoftSyncResponse.totalEventsSynced
                 if syncResponse == nil {
                     syncResponse = microsoftSyncResponse
                 }
-                print("✅ SyncScheduler: Microsoft Calendar synced - \(microsoftSyncResponse.eventsSynced) events")
+                print("✅ SyncScheduler: Microsoft Calendar synced - \(microsoftSyncResponse.totalEventsSynced) events")
             } catch {
                 print("⚠️ SyncScheduler: Microsoft Calendar sync failed: \(error.localizedDescription)")
             }
@@ -164,12 +164,12 @@ class SyncScheduler: ObservableObject {
             
             print("✅ SyncScheduler: ===== SYNC COMPLETED SUCCESSFULLY =====")
             print("✅ SyncScheduler: Total events synced: \(totalEventsSynced)")
-            print("✅ SyncScheduler: Google Calendar events: \(finalSyncResponse.eventsSynced)")
+            print("✅ SyncScheduler: Google Calendar events: \(finalSyncResponse.totalEventsSynced)")
             print("✅ SyncScheduler: Status: \(finalSyncResponse.status)")
             print("✅ SyncScheduler: Message: \(finalSyncResponse.message)")
             print("✅ SyncScheduler: User ID: \(finalSyncResponse.userId)")
             
-            if finalSyncResponse.eventsSynced == 0 && totalEventsSynced == 0 {
+            if finalSyncResponse.totalEventsSynced == 0 && totalEventsSynced == 0 {
                 print("⚠️ SyncScheduler: ===== WARNING: SYNC RETURNED 0 EVENTS =====")
                 print("⚠️ SyncScheduler: This could mean:")
                 print("   1. Google Calendar is empty (no events in date range)")
@@ -178,7 +178,7 @@ class SyncScheduler: ObservableObject {
                 print("   4. Backend sync logic may not be fetching events correctly")
                 print("⚠️ SyncScheduler: Check backend logs for sync details")
             } else {
-                print("✅ SyncScheduler: Successfully synced \(totalEventsSynced) total events (Google: \(finalSyncResponse.eventsSynced))")
+                print("✅ SyncScheduler: Successfully synced \(totalEventsSynced) total events (Google: \(finalSyncResponse.totalEventsSynced))")
             }
             
             saveLastSyncTime()
@@ -206,7 +206,7 @@ class SyncScheduler: ObservableObject {
                 object: nil,
                 userInfo: [
                     "status": finalSyncResponse.status,
-                    "eventsSynced": finalSyncResponse.eventsSynced
+                    "eventsSynced": finalSyncResponse.totalEventsSynced
                 ]
             )
             

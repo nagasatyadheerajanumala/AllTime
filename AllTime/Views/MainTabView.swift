@@ -95,6 +95,7 @@ struct MainTabView: View {
     @StateObject private var calendarViewModel = CalendarViewModel()
     @StateObject private var summaryViewModel = DailySummaryViewModel()
     @StateObject private var settingsViewModel = SettingsViewModel()
+    @StateObject private var reminderViewModel = ReminderViewModel()
 
     @State private var selectedTab: Tab = .calendar
     @State private var dragOffset: CGFloat = 0
@@ -206,7 +207,7 @@ struct MainTabView: View {
         case .insights: InsightsTabView()
         case .calendar: CalendarView().environmentObject(calendarViewModel)
         case .health: HealthSummaryView()
-        case .reminders: ReminderListView()
+        case .reminders: ReminderListView().environmentObject(reminderViewModel)
         case .settings: SettingsView().environmentObject(settingsViewModel)
         }
     }

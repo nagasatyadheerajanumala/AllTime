@@ -3,20 +3,20 @@ import SwiftUI
 /// Insights Tab View - Main tab for viewing all insights
 /// Professional, clean design with Clara AI branding
 struct InsightsTabView: View {
-    @State private var selectedSection: InsightsSection = .weekly
+    @State private var selectedSection: InsightsSection = .forecast
 
     enum InsightsSection: String, CaseIterable {
+        case forecast = "Forecast"
+        case daily = "Daily"
         case weekly = "Weekly"
-        case tomorrow = "Tomorrow"
-        case nextWeek = "Next Week"
         case monthly = "Monthly"
         case health = "Health"
 
         var icon: String {
             switch self {
+            case .forecast: return "sparkles"
+            case .daily: return "sun.max.fill"
             case .weekly: return "calendar.badge.clock"
-            case .tomorrow: return "sunrise.fill"
-            case .nextWeek: return "arrow.right.circle"
             case .monthly: return "calendar.circle"
             case .health: return "heart.fill"
             }
@@ -24,9 +24,9 @@ struct InsightsTabView: View {
 
         var description: String {
             switch self {
+            case .forecast: return "Tomorrow"
+            case .daily: return "Today"
             case .weekly: return "7 days"
-            case .tomorrow: return "Prep"
-            case .nextWeek: return "Upcoming"
             case .monthly: return "30-60 days"
             case .health: return "Wellness"
             }
@@ -44,12 +44,12 @@ struct InsightsTabView: View {
             // Content
             Group {
                 switch selectedSection {
+                case .forecast:
+                    NextDayForecastView()
+                case .daily:
+                    DailyInsightsView()
                 case .weekly:
                     WeeklyInsightsView()
-                case .tomorrow:
-                    NextDayForecastView()
-                case .nextWeek:
-                    NextWeekInsightsView()
                 case .monthly:
                     LifeInsightsView()
                 case .health:

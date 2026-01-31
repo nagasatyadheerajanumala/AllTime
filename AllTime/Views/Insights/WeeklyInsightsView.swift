@@ -69,12 +69,6 @@ struct WeeklyInsightsView: View {
 
     @ViewBuilder
     private func reportCardContent(_ narrative: WeeklyNarrativeResponse) -> some View {
-        // Section 0: Next Week Forecast (Predictive Intelligence - show first!)
-        // Only show when viewing current week
-        if viewModel.isCurrentWeek {
-            nextWeekForecastSection
-        }
-
         // Section 1: Balance Score Hero
         balanceScoreSection(narrative)
 
@@ -277,7 +271,8 @@ struct WeeklyInsightsView: View {
                         label: "focus"
                     )
 
-                    if aggregates.averageSleepHours != nil {
+                    // Only show sleep stat if user reliably tracks sleep
+                    if viewModel.showSleepUI, aggregates.averageSleepHours != nil {
                         statPill(
                             icon: "moon.zzz.fill",
                             value: aggregates.formattedSleep,
@@ -774,7 +769,8 @@ struct WeeklyInsightsView: View {
 
             // Individual goals
             VStack(spacing: DesignSystem.Spacing.sm) {
-                if let sleepGoal = healthGoals.sleepGoal {
+                // Only show sleep goal if user reliably tracks sleep
+                if viewModel.showSleepUI, let sleepGoal = healthGoals.sleepGoal {
                     goalProgressRow(sleepGoal)
                 }
                 if let stepsGoal = healthGoals.stepsGoal {
@@ -2097,8 +2093,8 @@ extension WeeklyInsightsView {
                                     .fill(DesignSystem.Colors.cardBackgroundElevated)
                             )
 
-                            // Sleep recommendation
-                            if let sleepHours = prediction.recommendedSleep {
+                            // Sleep recommendation - only show if user reliably tracks sleep
+                            if viewModel.showSleepUI, let sleepHours = prediction.recommendedSleep {
                                 VStack(alignment: .leading, spacing: 4) {
                                     HStack(spacing: 4) {
                                         Image(systemName: "moon.zzz.fill")

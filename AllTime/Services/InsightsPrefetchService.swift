@@ -77,6 +77,11 @@ class InsightsPrefetchService {
             group.addTask {
                 await self.prefetchHealthInsights()
             }
+
+            // Energy patterns for notifications
+            group.addTask {
+                await self.prefetchEnergyPatterns()
+            }
         }
 
         isPrefetching = false
@@ -286,6 +291,29 @@ class InsightsPrefetchService {
             print("📊 InsightsPrefetch: ✅ Available weeks cached")
         } catch {
             print("📊 InsightsPrefetch: ⚠️ Available weeks prefetch failed: \(error.localizedDescription)")
+        }
+    }
+
+    /// Prefetch energy patterns for notification insights
+    private func prefetchEnergyPatterns() async {
+        let filename = "energy_patterns_cache"
+
+        // Check if cache is still valid (24 hour expiration - patterns don't change often)
+        if let metadata = cacheService.getCacheMetadataSync(filename: filename),
+           Date().timeIntervalSince(metadata.lastUpdated) < 86400 {
+            print("📊 InsightsPrefetch: Energy patterns cache still valid")
+            return
+        }
+
+        do {
+            print("📊 InsightsPrefetch: Fetching energy patterns...")
+
+            // Use the EnergyPatternInsightService to refresh patterns
+            await EnergyPatternInsightService.shared.refreshPatterns()
+
+            print("📊 InsightsPrefetch: ✅ Energy patterns refreshed")
+        } catch {
+            print("📊 InsightsPrefetch: ⚠️ Energy patterns prefetch failed: \(error.localizedDescription)")
         }
     }
 

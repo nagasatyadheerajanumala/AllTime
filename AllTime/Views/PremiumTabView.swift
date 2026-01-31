@@ -2,6 +2,7 @@ import SwiftUI
 
 struct PremiumTabView: View {
     @ObservedObject private var navigationManager = NavigationManager.shared
+    @StateObject private var reminderViewModel = ReminderViewModel()
     @Namespace private var tabAnimation
     @State private var hasRequestedHealthKit = false
     @State private var showingClaraChat = false
@@ -57,6 +58,7 @@ struct PremiumTabView: View {
                 // Reminders View (Tab 3)
                 if remindersViewCreated || navigationManager.selectedTab == 3 {
                     ReminderListView()
+                        .environmentObject(reminderViewModel)
                         .opacity(navigationManager.selectedTab == 3 ? 1 : 0)
                         .allowsHitTesting(navigationManager.selectedTab == 3)
                         .onAppear { remindersViewCreated = true }

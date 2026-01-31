@@ -4,9 +4,24 @@ import SwiftUI
 /// This is NOT optional information - it demands attention
 struct CriticalHealthAlertBanner: View {
     let metrics: BriefingKeyMetrics
+    /// Whether to show sleep-related content (false if user doesn't reliably track sleep)
+    var showSleepUI: Bool = true
 
     private var isSuspect: Bool {
-        metrics.isHealthDataSuspect
+        // Don't flag as suspect based on sleep if sleep tracking is unreliable
+        if !showSleepUI {
+            // Only flag as suspect for non-sleep reasons
+            return metrics.isHealthDataSuspect && !isSleepBasedSuspect
+        }
+        return metrics.isHealthDataSuspect
+    }
+
+    /// Check if the suspect flag is based on sleep data
+    private var isSleepBasedSuspect: Bool {
+        if let sleep = metrics.sleepHoursLastNight, sleep < 1 {
+            return true
+        }
+        return false
     }
 
     private var isCritical: Bool {
@@ -35,17 +50,23 @@ struct CriticalHealthAlertBanner: View {
 
     private var message: String {
         if let reason = metrics.healthEscalationMessage, !reason.isEmpty {
+            // If it's a sleep-based message and sleep UI is hidden, use generic message
+            if !showSleepUI && reason.lowercased().contains("sleep") {
+                return "Your health metrics need attention today."
+            }
             return reason
         }
 
         if isSuspect {
-            if let sleep = metrics.sleepHoursLastNight, sleep < 1 {
+            // Only show sleep-based suspect message if sleep UI is enabled
+            if showSleepUI, let sleep = metrics.sleepHoursLastNight, sleep < 1 {
                 return "\(String(format: "%.1f", sleep))h sleep recorded. This may be a sync issue. If accurate, you're operating severely impaired."
             }
             return "Some health values look incorrect. Check your data sync."
         }
 
-        if let sleep = metrics.sleepHoursLastNight {
+        // Only show sleep deficit messages if sleep UI is enabled
+        if showSleepUI, let sleep = metrics.sleepHoursLastNight {
             if sleep < 4 {
                 return "Only \(String(format: "%.1f", sleep))h sleep. Your cognitive function is significantly impaired. Avoid important decisions."
             } else if sleep < 5 {
@@ -127,8 +148,8 @@ struct CriticalHealthAlertBanner: View {
 
                 Spacer()
 
-                // Sleep hours if available
-                if let sleep = metrics.sleepHoursLastNight {
+                // Sleep hours if available and sleep UI is enabled
+                if showSleepUI, let sleep = metrics.sleepHoursLastNight {
                     HStack(spacing: DesignSystem.Spacing.xs) {
                         Image(systemName: "moon.zzz.fill")
                             .font(.caption)

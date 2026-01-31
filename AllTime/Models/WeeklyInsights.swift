@@ -10,6 +10,14 @@ struct WeeklyInsightsSummaryResponse: Codable {
     let nextWeekFocus: NextWeekFocusSection
     let generatedAt: String?
 
+    enum CodingKeys: String, CodingKey {
+        case weekStart = "week_start"
+        case weekEnd = "week_end"
+        case recap
+        case nextWeekFocus = "next_week_focus"
+        case generatedAt = "generated_at"
+    }
+
     // Computed properties
     var weekStartDate: Date? {
         let formatter = DateFormatter()
@@ -41,6 +49,13 @@ struct RecapSection: Codable {
     let keyMetrics: [KeyMetric]
     let whatWentWrong: [ProblemItem]?
     let highlights: [WeeklyHighlightItem]?
+
+    enum CodingKeys: String, CodingKey {
+        case headline
+        case keyMetrics = "key_metrics"
+        case whatWentWrong = "what_went_wrong"
+        case highlights
+    }
 }
 
 struct KeyMetric: Codable, Identifiable {
@@ -91,6 +106,11 @@ struct NextWeekFocusSection: Codable {
     let priorities: [Priority]
     let suggestedBlocks: [SuggestedBlock]?
     let plan: PlanInfo?
+
+    enum CodingKeys: String, CodingKey {
+        case headline, priorities, plan
+        case suggestedBlocks = "suggested_blocks"
+    }
 }
 
 struct Priority: Codable, Identifiable {
@@ -162,6 +182,12 @@ struct PlanInfo: Codable {
     let available: Bool
     let changeCount: Int
     let requiresApproval: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case available
+        case changeCount = "change_count"
+        case requiresApproval = "requires_approval"
+    }
 }
 
 // MARK: - Available Weeks Response
@@ -169,6 +195,11 @@ struct PlanInfo: Codable {
 struct AvailableWeeksResponse: Codable {
     let weeks: [WeekOption]
     let currentWeek: String
+
+    enum CodingKeys: String, CodingKey {
+        case weeks
+        case currentWeek = "current_week"
+    }
 }
 
 struct WeekOption: Codable, Identifiable, Hashable {
@@ -177,6 +208,12 @@ struct WeekOption: Codable, Identifiable, Hashable {
     let label: String
 
     var id: String { weekStart }
+
+    enum CodingKeys: String, CodingKey {
+        case weekStart = "week_start"
+        case weekEnd = "week_end"
+        case label
+    }
 }
 
 // MARK: - Weekly Narrative Response (New Calm UI)

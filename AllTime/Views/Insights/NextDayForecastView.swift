@@ -5,13 +5,12 @@ import SwiftUI
 struct NextDayForecastView: View {
     @StateObject private var viewModel = NextDayForecastViewModel()
     @State private var showSimilarDays = false
+    @State private var showRisks = true
+    @State private var showInterventions = true
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
-                // Header
-                headerSection
-
                 // Content
                 if viewModel.isLoading && !viewModel.hasForecast {
                     loadingView
@@ -41,59 +40,23 @@ struct NextDayForecastView: View {
         }
     }
 
-    // MARK: - Header Section
-
-    private var headerSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Tomorrow")
-                        .font(.title2.weight(.bold))
-                        .foregroundColor(DesignSystem.Colors.primaryText)
-
-                    Text(tomorrowDateString)
-                        .font(.subheadline)
-                        .foregroundColor(DesignSystem.Colors.secondaryText)
-                }
-
-                Spacer()
-
-                // AI Badge
-                HStack(spacing: 4) {
-                    Image(systemName: "sparkles")
-                        .font(.system(size: 10, weight: .semibold))
-                    Text("Forecast")
-                        .font(.system(size: 11, weight: .semibold))
-                }
-                .foregroundColor(.white)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .background(
-                    Capsule()
-                        .fill(
-                            LinearGradient(
-                                colors: [DesignSystem.Colors.indigo, DesignSystem.Colors.violet],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                )
-            }
-        }
-        .padding(DesignSystem.Spacing.md)
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg)
-                .fill(DesignSystem.Colors.cardBackground)
-                .overlay(
-                    RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg)
-                        .stroke(DesignSystem.Colors.calmBorder, lineWidth: 0.5)
-                )
-        )
-    }
-
     private var tomorrowDateString: String {
         let formatter = DateFormatter()
         formatter.dateFormat = "EEEE, MMM d"
+        let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date()
+        return formatter.string(from: tomorrow)
+    }
+
+    private var shortDayName: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "EEE"
+        let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date()
+        return formatter.string(from: tomorrow).uppercased()
+    }
+
+    private var dayNumber: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "d"
         let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date()
         return formatter.string(from: tomorrow)
     }
@@ -162,28 +125,26 @@ struct NextDayForecastView: View {
 
     @ViewBuilder
     private func forecastContent(_ forecast: NextDayForecast) -> some View {
-        // Headline Card
-        headlineCard(forecast)
+        // Hero Section (like Balance Score in Weekly Insights)
+        heroSection(forecast)
 
-        // Comparison with Today
-        if let comparison = forecast.comparedToToday {
-            comparisonCard(comparison)
-        }
+        // Day Overview Card
+        dayOverviewCard(forecast)
 
-        // Stats Row
-        statsRow(forecast)
+        // Stats Grid (like Metrics Comparison in Weekly Insights)
+        statsGridSection(forecast)
 
-        // Prediction Card
+        // Prediction Card with outcome/energy
         if let prediction = forecast.prediction {
-            predictionCard(prediction, sleepRec: forecast.sleepRecommendation)
+            predictionSection(prediction, sleepRec: forecast.sleepRecommendation)
         }
 
-        // Risk Signals
+        // Risk Signals (expandable)
         if forecast.hasRisks {
             riskSignalsSection(forecast.riskSignals ?? [])
         }
 
-        // Interventions
+        // Interventions (expandable)
         if let interventions = forecast.interventions, !interventions.isEmpty {
             interventionsSection(interventions)
         }
@@ -199,83 +160,121 @@ struct NextDayForecastView: View {
         }
     }
 
-    // MARK: - Headline Card
+    // MARK: - Hero Section (Balance Score Style)
 
-    private func headlineCard(_ forecast: NextDayForecast) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Image(systemName: forecast.intensityIcon)
-                    .font(.system(size: 24))
-                    .foregroundColor(forecast.intensityColor)
+    private func heroSection(_ forecast: NextDayForecast) -> some View {
+        VStack(spacing: DesignSystem.Spacing.md) {
+            // Intensity Gauge Ring
+            IntensityGaugeRing(
+                intensity: forecast.intensity,
+                meetingHours: forecast.meetingHours,
+                size: 140
+            )
+            .padding(.top, DesignSystem.Spacing.md)
 
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(forecast.headline)
-                        .font(.headline)
-                        .foregroundColor(DesignSystem.Colors.primaryText)
-
-                    if let subheadline = forecast.subheadline {
-                        Text(subheadline)
-                            .font(.subheadline)
-                            .foregroundColor(DesignSystem.Colors.secondaryText)
-                    }
-                }
-            }
-
-            // Intensity Badge
-            HStack {
-                Text(forecast.intensityLabel)
-                    .font(.system(size: 12, weight: .semibold))
+            // Date and intensity label
+            VStack(spacing: 4) {
+                Text("Tomorrow")
+                    .font(.title2.weight(.bold))
                     .foregroundColor(.white)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(
-                        Capsule()
-                            .fill(forecast.intensityColor)
-                    )
 
-                Spacer()
-
-                if let firstTime = forecast.firstMeetingTime, let lastTime = forecast.lastMeetingTime {
-                    Text("\(firstTime) - \(lastTime)")
-                        .font(.caption)
-                        .foregroundColor(DesignSystem.Colors.secondaryText)
-                }
+                Text(tomorrowDateString)
+                    .font(.subheadline)
+                    .foregroundColor(.white.opacity(0.7))
             }
-        }
-        .padding(DesignSystem.Spacing.md)
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg)
-                .fill(DesignSystem.Colors.cardBackground)
-                .overlay(
-                    RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg)
-                        .stroke(forecast.intensityColor.opacity(0.3), lineWidth: 1)
-                )
-        )
-    }
 
-    // MARK: - Comparison Card
-
-    private func comparisonCard(_ comparison: TomorrowComparison) -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: comparison.comparisonIcon)
-                .font(.system(size: 20))
-                .foregroundColor(comparison.isLighter ? .green : comparison.isHeavier ? .orange : .blue)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(comparison.comparisonLabel)
+            // Intensity badge
+            HStack(spacing: 8) {
+                Circle()
+                    .fill(forecast.intensityColor)
+                    .frame(width: 10, height: 10)
+                Text(forecast.intensityLabel)
                     .font(.subheadline.weight(.semibold))
-                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .foregroundColor(forecast.intensityColor)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+            .background(
+                Capsule()
+                    .fill(forecast.intensityColor.opacity(0.15))
+            )
 
-                let diff = comparison.meetingCountDiff
-                let hoursDiff = comparison.meetingHoursDiff
-                Text("\(diff >= 0 ? "+" : "")\(diff) meetings, \(hoursDiff >= 0 ? "+" : "")\(String(format: "%.1f", hoursDiff))h")
-                    .font(.caption)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
+            // Comparison with today
+            if let comparison = forecast.comparedToToday {
+                comparisonBadge(comparison)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(DesignSystem.Spacing.lg)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.xl)
+                .fill(
+                    LinearGradient(
+                        colors: [Color(hex: "1E1B4B"), Color(hex: "312E81")],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.xl)
+                .stroke(Color.white.opacity(0.1), lineWidth: 0.5)
+        )
+    }
+
+    private func comparisonBadge(_ comparison: TomorrowComparison) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: comparison.comparisonIcon)
+                .font(.system(size: 12, weight: .semibold))
+            Text(comparison.comparisonLabel)
+                .font(.caption.weight(.medium))
+        }
+        .foregroundColor(comparison.isLighter ? DesignSystem.Colors.emerald : comparison.isHeavier ? DesignSystem.Colors.amber : .white.opacity(0.7))
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .background(
+            Capsule()
+                .fill(comparison.isLighter ? DesignSystem.Colors.emerald.opacity(0.15) :
+                      comparison.isHeavier ? DesignSystem.Colors.amber.opacity(0.15) :
+                      Color.white.opacity(0.1))
+        )
+    }
+
+    // MARK: - Day Overview Card
+
+    private func dayOverviewCard(_ forecast: NextDayForecast) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                Image(systemName: forecast.intensityIcon)
+                    .font(.title2)
+                    .foregroundColor(forecast.intensityColor)
+                Text(forecast.headline)
+                    .font(.headline.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
             }
 
-            Spacer()
+            if let subheadline = forecast.subheadline {
+                Text(subheadline)
+                    .font(.body)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .lineSpacing(4)
+            }
+
+            // Time range
+            if let firstTime = forecast.firstMeetingTime, let lastTime = forecast.lastMeetingTime {
+                HStack(spacing: 6) {
+                    Image(systemName: "clock")
+                        .font(.caption)
+                    Text("\(firstTime) - \(lastTime)")
+                        .font(.caption.weight(.medium))
+                }
+                .foregroundColor(DesignSystem.Colors.secondaryText)
+                .padding(.top, 4)
+            }
         }
         .padding(DesignSystem.Spacing.md)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg)
                 .fill(DesignSystem.Colors.cardBackground)
@@ -286,16 +285,63 @@ struct NextDayForecastView: View {
         )
     }
 
-    // MARK: - Stats Row
+    // MARK: - Stats Grid Section
 
-    private func statsRow(_ forecast: NextDayForecast) -> some View {
-        HStack(spacing: 0) {
-            statItem(icon: "calendar", value: "\(forecast.meetingCount)", label: "Meetings")
-            statItem(icon: "clock", value: String(format: "%.1fh", forecast.meetingHours), label: "In Calls")
-            statItem(icon: "brain.head.profile", value: String(format: "%.1fh", forecast.focusHours), label: "Focus")
-            statItem(icon: "arrow.right.arrow.left", value: "\(forecast.backToBackCount)", label: "Back-to-Back")
+    private func statsGridSection(_ forecast: NextDayForecast) -> some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+            HStack(spacing: 10) {
+                ZStack {
+                    Circle()
+                        .fill(DesignSystem.Colors.blue.opacity(0.15))
+                        .frame(width: 32, height: 32)
+                    Image(systemName: "chart.bar.fill")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(DesignSystem.Colors.blue)
+                }
+
+                Text("Day Metrics")
+                    .font(.headline)
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+            }
+            .padding(.horizontal, DesignSystem.Spacing.md)
+            .padding(.top, DesignSystem.Spacing.md)
+
+            // 2x2 Grid of metrics
+            LazyVGrid(columns: [
+                GridItem(.flexible()),
+                GridItem(.flexible())
+            ], spacing: 12) {
+                metricCard(
+                    icon: "calendar",
+                    value: "\(forecast.meetingCount)",
+                    label: "Meetings",
+                    color: DesignSystem.Colors.blue
+                )
+
+                metricCard(
+                    icon: "clock.fill",
+                    value: String(format: "%.1fh", forecast.meetingHours),
+                    label: "In Calls",
+                    color: DesignSystem.Colors.violet
+                )
+
+                metricCard(
+                    icon: "brain.head.profile",
+                    value: String(format: "%.1fh", forecast.focusHours),
+                    label: "Focus Time",
+                    color: DesignSystem.Colors.emerald
+                )
+
+                metricCard(
+                    icon: "arrow.right.arrow.left",
+                    value: "\(forecast.backToBackCount)",
+                    label: "Back-to-Back",
+                    color: forecast.backToBackCount > 2 ? DesignSystem.Colors.amber : DesignSystem.Colors.secondaryText
+                )
+            }
+            .padding(.horizontal, DesignSystem.Spacing.md)
+            .padding(.bottom, DesignSystem.Spacing.md)
         }
-        .padding(.vertical, DesignSystem.Spacing.md)
         .background(
             RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg)
                 .fill(DesignSystem.Colors.cardBackground)
@@ -306,30 +352,42 @@ struct NextDayForecastView: View {
         )
     }
 
-    private func statItem(icon: String, value: String, label: String) -> some View {
-        VStack(spacing: 4) {
+    private func metricCard(icon: String, value: String, label: String, color: Color) -> some View {
+        VStack(spacing: 8) {
             Image(systemName: icon)
-                .font(.system(size: 14))
-                .foregroundColor(DesignSystem.Colors.primary)
+                .font(.system(size: 18))
+                .foregroundColor(color)
 
             Text(value)
-                .font(.system(size: 18, weight: .bold, design: .rounded))
+                .font(.system(size: 24, weight: .bold, design: .rounded))
                 .foregroundColor(DesignSystem.Colors.primaryText)
 
             Text(label)
-                .font(.system(size: 10, weight: .medium))
+                .font(.system(size: 12, weight: .medium))
                 .foregroundColor(DesignSystem.Colors.secondaryText)
         }
         .frame(maxWidth: .infinity)
+        .padding(.vertical, 16)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.md)
+                .fill(color.opacity(0.05))
+        )
     }
 
-    // MARK: - Prediction Card
+    // MARK: - Prediction Section
 
-    private func predictionCard(_ prediction: TomorrowDayPrediction, sleepRec: TomorrowSleepRecommendation?) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                Image(systemName: "chart.line.uptrend.xyaxis")
-                    .foregroundColor(DesignSystem.Colors.indigo)
+    private func predictionSection(_ prediction: TomorrowDayPrediction, sleepRec: TomorrowSleepRecommendation?) -> some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+            HStack(spacing: 10) {
+                ZStack {
+                    Circle()
+                        .fill(DesignSystem.Colors.indigo.opacity(0.15))
+                        .frame(width: 32, height: 32)
+                    Image(systemName: "chart.line.uptrend.xyaxis")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(DesignSystem.Colors.indigo)
+                }
+
                 Text("Prediction")
                     .font(.headline)
                     .foregroundColor(DesignSystem.Colors.primaryText)
@@ -337,55 +395,48 @@ struct NextDayForecastView: View {
                 Spacer()
 
                 if let confidence = prediction.confidence {
-                    Text(confidence.capitalized + " confidence")
-                        .font(.caption)
+                    Text(confidence.capitalized)
+                        .font(.caption.weight(.medium))
                         .foregroundColor(DesignSystem.Colors.tertiaryText)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(
+                            Capsule()
+                                .fill(Color(hex: "6B7280").opacity(0.1))
+                        )
                 }
             }
+            .padding(.horizontal, DesignSystem.Spacing.md)
+            .padding(.top, DesignSystem.Spacing.md)
 
-            HStack(spacing: 16) {
+            // Prediction cards row
+            HStack(spacing: 12) {
                 // Outcome Prediction
                 if let outcome = prediction.predictedOutcome {
-                    VStack(alignment: .center, spacing: 4) {
-                        Image(systemName: prediction.outcomeIcon ?? "sun.max.fill")
-                            .font(.system(size: 24))
-                            .foregroundColor(prediction.outcomeColor)
-
-                        Text("\(outcome)%")
-                            .font(.system(size: 20, weight: .bold, design: .rounded))
-                            .foregroundColor(DesignSystem.Colors.primaryText)
-
-                        Text(prediction.outcomeLabel ?? "Outcome")
-                            .font(.caption)
-                            .foregroundColor(DesignSystem.Colors.secondaryText)
-                            .multilineTextAlignment(.center)
-                    }
-                    .frame(maxWidth: .infinity)
+                    predictionMetricCard(
+                        icon: prediction.outcomeIcon ?? "sun.max.fill",
+                        value: "\(outcome)%",
+                        label: prediction.outcomeLabel ?? "Good Day",
+                        color: prediction.outcomeColor
+                    )
                 }
 
                 // Energy Prediction
                 if let energy = prediction.predictedEnergy {
-                    VStack(alignment: .center, spacing: 4) {
-                        Image(systemName: prediction.energyIcon ?? "battery.75")
-                            .font(.system(size: 24))
-                            .foregroundColor(prediction.energyColor)
-
-                        Text("\(energy)%")
-                            .font(.system(size: 20, weight: .bold, design: .rounded))
-                            .foregroundColor(DesignSystem.Colors.primaryText)
-
-                        Text(prediction.energyLabel ?? "Energy")
-                            .font(.caption)
-                            .foregroundColor(DesignSystem.Colors.secondaryText)
-                            .multilineTextAlignment(.center)
-                    }
-                    .frame(maxWidth: .infinity)
+                    predictionMetricCard(
+                        icon: prediction.energyIcon ?? "battery.75",
+                        value: "\(energy)%",
+                        label: prediction.energyLabel ?? "Energy",
+                        color: prediction.energyColor
+                    )
                 }
             }
+            .padding(.horizontal, DesignSystem.Spacing.md)
 
             // Sleep Recommendation
             if let sleepRec = sleepRec {
                 Divider()
+                    .padding(.horizontal, DesignSystem.Spacing.md)
 
                 HStack(alignment: .top, spacing: 12) {
                     Image(systemName: sleepRec.icon ?? "bed.double.fill")
@@ -404,9 +455,11 @@ struct NextDayForecastView: View {
                         }
                     }
                 }
+                .padding(.horizontal, DesignSystem.Spacing.md)
             }
+
+            Spacer(minLength: DesignSystem.Spacing.md)
         }
-        .padding(DesignSystem.Spacing.md)
         .background(
             RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg)
                 .fill(DesignSystem.Colors.cardBackground)
@@ -417,94 +470,87 @@ struct NextDayForecastView: View {
         )
     }
 
-    // MARK: - Risk Signals Section
+    private func predictionMetricCard(icon: String, value: String, label: String, color: Color) -> some View {
+        VStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.system(size: 24))
+                .foregroundColor(color)
 
-    private func riskSignalsSection(_ signals: [TomorrowRiskSignal]) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .foregroundColor(.orange)
-                Text("Watch Out")
-                    .font(.headline)
-                    .foregroundColor(DesignSystem.Colors.primaryText)
-            }
+            Text(value)
+                .font(.system(size: 22, weight: .bold, design: .rounded))
+                .foregroundColor(DesignSystem.Colors.primaryText)
 
-            ForEach(signals) { signal in
-                HStack(alignment: .top, spacing: 12) {
-                    Image(systemName: signal.icon)
-                        .font(.system(size: 14))
-                        .foregroundColor(signal.severityColor)
-                        .frame(width: 24)
-
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(signal.title)
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundColor(DesignSystem.Colors.primaryText)
-
-                        Text(signal.detail)
-                            .font(.caption)
-                            .foregroundColor(DesignSystem.Colors.secondaryText)
-                    }
-                }
-            }
+            Text(label)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundColor(DesignSystem.Colors.secondaryText)
+                .multilineTextAlignment(.center)
         }
-        .padding(DesignSystem.Spacing.md)
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 16)
         .background(
-            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg)
-                .fill(DesignSystem.Colors.cardBackground)
-                .overlay(
-                    RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg)
-                        .stroke(Color.orange.opacity(0.3), lineWidth: 1)
-                )
+            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.md)
+                .fill(color.opacity(0.08))
         )
     }
 
-    // MARK: - Interventions Section
+    // MARK: - Risk Signals Section (Expandable)
 
-    private func interventionsSection(_ interventions: [TomorrowIntervention]) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Image(systemName: "hand.raised.fill")
-                    .foregroundColor(DesignSystem.Colors.emerald)
-                Text("Actions to Take")
-                    .font(.headline)
-                    .foregroundColor(DesignSystem.Colors.primaryText)
-            }
-
-            ForEach(interventions) { intervention in
-                HStack(alignment: .top, spacing: 12) {
-                    Image(systemName: intervention.icon)
-                        .font(.system(size: 14))
-                        .foregroundColor(DesignSystem.Colors.primary)
-                        .frame(width: 24)
-
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(intervention.action)
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundColor(DesignSystem.Colors.primaryText)
-
-                        Text(intervention.detail)
-                            .font(.caption)
-                            .foregroundColor(DesignSystem.Colors.secondaryText)
+    private func riskSignalsSection(_ signals: [TomorrowRiskSignal]) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Header (tappable to expand/collapse)
+            Button(action: {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    showRisks.toggle()
+                }
+            }) {
+                HStack(spacing: 10) {
+                    ZStack {
+                        Circle()
+                            .fill(DesignSystem.Colors.amber.opacity(0.15))
+                            .frame(width: 32, height: 32)
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(DesignSystem.Colors.amber)
                     }
+
+                    Text("Watch Out")
+                        .font(.headline)
+                        .foregroundColor(DesignSystem.Colors.primaryText)
 
                     Spacer()
 
-                    if intervention.deepLink != nil {
-                        Image(systemName: "chevron.right")
-                            .font(.caption)
-                            .foregroundColor(DesignSystem.Colors.tertiaryText)
-                    }
-                }
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    if let deepLink = intervention.deepLink, let url = URL(string: deepLink) {
-                        UIApplication.shared.open(url)
-                    }
+                    Text("\(signals.count)")
+                        .font(.caption.weight(.semibold))
+                        .foregroundColor(DesignSystem.Colors.amber)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(
+                            Capsule()
+                                .fill(DesignSystem.Colors.amber.opacity(0.1))
+                        )
+
+                    Image(systemName: showRisks ? "chevron.up" : "chevron.down")
+                        .font(.caption.weight(.semibold))
+                        .foregroundColor(DesignSystem.Colors.tertiaryText)
                 }
             }
+            .buttonStyle(PlainButtonStyle())
+            .padding(DesignSystem.Spacing.md)
+
+            // Expandable content
+            if showRisks {
+                Divider()
+                    .padding(.horizontal, DesignSystem.Spacing.md)
+
+                VStack(spacing: DesignSystem.Spacing.sm) {
+                    ForEach(signals) { signal in
+                        riskSignalRow(signal)
+                    }
+                }
+                .padding(.horizontal, DesignSystem.Spacing.md)
+                .padding(.bottom, DesignSystem.Spacing.md)
+            }
         }
-        .padding(DesignSystem.Spacing.md)
         .background(
             RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg)
                 .fill(DesignSystem.Colors.cardBackground)
@@ -513,6 +559,145 @@ struct NextDayForecastView: View {
                         .stroke(DesignSystem.Colors.calmBorder, lineWidth: 0.5)
                 )
         )
+    }
+
+    private func riskSignalRow(_ signal: TomorrowRiskSignal) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: signal.icon)
+                .font(.system(size: 14))
+                .foregroundColor(signal.severityColor)
+                .frame(width: 24)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(signal.title)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+
+                Text(signal.detail)
+                    .font(.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer()
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.md)
+                .fill(DesignSystem.Colors.amber.opacity(0.05))
+        )
+    }
+
+    // MARK: - Interventions Section (Expandable)
+
+    private func interventionsSection(_ interventions: [TomorrowIntervention]) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Header
+            Button(action: {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    showInterventions.toggle()
+                }
+            }) {
+                HStack(spacing: 10) {
+                    ZStack {
+                        Circle()
+                            .fill(DesignSystem.Colors.emerald.opacity(0.15))
+                            .frame(width: 32, height: 32)
+                        Image(systemName: "lightbulb.fill")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(DesignSystem.Colors.emerald)
+                    }
+
+                    Text("Actions to Take")
+                        .font(.headline)
+                        .foregroundColor(DesignSystem.Colors.primaryText)
+
+                    Spacer()
+
+                    Text("\(interventions.count)")
+                        .font(.caption.weight(.semibold))
+                        .foregroundColor(DesignSystem.Colors.emerald)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(
+                            Capsule()
+                                .fill(DesignSystem.Colors.emerald.opacity(0.1))
+                        )
+
+                    Image(systemName: showInterventions ? "chevron.up" : "chevron.down")
+                        .font(.caption.weight(.semibold))
+                        .foregroundColor(DesignSystem.Colors.tertiaryText)
+                }
+            }
+            .buttonStyle(PlainButtonStyle())
+            .padding(DesignSystem.Spacing.md)
+
+            // Expandable content
+            if showInterventions {
+                Divider()
+                    .padding(.horizontal, DesignSystem.Spacing.md)
+
+                VStack(spacing: DesignSystem.Spacing.sm) {
+                    ForEach(interventions) { intervention in
+                        interventionRow(intervention)
+                    }
+                }
+                .padding(.horizontal, DesignSystem.Spacing.md)
+                .padding(.bottom, DesignSystem.Spacing.md)
+            }
+        }
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg)
+                .fill(DesignSystem.Colors.cardBackground)
+                .overlay(
+                    RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg)
+                        .stroke(DesignSystem.Colors.calmBorder, lineWidth: 0.5)
+                )
+        )
+    }
+
+    private func interventionRow(_ intervention: TomorrowIntervention) -> some View {
+        Button(action: {
+            if let deepLink = intervention.deepLink, let url = URL(string: deepLink) {
+                UIApplication.shared.open(url)
+            }
+        }) {
+            HStack(alignment: .top, spacing: 12) {
+                Image(systemName: intervention.icon)
+                    .font(.system(size: 14))
+                    .foregroundColor(DesignSystem.Colors.emerald)
+                    .frame(width: 24)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(intervention.action)
+                        .font(.subheadline.weight(.medium))
+                        .foregroundColor(DesignSystem.Colors.primaryText)
+
+                    Text(intervention.detail)
+                        .font(.caption)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Spacer()
+
+                if intervention.deepLink != nil {
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundColor(DesignSystem.Colors.tertiaryText)
+                }
+            }
+            .padding(12)
+            .background(
+                RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.md)
+                    .fill(DesignSystem.Colors.emerald.opacity(0.03))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.md)
+                            .stroke(DesignSystem.Colors.emerald.opacity(0.1), lineWidth: 0.5)
+                    )
+            )
+        }
+        .buttonStyle(PlainButtonStyle())
     }
 
     // MARK: - Similar Days Section
@@ -697,6 +882,96 @@ struct TomorrowForecastCard: View {
         )
         .task {
             await viewModel.fetchForecast()
+        }
+    }
+}
+
+// MARK: - Intensity Gauge Ring (like Balance Score Ring)
+
+struct IntensityGaugeRing: View {
+    let intensity: String  // "light", "moderate", "busy", "heavy"
+    let meetingHours: Double
+    let size: CGFloat
+
+    private var progress: Double {
+        // Convert meeting hours to 0-1 scale (0-8+ hours)
+        min(meetingHours / 8.0, 1.0)
+    }
+
+    private var intensityColor: Color {
+        switch intensity.lowercased() {
+        case "light", "free":
+            return Color(hex: "10B981") // Green
+        case "moderate":
+            return DesignSystem.Colors.blue
+        case "busy", "full":
+            return DesignSystem.Colors.amber
+        case "heavy", "overloaded":
+            return Color(hex: "EF4444") // Red
+        default:
+            return DesignSystem.Colors.blue
+        }
+    }
+
+    private var intensityIcon: String {
+        switch intensity.lowercased() {
+        case "light", "free":
+            return "sun.max.fill"
+        case "moderate":
+            return "cloud.sun.fill"
+        case "busy", "full":
+            return "cloud.fill"
+        case "heavy", "overloaded":
+            return "cloud.bolt.fill"
+        default:
+            return "calendar"
+        }
+    }
+
+    var body: some View {
+        ZStack {
+            // Background ring
+            Circle()
+                .stroke(Color.white.opacity(0.1), lineWidth: 12)
+                .frame(width: size, height: size)
+
+            // Progress ring
+            Circle()
+                .trim(from: 0, to: progress)
+                .stroke(
+                    intensityColor,
+                    style: StrokeStyle(lineWidth: 12, lineCap: .round)
+                )
+                .frame(width: size, height: size)
+                .rotationEffect(.degrees(-90))
+                .animation(.easeOut(duration: 0.8), value: progress)
+
+            // Inner glow
+            Circle()
+                .fill(
+                    RadialGradient(
+                        colors: [intensityColor.opacity(0.2), .clear],
+                        center: .center,
+                        startRadius: size * 0.2,
+                        endRadius: size * 0.5
+                    )
+                )
+                .frame(width: size - 24, height: size - 24)
+
+            // Center content
+            VStack(spacing: 4) {
+                Image(systemName: intensityIcon)
+                    .font(.system(size: size * 0.2, weight: .semibold))
+                    .foregroundColor(intensityColor)
+
+                Text(String(format: "%.1fh", meetingHours))
+                    .font(.system(size: size * 0.18, weight: .bold, design: .rounded))
+                    .foregroundColor(.white)
+
+                Text("meetings")
+                    .font(.system(size: size * 0.08, weight: .medium))
+                    .foregroundColor(.white.opacity(0.6))
+            }
         }
     }
 }
