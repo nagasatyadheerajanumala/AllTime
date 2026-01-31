@@ -1284,12 +1284,23 @@ struct DetailedSummaryContent: View {
     let briefing: DailyBriefingResponse
     /// Fresh HealthKit data - when provided, these values are displayed instead of backend data
     var freshHealthMetrics: DailyHealthMetrics? = nil
+    /// Observe user preference for immediate UI response when toggled
+    @ObservedObject private var userPreferences = UserPreferencesService.shared
+
+    /// Effective showSleepUI: combines backend reliability assessment with user preference
+    private var effectiveShowSleepUI: Bool {
+        (briefing.showSleepUI ?? true) && userPreferences.useSleepDataForInsights
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
             // Key metrics breakdown - uses fresh HealthKit data when available
             if let metrics = briefing.keyMetrics {
-                DetailedMetricsSection(metrics: metrics, freshHealthMetrics: freshHealthMetrics)
+                DetailedMetricsSection(
+                    metrics: metrics,
+                    freshHealthMetrics: freshHealthMetrics,
+                    showSleepUI: effectiveShowSleepUI
+                )
             }
 
             // Data sources info
@@ -1316,10 +1327,14 @@ struct DetailedMetricsSection: View {
     let metrics: BriefingKeyMetrics
     /// Fresh HealthKit data - when provided, these values are displayed instead of backend data
     var freshHealthMetrics: DailyHealthMetrics? = nil
+    /// Whether to show sleep-related UI (false if user doesn't reliably track sleep)
+    var showSleepUI: Bool = true
 
     // MARK: - Fresh Health Data Accessors
     /// Get fresh sleep hours, falling back to backend data
+    /// Returns nil if showSleepUI is false
     private var displaySleepHours: Double? {
+        guard showSleepUI else { return nil }
         if let freshMinutes = freshHealthMetrics?.sleepMinutes, freshMinutes > 0 {
             return Double(freshMinutes) / 60.0
         }
@@ -1397,13 +1412,16 @@ struct DetailedMetricsSection: View {
 
                     VStack(alignment: .leading, spacing: 4) {
                         // Sleep metrics - use fresh data when available
-                        if let sleepHours = displaySleepHours, sleepHours > 0 {
-                            DetailMetricRow(label: "Sleep last night", value: String(format: "%.1fh", sleepHours))
-                        }
-                        if let sleepQuality = metrics.sleepQualityScore, sleepQuality > 0 {
-                            DetailMetricRow(label: "Sleep quality", value: "\(sleepQuality)")
-                        } else if let sleep = metrics.sleepScore, sleep > 0 {
-                            DetailMetricRow(label: "Sleep score", value: "\(sleep)")
+                        // Only show if showSleepUI is true
+                        if showSleepUI {
+                            if let sleepHours = displaySleepHours, sleepHours > 0 {
+                                DetailMetricRow(label: "Sleep last night", value: String(format: "%.1fh", sleepHours))
+                            }
+                            if let sleepQuality = metrics.sleepQualityScore, sleepQuality > 0 {
+                                DetailMetricRow(label: "Sleep quality", value: "\(sleepQuality)")
+                            } else if let sleep = metrics.sleepScore, sleep > 0 {
+                                DetailMetricRow(label: "Sleep score", value: "\(sleep)")
+                            }
                         }
                         // Steps - use fresh data when available
                         if let steps = displaySteps, steps > 0 {
@@ -1434,14 +1452,15 @@ struct DetailedMetricsSection: View {
 
     private var hasHealthMetrics: Bool {
         // Check both backend data and fresh HealthKit data - values must be > 0 to be considered available
-        let hasFreshSleep = (freshHealthMetrics?.sleepMinutes ?? 0) > 0
+        // Only consider sleep data if showSleepUI is true
+        let hasFreshSleep = showSleepUI && (freshHealthMetrics?.sleepMinutes ?? 0) > 0
         let hasFreshSteps = (freshHealthMetrics?.steps ?? 0) > 0
         let hasFreshActive = (freshHealthMetrics?.activeMinutes ?? 0) > 0
         let hasFreshHR = (freshHealthMetrics?.restingHeartRate ?? 0) > 0
         let hasFreshHRV = (freshHealthMetrics?.hrv ?? 0) > 0
         let hasFreshData = hasFreshSleep || hasFreshSteps || hasFreshActive || hasFreshHR || hasFreshHRV
 
-        let hasBackendSleep = (metrics.sleepHoursLastNight ?? 0) > 0 || (metrics.sleepScore ?? 0) > 0
+        let hasBackendSleep = showSleepUI && ((metrics.sleepHoursLastNight ?? 0) > 0 || (metrics.sleepScore ?? 0) > 0)
         let hasBackendSteps = (metrics.stepsYesterday ?? metrics.stepsToday ?? 0) > 0
         let hasBackendActive = (metrics.activeMinutesYesterday ?? metrics.activeMinutes ?? 0) > 0
         let hasBackendHR = (metrics.restingHeartRate ?? 0) > 0
@@ -1580,10 +1599,14 @@ struct HealthInsightsCard: View {
     let quickStats: QuickStats?
     /// Fresh HealthKit data - when provided, these values are displayed instead of backend data
     var freshHealthMetrics: DailyHealthMetrics? = nil
+    /// Whether to show sleep-related UI (false if user doesn't reliably track sleep)
+    var showSleepUI: Bool = true
 
     // MARK: - Fresh Health Data Accessors
     /// Get fresh sleep hours, falling back to backend data
+    /// Returns nil if showSleepUI is false (user doesn't reliably track sleep)
     private var displaySleepHours: Double? {
+        guard showSleepUI else { return nil }
         if let freshMinutes = freshHealthMetrics?.sleepMinutes, freshMinutes > 0 {
             return Double(freshMinutes) / 60.0
         }
@@ -1607,10 +1630,15 @@ struct HealthInsightsCard: View {
     }
 
     // Filter health-related suggestions
+    // Excludes sleep-related suggestions when showSleepUI is false
     private var healthSuggestions: [BriefingSuggestion] {
         guard let suggestions = suggestions else { return [] }
         return suggestions.filter { suggestion in
             let category = suggestion.category?.lowercased() ?? ""
+            // Exclude sleep suggestions if sleep UI should be hidden
+            if !showSleepUI && category == "sleep" {
+                return false
+            }
             return category == "health_insight" ||
                    category == "wellness" ||
                    category == "movement" ||
@@ -1620,14 +1648,31 @@ struct HealthInsightsCard: View {
     }
 
     // Determine energy level based on sleep and HRV
+    // When sleep data is unreliable, use HRV-only or show neutral state
     private var energyLevel: (label: String, color: Color, icon: String) {
         guard keyMetrics != nil || freshHealthMetrics != nil else {
             return ("Unknown", DesignSystem.Colors.secondaryText, "questionmark.circle")
         }
 
+        let hrv = keyMetrics?.hrvLastNight
+
+        // If sleep data is unreliable, don't use it for energy level
+        guard showSleepUI else {
+            // Use HRV-only assessment when sleep data isn't reliable
+            if let hrv = hrv {
+                if hrv >= 50 {
+                    return ("Good Recovery", DesignSystem.Colors.emerald, "heart.fill")
+                } else if hrv >= 30 {
+                    return ("Moderate", DesignSystem.Colors.amber, "heart")
+                } else {
+                    return ("Low Recovery", DesignSystem.Colors.errorRed, "heart.slash")
+                }
+            }
+            return ("Health", DesignSystem.Colors.blue, "heart.fill")
+        }
+
         // Use fresh data if available, otherwise backend data
         let sleepHours = displaySleepHours ?? 0
-        let hrv = keyMetrics?.hrvLastNight
 
         if sleepHours >= 7 && (hrv == nil || hrv! >= 40) {
             return ("High Energy", DesignSystem.Colors.emerald, "bolt.fill")
@@ -1640,12 +1685,13 @@ struct HealthInsightsCard: View {
 
     private var hasHealthData: Bool {
         // Check both backend data and fresh HealthKit data - values must be > 0 to be considered available
-        let hasFreshSleep = (freshHealthMetrics?.sleepMinutes ?? 0) > 0
+        // Only consider sleep data if showSleepUI is true
+        let hasFreshSleep = showSleepUI && (freshHealthMetrics?.sleepMinutes ?? 0) > 0
         let hasFreshSteps = (freshHealthMetrics?.steps ?? 0) > 0
         let hasFreshActive = (freshHealthMetrics?.activeMinutes ?? 0) > 0
         let hasFreshData = hasFreshSleep || hasFreshSteps || hasFreshActive
 
-        let hasBackendSleep = (keyMetrics?.sleepHoursLastNight ?? 0) > 0
+        let hasBackendSleep = showSleepUI && (keyMetrics?.sleepHoursLastNight ?? 0) > 0
         let hasBackendSteps = (keyMetrics?.stepsYesterday ?? keyMetrics?.stepsToday ?? 0) > 0
         let hasBackendActive = (keyMetrics?.activeMinutesYesterday ?? keyMetrics?.activeMinutes ?? 0) > 0
         let hasBackendData = hasBackendSleep || hasBackendSteps || hasBackendActive

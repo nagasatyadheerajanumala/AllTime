@@ -22,6 +22,20 @@ class WeeklyNarrativeViewModel: ObservableObject {
     @Published var patternIntelligence: PatternIntelligenceReport?
     @Published var isLoadingPatternIntelligence = false
 
+    // Sleep data reliability - hide sleep UI when user doesn't reliably track sleep
+    // This is the value from the backend based on data reliability assessment
+    @Published private var backendShowSleepUI: Bool = true
+
+    // User preference - combined with backend assessment for effective visibility
+    private var userPreferences = UserPreferencesService.shared
+    private var cancellables = Set<AnyCancellable>()
+
+    /// Effective showSleepUI: combines backend reliability assessment with user preference.
+    /// Sleep UI is hidden if either: backend says unreliable OR user has disabled it.
+    var showSleepUI: Bool {
+        backendShowSleepUI && userPreferences.useSleepDataForInsights
+    }
+
     private let apiService = APIService.shared
     private let cacheService = CacheService.shared
     private let memoryCache = InMemoryCache.shared
@@ -37,9 +51,74 @@ class WeeklyNarrativeViewModel: ObservableObject {
     private let forecastDiskCacheKey = "next_week_forecast"
     private let patternMemCacheKey = "mem_pattern_intelligence"
     private let patternDiskCacheKey = "pattern_intelligence"
+    private let sleepReliabilityMemCacheKey = "mem_sleep_reliability"
+    private let sleepReliabilityDiskCacheKey = "sleep_reliability"
 
     init() {
         loadCachedData()
+        loadSleepReliabilityFromCache()
+
+        // Observe user preference changes to trigger view updates
+        // When user toggles sleep data off, this will trigger objectWillChange
+        userPreferences.$useSleepDataForInsights
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.objectWillChange.send()
+            }
+            .store(in: &cancellables)
+    }
+
+    // MARK: - Sleep Reliability
+
+    /// Load sleep reliability from cache (instant, non-blocking)
+    private func loadSleepReliabilityFromCache() {
+        // Try disk cache first (synchronous, fast)
+        if let cached = cacheService.loadJSONSync(SleepReliabilityResponse.self, filename: sleepReliabilityDiskCacheKey) {
+            backendShowSleepUI = cached.showSleepUI
+            print("SleepReliability: Loaded from disk cache - showUI=\(cached.showSleepUI)")
+
+            // Check if cache is stale (> 30 min) and refresh in background
+            if let metadata = cacheService.getCacheMetadataSync(filename: sleepReliabilityDiskCacheKey),
+               Date().timeIntervalSince(metadata.lastUpdated) > 1800 {
+                Task.detached(priority: .utility) { [weak self] in
+                    await self?.fetchSleepReliabilityInBackground()
+                }
+            }
+            return
+        }
+
+        // No cache - fetch in background (don't block init)
+        Task.detached(priority: .utility) { [weak self] in
+            await self?.fetchSleepReliabilityInBackground()
+        }
+    }
+
+    /// Fetch sleep data reliability status from backend (background, non-blocking)
+    private func fetchSleepReliabilityInBackground() async {
+        do {
+            let response = try await apiService.getSleepReliability()
+
+            // Update UI on main actor
+            await MainActor.run {
+                self.backendShowSleepUI = response.showSleepUI
+            }
+
+            // Cache to memory
+            await memoryCache.set(sleepReliabilityMemCacheKey, value: response, ttl: 1800) // 30 min
+
+            // Cache to disk
+            cacheService.saveJSONSync(response, filename: sleepReliabilityDiskCacheKey, expiration: 3600) // 1 hour
+
+            print("SleepReliability: Fetched - score=\(response.confidenceScore), tier=\(response.reliabilityTier), showUI=\(response.showSleepUI)")
+        } catch {
+            print("SleepReliability: Failed to fetch - \(error.localizedDescription)")
+            // Keep existing value (from cache or default true)
+        }
+    }
+
+    /// Force refresh sleep reliability (called by pull-to-refresh)
+    func fetchSleepReliability() async {
+        await fetchSleepReliabilityInBackground()
     }
 
     // MARK: - Task Cancellation
@@ -113,7 +192,9 @@ class WeeklyNarrativeViewModel: ObservableObject {
     }
 
     private var currentWeekStart: String {
-        let calendar = Calendar.current
+        // Use ISO calendar (Monday = first day of week) to match backend
+        var calendar = Calendar(identifier: .iso8601)
+        calendar.firstWeekday = 2 // Monday = 2
         let today = Date()
         guard let monday = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: today)) else {
             return ""
@@ -244,10 +325,14 @@ class WeeklyNarrativeViewModel: ObservableObject {
         }
     }
 
-    /// Force refresh narrative
+    /// Force refresh all data (narrative, forecast, pattern intelligence)
     func refresh() async {
         let weekStart = selectedWeek?.weekStart ?? currentWeekStart
-        await fetchNarrative(weekStart: weekStart, forceRefresh: true)
+        // Refresh all data in parallel
+        async let narrativeTask: () = fetchNarrative(weekStart: weekStart, forceRefresh: true)
+        async let forecastTask: () = fetchNextWeekForecast(forceRefresh: true)
+        async let patternTask: () = fetchPatternIntelligence(forceRefresh: true)
+        _ = await (narrativeTask, forecastTask, patternTask)
     }
 
     /// Fetch available weeks with deduplication
@@ -312,7 +397,9 @@ class WeeklyNarrativeViewModel: ObservableObject {
 
     /// Prepends "Next Week" option to a list of weeks
     private func prependNextWeek(to weeks: [WeekOption]) -> [WeekOption] {
-        let calendar = Calendar.current
+        // Use ISO calendar (Monday = first day of week) to match backend
+        var calendar = Calendar(identifier: .iso8601)
+        calendar.firstWeekday = 2 // Monday
         let today = Date()
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
@@ -336,7 +423,9 @@ class WeeklyNarrativeViewModel: ObservableObject {
     }
 
     private func generateFallbackWeeks() {
-        let calendar = Calendar.current
+        // Use ISO calendar (Monday = first day of week) to match backend
+        var calendar = Calendar(identifier: .iso8601)
+        calendar.firstWeekday = 2 // Monday
         let today = Date()
         var weeks: [WeekOption] = []
 
@@ -616,7 +705,9 @@ class WeeklyNarrativeViewModel: ObservableObject {
 
     /// Get next week's start date string
     var nextWeekStart: String {
-        let calendar = Calendar.current
+        // Use ISO calendar (Monday = first day of week) to match backend
+        var calendar = Calendar(identifier: .iso8601)
+        calendar.firstWeekday = 2 // Monday
         let today = Date()
         guard let nextWeekDate = calendar.date(byAdding: .weekOfYear, value: 1, to: today),
               let nextMonday = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: nextWeekDate)) else {

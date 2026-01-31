@@ -9,6 +9,7 @@ struct TodayView: View {
     @State private var showingAddEvent = false
     @ObservedObject private var healthMetricsService = HealthMetricsService.shared
     @ObservedObject private var navigationManager = NavigationManager.shared
+    @ObservedObject private var userPreferences = UserPreferencesService.shared
 
     // Sheet presentation states
     @State private var showingSummaryDetail = false
@@ -56,9 +57,7 @@ struct TodayView: View {
     /// Count of meetings today (excludes all-day events, focus time, etc.)
     private var todayMeetingCount: Int {
         todayEvents.filter { event in
-            // Exclude all-day events
             guard !event.allDay else { return false }
-            // Exclude focus time, lunch, breaks, etc.
             let title = event.title.lowercased()
             let nonMeetingKeywords = ["focus", "lunch", "break", "blocked", "hold", "personal", "commute", "travel", "holiday", "birthday", "pto", "vacation", "out of office", "ooo"]
             for keyword in nonMeetingKeywords {
@@ -66,6 +65,13 @@ struct TodayView: View {
             }
             return true
         }.count
+    }
+
+    /// Effective showSleepUI: combines backend reliability assessment with user preference.
+    /// If user has disabled sleep data, hide it immediately regardless of backend.
+    private var effectiveShowSleepUI: Bool {
+        let backendValue = briefingViewModel.briefing?.showSleepUI ?? true
+        return backendValue && userPreferences.useSleepDataForInsights
     }
 
     private var upcomingEvents: [Event] {
@@ -139,10 +145,24 @@ struct TodayView: View {
                             isLoading: weekDriftLoading || overviewViewModel.isLoading || briefingViewModel.isLoading,
                             onTap: { showingSummaryDetail = true },
                             onInterventionTap: handleInterventionTap,
-                            fallbackMeetingCount: todayMeetingCount
+                            fallbackMeetingCount: todayMeetingCount,
+                            showSleepUI: effectiveShowSleepUI
                         )
                         .padding(.horizontal, DesignSystem.Spacing.md)
                         .cardStagger(index: 0)
+
+                        // DAILY INSIGHT: Clara's ONE opinionated point of view
+                        // This transforms Clara from a reporter to an advisor
+                        if let primaryRec = briefingViewModel.briefing?.primaryRecommendation {
+                            DailyInsightCard(
+                                recommendation: primaryRec,
+                                onTap: {
+                                    selectedPrimaryRecommendation = primaryRec
+                                }
+                            )
+                            .padding(.horizontal, DesignSystem.Spacing.md)
+                            .cardStagger(index: 1)
+                        }
 
                         // Reorderable tiles (user-customizable order)
                         ForEach(tileOrderManager.tileOrder, id: \.self) { tileType in
@@ -301,6 +321,16 @@ struct TodayView: View {
                     // Refresh calendar events
                     await calendarViewModel.refreshEvents()
                     // Refresh briefing (recommendations may change based on new events)
+                    await briefingViewModel.refresh()
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("TaskCreated"))) { _ in
+                // Refresh overview when a task is created (updates the Tasks tile)
+                print("✅ TodayView: Received TaskCreated notification, refreshing tasks...")
+                Task {
+                    // Refresh overview which contains the todo tile
+                    await overviewViewModel.fetchOverview()
+                    // Also refresh briefing as tasks may affect recommendations
                     await briefingViewModel.refresh()
                 }
             }
@@ -471,11 +501,14 @@ struct TodayView: View {
 
             // (4) Health Insights Card - Prominent health data display
             // Uses fresh HealthKit data when available for accurate display
+            // Hides sleep data if user doesn't reliably track sleep (detected by backend)
+            // Also respects user preference to hide sleep data entirely
             HealthInsightsCard(
                 keyMetrics: briefing.keyMetrics,
                 suggestions: briefing.suggestions,
                 quickStats: briefing.quickStats,
-                freshHealthMetrics: briefingViewModel.freshHealthMetrics
+                freshHealthMetrics: briefingViewModel.freshHealthMetrics,
+                showSleepUI: (briefing.showSleepUI ?? true) && userPreferences.useSleepDataForInsights
             )
             .padding(.horizontal, DesignSystem.Spacing.md)
 
