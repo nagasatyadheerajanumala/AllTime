@@ -7,6 +7,7 @@ struct DailyInsightsTabView: View {
     @State private var selectedDate: Date = Date()
     @State private var showingReflection = false
     @State private var animateProgress = false
+    @ObservedObject private var userPreferences = UserPreferencesService.shared
 
     var body: some View {
         ScrollView {
@@ -59,59 +60,126 @@ struct DailyInsightsTabView: View {
     // MARK: - Sticky Date Header
 
     private var dateHeader: some View {
-        HStack(spacing: 0) {
-            Button(action: {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                    selectedDate = Calendar.current.date(byAdding: .day, value: -1, to: selectedDate) ?? selectedDate
-                }
-            }) {
-                Image(systemName: "chevron.left")
-                    .font(.body.weight(.semibold))
-                    .foregroundColor(DesignSystem.Colors.primary)
-                    .frame(width: 44, height: 44)
-            }
-
-            Spacer()
-
-            VStack(spacing: 2) {
-                Text(dateDisplayText)
-                    .font(.headline)
-                    .foregroundColor(DesignSystem.Colors.primaryText)
-                Text(selectedDate.formatted(.dateTime.month(.wide).day().year()))
-                    .font(.caption)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-            }
-
-            Spacer()
-
-            Button(action: {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                    let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: selectedDate) ?? selectedDate
-                    if tomorrow <= Date() {
-                        selectedDate = tomorrow
+        VStack(spacing: 8) {
+            HStack(spacing: 0) {
+                // Previous day button
+                Button(action: {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                        selectedDate = Calendar.current.date(byAdding: .day, value: -1, to: selectedDate) ?? selectedDate
                     }
+                    HapticManager.shared.lightTap()
+                }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "chevron.left.circle.fill")
+                            .font(.system(size: 24))
+                        Text("Prev")
+                            .font(.subheadline.weight(.medium))
+                    }
+                    .foregroundColor(DesignSystem.Colors.primary)
+                    .frame(minWidth: 80)
                 }
-            }) {
-                Image(systemName: "chevron.right")
-                    .font(.body.weight(.semibold))
-                    .foregroundColor(Calendar.current.isDateInToday(selectedDate) ? DesignSystem.Colors.tertiaryText : DesignSystem.Colors.primary)
-                    .frame(width: 44, height: 44)
+
+                Spacer()
+
+                VStack(spacing: 2) {
+                    Text(dateDisplayText)
+                        .font(.headline)
+                        .foregroundColor(DesignSystem.Colors.primaryText)
+                    Text(selectedDate.formatted(.dateTime.month(.wide).day().year()))
+                        .font(.caption)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                }
+
+                Spacer()
+
+                // Next day button - NOW ALLOWS FORWARD NAVIGATION
+                Button(action: {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                        selectedDate = Calendar.current.date(byAdding: .day, value: 1, to: selectedDate) ?? selectedDate
+                    }
+                    HapticManager.shared.lightTap()
+                }) {
+                    HStack(spacing: 4) {
+                        Text(nextDayButtonLabel)
+                            .font(.subheadline.weight(.medium))
+                        Image(systemName: "chevron.right.circle.fill")
+                            .font(.system(size: 24))
+                    }
+                    .foregroundColor(canGoForward ? DesignSystem.Colors.primary : DesignSystem.Colors.tertiaryText)
+                    .frame(minWidth: 80)
+                }
+                .disabled(!canGoForward)
             }
-            .disabled(Calendar.current.isDateInToday(selectedDate))
+            .padding(.horizontal, 12)
+
+            // Show hint when on Today
+            if Calendar.current.isDateInToday(selectedDate) {
+                HStack(spacing: 6) {
+                    Image(systemName: "hand.tap.fill")
+                        .font(.system(size: 11))
+                    Text("Tap \"Tomorrow\" to see tomorrow's forecast")
+                        .font(.caption)
+                }
+                .foregroundColor(DesignSystem.Colors.primary)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 6)
+                .background(
+                    Capsule()
+                        .fill(DesignSystem.Colors.primary.opacity(0.12))
+                )
+            }
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 8)
+        .padding(.vertical, 10)
         .background(.ultraThinMaterial)
     }
 
     private var dateDisplayText: String {
-        if Calendar.current.isDateInToday(selectedDate) {
+        let calendar = Calendar.current
+        if calendar.isDateInToday(selectedDate) {
             return "Today"
-        } else if Calendar.current.isDateInYesterday(selectedDate) {
+        } else if calendar.isDateInYesterday(selectedDate) {
             return "Yesterday"
+        } else if let tomorrow = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: Date())),
+                  calendar.isDate(selectedDate, inSameDayAs: tomorrow) {
+            return "Tomorrow"
         } else {
             return selectedDate.formatted(.dateTime.weekday(.wide))
         }
+    }
+
+    private var nextDayButtonLabel: String {
+        if Calendar.current.isDateInToday(selectedDate) {
+            return "Tomorrow"
+        } else {
+            return "Next"
+        }
+    }
+
+    private var canGoForward: Bool {
+        // Allow navigation up to 14 days in the future
+        let calendar = Calendar.current
+        let selectedDay = calendar.startOfDay(for: selectedDate)
+        let today = calendar.startOfDay(for: Date())
+        guard let maxDate = calendar.date(byAdding: .day, value: 14, to: today) else {
+            return true
+        }
+        return selectedDay < maxDate
+    }
+
+    private func isTomorrow(_ date: Date) -> Bool {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        guard let tomorrow = calendar.date(byAdding: .day, value: 1, to: today) else {
+            return false
+        }
+        return calendar.isDate(date, inSameDayAs: tomorrow)
+    }
+
+    private func isFutureDate(_ date: Date) -> Bool {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        let selected = calendar.startOfDay(for: date)
+        return selected > today
     }
 
     // MARK: - Loading / Error / Empty Views
@@ -196,8 +264,8 @@ struct DailyInsightsTabView: View {
     @ViewBuilder
     private func insightsContent(_ insights: DailyInsightsSummary) -> some View {
         VStack(spacing: 20) {
-            // HERO: Today's Outlook with Pattern Intelligence
-            if Calendar.current.isDateInToday(selectedDate) {
+            // HERO: Today's/Tomorrow's Outlook with Pattern Intelligence
+            if Calendar.current.isDateInToday(selectedDate) || isTomorrow(selectedDate) {
                 if viewModel.isLoadingPrediction {
                     predictionLoadingView
                         .padding(.horizontal)
@@ -209,6 +277,15 @@ struct DailyInsightsTabView: View {
 
                     // Actionable Pattern Insights (ALWAYS SHOW - THE VALUE)
                     patternInsightsSection(prediction)
+                        .padding(.horizontal)
+                } else if let forecast = viewModel.dayForecast {
+                    // Show forecast for tomorrow/future dates
+                    forecastHero(forecast)
+                        .padding(.horizontal)
+                        .padding(.top, 16)
+
+                    // Pattern insights from forecast
+                    forecastPatternInsights(forecast)
                         .padding(.horizontal)
                 } else {
                     dayScoreHero(insights)
@@ -350,6 +427,228 @@ struct DailyInsightsTabView: View {
         return "Tough day ahead"
     }
 
+    // MARK: - Forecast Hero (For Tomorrow/Future Days)
+
+    private func forecastHero(_ forecast: NextDayForecast) -> some View {
+        VStack(spacing: 0) {
+            HStack(alignment: .top, spacing: 16) {
+                // Left: Day overview
+                VStack(alignment: .leading, spacing: 10) {
+                    // Intensity badge
+                    HStack(spacing: 6) {
+                        Circle()
+                            .fill(forecast.intensityColor)
+                            .frame(width: 10, height: 10)
+                        Text(forecast.intensityLabel)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundColor(forecast.intensityColor)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(forecast.intensityColor.opacity(0.12))
+                    .cornerRadius(16)
+
+                    // Stats
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack(spacing: 16) {
+                            Label("\(forecast.meetingCount) meetings", systemImage: "calendar")
+                            Label(String(format: "%.1fh", forecast.meetingHours), systemImage: "clock.fill")
+                        }
+                        .font(.caption)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+
+                        if forecast.backToBackCount > 0 {
+                            Label("\(forecast.backToBackCount) back-to-back", systemImage: "arrow.right.arrow.left")
+                                .font(.caption)
+                                .foregroundColor(DesignSystem.Colors.amber)
+                        }
+                    }
+                }
+
+                Spacer()
+
+                // Right: Outlook score
+                if let prediction = forecast.prediction, let outcome = prediction.predictedOutcome {
+                    VStack(spacing: 6) {
+                        ZStack {
+                            Circle()
+                                .stroke(prediction.outcomeColor.opacity(0.2), lineWidth: 8)
+                                .frame(width: 76, height: 76)
+
+                            Circle()
+                                .trim(from: 0, to: animateProgress ? CGFloat(outcome) / 100.0 : 0)
+                                .stroke(prediction.outcomeColor, style: StrokeStyle(lineWidth: 8, lineCap: .round))
+                                .frame(width: 76, height: 76)
+                                .rotationEffect(.degrees(-90))
+
+                            VStack(spacing: 0) {
+                                Text("\(outcome)")
+                                    .font(.system(size: 24, weight: .bold, design: .rounded))
+                                    .foregroundColor(prediction.outcomeColor)
+                                Text("outlook")
+                                    .font(.system(size: 9))
+                                    .foregroundColor(DesignSystem.Colors.tertiaryText)
+                            }
+                        }
+
+                        Text(outcomeLabel(outcome))
+                            .font(.caption.weight(.medium))
+                            .foregroundColor(prediction.outcomeColor)
+                    }
+                }
+            }
+            .padding(18)
+
+            // Clara's insight
+            if let insight = forecast.claraInsight, !insight.isEmpty {
+                HStack(alignment: .top, spacing: 10) {
+                    Image(systemName: "sparkles")
+                        .font(.subheadline)
+                        .foregroundColor(DesignSystem.Colors.violet)
+
+                    Text(insight)
+                        .font(.subheadline)
+                        .foregroundColor(DesignSystem.Colors.primaryText)
+                        .lineSpacing(3)
+                }
+                .padding(14)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(DesignSystem.Colors.violet.opacity(0.06))
+            }
+        }
+        .background(DesignSystem.Colors.cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+        .shadow(color: .black.opacity(0.06), radius: 12, x: 0, y: 4)
+    }
+
+    // MARK: - Forecast Pattern Insights (For Tomorrow/Future)
+
+    private func forecastPatternInsights(_ forecast: NextDayForecast) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 6) {
+                Image(systemName: "sparkles")
+                    .font(.caption)
+                    .foregroundColor(DesignSystem.Colors.violet)
+                Text("Clara's Pattern Insights")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+            }
+
+            VStack(spacing: 12) {
+                // Day shape overview
+                patternInsightCard(
+                    icon: forecast.meetingCount >= 5 ? "flame.fill" : forecast.meetingCount == 0 ? "leaf.fill" : "calendar",
+                    iconColor: forecast.intensityColor,
+                    title: isTomorrow(selectedDate) ? "Tomorrow's Shape" : "Day Shape",
+                    insight: forecastDayOverview(forecast)
+                )
+
+                // Similar days pattern
+                if let similarDays = forecast.similarDays, !similarDays.isEmpty {
+                    let goodDays = similarDays.filter { $0.outcomeScore >= 60 }.count
+                    patternInsightCard(
+                        icon: "chart.line.uptrend.xyaxis",
+                        iconColor: goodDays > similarDays.count / 2 ? DesignSystem.Colors.emerald : DesignSystem.Colors.amber,
+                        title: "Historical Pattern",
+                        insight: forecastHistoricalPattern(similarDays: similarDays, forecast: forecast)
+                    )
+                }
+
+                // Energy prediction
+                if let prediction = forecast.prediction, let energy = prediction.predictedEnergy {
+                    patternInsightCard(
+                        icon: energyIcon(energy),
+                        iconColor: prediction.energyColor,
+                        title: "Energy Forecast",
+                        insight: forecastEnergyInsight(energy: energy, forecast: forecast)
+                    )
+                }
+
+                // Risk signals
+                if let risks = forecast.riskSignals, let firstRisk = risks.first {
+                    patternInsightCard(
+                        icon: firstRisk.icon,
+                        iconColor: firstRisk.severityColor,
+                        title: "Heads Up",
+                        insight: firstRisk.title + (firstRisk.detail.isEmpty ? "" : ". " + firstRisk.detail)
+                    )
+                }
+
+                // Interventions
+                if let interventions = forecast.interventions, let firstIntervention = interventions.first {
+                    HStack(spacing: 12) {
+                        ZStack {
+                            Circle()
+                                .fill(DesignSystem.Colors.emerald.opacity(0.12))
+                                .frame(width: 36, height: 36)
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.subheadline)
+                                .foregroundColor(DesignSystem.Colors.emerald)
+                        }
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Recommended Action")
+                                .font(.caption.weight(.semibold))
+                                .foregroundColor(DesignSystem.Colors.emerald)
+                            Text(firstIntervention.action)
+                                .font(.subheadline.weight(.medium))
+                                .foregroundColor(DesignSystem.Colors.primaryText)
+                        }
+
+                        Spacer(minLength: 0)
+                    }
+                    .padding(12)
+                    .background(DesignSystem.Colors.emerald.opacity(0.06))
+                    .cornerRadius(12)
+                }
+            }
+        }
+        .padding(16)
+        .background(DesignSystem.Colors.cardBackground)
+        .cornerRadius(16)
+    }
+
+    private func forecastDayOverview(_ forecast: NextDayForecast) -> String {
+        if forecast.meetingCount == 0 {
+            return "Meeting-free day. Perfect for deep work or catching up on projects."
+        } else if forecast.meetingCount >= 6 {
+            if forecast.backToBackCount >= 3 {
+                return "\(forecast.meetingCount) meetings with \(forecast.backToBackCount) back-to-back blocks. Plan recovery time."
+            }
+            return "Heavy meeting day with \(forecast.meetingCount) meetings totaling \(String(format: "%.1f", forecast.meetingHours)) hours."
+        } else if forecast.backToBackCount >= 2 {
+            return "\(forecast.meetingCount) meetings with \(forecast.backToBackCount) back-to-back. Protect lunch if possible."
+        } else if forecast.meetingCount <= 2 {
+            return "Light schedule with \(forecast.meetingCount) meeting\(forecast.meetingCount == 1 ? "" : "s"). Great for focused work."
+        } else {
+            return "\(forecast.meetingCount) meetings spread across \(String(format: "%.1f", forecast.meetingHours)) hours. Manageable day."
+        }
+    }
+
+    private func forecastHistoricalPattern(similarDays: [TomorrowSimilarDayMatch], forecast: NextDayForecast) -> String {
+        let goodDays = similarDays.filter { $0.outcomeScore >= 60 }.count
+        let total = similarDays.count
+        let percentage = total > 0 ? (goodDays * 100) / total : 0
+
+        if percentage >= 70 {
+            return "\(goodDays) of \(total) similar days went well (\(percentage)%). You handle this load well."
+        } else if percentage >= 50 {
+            return "Mixed results on similar days (\(goodDays)/\(total) good). Key factor: protected breaks."
+        } else {
+            return "Only \(goodDays) of \(total) similar days went well. Consider declining or shortening a meeting."
+        }
+    }
+
+    private func forecastEnergyInsight(energy: Int, forecast: NextDayForecast) -> String {
+        if energy >= 70 {
+            return "Energy should stay strong. Best time for hard tasks: morning or longest gap between meetings."
+        } else if energy >= 50 {
+            return "Moderate energy expected. Front-load important work before meetings start."
+        } else {
+            return "Low energy predicted. Protect at least one 30-min break to avoid afternoon crash."
+        }
+    }
+
     // MARK: - Pattern Insights Section (THE VALUE)
 
     private func patternInsightsSection(_ prediction: TodayPrediction) -> some View {
@@ -399,21 +698,23 @@ struct DailyInsightsTabView: View {
                     )
                 }
 
-                // 4. Sleep recommendation
-                if let pred = prediction.prediction, let sleep = pred.recommendedSleep {
-                    patternInsightCard(
-                        icon: "moon.zzz.fill",
-                        iconColor: DesignSystem.Colors.indigo,
-                        title: "Tonight's Sleep Target",
-                        insight: sleepInsight(recommended: sleep, prediction: prediction)
-                    )
-                } else {
-                    patternInsightCard(
-                        icon: "moon.zzz.fill",
-                        iconColor: DesignSystem.Colors.indigo,
-                        title: "Sleep Recommendation",
-                        insight: generalSleepAdvice(prediction)
-                    )
+                // 4. Sleep recommendation - only show if user has sleep insights enabled
+                if userPreferences.useSleepDataForInsights {
+                    if let pred = prediction.prediction, let sleep = pred.recommendedSleep {
+                        patternInsightCard(
+                            icon: "moon.zzz.fill",
+                            iconColor: DesignSystem.Colors.indigo,
+                            title: "Tonight's Sleep Target",
+                            insight: sleepInsight(recommended: sleep, prediction: prediction)
+                        )
+                    } else {
+                        patternInsightCard(
+                            icon: "moon.zzz.fill",
+                            iconColor: DesignSystem.Colors.indigo,
+                            title: "Sleep Recommendation",
+                            insight: generalSleepAdvice(prediction)
+                        )
+                    }
                 }
 
                 // 5. Specific action to take (THE MOST IMPORTANT - always show)
@@ -868,7 +1169,8 @@ struct DailyInsightsTabView: View {
                 if let steps = health.steps {
                     healthRingCard(icon: "figure.walk", value: formatNumber(steps), label: "Steps", percent: health.stepsGoalPercent ?? 0, goalMet: health.stepsGoalMet ?? false, color: DesignSystem.Colors.emerald)
                 }
-                if let sleepMinutes = health.sleepMinutes {
+                // Only show sleep ring if user has sleep insights enabled
+                if userPreferences.useSleepDataForInsights, let sleepMinutes = health.sleepMinutes {
                     healthRingCard(icon: "bed.double.fill", value: formatSleep(sleepMinutes), label: "Sleep", percent: health.sleepGoalPercent ?? 0, goalMet: health.sleepGoalMet ?? false, color: DesignSystem.Colors.indigo)
                 }
                 if let activeMinutes = health.activeMinutes {
@@ -1038,6 +1340,7 @@ struct DailyInsightsTabView: View {
 class DailyInsightsTabViewModel: ObservableObject {
     @Published var insights: DailyInsightsSummary?
     @Published var todayPrediction: TodayPrediction?
+    @Published var dayForecast: NextDayForecast?
     @Published var isLoading = false
     @Published var isLoadingPrediction = false
     @Published var error: String?
@@ -1046,11 +1349,20 @@ class DailyInsightsTabViewModel: ObservableObject {
     private let apiService = APIService.shared
     private var cache: [String: (insights: DailyInsightsSummary, timestamp: Date)] = [:]
     private var predictionCache: (prediction: TodayPrediction, timestamp: Date)?
+    private var forecastCache: [String: (forecast: NextDayForecast, timestamp: Date)] = [:]
     private let cacheExpiration: TimeInterval = 300
     private let predictionCacheExpiration: TimeInterval = 600
 
     func loadInsights(for date: Date, forceRefresh: Bool = false) async {
         let dateKey = formatDateKey(date)
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        let selectedDay = calendar.startOfDay(for: date)
+        let isFutureDate = selectedDay > today
+
+        // Clear previous data
+        dayForecast = nil
+        todayPrediction = nil
 
         if !forceRefresh, let cached = cache[dateKey], Date().timeIntervalSince(cached.timestamp) < cacheExpiration {
             insights = cached.insights
@@ -1068,10 +1380,12 @@ class DailyInsightsTabViewModel: ObservableObject {
             }
         }
 
-        if Calendar.current.isDateInToday(date) {
+        // Load predictions/forecasts based on date
+        if calendar.isDateInToday(date) {
             await loadTodayPrediction(forceRefresh: forceRefresh)
-        } else {
-            todayPrediction = nil
+        } else if isFutureDate {
+            // Load forecast for future dates (tomorrow, etc.)
+            await loadDayForecast(for: date, forceRefresh: forceRefresh)
         }
     }
 
@@ -1089,6 +1403,26 @@ class DailyInsightsTabViewModel: ObservableObject {
             isLoadingPrediction = false
         } catch {
             print("Failed to load today's prediction: \(error)")
+            isLoadingPrediction = false
+        }
+    }
+
+    func loadDayForecast(for date: Date, forceRefresh: Bool = false) async {
+        let dateKey = formatDateKey(date)
+
+        if !forceRefresh, let cached = forecastCache[dateKey], Date().timeIntervalSince(cached.timestamp) < predictionCacheExpiration {
+            dayForecast = cached.forecast
+            return
+        }
+
+        isLoadingPrediction = true
+        do {
+            let forecast = try await apiService.getDayForecast(date: date)
+            dayForecast = forecast
+            forecastCache[dateKey] = (forecast, Date())
+            isLoadingPrediction = false
+        } catch {
+            print("Failed to load day forecast: \(error)")
             isLoadingPrediction = false
         }
     }
