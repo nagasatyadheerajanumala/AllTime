@@ -13,6 +13,7 @@ struct TodayTilesContainerView: View {
     @State private var showingTodoDetail = false
     @State private var showingInsightsDetail = false
     @StateObject private var insightsViewModel = InsightsDashboardViewModel()
+    @ObservedObject private var userPreferences = UserPreferencesService.shared
 
     var body: some View {
         VStack(spacing: DesignSystem.Today.tileSpacing) {
@@ -132,6 +133,19 @@ struct TodayTilesContainerView: View {
         default: return "📊"
         }
     }
+
+    /// Check if text contains sleep-related keywords
+    /// Used to filter out sleep mentions when user has disabled sleep insights
+    private func isSleepRelated(_ text: String) -> Bool {
+        let sleepKeywords = [
+            "sleep", "fatigue", "tired", "exhausted", "rest",
+            "insomnia", "drowsy", "sleepy", "nap", "bedtime",
+            "wake", "waking", "hrs of sleep", "hours of sleep",
+            "sleep debt", "sleep quality", "lack of sleep"
+        ]
+        let lowercased = text.lowercased()
+        return sleepKeywords.contains { lowercased.contains($0) }
+    }
 }
 
 // MARK: - Empty Tile Content
@@ -159,6 +173,7 @@ struct TodaySummaryDetailView: View {
     @State private var addedFocusWindowIds: Set<String> = []
     @State private var showingRecommendationActionSheet = false
     @State private var isBlockingFocusTime = false
+    @ObservedObject private var userPreferences = UserPreferencesService.shared
 
     // Collapsible section states
     @State private var isStoryExpanded = false
@@ -394,24 +409,33 @@ struct TodaySummaryDetailView: View {
             }
 
             // Key points as colored tags (always visible)
+            // Filter out sleep-related observations if user has disabled sleep insights
             if let observations = narrative.keyObservations, !observations.isEmpty {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(Array(observations.prefix(3).enumerated()), id: \.offset) { index, obs in
-                            let shortText = String(obs.split(separator: " ").prefix(5).joined(separator: " "))
-                            Text(shortText)
-                                .font(.system(size: 11, weight: .medium))
-                                .foregroundColor(storyTagColor(index))
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 6)
-                                .background(Capsule().fill(storyTagColor(index).opacity(0.12)))
+                let filteredObs = userPreferences.useSleepDataForInsights
+                    ? observations
+                    : observations.filter { !isSleepRelated($0) }
+
+                if !filteredObs.isEmpty {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(Array(filteredObs.prefix(3).enumerated()), id: \.offset) { index, obs in
+                                let shortText = String(obs.split(separator: " ").prefix(5).joined(separator: " "))
+                                Text(shortText)
+                                    .font(.system(size: 11, weight: .medium))
+                                    .foregroundColor(storyTagColor(index))
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 6)
+                                    .background(Capsule().fill(storyTagColor(index).opacity(0.12)))
+                            }
                         }
                     }
                 }
             }
 
-            // Health alert (always visible if exists)
-            if let healthConnection = narrative.healthConnection, !healthConnection.isEmpty {
+            // Health alert (only visible if exists AND user has sleep insights enabled)
+            // Health connection often contains sleep-related messages
+            if userPreferences.useSleepDataForInsights,
+               let healthConnection = narrative.healthConnection, !healthConnection.isEmpty {
                 HStack(spacing: 8) {
                     Image(systemName: "heart.fill")
                         .font(.system(size: 12))
@@ -454,30 +478,38 @@ struct TodaySummaryDetailView: View {
                         .fixedSize(horizontal: false, vertical: true)
 
                     // Key observations as bullet points
+                    // Filter out sleep-related observations if user has disabled sleep insights
                     if let observations = narrative.keyObservations, !observations.isEmpty {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Key Points")
-                                .font(.system(size: 12, weight: .semibold))
-                                .foregroundColor(DesignSystem.Colors.secondaryText)
+                        let filteredObservations = userPreferences.useSleepDataForInsights
+                            ? observations
+                            : observations.filter { !isSleepRelated($0) }
 
-                            ForEach(observations, id: \.self) { observation in
-                                HStack(alignment: .top, spacing: 8) {
-                                    Circle()
-                                        .fill(narrative.toneColor)
-                                        .frame(width: 5, height: 5)
-                                        .padding(.top, 6)
+                        if !filteredObservations.isEmpty {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Key Points")
+                                    .font(.system(size: 12, weight: .semibold))
+                                    .foregroundColor(DesignSystem.Colors.secondaryText)
 
-                                    Text(observation)
-                                        .font(.system(size: 13))
-                                        .foregroundColor(DesignSystem.Colors.primaryText)
-                                        .fixedSize(horizontal: false, vertical: true)
+                                ForEach(filteredObservations, id: \.self) { observation in
+                                    HStack(alignment: .top, spacing: 8) {
+                                        Circle()
+                                            .fill(narrative.toneColor)
+                                            .frame(width: 5, height: 5)
+                                            .padding(.top, 6)
+
+                                        Text(observation)
+                                            .font(.system(size: 13))
+                                            .foregroundColor(DesignSystem.Colors.primaryText)
+                                            .fixedSize(horizontal: false, vertical: true)
+                                    }
                                 }
                             }
                         }
                     }
 
-                    // Health connection
-                    if let healthConnection = narrative.healthConnection, !healthConnection.isEmpty {
+                    // Health connection - only show if user has sleep insights enabled
+                    if userPreferences.useSleepDataForInsights,
+                       let healthConnection = narrative.healthConnection, !healthConnection.isEmpty {
                         HStack(alignment: .top, spacing: 10) {
                             Image(systemName: "heart.fill")
                                 .font(.system(size: 12))
@@ -1056,27 +1088,34 @@ struct TodaySummaryDetailView: View {
                 .foregroundColor(DesignSystem.Colors.primaryText)
                 .fixedSize(horizontal: false, vertical: true)
 
-            // Key observations (bullet points)
+            // Key observations (bullet points) - filter out sleep-related if user has disabled
             if let observations = narrative.keyObservations, !observations.isEmpty {
-                VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
-                    ForEach(observations, id: \.self) { observation in
-                        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
-                            Circle()
-                                .fill(narrative.toneColor.opacity(0.6))
-                                .frame(width: 6, height: 6)
-                                .padding(.top, 6)
+                let filteredObservations = userPreferences.useSleepDataForInsights
+                    ? observations
+                    : observations.filter { !isSleepRelated($0) }
 
-                            Text(observation)
-                                .font(.subheadline)
-                                .foregroundColor(DesignSystem.Colors.secondaryText)
+                if !filteredObservations.isEmpty {
+                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                        ForEach(filteredObservations, id: \.self) { observation in
+                            HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
+                                Circle()
+                                    .fill(narrative.toneColor.opacity(0.6))
+                                    .frame(width: 6, height: 6)
+                                    .padding(.top, 6)
+
+                                Text(observation)
+                                    .font(.subheadline)
+                                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                            }
                         }
                     }
+                    .padding(.top, DesignSystem.Spacing.xs)
                 }
-                .padding(.top, DesignSystem.Spacing.xs)
             }
 
-            // Health connection
-            if let healthConnection = narrative.healthConnection, !healthConnection.isEmpty {
+            // Health connection - only show if user has sleep insights enabled
+            if userPreferences.useSleepDataForInsights,
+               let healthConnection = narrative.healthConnection, !healthConnection.isEmpty {
                 HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
                     Image(systemName: "heart.fill")
                         .font(.caption)
@@ -1496,6 +1535,19 @@ struct TodaySummaryDetailView: View {
             }
             return "\(wholeHours.formatted())h \(minutes)m"
         }
+    }
+
+    /// Check if text contains sleep-related keywords
+    /// Used to filter out sleep mentions when user has disabled sleep insights
+    private func isSleepRelated(_ text: String) -> Bool {
+        let sleepKeywords = [
+            "sleep", "fatigue", "tired", "exhausted", "rest",
+            "insomnia", "drowsy", "sleepy", "nap", "bedtime",
+            "wake", "waking", "hrs of sleep", "hours of sleep",
+            "sleep debt", "sleep quality", "lack of sleep"
+        ]
+        let lowercased = text.lowercased()
+        return sleepKeywords.contains { lowercased.contains($0) }
     }
 }
 
