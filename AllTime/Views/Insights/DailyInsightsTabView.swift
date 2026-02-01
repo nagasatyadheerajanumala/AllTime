@@ -264,39 +264,27 @@ struct DailyInsightsTabView: View {
     @ViewBuilder
     private func insightsContent(_ insights: DailyInsightsSummary) -> some View {
         VStack(spacing: 20) {
-            // HERO: Today's/Tomorrow's Outlook with Pattern Intelligence
+            // ALWAYS show the day score hero first for consistency across all dates
+            dayScoreHero(insights)
+                .padding(.horizontal)
+                .padding(.top, 16)
+
+            // For TODAY or TOMORROW: Also show Clara's Pattern Insights (forward-looking)
             if Calendar.current.isDateInToday(selectedDate) || isTomorrow(selectedDate) {
                 if viewModel.isLoadingPrediction {
                     predictionLoadingView
                         .padding(.horizontal)
-                        .padding(.top, 16)
                 } else if let prediction = viewModel.todayPrediction {
-                    todayOutlookHero(prediction, insights: insights)
-                        .padding(.horizontal)
-                        .padding(.top, 16)
-
-                    // Actionable Pattern Insights (ALWAYS SHOW - THE VALUE)
+                    // Actionable Pattern Insights (THE VALUE - only for today/tomorrow)
                     patternInsightsSection(prediction)
                         .padding(.horizontal)
                 } else if let forecast = viewModel.dayForecast {
-                    // Show forecast for tomorrow/future dates
-                    forecastHero(forecast)
-                        .padding(.horizontal)
-                        .padding(.top, 16)
-
-                    // Pattern insights from forecast
+                    // Pattern insights from forecast for tomorrow/future dates
                     forecastPatternInsights(forecast)
                         .padding(.horizontal)
-                } else {
-                    dayScoreHero(insights)
-                        .padding(.horizontal)
-                        .padding(.top, 16)
                 }
-            } else {
-                dayScoreHero(insights)
-                    .padding(.horizontal)
-                    .padding(.top, 16)
             }
+            // For HISTORICAL days: No pattern insights - just the metrics (already shown above)
 
             // Quick Stats
             dayStatsRow(insights)
