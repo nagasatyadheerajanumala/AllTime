@@ -1873,6 +1873,7 @@ struct PatternWeekSummary: Codable {
     let challengingDaysExpected: Int?
     let verdict: String?
     let verdictIcon: String?
+    let scoreBreakdown: ScoreBreakdown?  // Detailed breakdown with drivers
 
     enum CodingKeys: String, CodingKey {
         case totalMeetings = "total_meetings"
@@ -1884,6 +1885,7 @@ struct PatternWeekSummary: Codable {
         case challengingDaysExpected = "challenging_days_expected"
         case verdict
         case verdictIcon = "verdict_icon"
+        case scoreBreakdown = "score_breakdown"
     }
 
     var verdictColor: Color {

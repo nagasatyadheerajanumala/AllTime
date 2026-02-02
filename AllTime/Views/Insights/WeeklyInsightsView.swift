@@ -1953,6 +1953,11 @@ extension WeeklyInsightsView {
                 }
             }
             .padding(.top, DesignSystem.Spacing.xs)
+
+            // Score Drivers - show what's driving the predicted score
+            if let breakdown = summary?.scoreBreakdown, !breakdown.significantDrivers.isEmpty {
+                scoreDriversSection(breakdown)
+            }
         }
         .frame(maxWidth: .infinity)
         .padding(DesignSystem.Spacing.lg)
