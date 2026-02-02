@@ -12,11 +12,11 @@ struct FoodRecommendationsResponse: Codable {
     let message: String?
 
     enum CodingKeys: String, CodingKey {
-        case healthyOptions
-        case regularOptions
-        case userLocation
-        case searchRadiusKm
-        case searchRadiusMiles
+        case healthyOptions = "healthy_options"
+        case regularOptions = "regular_options"
+        case userLocation = "user_location"
+        case searchRadiusKm = "search_radius_km"
+        case searchRadiusMiles = "search_radius_miles"
         case message
     }
 }
