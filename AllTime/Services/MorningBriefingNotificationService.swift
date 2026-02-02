@@ -641,26 +641,25 @@ class MorningBriefingNotificationService: ObservableObject {
     /// Fetch preferences from backend on app launch
     func fetchPreferencesFromBackend() async {
         do {
-            if let prefs = try await APIService.shared.getNotificationPreferences() {
-                await MainActor.run {
-                    // Update local state from backend
-                    if let enabled = prefs.morningBriefingEnabled {
-                        // Don't trigger didSet sync loop
-                        UserDefaults.standard.set(enabled, forKey: Keys.enabled)
-                        self.isEnabled = enabled
-                    }
-                    if let hour = prefs.morningBriefingHour {
-                        var components = DateComponents()
-                        components.hour = hour
-                        components.minute = 0
-                        if let time = Calendar.current.date(from: components) {
-                            UserDefaults.standard.set(time, forKey: Keys.time)
-                            self.scheduledTime = time
-                        }
+            let prefs = try await APIService.shared.getNotificationPreferences()
+            await MainActor.run {
+                // Update local state from backend
+                if let enabled = prefs.morningBriefingEnabled {
+                    // Don't trigger didSet sync loop
+                    UserDefaults.standard.set(enabled, forKey: Keys.enabled)
+                    self.isEnabled = enabled
+                }
+                if let hour = prefs.morningBriefingHour {
+                    var components = DateComponents()
+                    components.hour = hour
+                    components.minute = 0
+                    if let time = Calendar.current.date(from: components) {
+                        UserDefaults.standard.set(time, forKey: Keys.time)
+                        self.scheduledTime = time
                     }
                 }
-                print("✅ Fetched morning briefing preferences from backend")
             }
+            print("✅ Fetched morning briefing preferences from backend")
         } catch {
             print("⚠️ Could not fetch notification preferences from backend: \(error.localizedDescription)")
         }
