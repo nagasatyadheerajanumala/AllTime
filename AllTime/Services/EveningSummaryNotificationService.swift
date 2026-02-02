@@ -17,10 +17,9 @@ class EveningSummaryNotificationService: ObservableObject {
     @Published var isEnabled: Bool {
         didSet {
             UserDefaults.standard.set(isEnabled, forKey: Keys.enabled)
-            if isEnabled {
-                scheduleNotification()
-            } else {
-                cancelNotification()
+            // Sync preference to backend - backend handles all push notifications
+            Task {
+                await syncPreferencesToBackend()
             }
         }
     }
@@ -28,8 +27,9 @@ class EveningSummaryNotificationService: ObservableObject {
     @Published var scheduledTime: Date {
         didSet {
             UserDefaults.standard.set(scheduledTime, forKey: Keys.time)
-            if isEnabled {
-                scheduleNotification()
+            // Sync time to backend - backend handles all push notifications
+            Task {
+                await syncPreferencesToBackend()
             }
         }
     }
@@ -232,56 +232,33 @@ class EveningSummaryNotificationService: ObservableObject {
             UserDefaults.standard.set(true, forKey: Keys.enabled)
         }
 
-        // Schedule notification on init if enabled (didSet doesn't fire during init)
-        if self.isEnabled {
-            Task { @MainActor in
-                self.scheduleNotification()
-                self.scheduleContentRefresh()
-            }
+        // Fetch preferences from backend on init (backend handles push notifications)
+        // Cancel any legacy local notifications
+        cancelNotification()
+
+        Task { @MainActor in
+            await self.fetchPreferencesFromBackend()
         }
     }
 
     // MARK: - Public Methods
 
     /// Schedule the evening summary notification
+    /// NOTE: Local scheduling removed - backend handles all push notifications
+    /// This method now just syncs preferences to backend
     func scheduleNotification() {
         guard isEnabled else { return }
 
-        // Cancel any existing notification first
+        // Cancel any existing LOCAL notification (we use backend push now)
         cancelNotification()
 
-        // Create notification content
-        let content = UNMutableNotificationContent()
-        content.title = getPersonalizedTitle()
-        content.body = getPersonalizedFallbackMessage()
-        content.sound = .default
-        content.userInfo = [
-            "type": "evening_summary",
-            "destination": "day-review"
-        ]
-
-        // Create calendar trigger for the scheduled time (repeating daily)
-        let calendar = Calendar.current
-        var dateComponents = calendar.dateComponents([.hour, .minute], from: scheduledTime)
-        dateComponents.second = 0
-
-        let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: true)
-
-        // Create and add the request
-        let request = UNNotificationRequest(
-            identifier: notificationIdentifier,
-            content: content,
-            trigger: trigger
-        )
-
-        UNUserNotificationCenter.current().add(request) { error in
-            if let error = error {
-                print("Failed to schedule evening summary notification: \(error.localizedDescription)")
-            } else {
-                let timeString = self.formattedTime(self.scheduledTime)
-                print("Evening summary notification scheduled for \(timeString) daily")
-            }
+        // Sync to backend - backend will send push notification at the scheduled time
+        Task {
+            await syncPreferencesToBackend()
         }
+
+        let timeString = formattedTime(scheduledTime)
+        print("Evening summary configured for \(timeString) - backend will send push notification")
     }
 
     /// Cancel the evening summary notification
@@ -778,6 +755,53 @@ class EveningSummaryNotificationService: ObservableObject {
         components.minute = minute
         if let newDate = Calendar.current.date(from: components) {
             scheduledTime = newDate
+        }
+    }
+
+    // MARK: - Backend Sync
+
+    /// Sync notification preferences to backend
+    /// Backend handles all push notification delivery
+    private func syncPreferencesToBackend() async {
+        let calendar = Calendar.current
+        let hour = calendar.component(.hour, from: scheduledTime)
+
+        do {
+            try await APIService.shared.updateNotificationPreferences(
+                eveningSummaryEnabled: isEnabled,
+                eveningSummaryHour: hour
+            )
+            print("✅ Evening summary preferences synced to backend: enabled=\(isEnabled), hour=\(hour)")
+        } catch {
+            print("❌ Failed to sync evening summary preferences: \(error.localizedDescription)")
+        }
+    }
+
+    /// Fetch preferences from backend on app launch
+    func fetchPreferencesFromBackend() async {
+        do {
+            if let prefs = try await APIService.shared.getNotificationPreferences() {
+                await MainActor.run {
+                    // Update local state from backend
+                    if let enabled = prefs.eveningSummaryEnabled {
+                        // Don't trigger didSet sync loop
+                        UserDefaults.standard.set(enabled, forKey: Keys.enabled)
+                        self.isEnabled = enabled
+                    }
+                    if let hour = prefs.eveningSummaryHour {
+                        var components = DateComponents()
+                        components.hour = hour
+                        components.minute = 0
+                        if let time = Calendar.current.date(from: components) {
+                            UserDefaults.standard.set(time, forKey: Keys.time)
+                            self.scheduledTime = time
+                        }
+                    }
+                }
+                print("✅ Fetched evening summary preferences from backend")
+            }
+        } catch {
+            print("⚠️ Could not fetch notification preferences from backend: \(error.localizedDescription)")
         }
     }
 }

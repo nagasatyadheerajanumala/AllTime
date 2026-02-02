@@ -6766,6 +6766,22 @@ class APIService: ObservableObject {
         return try decoder.decode(NotificationPreferences.self, from: data)
     }
 
+    /// Update just morning briefing preferences (convenience method)
+    func updateNotificationPreferences(morningBriefingEnabled: Bool, morningBriefingHour: Int) async throws {
+        var prefs = NotificationPreferences()
+        prefs.morningBriefingEnabled = morningBriefingEnabled
+        prefs.morningBriefingHour = morningBriefingHour
+        _ = try await updateNotificationPreferences(prefs)
+    }
+
+    /// Update just evening summary preferences (convenience method)
+    func updateNotificationPreferences(eveningSummaryEnabled: Bool, eveningSummaryHour: Int) async throws {
+        var prefs = NotificationPreferences()
+        prefs.eveningSummaryEnabled = eveningSummaryEnabled
+        prefs.eveningSummaryHour = eveningSummaryHour
+        _ = try await updateNotificationPreferences(prefs)
+    }
+
     /// Send a test notification.
     /// POST /api/notification-preferences/test
     func sendTestNotificationWithType(_ type: String) async throws -> TestNotificationResponse {
