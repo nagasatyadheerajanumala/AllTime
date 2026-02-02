@@ -617,9 +617,22 @@ struct FoodRecommendationsView: View {
                 .font(.headline)
                 .foregroundColor(DesignSystem.Colors.primaryText)
 
-            Text("Try increasing the search radius")
+            Text(viewModel.backendMessage ?? "Try increasing the search radius")
                 .font(.caption)
                 .foregroundColor(DesignSystem.Colors.secondaryText)
+                .multilineTextAlignment(.center)
+
+            Button {
+                Task { await viewModel.refreshRecommendations() }
+            } label: {
+                Text("Retry")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 12)
+                    .background(DesignSystem.Colors.primary)
+                    .cornerRadius(12)
+            }
         }
         .frame(maxWidth: .infinity)
         .padding(60)

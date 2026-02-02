@@ -12,6 +12,7 @@ class FoodRecommendationsViewModel: ObservableObject {
     @Published var errorMessage: String?
     @Published var userLocation: String?
     @Published var locationPermissionNeeded = false
+    @Published var backendMessage: String?
 
     // Filter states
     @Published var selectedCategory: FoodCategory = .all
@@ -174,6 +175,17 @@ class FoodRecommendationsViewModel: ObservableObject {
                 searchRadiusKm = radius
             }
 
+            // Capture backend message (for empty state display)
+            backendMessage = response.message
+
+            // If no results, log backend message
+            if foodSpots.isEmpty {
+                if let message = response.message, !message.isEmpty {
+                    print("⚠️ FoodRecommendations: Backend message: \(message)")
+                }
+            }
+
+            print("📍 FoodRecommendations: Location \(lat), \(lon) - Found \(foodSpots.count) spots")
             isLoading = false
         } catch {
             print("Error loading food recommendations: \(error.localizedDescription)")
