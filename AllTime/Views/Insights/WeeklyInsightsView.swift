@@ -7,26 +7,35 @@ struct WeeklyInsightsView: View {
     @State private var showWeekPicker = false
     @State private var expandedDayId: String? = nil
 
+    /// When true, shows ONLY next week content without week picker (used by Forecast tab)
+    var forceNextWeekMode: Bool = false
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
-                // Week Picker Header
-                weekPickerHeader
-
-                // Show different content based on whether "Next Week" is selected
-                if viewModel.isNextWeekSelected {
-                    // Next Week Pattern Intelligence View
+                if forceNextWeekMode {
+                    // Forecast mode: Show Next Week header + content only
+                    forecastHeader
                     nextWeekPatternIntelligenceView
-                } else if viewModel.isLoading && viewModel.narrative == nil {
-                    loadingView
-                } else if let narrative = viewModel.narrative, viewModel.hasNarrativeForSelectedWeek {
-                    // Report Card Sections - only show if narrative matches selected week
-                    reportCardContent(narrative)
-                } else if viewModel.hasError {
-                    errorView
-                } else if viewModel.isLoading || (viewModel.narrative != nil && !viewModel.hasNarrativeForSelectedWeek) {
-                    // Show loading if fetching OR if we have stale data from wrong week
-                    loadingView
+                } else {
+                    // Normal mode: Week Picker Header
+                    weekPickerHeader
+
+                    // Show different content based on whether "Next Week" is selected
+                    if viewModel.isNextWeekSelected {
+                        // Next Week Pattern Intelligence View
+                        nextWeekPatternIntelligenceView
+                    } else if viewModel.isLoading && viewModel.narrative == nil {
+                        loadingView
+                    } else if let narrative = viewModel.narrative, viewModel.hasNarrativeForSelectedWeek {
+                        // Report Card Sections - only show if narrative matches selected week
+                        reportCardContent(narrative)
+                    } else if viewModel.hasError {
+                        errorView
+                    } else if viewModel.isLoading || (viewModel.narrative != nil && !viewModel.hasNarrativeForSelectedWeek) {
+                        // Show loading if fetching OR if we have stale data from wrong week
+                        loadingView
+                    }
                 }
 
                 Spacer(minLength: DesignSystem.Spacing.xl)
@@ -37,18 +46,30 @@ struct WeeklyInsightsView: View {
         }
         .background(DesignSystem.Colors.background)
         .refreshable {
-            await viewModel.refresh()
+            if forceNextWeekMode {
+                await viewModel.fetchPatternIntelligence(forceRefresh: true)
+                await viewModel.fetchNextWeekForecast(forceRefresh: true)
+            } else {
+                await viewModel.refresh()
+            }
         }
         .task {
-            // Fetch weeks first so selectedWeek is set, then fetch narrative
-            await viewModel.fetchAvailableWeeks()
-            // Now fetch narrative for the current week (selectedWeek should be set now)
-            async let narrativeTask: () = viewModel.fetchNarrative()
-            async let forecastTask: () = viewModel.fetchNextWeekForecast()
-            _ = await (narrativeTask, forecastTask)
+            if forceNextWeekMode {
+                // Forecast mode: Only fetch pattern intelligence and next week forecast
+                async let patternTask: () = viewModel.fetchPatternIntelligence()
+                async let forecastTask: () = viewModel.fetchNextWeekForecast()
+                _ = await (patternTask, forecastTask)
+            } else {
+                // Normal mode: Fetch weeks first so selectedWeek is set, then fetch narrative
+                await viewModel.fetchAvailableWeeks()
+                // Now fetch narrative for the current week (selectedWeek should be set now)
+                async let narrativeTask: () = viewModel.fetchNarrative()
+                async let forecastTask: () = viewModel.fetchNextWeekForecast()
+                _ = await (narrativeTask, forecastTask)
+            }
         }
         .onChange(of: viewModel.isNextWeekSelected) { _, isNextWeek in
-            if isNextWeek {
+            if isNextWeek && !forceNextWeekMode {
                 Task { await viewModel.fetchPatternIntelligence() }
             }
         }
@@ -63,6 +84,71 @@ struct WeeklyInsightsView: View {
                 Task { await viewModel.selectWeek(week) }
             }
         }
+    }
+
+    // MARK: - Forecast Header (for forceNextWeekMode)
+
+    private var forecastHeader: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Next Week")
+                        .font(.title2.weight(.bold))
+                        .foregroundColor(DesignSystem.Colors.primaryText)
+
+                    Text(nextWeekDateRange)
+                        .font(.subheadline)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                }
+
+                Spacer()
+
+                HStack(spacing: 4) {
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 10, weight: .semibold))
+                    Text("Clara")
+                        .font(.system(size: 11, weight: .semibold))
+                }
+                .foregroundColor(.white)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(
+                    Capsule()
+                        .fill(
+                            LinearGradient(
+                                colors: [DesignSystem.Colors.indigo, DesignSystem.Colors.violet],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                )
+            }
+        }
+        .padding(DesignSystem.Spacing.md)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg)
+                .fill(DesignSystem.Colors.cardBackground)
+                .overlay(
+                    RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg)
+                        .stroke(DesignSystem.Colors.calmBorder, lineWidth: 0.5)
+                )
+        )
+    }
+
+    private var nextWeekDateRange: String {
+        var calendar = Calendar(identifier: .iso8601)
+        calendar.firstWeekday = 2
+        let today = Date()
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM d"
+
+        guard let nextWeekDate = calendar.date(byAdding: .weekOfYear, value: 1, to: today),
+              let nextMonday = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: nextWeekDate)),
+              let nextSunday = calendar.date(byAdding: .day, value: 6, to: nextMonday) else {
+            return "Next Week"
+        }
+
+        return "\(formatter.string(from: nextMonday)) - \(formatter.string(from: nextSunday))"
     }
 
     // MARK: - Report Card Content
@@ -1766,23 +1852,30 @@ extension WeeklyInsightsView {
             .frame(maxWidth: .infinity)
             .padding(.vertical, 60)
         } else if let pattern = viewModel.patternIntelligence {
-            // Week at a Glance
+            // Section 1: Predicted Balance Score Hero (like Weekly's Work-Life Balance)
+            predictedBalanceScoreSection(pattern)
+
+            // Section 2: Week Overview Card
+            weekOverviewSection(pattern)
+
+            // Section 3: Week at a Glance (bar chart)
             weekAtGlanceSection(pattern)
 
-            // Stats Row
-            patternStatsRow(pattern)
+            // Section 4: Day-by-Day Breakdown
+            dayByDaySection(pattern)
 
-            // Day Cards
-            ForEach(pattern.days) { day in
-                patternDayCard(day)
-            }
-
-            // Week Patterns (if any)
+            // Section 5: Week Patterns (if any)
             if let weekPatterns = pattern.weekPatterns, !weekPatterns.isEmpty {
                 weekPatternsSection(weekPatterns)
             }
+
+            // Section 6: Clara's Top Insights (if any)
+            if let topInsights = pattern.claraTopInsights, !topInsights.isEmpty {
+                claraTopInsightsSection(topInsights)
+            }
         } else if let forecast = viewModel.nextWeekForecast {
             // Fallback to forecast data if pattern intelligence isn't available
+            forecastFallbackBalanceSection(forecast)
             weekAtGlanceFallback(forecast)
             forecastStatsRow(forecast)
             ForEach(forecast.dailyForecasts) { day in
@@ -1805,6 +1898,290 @@ extension WeeklyInsightsView {
             .frame(maxWidth: .infinity)
             .padding(.vertical, 60)
         }
+    }
+
+    // MARK: - Predicted Balance Score Section (Hero)
+
+    private func predictedBalanceScoreSection(_ pattern: PatternIntelligenceReport) -> some View {
+        let summary = pattern.weekSummary
+        let predictedScore = summary?.avgPredictedOutcome ?? 50
+
+        return VStack(spacing: DesignSystem.Spacing.md) {
+            // Predicted Score Ring
+            PredictedBalanceRing(score: predictedScore, size: 160)
+                .padding(.top, DesignSystem.Spacing.md)
+
+            Text("Predicted Balance")
+                .font(.headline)
+                .foregroundColor(.white)
+
+            // Verdict
+            if let verdict = summary?.verdict {
+                HStack(spacing: 8) {
+                    Image(systemName: summary?.displayVerdictIcon ?? "sparkles")
+                        .font(.system(size: 14))
+                    Text(verdict)
+                        .font(.subheadline.weight(.medium))
+                }
+                .foregroundColor(summary?.verdictColor ?? .white.opacity(0.8))
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .background(
+                    Capsule()
+                        .fill((summary?.verdictColor ?? Color.white).opacity(0.15))
+                )
+            }
+
+            // Quick Stats
+            HStack(spacing: 20) {
+                forecastStatPill(
+                    icon: "calendar",
+                    value: "\(summary?.totalMeetings ?? pattern.days.reduce(0) { $0 + $1.meetingCount })",
+                    label: "meetings"
+                )
+                forecastStatPill(
+                    icon: "clock",
+                    value: String(format: "%.0fh", summary?.totalMeetingHours ?? pattern.days.reduce(0.0) { $0 + $1.meetingHours }),
+                    label: "in calls"
+                )
+                if let goodDays = summary?.goodDaysExpected, goodDays > 0 {
+                    forecastStatPill(
+                        icon: "hand.thumbsup.fill",
+                        value: "\(goodDays)",
+                        label: "good days"
+                    )
+                }
+            }
+            .padding(.top, DesignSystem.Spacing.xs)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(DesignSystem.Spacing.lg)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.xl)
+                .fill(
+                    LinearGradient(
+                        colors: [Color(hex: "1E1B4B"), Color(hex: "312E81")],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.xl)
+                .stroke(Color.white.opacity(0.1), lineWidth: 0.5)
+        )
+    }
+
+    private func forecastStatPill(icon: String, value: String, label: String) -> some View {
+        VStack(spacing: 4) {
+            HStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.system(size: 12))
+                Text(value)
+                    .font(.system(size: 16, weight: .bold, design: .rounded))
+            }
+            .foregroundColor(.white)
+            Text(label)
+                .font(.system(size: 10, weight: .medium))
+                .foregroundColor(.white.opacity(0.6))
+        }
+    }
+
+    // MARK: - Week Overview Section
+
+    private func weekOverviewSection(_ pattern: PatternIntelligenceReport) -> some View {
+        let summary = pattern.weekSummary
+        let heavyDays = summary?.heavyDays ?? pattern.days.filter { $0.intensity == "heavy" || $0.intensity == "extreme" }.count
+        let lightDays = summary?.lightDays ?? pattern.days.filter { $0.intensity == "light" || $0.intensity == "open" }.count
+        let challengingDays = summary?.challengingDaysExpected ?? heavyDays
+
+        return VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+            HStack {
+                Image(systemName: "chart.bar.doc.horizontal")
+                    .foregroundColor(DesignSystem.Colors.primary)
+                Text("Week Overview")
+                    .font(.headline)
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+            }
+
+            // Overview Grid
+            LazyVGrid(columns: [
+                GridItem(.flexible()),
+                GridItem(.flexible())
+            ], spacing: DesignSystem.Spacing.sm) {
+                overviewMetricCard(
+                    icon: "flame.fill",
+                    value: "\(heavyDays)",
+                    label: "Heavy Days",
+                    color: heavyDays >= 3 ? Color(hex: "EF4444") : DesignSystem.Colors.amber
+                )
+                overviewMetricCard(
+                    icon: "sun.max.fill",
+                    value: "\(lightDays)",
+                    label: "Light Days",
+                    color: Color(hex: "10B981")
+                )
+                overviewMetricCard(
+                    icon: "exclamationmark.triangle.fill",
+                    value: "\(challengingDays)",
+                    label: "Challenging",
+                    color: DesignSystem.Colors.amber
+                )
+                overviewMetricCard(
+                    icon: "hand.thumbsup.fill",
+                    value: "\(summary?.goodDaysExpected ?? (7 - challengingDays))",
+                    label: "Good Days Expected",
+                    color: Color(hex: "10B981")
+                )
+            }
+        }
+        .padding(DesignSystem.Spacing.md)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg)
+                .fill(DesignSystem.Colors.cardBackground)
+                .overlay(
+                    RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg)
+                        .stroke(DesignSystem.Colors.calmBorder, lineWidth: 0.5)
+                )
+        )
+    }
+
+    private func overviewMetricCard(icon: String, value: String, label: String, color: Color) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 18))
+                .foregroundColor(color)
+                .frame(width: 36, height: 36)
+                .background(color.opacity(0.15))
+                .clipShape(Circle())
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(value)
+                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                Text(label)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(1)
+            }
+            Spacer()
+        }
+        .padding(DesignSystem.Spacing.sm)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.md)
+                .fill(DesignSystem.Colors.cardBackgroundElevated)
+        )
+    }
+
+    // MARK: - Day-by-Day Section
+
+    private func dayByDaySection(_ pattern: PatternIntelligenceReport) -> some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+            HStack {
+                Image(systemName: "calendar.day.timeline.left")
+                    .foregroundColor(DesignSystem.Colors.primary)
+                Text("Day-by-Day Breakdown")
+                    .font(.headline)
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+            }
+            .padding(.horizontal, DesignSystem.Spacing.md)
+            .padding(.top, DesignSystem.Spacing.sm)
+
+            ForEach(pattern.days) { day in
+                patternDayCard(day)
+            }
+        }
+    }
+
+    // MARK: - Clara's Top Insights Section
+
+    private func claraTopInsightsSection(_ insights: [ClaraInsightItem]) -> some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+            HStack {
+                Image(systemName: "sparkles")
+                    .foregroundColor(DesignSystem.Colors.violet)
+                Text("Clara's Insights")
+                    .font(.headline)
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+            }
+
+            ForEach(insights) { insight in
+                HStack(alignment: .top, spacing: 12) {
+                    Image(systemName: insight.icon)
+                        .font(.system(size: 14))
+                        .foregroundColor(insight.severityColor)
+                        .frame(width: 28, height: 28)
+                        .background(insight.severityColor.opacity(0.15))
+                        .clipShape(Circle())
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(insight.title)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundColor(DesignSystem.Colors.primaryText)
+                        Text(insight.detail)
+                            .font(.caption)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer()
+                }
+                .padding(DesignSystem.Spacing.sm)
+                .background(
+                    RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.md)
+                        .fill(DesignSystem.Colors.cardBackgroundElevated)
+                )
+            }
+        }
+        .padding(DesignSystem.Spacing.md)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg)
+                .fill(DesignSystem.Colors.cardBackground)
+                .overlay(
+                    RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg)
+                        .stroke(DesignSystem.Colors.calmBorder, lineWidth: 0.5)
+                )
+        )
+    }
+
+    // MARK: - Fallback Balance Section (when no pattern intelligence)
+
+    private func forecastFallbackBalanceSection(_ forecast: NextWeekForecastResponse) -> some View {
+        let metrics = forecast.weekMetrics
+
+        return VStack(spacing: DesignSystem.Spacing.md) {
+            // Simple intensity indicator
+            Image(systemName: metrics.heavyDays >= 3 ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
+                .font(.system(size: 48))
+                .foregroundColor(metrics.heavyDays >= 3 ? DesignSystem.Colors.amber : Color(hex: "10B981"))
+                .padding(.top, DesignSystem.Spacing.md)
+
+            Text(metrics.heavyDays >= 3 ? "Busy Week Ahead" : "Balanced Week")
+                .font(.title3.weight(.bold))
+                .foregroundColor(.white)
+
+            // Quick Stats
+            HStack(spacing: 20) {
+                forecastStatPill(icon: "calendar", value: "\(metrics.totalMeetings)", label: "meetings")
+                forecastStatPill(icon: "clock", value: metrics.formattedMeetingHours, label: "in calls")
+                forecastStatPill(icon: "flame.fill", value: "\(metrics.heavyDays)", label: "heavy days")
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(DesignSystem.Spacing.lg)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.xl)
+                .fill(
+                    LinearGradient(
+                        colors: [Color(hex: "1E1B4B"), Color(hex: "312E81")],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.xl)
+                .stroke(Color.white.opacity(0.1), lineWidth: 0.5)
+        )
     }
 
     // MARK: - Week at a Glance

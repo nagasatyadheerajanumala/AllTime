@@ -58,9 +58,9 @@ struct InsightsRootView: View {
 
             // Content - direction-aware transitions for smooth tab switching
             ZStack {
-                // Forecast View (Tomorrow)
+                // Forecast View (Next Week)
                 if selectedSection == .forecast {
-                    NextDayForecastView()
+                    WeeklyInsightsView(forceNextWeekMode: true)
                         .transition(contentTransition)
                         .onAppear { forecastViewLoaded = true }
                 }

@@ -247,3 +247,59 @@ struct MiniProgressRing: View {
     .padding()
     .background(DesignSystem.Colors.background)
 }
+
+// MARK: - Predicted Balance Ring (for Forecast/Next Week)
+
+struct PredictedBalanceRing: View {
+    let score: Int
+    let size: CGFloat
+
+    private var progress: Double {
+        Double(score) / 100.0
+    }
+
+    private var gradientColors: [Color] {
+        switch score {
+        case 70...100: return [DesignSystem.Colors.emerald, Color(hex: "34D399")]
+        case 40...69: return [DesignSystem.Colors.amber, Color(hex: "FBBF24")]
+        default: return [DesignSystem.Colors.errorRed, Color(hex: "F87171")]
+        }
+    }
+
+    private var scoreLabel: String {
+        switch score {
+        case 80...100: return "Great Week"
+        case 60...79: return "Good Week"
+        case 40...59: return "Mixed Week"
+        case 20...39: return "Tough Week"
+        default: return "Heavy Week"
+        }
+    }
+
+    var body: some View {
+        ZStack {
+            CircularProgressRing(
+                progress: progress,
+                lineWidth: size * 0.08,
+                gradientColors: gradientColors
+            )
+            .frame(width: size, height: size)
+
+            VStack(spacing: 4) {
+                // "Predicted" label
+                Text("PREDICTED")
+                    .font(.system(size: size * 0.06, weight: .bold))
+                    .foregroundColor(.white.opacity(0.5))
+                    .tracking(1)
+
+                Text("\(score)")
+                    .font(.system(size: size * 0.28, weight: .bold, design: .rounded))
+                    .foregroundColor(.white)
+
+                Text(scoreLabel)
+                    .font(.system(size: size * 0.09, weight: .medium))
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+            }
+        }
+    }
+}

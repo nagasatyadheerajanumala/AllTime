@@ -84,6 +84,16 @@ struct BriefingKeyMetrics: Codable {
     let isCritical: Bool?            // True if immediate attention needed
     let isDataSuspect: Bool?         // True if values seem erroneous (e.g., 0.3h sleep)
 
+    // Specific meeting details for personal notifications
+    let firstMeetingTitle: String?
+    let firstMeetingTime: String?
+    let lastMeetingTitle: String?
+    let lastMeetingTime: String?
+    let longestMeetingTitle: String?
+    let longestMeetingDurationMinutes: Int?
+    let backToBackMeetings: String?
+    let daySpan: String?
+
     // Calendar metrics
     let meetingsTodayCount: Int?
     let meetingsAverageCount: Double?
@@ -119,6 +129,15 @@ struct BriefingKeyMetrics: Codable {
         case escalationReason = "escalation_reason"
         case isCritical = "is_critical"
         case isDataSuspect = "is_data_suspect"
+        // Specific meeting details
+        case firstMeetingTitle = "first_meeting_title"
+        case firstMeetingTime = "first_meeting_time"
+        case lastMeetingTitle = "last_meeting_title"
+        case lastMeetingTime = "last_meeting_time"
+        case longestMeetingTitle = "longest_meeting_title"
+        case longestMeetingDurationMinutes = "longest_meeting_duration_minutes"
+        case backToBackMeetings = "back_to_back_meetings"
+        case daySpan = "day_span"
         case meetingsTodayCount = "meetings_today_count"
         case meetingsAverageCount = "meetings_average_count"
         case totalMeetingHoursToday = "total_meeting_hours_today"

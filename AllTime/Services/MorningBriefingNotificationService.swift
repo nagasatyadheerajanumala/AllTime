@@ -436,6 +436,15 @@ class MorningBriefingNotificationService: ObservableObject {
         let meetingsAvg = metrics?.meetingsAverageCount
         let longestFreeBlock = metrics?.effectiveLongestFreeBlock ?? 0
 
+        // NEW: Extract specific meeting details for personal notifications
+        let firstMeetingTitle = metrics?.firstMeetingTitle
+        let firstMeetingTime = metrics?.firstMeetingTime
+        let lastMeetingTime = metrics?.lastMeetingTime
+        let longestMeetingTitle = metrics?.longestMeetingTitle
+        let longestMeetingDuration = metrics?.longestMeetingDurationMinutes
+        let backToBackMeetings = metrics?.backToBackMeetings
+        let daySpan = metrics?.daySpan
+
         // Check for late meetings and back-to-back meetings
         let hasLateMeeting = briefing.focusWindows?.contains { window in
             if let hour = Int(window.startTime.prefix(2)), hour >= 18 {
@@ -446,7 +455,28 @@ class MorningBriefingNotificationService: ObservableObject {
 
         let hasBackToBack = meetings >= 3 && longestFreeBlock < 30
 
-        // PRIORITY 0: Energy pattern-based insight (personalized data)
+        // PRIORITY 0: Specific meeting details (most personal)
+        if let firstTitle = firstMeetingTitle, let firstTime = firstMeetingTime, meetings > 0 {
+            // Personal notification with specific meeting info
+            if meetings == 1 {
+                return "One meeting today: \(firstTitle) at \(firstTime). Rest of the day is yours."
+            }
+            if meetings >= 6, let lastTime = lastMeetingTime {
+                return "Heavy day: \(meetings) meetings from \(firstTime) to \(lastTime). First up: \(firstTitle)."
+            }
+            if let backToBack = backToBackMeetings, !backToBack.isEmpty {
+                return "Back-to-back alert: \(backToBack). Starts at \(firstTime)."
+            }
+            if let longest = longestMeetingTitle, let dur = longestMeetingDuration, dur >= 60 {
+                let hours = dur / 60
+                let mins = dur % 60
+                let durStr = mins > 0 ? "\(hours)h \(mins)m" : "\(hours)h"
+                return "Your longest today: \(longest) (\(durStr)). Day starts with \(firstTitle) at \(firstTime)."
+            }
+            return "First up: \(firstTitle) at \(firstTime). \(meetings - 1) more meetings after."
+        }
+
+        // PRIORITY 1: Energy pattern-based insight (personalized data)
         if let patternInsight = patternService.morningInsight(
             meetingCount: meetings,
             hasLateMeeting: hasLateMeeting,
@@ -455,7 +485,7 @@ class MorningBriefingNotificationService: ObservableObject {
             return patternInsight
         }
 
-        // PRIORITY 1: AI-generated narrative headline (if good)
+        // PRIORITY 2: AI-generated narrative headline (if good)
         if let narrative = briefing.dayNarrative, !narrative.headline.isEmpty, narrative.headline.count < 100 {
             return narrative.headline
         }

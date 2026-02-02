@@ -24,7 +24,7 @@ struct InsightsTabView: View {
 
         var description: String {
             switch self {
-            case .forecast: return "Tomorrow"
+            case .forecast: return "Next Week"
             case .daily: return "Today"
             case .weekly: return "7 days"
             case .monthly: return "30-60 days"
@@ -45,7 +45,7 @@ struct InsightsTabView: View {
             Group {
                 switch selectedSection {
                 case .forecast:
-                    NextDayForecastView()
+                    ForecastView()
                 case .daily:
                     DailyInsightsView()
                 case .weekly:
@@ -150,4 +150,13 @@ struct InsightsTabView: View {
 #Preview {
     InsightsTabView()
         .preferredColorScheme(.dark)
+}
+
+// MARK: - Forecast View (Next Week Insights)
+// Simply wraps WeeklyInsightsView in "Next Week" mode - no week picker, just next week content
+
+struct ForecastView: View {
+    var body: some View {
+        WeeklyInsightsView(forceNextWeekMode: true)
+    }
 }
