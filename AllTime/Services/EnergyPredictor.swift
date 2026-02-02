@@ -42,8 +42,11 @@ class EnergyPredictor {
         var factors: [EnergyFactor] = []
         var weightSum: Double = 0
 
-        // 1. SLEEP (Most important - weight: 3)
-        if let sleepMinutes = yesterday.sleepMinutes {
+        // Check if sleep data is enabled in user preferences (read from UserDefaults cache)
+        let useSleepData = UserDefaults.standard.object(forKey: "useSleepDataForInsights") as? Bool ?? true
+
+        // 1. SLEEP (Most important - weight: 3) - Only if user has enabled sleep insights
+        if useSleepData, let sleepMinutes = yesterday.sleepMinutes {
             let sleepHours = Double(sleepMinutes) / 60.0
             let sleepScore = calculateSleepScore(hours: sleepHours)
             scores.append(sleepScore * 3)
