@@ -657,6 +657,9 @@ struct WeekComparison: Codable {
     let balanceTrend: String
     let scoreBreakdown: ScoreBreakdown?  // Detailed breakdown with drivers
 
+    // Dynamic comparison label - "this week" for next week view, "last week" for current/past
+    let comparisonWeekLabel: String?
+
     enum CodingKeys: String, CodingKey {
         case hasPreviousWeek = "has_previous_week"
         case meetingHoursThisWeek = "meeting_hours_this_week"
@@ -679,6 +682,7 @@ struct WeekComparison: Codable {
         case prevBalanceScore = "prev_balance_score"
         case balanceTrend = "balance_trend"
         case scoreBreakdown = "score_breakdown"
+        case comparisonWeekLabel = "comparison_week_label"
     }
 
     // Custom decoder that handles both snake_case and camelCase with defaults
@@ -747,6 +751,10 @@ struct WeekComparison: Codable {
         // Score breakdown with drivers
         scoreBreakdown = (try? snakeContainer?.decode(ScoreBreakdown.self, forKey: .scoreBreakdown))
             ?? (try? camelContainer?.decode(ScoreBreakdown.self, forKey: .scoreBreakdown))
+
+        // Comparison week label - defaults to "last week" for backwards compatibility
+        comparisonWeekLabel = (try? snakeContainer?.decode(String.self, forKey: .comparisonWeekLabel))
+            ?? (try? camelContainer?.decode(String.self, forKey: .comparisonWeekLabel))
     }
 
     private enum FallbackCodingKeys: String, CodingKey {
@@ -754,12 +762,17 @@ struct WeekComparison: Codable {
         case focusHoursThisWeek, focusHoursPrevWeek, focusHoursDelta, focusTrend
         case eventsThisWeek, eventsPrevWeek, eventsDelta, eventsTrend
         case freeHoursThisWeek, freeHoursPrevWeek, freeHoursDelta, freeTimeTrend
-        case balanceScore, prevBalanceScore, balanceTrend, scoreBreakdown
+        case balanceScore, prevBalanceScore, balanceTrend, scoreBreakdown, comparisonWeekLabel
     }
 
     // Computed property for delta
     var balanceScoreDelta: Int {
         balanceScore - prevBalanceScore
+    }
+
+    /// Display label for comparison week, defaults to "last week" for backwards compatibility
+    var comparisonLabel: String {
+        comparisonWeekLabel ?? "last week"
     }
 
     // Helper computed properties

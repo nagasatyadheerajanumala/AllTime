@@ -280,17 +280,17 @@ struct WeeklyInsightsView: View {
                         if trend > 0 {
                             Image(systemName: "arrow.up.circle.fill")
                                 .foregroundColor(DesignSystem.Colors.emerald)
-                            Text("\(trend) points from last week")
+                            Text("\(trend) points from \(comparison.comparisonLabel)")
                                 .foregroundColor(DesignSystem.Colors.emerald)
                         } else if trend < 0 {
                             Image(systemName: "arrow.down.circle.fill")
                                 .foregroundColor(DesignSystem.Colors.errorRed)
-                            Text("\(abs(trend)) points from last week")
+                            Text("\(abs(trend)) points from \(comparison.comparisonLabel)")
                                 .foregroundColor(DesignSystem.Colors.errorRed)
                         } else {
                             Image(systemName: "equal.circle.fill")
                                 .foregroundColor(Color(hex: "6B7280"))
-                            Text("Same as last week")
+                            Text("Same as \(comparison.comparisonLabel)")
                                 .foregroundColor(Color(hex: "6B7280"))
                         }
                     }
