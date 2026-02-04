@@ -135,25 +135,36 @@ struct HealthInsightsTabContent: View {
                 } else if let error = viewModel.errorMessage {
                     healthErrorView(error)
                 } else if let insights = viewModel.insights {
-                    // AI Narrative
-                    AIWeeklyOverviewCard(narrative: insights.aiNarrative)
-                        .padding(.horizontal, DesignSystem.Spacing.md)
+                    VStack(spacing: 16) {
+                        // 1. QUICK METRICS - scannable numbers at a glance
+                        HealthQuickMetrics(stats: insights.summaryStats)
 
-                    // Summary Stats
-                    HealthSummaryStatsGrid(stats: insights.summaryStats)
-                        .padding(.horizontal, DesignSystem.Spacing.md)
+                        // 2. PATTERN HERO - the key insight, most prominent
+                        if !insights.insights.isEmpty {
+                            PatternHeroCard(insight: insights.insights[0])
+                        }
 
-                    // Insights Alerts
-                    if !insights.insights.isEmpty {
-                        HealthInsightsAlertsGrid(insights: insights.insights)
-                            .padding(.horizontal, DesignSystem.Spacing.md)
+                        // 3. OBSERVATIONS - what happened (muted, secondary)
+                        if !insights.aiNarrative.keyTakeaways.isEmpty {
+                            ObservationsSection(observations: insights.aiNarrative.keyTakeaways)
+                        }
+
+                        // 4. ACTION - what to do (distinct amber treatment)
+                        if let firstSuggestion = insights.aiNarrative.suggestions.first {
+                            HealthActionCard(suggestion: firstSuggestion)
+                        }
+
+                        // 5. VITALS - heart metrics only (non-redundant)
+                        if let breakdown = insights.healthBreakdown {
+                            VitalsSection(breakdown: breakdown)
+                        }
+
+                        // 6. TRENDS - detailed metric changes
+                        if let trends = insights.trendAnalysis, !trends.isEmpty {
+                            HealthTrendsSection(trends: trends)
+                        }
                     }
-
-                    // Trend Analysis
-                    if let trends = insights.trendAnalysis, !trends.isEmpty {
-                        HealthTrendsSection(trends: trends)
-                            .padding(.horizontal, DesignSystem.Spacing.md)
-                    }
+                    .padding(.horizontal, DesignSystem.Spacing.md)
                 }
 
                 Spacer(minLength: DesignSystem.Spacing.xl)

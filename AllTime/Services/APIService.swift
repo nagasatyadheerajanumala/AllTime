@@ -3061,9 +3061,237 @@ class APIService: ObservableObject {
             throw error
         }
     }
-    
+
+    // MARK: - Update Event
+
+    /// Update an existing event
+    /// - Parameters:
+    ///   - eventId: The ID of the event to update
+    ///   - title: New title (optional)
+    ///   - description: New description (optional)
+    ///   - location: New location (optional)
+    ///   - startDate: New start date (optional)
+    ///   - endDate: New end date (optional)
+    ///   - isAllDay: Whether event is all-day (optional)
+    ///   - eventColor: New color (optional)
+    /// - Returns: UpdateEventResponse
+    func updateEvent(
+        eventId: Int64,
+        title: String? = nil,
+        description: String? = nil,
+        location: String? = nil,
+        startDate: Date? = nil,
+        endDate: Date? = nil,
+        isAllDay: Bool? = nil,
+        eventColor: String? = nil
+    ) async throws -> UpdateEventResponse {
+        let url = try makeURL("\(baseURL)/calendars/events/\(eventId)")
+        print("✏️ APIService: ===== UPDATING EVENT =====")
+        print("✏️ APIService: Event ID: \(eventId)")
+        print("✏️ APIService: URL: \(url)")
+
+        guard let token = accessToken else {
+            throw NSError(
+                domain: "AllTime",
+                code: 401,
+                userInfo: [NSLocalizedDescriptionKey: "Authentication required. Please sign in again."]
+            )
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "PUT"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = Constants.API.timeout
+
+        // Convert dates to UTC ISO 8601 format if provided
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        formatter.timeZone = TimeZone(secondsFromGMT: 0) // UTC
+
+        var startTimeString: String?
+        var endTimeString: String?
+
+        if let startDate = startDate {
+            startTimeString = formatter.string(from: startDate)
+            print("📅 APIService: New start time (UTC): \(startTimeString!)")
+        }
+
+        if let endDate = endDate {
+            endTimeString = formatter.string(from: endDate)
+            print("📅 APIService: New end time (UTC): \(endTimeString!)")
+        }
+
+        // Validate times if both are provided
+        if let start = startDate, let end = endDate, end <= start {
+            throw NSError(
+                domain: "AllTime",
+                code: 400,
+                userInfo: [NSLocalizedDescriptionKey: "End time must be after start time"]
+            )
+        }
+
+        // Build request body - only include non-nil fields
+        let requestBody = UpdateEventRequest(
+            title: title?.isEmpty == false ? title : nil,
+            description: description,  // Allow empty string to clear
+            location: location,  // Allow empty string to clear
+            startTime: startTimeString,
+            endTime: endTimeString,
+            allDay: isAllDay,
+            eventColor: eventColor
+        )
+
+        do {
+            let encoder = JSONEncoder()
+            request.httpBody = try encoder.encode(requestBody)
+
+            if let bodyString = String(data: request.httpBody!, encoding: .utf8) {
+                print("📤 APIService: Request body: \(bodyString)")
+            }
+        } catch {
+            print("❌ APIService: Failed to encode request: \(error)")
+            throw NSError(
+                domain: "AllTime",
+                code: 400,
+                userInfo: [NSLocalizedDescriptionKey: "Failed to encode request: \(error.localizedDescription)"]
+            )
+        }
+
+        print("🌐 APIService: Sending PUT request to \(url)")
+        let (data, response) = try await session.data(for: request)
+
+        let statusCode = (response as? HTTPURLResponse)?.statusCode ?? -1
+        print("📥 APIService: Response status: \(statusCode)")
+
+        let responseString = String(data: data, encoding: .utf8) ?? "No response body"
+        print("📥 APIService: Response body: \(responseString)")
+
+        // Handle specific status codes
+        if let httpResponse = response as? HTTPURLResponse {
+            switch httpResponse.statusCode {
+            case 401:
+                throw NSError(
+                    domain: "AllTime",
+                    code: 401,
+                    userInfo: [NSLocalizedDescriptionKey: "Session expired. Please sign in again."]
+                )
+            case 403:
+                throw NSError(
+                    domain: "AllTime",
+                    code: 403,
+                    userInfo: [NSLocalizedDescriptionKey: "You do not have permission to update this event."]
+                )
+            case 404:
+                throw NSError(
+                    domain: "AllTime",
+                    code: 404,
+                    userInfo: [NSLocalizedDescriptionKey: "Event not found."]
+                )
+            case 400:
+                if let errorJSON = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let message = errorJSON["message"] as? String {
+                    throw NSError(
+                        domain: "AllTime",
+                        code: 400,
+                        userInfo: [NSLocalizedDescriptionKey: message]
+                    )
+                }
+                throw NSError(
+                    domain: "AllTime",
+                    code: 400,
+                    userInfo: [NSLocalizedDescriptionKey: "Invalid request data"]
+                )
+            default:
+                break
+            }
+        }
+
+        try await validateResponse(response, data: data)
+
+        let decoder = APIService.sharedDecoder
+        do {
+            let updateResponse = try decoder.decode(UpdateEventResponse.self, from: data)
+
+            print("✅ APIService: ===== EVENT UPDATED SUCCESSFULLY =====")
+            print("✅ APIService: Event ID: \(updateResponse.id)")
+            print("✅ APIService: Title: \(updateResponse.title)")
+            print("✅ APIService: Sync status: \(updateResponse.syncStatus.status)")
+
+            return updateResponse
+        } catch {
+            print("❌ APIService: Failed to decode UpdateEventResponse: \(error)")
+            print("❌ APIService: Response was: \(responseString)")
+            throw NSError(
+                domain: "AllTime",
+                code: 1002,
+                userInfo: [NSLocalizedDescriptionKey: "Failed to decode update response: \(error.localizedDescription)"]
+            )
+        }
+    }
+
+    // MARK: - Event Deduplication
+
+    /// Remove duplicate events (cross-source duplicates from Google/Microsoft/EventKit)
+    /// - Returns: DeduplicationResponse with count of duplicates removed
+    func deduplicateEvents() async throws -> DeduplicationResponse {
+        guard let token = accessToken else {
+            throw NSError(
+                domain: "AllTime",
+                code: 401,
+                userInfo: [NSLocalizedDescriptionKey: "Authentication required. Please sign in again."]
+            )
+        }
+
+        let url = try makeURL("\(baseURL)/events/deduplicate")
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        print("📤 APIService: Deduplicating events...")
+
+        let (data, response) = try await session.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw NSError(
+                domain: "AllTime",
+                code: 0,
+                userInfo: [NSLocalizedDescriptionKey: "Invalid response"]
+            )
+        }
+
+        print("📥 APIService: Deduplicate response status: \(httpResponse.statusCode)")
+
+        if httpResponse.statusCode == 401 {
+            throw NSError(
+                domain: "AllTime",
+                code: 401,
+                userInfo: [NSLocalizedDescriptionKey: "Session expired. Please sign in again."]
+            )
+        }
+
+        guard (200...299).contains(httpResponse.statusCode) else {
+            let errorMessage = String(data: data, encoding: .utf8) ?? "Unknown error"
+            throw NSError(
+                domain: "AllTime",
+                code: httpResponse.statusCode,
+                userInfo: [NSLocalizedDescriptionKey: errorMessage]
+            )
+        }
+
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        let dedupeResponse = try decoder.decode(DeduplicationResponse.self, from: data)
+
+        print("✅ APIService: Deduplication complete - removed \(dedupeResponse.duplicatesRemoved) duplicates")
+
+        return dedupeResponse
+    }
+
     // MARK: - Daily AI Summary
-    
+
     /// Get daily AI summary for a specific date
     /// - Parameters:
     ///   - date: Optional date. If nil, uses today.

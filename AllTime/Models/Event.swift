@@ -538,6 +538,62 @@ struct SyncStatus: Codable {
     }
 }
 
+// MARK: - Update Event Models (PUT /calendars/events/{eventId})
+
+struct UpdateEventRequest: Codable {
+    var title: String?
+    var description: String?
+    var location: String?
+    var startTime: String?
+    var endTime: String?
+    var allDay: Bool?
+    var eventColor: String?
+
+    enum CodingKeys: String, CodingKey {
+        case title
+        case description
+        case location
+        case startTime = "start_time"
+        case endTime = "end_time"
+        case allDay = "all_day"
+        case eventColor = "event_color"
+    }
+}
+
+struct UpdateEventResponse: Codable {
+    let id: Int64
+    let title: String
+    let description: String?
+    let location: String?
+    let startTime: String
+    let endTime: String
+    let allDay: Bool
+    let source: String?
+    let eventColor: String?
+    let userId: Int64
+    let syncStatus: UpdateSyncStatus
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case title
+        case description
+        case location
+        case startTime = "start_time"
+        case endTime = "end_time"
+        case allDay = "all_day"
+        case source
+        case eventColor = "event_color"
+        case userId = "user_id"
+        case syncStatus = "sync_status"
+    }
+}
+
+struct UpdateSyncStatus: Codable {
+    let status: String  // "synced", "sync_failed", "local_only", "no_changes_to_sync"
+    let provider: String?
+    let error: String?
+}
+
 // MARK: - Event Details Models (GET /calendars/events/{eventId})
 
 struct EventDetails: Codable, Identifiable {

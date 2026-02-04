@@ -24,6 +24,9 @@ struct CalendarView: View {
     @State private var showingAddReminder = false
     @State private var showingQuickBook = false
     @State private var showingCalendarImport = false
+
+    // Event creation at specific time
+    @State private var eventCreationDate: Date?
     
     var body: some View {
         NavigationView {
@@ -88,6 +91,10 @@ struct CalendarView: View {
                                 showingEventDetail = true
                             },
                             onAddEvent: {
+                                showingAddEvent = true
+                            },
+                            onCreateEventAt: { date in
+                                eventCreationDate = date
                                 showingAddEvent = true
                             }
                         )
@@ -209,8 +216,9 @@ struct CalendarView: View {
                 }
             }
             .sheet(isPresented: $showingAddEvent) {
-                AddEventView(initialDate: calendarViewModel.selectedDate)
+                AddEventView(initialDate: eventCreationDate ?? calendarViewModel.selectedDate)
                     .onDisappear {
+                        eventCreationDate = nil  // Reset for next time
                         Task {
                             await calendarViewModel.refreshEvents()
                         }

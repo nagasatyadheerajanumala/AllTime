@@ -6,6 +6,7 @@ struct EventDetailView: View {
     @State private var isLoading = true
     @State private var errorMessage: String?
     @State private var copiedLink = false
+    @State private var showingEditEvent = false
     @Environment(\.dismiss) private var dismiss
 
     private let apiService = APIService()
@@ -183,6 +184,15 @@ struct EventDetailView: View {
         }
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button {
+                    showingEditEvent = true
+                } label: {
+                    Text("Edit")
+                        .font(.system(size: 17, weight: .regular))
+                        .foregroundColor(DesignSystem.Colors.primary)
+                }
+            }
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button {
                     dismiss()
@@ -191,6 +201,15 @@ struct EventDetailView: View {
                         .font(.system(size: 17, weight: .semibold))
                         .foregroundColor(DesignSystem.Colors.primary)
                 }
+            }
+        }
+        .sheet(isPresented: $showingEditEvent) {
+            if let event = eventDetails {
+                AddEventView(eventDetailsToEdit: event)
+                    .onDisappear {
+                        // Refresh event details after editing
+                        loadEventDetails()
+                    }
             }
         }
     }

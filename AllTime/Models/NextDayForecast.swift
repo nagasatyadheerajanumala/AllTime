@@ -229,6 +229,7 @@ struct TomorrowIntervention: Codable, Identifiable {
     let detail: String
     let icon: String
     let deepLink: String?
+    let timeContext: String?  // "morning", "afternoon", "evening", "midday"
     let impact: Int
 
     enum CodingKeys: String, CodingKey {
@@ -237,7 +238,20 @@ struct TomorrowIntervention: Codable, Identifiable {
         case detail
         case icon
         case deepLink = "deep_link"
+        case timeContext = "time_context"
         case impact
+    }
+
+    /// Human-readable time label for display
+    var timeLabel: String? {
+        guard let context = timeContext else { return nil }
+        switch context {
+        case "morning": return "Morning"
+        case "afternoon": return "Afternoon"
+        case "evening": return "Evening"
+        case "midday": return "Midday"
+        default: return nil
+        }
     }
 }
 

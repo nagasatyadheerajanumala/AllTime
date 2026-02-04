@@ -13,6 +13,9 @@ struct SettingsView: View {
     @EnvironmentObject var themeManager: ThemeManager
     @State private var showingProviderLink = false
     @State private var selectedProvider = ""
+    @State private var isDeduplicating = false
+    @State private var deduplicationResult: String?
+    @State private var showDeduplicationAlert = false
     
     // Computed property to get user - prioritize authService, fallback to settingsViewModel
     private var currentUser: User? {
@@ -163,7 +166,55 @@ struct SettingsView: View {
                         .foregroundColor(.secondary)
                         .textCase(.uppercase)
                 }
-                
+
+                // Data & Storage Section
+                Section {
+                    Button(action: {
+                        deduplicateEvents()
+                    }) {
+                        HStack(spacing: 12) {
+                            // Icon with background
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 7)
+                                    .fill(Color.orange.opacity(0.1))
+                                    .frame(width: 30, height: 30)
+
+                                Image(systemName: "doc.on.doc.fill")
+                                    .font(.system(size: 16, weight: .medium))
+                                    .foregroundColor(.orange)
+                            }
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Remove Duplicate Events")
+                                    .font(.system(size: 17, weight: .regular))
+                                    .foregroundColor(.primary)
+
+                                Text("Clean up events synced from multiple sources")
+                                    .font(.system(size: 13, weight: .regular))
+                                    .foregroundColor(.secondary)
+                            }
+
+                            Spacer()
+
+                            if isDeduplicating {
+                                ProgressView()
+                                    .scaleEffect(0.8)
+                            }
+                        }
+                        .padding(.vertical, 4)
+                    }
+                    .disabled(isDeduplicating)
+                } header: {
+                    Text("DATA & STORAGE")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(.secondary)
+                        .textCase(.uppercase)
+                } footer: {
+                    Text("Remove duplicate calendar events that may appear when syncing from multiple sources (Google, Microsoft, Apple)")
+                        .font(.system(size: 13))
+                        .foregroundColor(.secondary)
+                }
+
                 // Sign Out Section
                 Section {
                     Button(action: {
@@ -200,6 +251,44 @@ struct SettingsView: View {
                             await settingsViewModel.loadUserProfile()
                         }
                     }
+                }
+                .alert("Deduplication Complete", isPresented: $showDeduplicationAlert) {
+                    Button("OK", role: .cancel) { }
+                } message: {
+                    Text(deduplicationResult ?? "")
+                }
+            }
+        }
+    }
+
+    // MARK: - Deduplication
+
+    private func deduplicateEvents() {
+        isDeduplicating = true
+        deduplicationResult = nil
+
+        Task {
+            do {
+                let apiService = APIService()
+                let response = try await apiService.deduplicateEvents()
+
+                await MainActor.run {
+                    isDeduplicating = false
+                    if response.duplicatesRemoved > 0 {
+                        deduplicationResult = "Removed \(response.duplicatesRemoved) duplicate events from your calendar."
+                    } else {
+                        deduplicationResult = "No duplicate events found. Your calendar is clean!"
+                    }
+                    showDeduplicationAlert = true
+
+                    // Post notification to refresh calendar
+                    NotificationCenter.default.post(name: NSNotification.Name("RefreshCalendarEvents"), object: nil)
+                }
+            } catch {
+                await MainActor.run {
+                    isDeduplicating = false
+                    deduplicationResult = "Failed to remove duplicates: \(error.localizedDescription)"
+                    showDeduplicationAlert = true
                 }
             }
         }

@@ -112,8 +112,9 @@ class HealthSyncService: ObservableObject {
             guard !metrics.isEmpty else {
                 os_log("No metrics to sync (HealthKit may not have data for this range)", log: Self.logger, type: .info)
                 isSyncing = false
-                lastSyncDate = endDate
-                userDefaults.set(Self.dateFormatter.string(from: endDate), forKey: lastSyncKey)
+                let syncTime = Date()  // Use actual sync time
+                lastSyncDate = syncTime
+                userDefaults.set(Self.dateFormatter.string(from: syncTime), forKey: lastSyncKey)
                 return
             }
             
@@ -134,8 +135,9 @@ class HealthSyncService: ObservableObject {
             }
 
             isSyncing = false
-            lastSyncDate = endDate
-            userDefaults.set(Self.dateFormatter.string(from: endDate), forKey: lastSyncKey)
+            let syncTime = Date()  // Use actual sync time, not start of day
+            lastSyncDate = syncTime
+            userDefaults.set(Self.dateFormatter.string(from: syncTime), forKey: lastSyncKey)
 
         } catch {
             os_log("Sync failed: %@", log: Self.logger, type: .error, error.localizedDescription)
@@ -202,8 +204,9 @@ class HealthSyncService: ObservableObject {
             }
 
             isSyncing = false
-            lastSyncDate = today
-            userDefaults.set(Self.dateFormatter.string(from: today), forKey: lastSyncKey)
+            let syncTime = Date()  // Use actual sync time, not start of day
+            lastSyncDate = syncTime
+            userDefaults.set(Self.dateFormatter.string(from: syncTime), forKey: lastSyncKey)
 
         } catch {
             os_log("Sync failed: %@", log: Self.logger, type: .error, error.localizedDescription)
@@ -215,7 +218,7 @@ class HealthSyncService: ObservableObject {
 
     private static let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
+        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"  // Include time for accurate "last synced" display
         formatter.timeZone = TimeZone.current
         return formatter
     }()
