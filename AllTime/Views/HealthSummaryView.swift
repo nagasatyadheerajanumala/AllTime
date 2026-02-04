@@ -34,6 +34,33 @@ struct HealthSummaryView: View {
                     // Success state - show either legacy or advanced format
                     ScrollView {
                         VStack(spacing: 20) {
+                            // HEALTH GOAL STREAKS - Prominent position at top for gamification
+                            if let streaks = viewModel.streaks {
+                                HealthStreaksSection(
+                                    streaks: streaks,
+                                    isLoading: viewModel.isLoadingStreaks
+                                )
+                                .padding(.horizontal)
+                                .padding(.top, 8)
+                            } else if viewModel.isLoadingStreaks {
+                                // Loading state for streaks
+                                HStack {
+                                    ProgressView()
+                                        .scaleEffect(0.8)
+                                    Text("Loading streaks...")
+                                        .font(DesignSystem.Typography.caption)
+                                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(
+                                    RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.md)
+                                        .fill(DesignSystem.Colors.cardBackground)
+                                )
+                                .padding(.horizontal)
+                                .padding(.top, 8)
+                            }
+
                             // NEW: Advanced Summary Section (if available)
                             if let advanced = viewModel.advancedSummary {
                                 AdvancedSummarySection(
@@ -41,7 +68,6 @@ struct HealthSummaryView: View {
                                     nextWeek: advanced.nextWeek
                                 )
                                 .padding(.horizontal)
-                                .padding(.top, 8)
                             }
                             
                             // Legacy Summary Header (if available)
@@ -51,7 +77,6 @@ struct HealthSummaryView: View {
                                     expiresAt: viewModel.expiresAt
                                 )
                                 .padding(.horizontal)
-                                .padding(.top, viewModel.advancedSummary == nil ? 8 : 0)
                             }
                             
                             // NEW: Patterns Section

@@ -10,16 +10,22 @@ class HealthSummaryViewModel: ObservableObject {
     @Published var errorMessage: String?
     @Published var expiresAt: Date?
     @Published var createdAt: Date?
-    
+
     // NEW: Advanced AI Summary fields
     @Published var advancedSummary: AdvancedSummary?
     @Published var patterns: [String] = []
     @Published var eventSpecificAdvice: [EventAdvice] = []
     @Published var healthSuggestions: [HealthSuggestion] = []
-    
+
+    // Health Goal Streaks
+    @Published var streaks: HealthStreaksSummary?
+    @Published var isLoadingStreaks = false
+
     private let apiService = APIService()
     private let cacheKey = "health_summary"
+    private let streaksCacheKey = "health_streaks"
     private let cacheExpiration: TimeInterval = 24 * 60 * 60 // 24 hours
+    private let streaksCacheExpiration: TimeInterval = 5 * 60 // 5 minutes for streaks (fresher data)
     
     init() {
         print("🏥 HealthSummaryViewModel: Initializing...")
@@ -57,10 +63,13 @@ class HealthSummaryViewModel: ObservableObject {
     /// Loads summary from cache first (instant UI), then refreshes if expired
     func loadSummary(forceRefresh: Bool = false) async {
         errorMessage = nil
-        
-        // Load goals in parallel
+
+        // Load goals and streaks in parallel
         Task {
             await loadGoals()
+        }
+        Task {
+            await loadStreaks(forceRefresh: forceRefresh)
         }
         
         // Step 1: Try to load from cache SYNCHRONOUSLY FIRST (instant UI, no async delay)
@@ -121,6 +130,68 @@ class HealthSummaryViewModel: ObservableObject {
         }
     }
     
+    // MARK: - Health Goal Streaks
+
+    /// Loads health goal streaks - from cache first, then API
+    func loadStreaks(forceRefresh: Bool = false) async {
+        // Try to load from cache first (quick)
+        if !forceRefresh {
+            if let cached = await CacheService.shared.loadJSON(HealthStreaksSummary.self, filename: streaksCacheKey) {
+                streaks = cached
+                print("✅ HealthSummaryViewModel: Loaded streaks from cache - \(cached.totalActiveStreaks) active")
+
+                // Refresh in background if we have cached data
+                Task.detached(priority: .utility) { [weak self] in
+                    guard let self = self else { return }
+                    await self.fetchStreaksFromAPI()
+                }
+                return
+            }
+        }
+
+        // No cache or force refresh - fetch from API
+        await fetchStreaksFromAPI()
+    }
+
+    /// Fetches streaks directly from API
+    private func fetchStreaksFromAPI() async {
+        isLoadingStreaks = true
+
+        do {
+            let fetchedStreaks = try await apiService.getHealthStreaks()
+            streaks = fetchedStreaks
+            print("✅ HealthSummaryViewModel: Loaded streaks from API - \(fetchedStreaks.totalActiveStreaks) active")
+
+            // Cache for next time
+            await CacheService.shared.saveJSON(fetchedStreaks, filename: streaksCacheKey, expiration: streaksCacheExpiration)
+        } catch {
+            print("⚠️ HealthSummaryViewModel: Failed to load streaks: \(error.localizedDescription)")
+            // Don't set error - streaks are supplementary, not critical
+        }
+
+        isLoadingStreaks = false
+    }
+
+    /// Recalculate streaks manually (e.g., after syncing health data)
+    func recalculateStreaks() async {
+        isLoadingStreaks = true
+
+        do {
+            let updatedStreaks = try await apiService.recalculateHealthStreaks()
+            streaks = updatedStreaks
+            print("✅ HealthSummaryViewModel: Recalculated streaks - \(updatedStreaks.totalActiveStreaks) active")
+
+            // Update cache
+            await CacheService.shared.saveJSON(updatedStreaks, filename: streaksCacheKey, expiration: streaksCacheExpiration)
+        } catch {
+            print("⚠️ HealthSummaryViewModel: Failed to recalculate streaks: \(error.localizedDescription)")
+        }
+
+        isLoadingStreaks = false
+    }
+
+    // MARK: - Health Goals
+
     /// Loads health goals - from cache first, then API
     func loadGoals() async {
         // Try to load from cache first (same cache as HealthGoalsViewModel)

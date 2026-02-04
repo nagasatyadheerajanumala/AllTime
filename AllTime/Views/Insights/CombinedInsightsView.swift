@@ -136,6 +136,24 @@ struct HealthInsightsTabContent: View {
                     healthErrorView(error)
                 } else if let insights = viewModel.insights {
                     VStack(spacing: 16) {
+                        // 0. HEALTH GOAL STREAKS - Gamification at the top
+                        if let streaks = viewModel.streaks {
+                            HealthStreaksSection(
+                                streaks: streaks,
+                                isLoading: viewModel.isLoadingStreaks
+                            )
+                        } else if viewModel.isLoadingStreaks {
+                            HStack {
+                                ProgressView()
+                                    .scaleEffect(0.8)
+                                Text("Loading streaks...")
+                                    .font(.caption)
+                                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                        }
+
                         // 1. QUICK METRICS - scannable numbers at a glance
                         HealthQuickMetrics(stats: insights.summaryStats)
 
@@ -174,10 +192,15 @@ struct HealthInsightsTabContent: View {
         .background(DesignSystem.Colors.background)
         .refreshable {
             await viewModel.loadInsights(startDate: selectedRange.startDate, endDate: Date(), forceRefresh: true)
+            await viewModel.loadStreaks(forceRefresh: true)
         }
         .task {
+            print("🔥 HealthInsightsTabContent: .task started, isAuthorized=\(healthMetricsService.isAuthorized)")
             if healthMetricsService.isAuthorized {
                 await viewModel.loadInsights(startDate: selectedRange.startDate, endDate: Date(), forceRefresh: false)
+                print("🔥 HealthInsightsTabContent: loadInsights completed, now calling loadStreaks")
+                await viewModel.loadStreaks(forceRefresh: false)
+                print("🔥 HealthInsightsTabContent: loadStreaks completed")
             }
         }
     }

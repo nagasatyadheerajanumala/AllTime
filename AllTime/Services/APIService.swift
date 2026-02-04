@@ -3290,6 +3290,182 @@ class APIService: ObservableObject {
         return dedupeResponse
     }
 
+    // MARK: - Health Goal Streaks
+
+    /// Get health goal streaks for the current user
+    /// - Returns: HealthStreaksSummary with all streak data
+    func getHealthStreaks() async throws -> HealthStreaksSummary {
+        guard let token = accessToken else {
+            throw NSError(
+                domain: "AllTime",
+                code: 401,
+                userInfo: [NSLocalizedDescriptionKey: "Authentication required. Please sign in again."]
+            )
+        }
+
+        let url = try makeURL("\(baseURL)/api/v1/health/streaks")
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+
+        print("📤 APIService: Fetching health streaks...")
+
+        let (data, response) = try await session.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw NSError(
+                domain: "AllTime",
+                code: 0,
+                userInfo: [NSLocalizedDescriptionKey: "Invalid response"]
+            )
+        }
+
+        print("📥 APIService: Health streaks response status: \(httpResponse.statusCode)")
+
+        if httpResponse.statusCode == 401 {
+            throw NSError(
+                domain: "AllTime",
+                code: 401,
+                userInfo: [NSLocalizedDescriptionKey: "Session expired. Please sign in again."]
+            )
+        }
+
+        guard (200...299).contains(httpResponse.statusCode) else {
+            let errorMessage = String(data: data, encoding: .utf8) ?? "Unknown error"
+            print("❌ APIService: Health streaks error: \(errorMessage)")
+            throw NSError(
+                domain: "AllTime",
+                code: httpResponse.statusCode,
+                userInfo: [NSLocalizedDescriptionKey: errorMessage]
+            )
+        }
+
+        let decoder = JSONDecoder()
+        let streaksSummary = try decoder.decode(HealthStreaksSummary.self, from: data)
+
+        print("✅ APIService: Loaded \(streaksSummary.streaks.count) health streaks, \(streaksSummary.totalActiveStreaks) active")
+
+        return streaksSummary
+    }
+
+    /// Recalculate health goal streaks (trigger manual recalculation)
+    /// - Returns: HealthStreaksSummary with updated streak data
+    func recalculateHealthStreaks() async throws -> HealthStreaksSummary {
+        guard let token = accessToken else {
+            throw NSError(
+                domain: "AllTime",
+                code: 401,
+                userInfo: [NSLocalizedDescriptionKey: "Authentication required. Please sign in again."]
+            )
+        }
+
+        let url = try makeURL("\(baseURL)/api/v1/health/streaks/recalculate")
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        print("📤 APIService: Recalculating health streaks...")
+
+        let (data, response) = try await session.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw NSError(
+                domain: "AllTime",
+                code: 0,
+                userInfo: [NSLocalizedDescriptionKey: "Invalid response"]
+            )
+        }
+
+        print("📥 APIService: Recalculate streaks response status: \(httpResponse.statusCode)")
+
+        guard (200...299).contains(httpResponse.statusCode) else {
+            let errorMessage = String(data: data, encoding: .utf8) ?? "Unknown error"
+            throw NSError(
+                domain: "AllTime",
+                code: httpResponse.statusCode,
+                userInfo: [NSLocalizedDescriptionKey: errorMessage]
+            )
+        }
+
+        let decoder = JSONDecoder()
+        let streaksSummary = try decoder.decode(HealthStreaksSummary.self, from: data)
+
+        print("✅ APIService: Recalculated streaks - \(streaksSummary.totalActiveStreaks) active")
+
+        return streaksSummary
+    }
+
+    // MARK: - Health Achievements
+
+    /// Get health achievements with AI-generated comparisons and badges
+    /// - Parameters:
+    ///   - startDate: Start date for the period
+    ///   - endDate: End date for the period
+    /// - Returns: HealthAchievementsResponse with comparisons, badges, and totals
+    func getHealthAchievements(startDate: Date, endDate: Date) async throws -> HealthAchievementsResponse {
+        guard let token = accessToken else {
+            throw NSError(
+                domain: "AllTime",
+                code: 401,
+                userInfo: [NSLocalizedDescriptionKey: "Authentication required. Please sign in again."]
+            )
+        }
+
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        let startStr = formatter.string(from: startDate)
+        let endStr = formatter.string(from: endDate)
+
+        let url = try makeURL("\(baseURL)/api/v1/health/achievements?startDate=\(startStr)&endDate=\(endStr)")
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+
+        print("🏆 APIService: Fetching health achievements from \(startStr) to \(endStr)...")
+
+        let (data, response) = try await session.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw NSError(
+                domain: "AllTime",
+                code: 0,
+                userInfo: [NSLocalizedDescriptionKey: "Invalid response"]
+            )
+        }
+
+        print("📥 APIService: Health achievements response status: \(httpResponse.statusCode)")
+
+        if httpResponse.statusCode == 401 {
+            throw NSError(
+                domain: "AllTime",
+                code: 401,
+                userInfo: [NSLocalizedDescriptionKey: "Session expired. Please sign in again."]
+            )
+        }
+
+        guard (200...299).contains(httpResponse.statusCode) else {
+            let errorMessage = String(data: data, encoding: .utf8) ?? "Unknown error"
+            throw NSError(
+                domain: "AllTime",
+                code: httpResponse.statusCode,
+                userInfo: [NSLocalizedDescriptionKey: errorMessage]
+            )
+        }
+
+        let decoder = JSONDecoder()
+        let achievements = try decoder.decode(HealthAchievementsResponse.self, from: data)
+
+        print("✅ APIService: Loaded achievements - \(achievements.badges.count) badges earned")
+
+        return achievements
+    }
+
     // MARK: - Daily AI Summary
 
     /// Get daily AI summary for a specific date

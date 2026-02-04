@@ -74,6 +74,39 @@ struct HealthInsightsDetailView: View {
                     }
                 } else if let insights = viewModel.insights {
                     VStack(spacing: 16) {
+                        // 0. HEALTH GOAL STREAKS - Gamification at the top
+                        if let streaks = viewModel.streaks {
+                            HealthStreaksSection(
+                                streaks: streaks,
+                                isLoading: viewModel.isLoadingStreaks
+                            )
+                        } else if viewModel.isLoadingStreaks {
+                            HStack {
+                                ProgressView()
+                                    .scaleEffect(0.8)
+                                Text("Loading streaks...")
+                                    .font(.caption)
+                                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                        }
+
+                        // 0.5. ACHIEVEMENTS - Fun comparisons and badges (from backend AI)
+                        if let achievements = viewModel.achievements {
+                            HealthAchievementsSection(achievements: achievements)
+                        } else if viewModel.isLoadingAchievements {
+                            HStack {
+                                ProgressView()
+                                    .scaleEffect(0.8)
+                                Text("Loading achievements...")
+                                    .font(.caption)
+                                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                        }
+
                         // 1. QUICK METRICS - scannable numbers at a glance
                         HealthQuickMetrics(stats: insights.summaryStats)
 
@@ -118,6 +151,8 @@ struct HealthInsightsDetailView: View {
             if healthMetricsService.isAuthorized {
                 await viewModel.loadInsights(startDate: selectedRange.startDate, endDate: Date(), forceRefresh: true)
                 await viewModel.refreshLocalChart(rangeDays: selectedRange.days)
+                await viewModel.loadStreaks(forceRefresh: true)
+                await viewModel.loadAchievements(startDate: selectedRange.startDate, endDate: Date(), forceRefresh: true)
             }
         }
         .onAppear {
@@ -131,6 +166,10 @@ struct HealthInsightsDetailView: View {
                 if healthMetricsService.isAuthorized {
                     // Load from cache first - this will populate insights if cache exists
                     await viewModel.loadInsights(startDate: selectedRange.startDate, endDate: Date(), forceRefresh: false)
+                    // Load health goal streaks
+                    await viewModel.loadStreaks(forceRefresh: false)
+                    // Load achievements with AI-generated comparisons
+                    await viewModel.loadAchievements(startDate: selectedRange.startDate, endDate: Date(), forceRefresh: false)
                 }
             }
         }
@@ -1302,10 +1341,20 @@ class HealthInsightsDetailViewModel: ObservableObject {
     @Published var isRefreshing = false // Separate flag for background refresh
     @Published var errorMessage: String?
     @Published var chartMetrics: [DailyHealthMetrics] = []
-    
+
+    // Health Goal Streaks
+    @Published var streaks: HealthStreaksSummary?
+    @Published var isLoadingStreaks = false
+
+    // Health Achievements (AI-generated comparisons and badges)
+    @Published var achievements: HealthAchievementsResponse?
+    @Published var isLoadingAchievements = false
+
     private let apiService = APIService()
     private let cacheService = CacheService.shared
     private let cacheKey = "health_insights"
+    private let streaksCacheKey = "health_streaks"
+    private let achievementsCacheKey = "health_achievements"
     
     /// Invalidate cache when goals are updated
     func invalidateCache() async {
@@ -1313,7 +1362,77 @@ class HealthInsightsDetailViewModel: ObservableObject {
         insights = nil
         print("🗑️ HealthInsightsViewModel: Invalidated cache - will reload with fresh data")
     }
-    
+
+    // MARK: - Health Goal Streaks
+
+    /// Load health goal streaks
+    func loadStreaks(forceRefresh: Bool = false) async {
+        print("🔥 HealthInsightsViewModel: loadStreaks called, forceRefresh: \(forceRefresh)")
+
+        // Try cache first
+        if !forceRefresh {
+            if let cached = await cacheService.loadJSON(HealthStreaksSummary.self, filename: streaksCacheKey) {
+                streaks = cached
+                print("✅ HealthInsightsViewModel: Loaded streaks from cache - \(cached.totalActiveStreaks) active")
+                return
+            } else {
+                print("🔥 HealthInsightsViewModel: No streaks cache found, fetching from API")
+            }
+        }
+
+        // Fetch from API
+        isLoadingStreaks = true
+        do {
+            let fetchedStreaks = try await apiService.getHealthStreaks()
+            streaks = fetchedStreaks
+            print("✅ HealthInsightsViewModel: Loaded streaks from API - \(fetchedStreaks.totalActiveStreaks) active")
+
+            // Cache for next time (5 min expiration)
+            await cacheService.saveJSON(fetchedStreaks, filename: streaksCacheKey, expiration: 5 * 60)
+        } catch {
+            print("⚠️ HealthInsightsViewModel: Failed to load streaks: \(error.localizedDescription)")
+        }
+        isLoadingStreaks = false
+    }
+
+    // MARK: - Health Achievements
+
+    /// Load health achievements with AI-generated comparisons
+    func loadAchievements(startDate: Date, endDate: Date, forceRefresh: Bool = false) async {
+        print("🏆 HealthInsightsViewModel: loadAchievements called, forceRefresh: \(forceRefresh)")
+
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        let startStr = formatter.string(from: startDate)
+        let endStr = formatter.string(from: endDate)
+        let cacheKeyWithRange = "\(achievementsCacheKey)_\(startStr)_\(endStr)"
+
+        // Try cache first
+        if !forceRefresh {
+            if let cached = await cacheService.loadJSON(HealthAchievementsResponse.self, filename: cacheKeyWithRange) {
+                achievements = cached
+                print("✅ HealthInsightsViewModel: Loaded achievements from cache - \(cached.badges.count) badges")
+                return
+            } else {
+                print("🏆 HealthInsightsViewModel: No achievements cache found, fetching from API")
+            }
+        }
+
+        // Fetch from API
+        isLoadingAchievements = true
+        do {
+            let fetchedAchievements = try await apiService.getHealthAchievements(startDate: startDate, endDate: endDate)
+            achievements = fetchedAchievements
+            print("✅ HealthInsightsViewModel: Loaded achievements from API - \(fetchedAchievements.badges.count) badges")
+
+            // Cache for 30 minutes (AI content doesn't change often)
+            await cacheService.saveJSON(fetchedAchievements, filename: cacheKeyWithRange, expiration: 30 * 60)
+        } catch {
+            print("⚠️ HealthInsightsViewModel: Failed to load achievements: \(error.localizedDescription)")
+        }
+        isLoadingAchievements = false
+    }
+
     private static let chartDateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
