@@ -238,5 +238,3 @@ Launching soon......... Hold on to your phones
 **AllTime** - Your unified calendar experience, powered by AI.
 
 
-Loading soonnnn........
-
