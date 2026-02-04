@@ -231,6 +231,8 @@ For technical support or feature requests, please contact:
 - Documentation: [Internal Wiki]
 - Issue Tracker: [Internal Jira]
 
+Launching soon......... Hold on to your phones 
+
 ---
 
 **AllTime** - Your unified calendar experience, powered by AI.
