@@ -31,7 +31,7 @@ struct HealthInsightsDetailView: View {
     
     var body: some View {
         ScrollView {
-            VStack(spacing: DesignSystem.Spacing.lg) {
+            VStack(spacing: DesignSystem.Spacing.md) {
                 // Date Range Picker
                 Picker("Range", selection: $selectedRange) {
                     ForEach(DateRange.allCases, id: \.self) { range in
@@ -73,36 +73,40 @@ struct HealthInsightsDetailView: View {
                         }
                     }
                 } else if let insights = viewModel.insights {
-                    // AI Narrative
-                    AIWeeklyOverviewCard(narrative: insights.aiNarrative)
-                        .padding(.horizontal, DesignSystem.Spacing.md)
+                    VStack(spacing: 16) {
+                        // 1. QUICK METRICS - scannable numbers at a glance
+                        HealthQuickMetrics(stats: insights.summaryStats)
 
-                    // Summary Stats
-                    HealthSummaryStatsGrid(stats: insights.summaryStats)
-                        .padding(.horizontal, DesignSystem.Spacing.md)
+                        // 2. PATTERN HERO - the key insight, most prominent
+                        if !insights.insights.isEmpty {
+                            PatternHeroCard(insight: insights.insights[0])
+                        }
 
-                    // Insights Alerts
-                    if !insights.insights.isEmpty {
-                        HealthInsightsAlertsGrid(insights: insights.insights)
-                            .padding(.horizontal, DesignSystem.Spacing.md)
+                        // 3. OBSERVATIONS - what happened (muted, secondary)
+                        if !insights.aiNarrative.keyTakeaways.isEmpty {
+                            ObservationsSection(observations: insights.aiNarrative.keyTakeaways)
+                        }
+
+                        // 4. ACTION - what to do (distinct amber treatment)
+                        if let firstSuggestion = insights.aiNarrative.suggestions.first {
+                            HealthActionCard(suggestion: firstSuggestion)
+                        }
+
+                        // 5. VITALS - heart metrics only (non-redundant)
+                        if let breakdown = insights.healthBreakdown {
+                            VitalsSection(breakdown: breakdown)
+                        }
+
+                        // 6. TRENDS - detailed metric changes
+                        if let trends = insights.trendAnalysis, !trends.isEmpty {
+                            HealthTrendsSection(trends: trends)
+                        }
+
+                        // 7. DAILY CHART - visual data
+                        WeeklyHealthChartsSection(metrics: viewModel.chartMetrics)
+                            .padding(.bottom, 100)
                     }
-
-                    // Trend Analysis
-                    if let trends = insights.trendAnalysis, !trends.isEmpty {
-                        HealthTrendsSection(trends: trends)
-                            .padding(.horizontal, DesignSystem.Spacing.md)
-                    }
-
-                    // Health Breakdown
-                    if let breakdown = insights.healthBreakdown {
-                        ComprehensiveHealthBreakdown(breakdown: breakdown)
-                            .padding(.horizontal, DesignSystem.Spacing.md)
-                    }
-
-                    // Daily Metrics Chart
-                    WeeklyHealthChartsSection(metrics: viewModel.chartMetrics)
-                        .padding(.horizontal, DesignSystem.Spacing.md)
-                        .padding(.bottom, 100)
+                    .padding(.horizontal, 12)
                 } else {
                     HealthInsightsEmptyState()
                 }
@@ -158,340 +162,545 @@ struct HealthInsightsDetailView: View {
     }
 }
 
-// MARK: - Health Narrative Card (Personalized Story)
-struct AIWeeklyOverviewCard: View {
-    let narrative: AINarrative
+// MARK: - Quick Metrics Row (Top-level scannable numbers)
+struct HealthQuickMetrics: View {
+    let stats: SummaryStats
+
+    private var metrics: [(icon: String, value: String, label: String, color: Color)] {
+        var result: [(icon: String, value: String, label: String, color: Color)] = []
+        if let steps = stats.avgSteps, steps > 0 {
+            result.append(("figure.walk", formatSteps(Int(steps)), "steps", .blue))
+        }
+        if let sleep = stats.avgSleepMinutes, sleep > 0 {
+            result.append(("moon.fill", String(format: "%.1f", sleep / 60.0), "hrs sleep", .indigo))
+        }
+        if let active = stats.avgActiveMinutes, active > 0 {
+            result.append(("flame.fill", "\(Int(active))", "min active", .orange))
+        }
+        if let workouts = stats.totalWorkouts, workouts > 0 {
+            result.append(("figure.run", "\(workouts)", "workouts", .green))
+        }
+        return result
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-            HStack(spacing: 8) {
-                Text("💜")
-                    .font(.title2)
+        if !metrics.isEmpty {
+            HStack(spacing: 0) {
+                ForEach(Array(metrics.enumerated()), id: \.offset) { index, metric in
+                    HealthMetricCell(
+                        icon: metric.icon,
+                        value: metric.value,
+                        label: metric.label,
+                        color: metric.color
+                    )
+                    if index < metrics.count - 1 {
+                        Divider()
+                            .frame(height: 32)
+                            .background(DesignSystem.Colors.tertiaryText.opacity(0.3))
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 14)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(DesignSystem.Colors.cardBackground)
+            )
+        }
+    }
 
-                Text("Your Health Story")
-                    .font(DesignSystem.Typography.title3)
-                    .fontWeight(.bold)
+    private func formatSteps(_ steps: Int) -> String {
+        steps >= 1000 ? String(format: "%.1fk", Double(steps) / 1000.0) : "\(steps)"
+    }
+}
+
+// MARK: - Health Metric Cell (Equal width metric display)
+struct HealthMetricCell: View {
+    let icon: String
+    let value: String
+    let label: String
+    let color: Color
+
+    var body: some View {
+        VStack(spacing: 4) {
+            HStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(color)
+                Text(value)
+                    .font(.system(size: 18, weight: .bold, design: .rounded))
                     .foregroundColor(DesignSystem.Colors.primaryText)
             }
-            
-            Text(narrative.weeklyOverview)
-                .font(DesignSystem.Typography.body)
-                .foregroundColor(DesignSystem.Colors.secondaryText)
-            
-            if !narrative.keyTakeaways.isEmpty {
-                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                    Text("What Stood Out")
-                        .font(DesignSystem.Typography.subheadline)
-                        .fontWeight(.semibold)
-                        .foregroundColor(DesignSystem.Colors.primaryText)
-                    
-                    ForEach(narrative.keyTakeaways, id: \.self) { takeaway in
-                        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
-                            Image(systemName: "checkmark.circle.fill")
-                                .font(.caption)
-                                .foregroundColor(.green)
-                                .padding(.top, 4)
-                            
-                            Text(takeaway)
-                                .font(DesignSystem.Typography.subheadline)
-                                .foregroundColor(DesignSystem.Colors.secondaryText)
-                        }
-                    }
-                }
-                .padding(.top, DesignSystem.Spacing.sm)
-            }
-            
-            if !narrative.suggestions.isEmpty {
-                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                    Text("Ideas for You")
-                        .font(DesignSystem.Typography.subheadline)
-                        .fontWeight(.semibold)
-                        .foregroundColor(DesignSystem.Colors.primaryText)
-                    
-                    ForEach(narrative.suggestions, id: \.self) { suggestion in
-                        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
-                            Image(systemName: "lightbulb.fill")
-                                .font(.caption)
-                                .foregroundColor(.orange)
-                                .padding(.top, 4)
-                            
-                            Text(suggestion)
-                                .font(DesignSystem.Typography.subheadline)
-                                .foregroundColor(DesignSystem.Colors.secondaryText)
-                        }
-                    }
-                }
-                .padding(.top, DesignSystem.Spacing.sm)
-            }
+            Text(label)
+                .font(.system(size: 11))
+                .foregroundColor(DesignSystem.Colors.tertiaryText)
         }
-        .padding(DesignSystem.Spacing.lg)
+        .frame(maxWidth: .infinity)
+    }
+}
+
+// MARK: - Health Quick Pill (Compact metric indicator - kept for compatibility)
+struct HealthQuickPill: View {
+    let icon: String
+    let value: String
+    let color: Color
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Image(systemName: icon)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundColor(color)
+            Text(value)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundColor(DesignSystem.Colors.primaryText)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
         .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            DesignSystem.Colors.primary.opacity(0.1),
-                            DesignSystem.Colors.accent.opacity(0.05)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .shadow(color: .black.opacity(0.05), radius: 8, y: 2)
+            Capsule()
+                .fill(color.opacity(0.12))
         )
     }
 }
 
-// MARK: - Health Summary Stats Grid
-struct HealthSummaryStatsGrid: View {
-    let stats: SummaryStats
-
-    /// Check if there's any health data to display
-    private var hasAnyData: Bool {
-        let hasSteps = (stats.avgSteps ?? 0) > 0
-        let hasSleep = (stats.avgSleepMinutes ?? 0) > 0
-        let hasActive = (stats.avgActiveMinutes ?? 0) > 0
-        let hasWorkouts = (stats.totalWorkouts ?? 0) > 0
-        return hasSteps || hasSleep || hasActive || hasWorkouts
-    }
+// MARK: - Pattern Hero Card (Primary Insight)
+struct PatternHeroCard: View {
+    let insight: InsightItem
 
     var body: some View {
-        // Only show the section if there's any health data
-        if hasAnyData {
-            VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-                Text("Overview")
-                    .font(DesignSystem.Typography.title3)
-                    .fontWeight(.bold)
-                    .foregroundColor(DesignSystem.Colors.primaryText)
+        VStack(alignment: .leading, spacing: 10) {
+            // Section label with icon
+            HStack(spacing: 6) {
+                Image(systemName: "brain.head.profile")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(DesignSystem.Colors.violet)
+                Text("KEY INSIGHT")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(DesignSystem.Colors.violet)
+                    .tracking(0.5)
+            }
 
-                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: DesignSystem.Spacing.md) {
-                    if let steps = stats.avgSteps, steps > 0 {
-                        HealthMetricCard(icon: "figure.walk", title: "Avg Steps", value: Int(steps).formatted(), color: .blue)
-                    }
+            // Pattern title
+            Text(insight.title)
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundColor(DesignSystem.Colors.primaryText)
 
-                    if let sleep = stats.avgSleepMinutes, sleep > 0 {
-                        let hours = Int(sleep) / 60
-                        let minutes = Int(sleep) % 60
-                        HealthMetricCard(icon: "moon.fill", title: "Avg Sleep", value: "\(hours)h \(minutes)m", color: .indigo)
-                    }
+            // Supporting detail
+            if !insight.details.isEmpty {
+                Text(insight.details)
+                    .font(.system(size: 15))
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineSpacing(4)
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(DesignSystem.Colors.violet.opacity(0.08))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .strokeBorder(DesignSystem.Colors.violet.opacity(0.2), lineWidth: 1)
+                )
+        )
+    }
+}
 
-                    if let active = stats.avgActiveMinutes, active > 0 {
-                        HealthMetricCard(icon: "flame.fill", title: "Avg Active", value: "\(Int(active).formatted()) min", color: .orange)
-                    }
+// MARK: - Observations Section (Secondary - What Happened)
+struct ObservationsSection: View {
+    let observations: [String]
 
-                    if let workouts = stats.totalWorkouts, workouts > 0 {
-                        HealthMetricCard(icon: "figure.run", title: "Workouts", value: workouts.formatted(), color: .green)
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            // Section header
+            HStack(spacing: 6) {
+                Image(systemName: "list.bullet")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                Text("OBSERVATIONS")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .tracking(0.5)
+            }
+
+            VStack(alignment: .leading, spacing: 16) {
+                ForEach(Array(observations.enumerated()), id: \.offset) { index, observation in
+                    HStack(alignment: .top, spacing: 10) {
+                        Text("\(index + 1)")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundColor(DesignSystem.Colors.tertiaryText)
+                            .frame(width: 18, height: 18)
+                            .background(
+                                Circle()
+                                    .fill(DesignSystem.Colors.tertiaryText.opacity(0.15))
+                            )
+
+                        Text(observation)
+                            .font(.system(size: 15))
+                            .foregroundColor(DesignSystem.Colors.primaryText)
+                            .lineSpacing(4)
                     }
                 }
             }
         }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(DesignSystem.Colors.cardBackground)
+        )
     }
 }
 
-// MARK: - Health Metric Card
-struct HealthMetricCard: View {
-    let icon: String
-    let title: String
-    let value: String
-    let color: Color
-    
+// MARK: - Health Action Card (Distinct - What To Do)
+struct HealthActionCard: View {
+    let suggestion: String
+
+    // Amber color for actions
+    private let amberColor = Color(red: 1.0, green: 0.62, blue: 0.04) // #FF9F0A
+
     var body: some View {
-        VStack(spacing: DesignSystem.Spacing.sm) {
-            Image(systemName: icon)
-                .font(.title2)
-                .foregroundColor(color)
-            
-            Text(value)
-                .font(DesignSystem.Typography.title2)
-                .fontWeight(.bold)
+        VStack(alignment: .leading, spacing: 10) {
+            // Header
+            HStack(spacing: 6) {
+                Image(systemName: "lightbulb.fill")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(amberColor)
+                Text("RECOMMENDED ACTION")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(amberColor)
+                    .tracking(0.5)
+            }
+
+            Text(suggestion)
+                .font(.system(size: 15, weight: .medium))
                 .foregroundColor(DesignSystem.Colors.primaryText)
-            
-            Text(title)
-                .font(DesignSystem.Typography.caption)
+                .lineSpacing(4)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(amberColor.opacity(0.1))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .strokeBorder(amberColor.opacity(0.25), lineWidth: 1)
+                )
+        )
+    }
+}
+
+// MARK: - Vitals Section (Heart metrics only - non-redundant)
+struct VitalsSection: View {
+    let breakdown: HealthBreakdown
+
+    private var hasHeartData: Bool {
+        guard let h = breakdown.heartHealth else { return false }
+        return h.restingHeartRateAvg != nil || h.hrvAvg != nil
+    }
+
+    private var vitalMetrics: [(value: String, unit: String, label: String, icon: String, color: Color)] {
+        var result: [(value: String, unit: String, label: String, icon: String, color: Color)] = []
+        if let heartHealth = breakdown.heartHealth {
+            if let hr = heartHealth.restingHeartRateAvg {
+                result.append((String(format: "%.0f", hr), "bpm", "Resting HR", "heart.fill", .red))
+            }
+            if let hrv = heartHealth.hrvAvg {
+                result.append((String(format: "%.0f", hrv), "ms", "HRV", "waveform.path.ecg", .pink))
+            }
+        }
+        return result
+    }
+
+    var body: some View {
+        if hasHeartData {
+            VStack(alignment: .leading, spacing: 12) {
+                // Header
+                HStack(spacing: 6) {
+                    Image(systemName: "heart.text.square")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                    Text("VITALS")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                        .tracking(0.5)
+                }
+
+                HStack(spacing: 0) {
+                    ForEach(Array(vitalMetrics.enumerated()), id: \.offset) { index, metric in
+                        VitalMetricCell(
+                            value: metric.value,
+                            unit: metric.unit,
+                            label: metric.label,
+                            icon: metric.icon,
+                            color: metric.color
+                        )
+                        if index < vitalMetrics.count - 1 {
+                            Divider()
+                                .frame(height: 40)
+                                .background(DesignSystem.Colors.tertiaryText.opacity(0.3))
+                        }
+                    }
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(16)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(DesignSystem.Colors.cardBackground)
+            )
+        }
+    }
+}
+
+// MARK: - Vital Metric Cell
+struct VitalMetricCell: View {
+    let value: String
+    let unit: String
+    let label: String
+    let icon: String
+    let color: Color
+
+    var body: some View {
+        VStack(spacing: 4) {
+            HStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(color)
+                HStack(alignment: .lastTextBaseline, spacing: 2) {
+                    Text(value)
+                        .font(.system(size: 22, weight: .bold, design: .rounded))
+                        .foregroundColor(DesignSystem.Colors.primaryText)
+                    Text(unit)
+                        .font(.system(size: 12))
+                        .foregroundColor(DesignSystem.Colors.tertiaryText)
+                }
+            }
+            Text(label)
+                .font(.system(size: 11))
                 .foregroundColor(DesignSystem.Colors.secondaryText)
         }
         .frame(maxWidth: .infinity)
-        .padding(DesignSystem.Spacing.md)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(UIColor.secondarySystemGroupedBackground))
-                .shadow(color: .black.opacity(0.05), radius: 4, y: 2)
-        )
     }
 }
 
-// MARK: - Health Insights Alerts Grid
-struct HealthInsightsAlertsGrid: View {
-    let insights: [InsightItem]
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-            Text("Insights")
-                .font(DesignSystem.Typography.title3)
-                .fontWeight(.bold)
-                .foregroundColor(DesignSystem.Colors.primaryText)
-            
-            ForEach(insights) { insight in
-                HealthInsightAlertCard(insight: insight)
-            }
-        }
-    }
-}
+// MARK: - Vital Card (kept for compatibility)
+struct VitalCard: View {
+    let value: String
+    let unit: String
+    let label: String
+    let color: Color
 
-// MARK: - Health Insight Alert Card
-struct HealthInsightAlertCard: View {
-    let insight: InsightItem
-    
-    private var severityColor: Color {
-        switch insight.severity.uppercased() {
-        case "HIGH":
-            return .red
-        case "MEDIUM":
-            return .orange
-        default:
-            return .blue
-        }
-    }
-    
-    private var icon: String {
-        switch insight.type.lowercased() {
-        case "movement":
-            return "figure.walk"
-        case "sleep":
-            return "moon.fill"
-        case "stress":
-            return "exclamationmark.triangle.fill"
-        case "balance":
-            return "leaf.fill"
-        default:
-            return "info.circle.fill"
-        }
-    }
-    
     var body: some View {
-        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
-            Image(systemName: icon)
-                .font(.title3)
-                .foregroundColor(severityColor)
-                .frame(width: 40)
-            
-            VStack(alignment: .leading, spacing: 4) {
-                Text(insight.title)
-                    .font(DesignSystem.Typography.bodyBold)
+        VStack(spacing: 2) {
+            HStack(alignment: .lastTextBaseline, spacing: 2) {
+                Text(value)
+                    .font(.system(size: 20, weight: .bold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
-                
-                Text(insight.details)
-                    .font(DesignSystem.Typography.subheadline)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                Text(unit)
+                    .font(.system(size: 11))
+                    .foregroundColor(DesignSystem.Colors.tertiaryText)
             }
+            Text(label)
+                .font(.system(size: 11))
+                .foregroundColor(DesignSystem.Colors.secondaryText)
         }
-        .padding(DesignSystem.Spacing.md)
+        .frame(width: 70)
+        .padding(.vertical, 12)
         .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(severityColor.opacity(0.1))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .strokeBorder(severityColor.opacity(0.3), lineWidth: 1)
-                )
+            RoundedRectangle(cornerRadius: 10)
+                .fill(color.opacity(0.1))
         )
     }
 }
 
-// MARK: - Health Trends Section
+// MARK: - Secondary Insights (shown after first pattern)
+struct SecondaryInsightsSection: View {
+    let insights: [InsightItem]
+
+    var body: some View {
+        // Skip first insight (shown as hero), show remaining
+        if insights.count > 1 {
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(insights.dropFirst()) { insight in
+                    SecondaryInsightRow(insight: insight)
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Secondary Insight Row
+struct SecondaryInsightRow: View {
+    let insight: InsightItem
+
+    private var categoryColor: Color {
+        switch insight.type.lowercased() {
+        case "movement": return .blue
+        case "sleep": return .indigo
+        case "stress": return .orange
+        default: return .gray
+        }
+    }
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Circle()
+                .fill(categoryColor)
+                .frame(width: 6, height: 6)
+
+            Text(insight.title)
+                .font(.system(size: 14))
+                .foregroundColor(DesignSystem.Colors.secondaryText)
+
+            Spacer()
+        }
+        .padding(.vertical, 4)
+    }
+}
+
+// MARK: - Health Trends Section (Compact)
 struct HealthTrendsSection: View {
     let trends: [TrendAnalysis]
-    
+
     var body: some View {
-        VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-            Text("Trends")
-                .font(DesignSystem.Typography.title3)
-                .fontWeight(.bold)
-                .foregroundColor(DesignSystem.Colors.primaryText)
-            
-            ForEach(trends) { trend in
-                HealthTrendCard(trend: trend)
+        VStack(alignment: .leading, spacing: 12) {
+            // Header
+            HStack(spacing: 6) {
+                Image(systemName: "chart.line.uptrend.xyaxis")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                Text("TRENDS")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .tracking(0.5)
+            }
+
+            // Grid of trends
+            LazyVGrid(columns: [
+                GridItem(.flexible(), spacing: 10),
+                GridItem(.flexible(), spacing: 10)
+            ], spacing: 10) {
+                ForEach(trends) { trend in
+                    TrendCell(trend: trend)
+                }
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(DesignSystem.Colors.cardBackground)
+        )
     }
 }
 
-// MARK: - Health Trend Card
-struct HealthTrendCard: View {
+// MARK: - Trend Cell (Full width item)
+struct TrendCell: View {
     let trend: TrendAnalysis
-    
+
     private var trendColor: Color {
         switch trend.trend.lowercased() {
-        case "improving":
-            return .green
-        case "declining":
-            return .red
-        default:
-            return .gray
+        case "improving": return .green
+        case "declining": return .red
+        default: return DesignSystem.Colors.secondaryText
         }
     }
-    
+
     private var trendIcon: String {
         switch trend.trend.lowercased() {
-        case "improving":
-            return "arrow.up.right"
-        case "declining":
-            return "arrow.down.right"
-        default:
-            return "arrow.right"
+        case "improving": return "arrow.up.right"
+        case "declining": return "arrow.down.right"
+        default: return "minus"
         }
     }
-    
+
+    private var shortName: String {
+        let name = trend.metric.lowercased()
+        if name.contains("step") { return "Steps" }
+        if name.contains("sleep") { return "Sleep" }
+        if name.contains("active") { return "Active" }
+        if name.contains("heart") { return "HR" }
+        if name.contains("hrv") { return "HRV" }
+        return trend.metric.prefix(8).capitalized
+    }
+
     var body: some View {
         HStack {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(trend.metric.replacingOccurrences(of: "_", with: " ").capitalized)
-                    .font(DesignSystem.Typography.bodyBold)
-                    .foregroundColor(DesignSystem.Colors.primaryText)
-
-                Text("\(formatTrendValue(trend.previousAvg)) → \(formatTrendValue(trend.currentAvg))")
-                    .font(DesignSystem.Typography.subheadline)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-            }
+            Text(shortName)
+                .font(.system(size: 14, weight: .medium))
+                .foregroundColor(DesignSystem.Colors.primaryText)
 
             Spacer()
 
             HStack(spacing: 4) {
                 Image(systemName: trendIcon)
-                    .font(.caption)
-                Text(String(format: "%.1f%%", abs(trend.changePercentage)))
-                    .font(DesignSystem.Typography.subheadline)
-                    .fontWeight(.semibold)
+                    .font(.system(size: 10, weight: .bold))
+                Text(String(format: "%.0f%%", abs(trend.changePercentage)))
+                    .font(.system(size: 13, weight: .semibold))
             }
             .foregroundColor(trendColor)
-            .padding(.horizontal, DesignSystem.Spacing.sm)
-            .padding(.vertical, 4)
-            .background(
-                Capsule()
-                    .fill(trendColor.opacity(0.2))
-            )
         }
-        .padding(DesignSystem.Spacing.md)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
         .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(UIColor.secondarySystemGroupedBackground))
-                .shadow(color: .black.opacity(0.05), radius: 4, y: 2)
+            RoundedRectangle(cornerRadius: 8)
+                .fill(trendColor.opacity(0.1))
         )
     }
+}
 
-    private func formatTrendValue(_ value: Double) -> String {
-        // For large values (like steps), use integer with comma formatting
-        // For small values (like HRV, sleep hours), use decimal
-        let metric = trend.metric.lowercased()
-        if metric.contains("step") || metric.contains("calorie") || metric.contains("energy") {
-            return Int(value).formatted()
-        } else if metric.contains("minute") || metric.contains("active") {
-            return Int(value).formatted()
-        } else if metric.contains("distance") {
-            return Int(value).formatted()
-        } else {
-            // For heart rate, HRV, sleep hours, etc. - use one decimal
-            return String(format: "%.1f", value)
+// MARK: - Trend Chip (Compact - kept for compatibility)
+struct TrendChip: View {
+    let trend: TrendAnalysis
+
+    private var trendColor: Color {
+        switch trend.trend.lowercased() {
+        case "improving": return .green
+        case "declining": return .red
+        default: return .gray
         }
+    }
+
+    private var trendIcon: String {
+        switch trend.trend.lowercased() {
+        case "improving": return "arrow.up.right"
+        case "declining": return "arrow.down.right"
+        default: return "minus"
+        }
+    }
+
+    private var shortName: String {
+        let name = trend.metric.lowercased()
+        if name.contains("step") { return "Steps" }
+        if name.contains("sleep") { return "Sleep" }
+        if name.contains("active") { return "Active" }
+        if name.contains("heart") { return "HR" }
+        if name.contains("hrv") { return "HRV" }
+        return trend.metric.prefix(6).capitalized
+    }
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Text(shortName)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundColor(DesignSystem.Colors.primaryText)
+
+            HStack(spacing: 2) {
+                Image(systemName: trendIcon)
+                    .font(.system(size: 9, weight: .bold))
+                Text(String(format: "%.0f%%", abs(trend.changePercentage)))
+                    .font(.system(size: 11, weight: .semibold))
+            }
+            .foregroundColor(trendColor)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color(UIColor.secondarySystemGroupedBackground))
+        )
     }
 }
 
@@ -499,123 +708,107 @@ struct HealthTrendCard: View {
 struct ComprehensiveHealthBreakdown: View {
     let breakdown: HealthBreakdown
 
-    /// Check if heart health has any data to display
     private var hasHeartHealthData: Bool {
         guard let h = breakdown.heartHealth else { return false }
         return h.restingHeartRateAvg != nil || h.hrvAvg != nil ||
                (h.bloodPressureSystolicAvg != nil && h.bloodPressureDiastolicAvg != nil)
     }
 
-    /// Check if activity has any data to display
     private var hasActivityData: Bool {
         guard let a = breakdown.activity else { return false }
         return a.stepsAvg != nil || a.activeMinutesAvg != nil || a.walkingDistanceAvg != nil
     }
 
-    /// Check if sleep has any data to display
     private var hasSleepData: Bool {
         guard let s = breakdown.sleep else { return false }
         return s.sleepMinutesAvg != nil || s.sleepQualityScoreAvg != nil
     }
 
-    /// Check if there's any health breakdown data to display
     private var hasAnyData: Bool {
         hasHeartHealthData || hasActivityData || hasSleepData
     }
 
     var body: some View {
-        // Only show the section if there's any health breakdown data
         if hasAnyData {
-            VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-                Text("Health Categories")
-                    .font(DesignSystem.Typography.title3)
-                    .fontWeight(.bold)
-                    .foregroundColor(DesignSystem.Colors.primaryText)
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Averages")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .textCase(.uppercase)
 
-                if hasHeartHealthData, let heartHealth = breakdown.heartHealth {
-                    DetailedHealthCategoryCard(
-                        title: "Heart Health",
-                        icon: "heart.fill",
-                        color: .red,
-                        items: [
-                            ("Resting HR", heartHealth.restingHeartRateAvg != nil ? String(format: "%.0f BPM", heartHealth.restingHeartRateAvg!) : nil),
-                            ("HRV", heartHealth.hrvAvg != nil ? String(format: "%.1f ms", heartHealth.hrvAvg!) : nil),
-                            ("BP", heartHealth.bloodPressureSystolicAvg != nil && heartHealth.bloodPressureDiastolicAvg != nil ? String(format: "%.0f/%.0f", heartHealth.bloodPressureSystolicAvg!, heartHealth.bloodPressureDiastolicAvg!) : nil)
-                        ]
-                    )
-                }
+                // Horizontal scrollable stat cards
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 10) {
+                        if hasHeartHealthData, let heartHealth = breakdown.heartHealth {
+                            if let hr = heartHealth.restingHeartRateAvg {
+                                HealthBreakdownStatCard(icon: "heart.fill", value: String(format: "%.0f", hr), label: "bpm", color: .red)
+                            }
+                            if let hrv = heartHealth.hrvAvg {
+                                HealthBreakdownStatCard(icon: "waveform.path.ecg", value: String(format: "%.0f", hrv), label: "ms", color: .pink)
+                            }
+                            if let systolic = heartHealth.bloodPressureSystolicAvg,
+                               let diastolic = heartHealth.bloodPressureDiastolicAvg {
+                                HealthBreakdownStatCard(icon: "gauge.medium", value: String(format: "%.0f/%.0f", systolic, diastolic), label: "BP", color: .purple)
+                            }
+                        }
 
-                if hasActivityData, let activity = breakdown.activity {
-                    DetailedHealthCategoryCard(
-                        title: "Activity",
-                        icon: "figure.walk",
-                        color: .blue,
-                        items: [
-                            ("Steps", activity.stepsAvg != nil ? Int(activity.stepsAvg!).formatted() : nil),
-                            ("Active", activity.activeMinutesAvg != nil ? String(format: "%.0f min", activity.activeMinutesAvg!) : nil),
-                            ("Walking", activity.walkingDistanceAvg != nil ? String(format: "%.1f km", activity.walkingDistanceAvg! / 1000) : nil)
-                        ]
-                    )
-                }
+                        if hasSleepData, let sleep = breakdown.sleep {
+                            if let sleepMin = sleep.sleepMinutesAvg {
+                                HealthBreakdownStatCard(icon: "moon.fill", value: String(format: "%.1f", sleepMin / 60), label: "hrs", color: .indigo)
+                            }
+                            if let quality = sleep.sleepQualityScoreAvg {
+                                HealthBreakdownStatCard(icon: "star.fill", value: String(format: "%.0f%%", quality), label: "quality", color: .yellow)
+                            }
+                        }
 
-                if hasSleepData, let sleep = breakdown.sleep {
-                    DetailedHealthCategoryCard(
-                        title: "Sleep",
-                        icon: "moon.fill",
-                        color: .indigo,
-                        items: [
-                            ("Duration", sleep.sleepMinutesAvg != nil ? String(format: "%.1f hrs", sleep.sleepMinutesAvg! / 60) : nil),
-                            ("Quality", sleep.sleepQualityScoreAvg != nil ? String(format: "%.0f%%", sleep.sleepQualityScoreAvg!) : nil)
-                        ]
-                    )
+                        if hasActivityData, let activity = breakdown.activity {
+                            if let steps = activity.stepsAvg {
+                                HealthBreakdownStatCard(icon: "figure.walk", value: formatSteps(Int(steps)), label: "steps", color: .blue)
+                            }
+                            if let active = activity.activeMinutesAvg {
+                                HealthBreakdownStatCard(icon: "flame.fill", value: String(format: "%.0f", active), label: "min", color: .orange)
+                            }
+                        }
+                    }
                 }
             }
         }
     }
+
+    private func formatSteps(_ steps: Int) -> String {
+        if steps >= 1000 {
+            return String(format: "%.1fk", Double(steps) / 1000.0)
+        }
+        return "\(steps)"
+    }
 }
 
-// MARK: - Detailed Health Category Card
-struct DetailedHealthCategoryCard: View {
-    let title: String
+// MARK: - Health Breakdown Stat Card
+struct HealthBreakdownStatCard: View {
     let icon: String
+    let value: String
+    let label: String
     let color: Color
-    let items: [(String, String?)]
-    
+
     var body: some View {
-        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-            HStack {
-                Image(systemName: icon)
-                    .font(.title3)
-                    .foregroundColor(color)
-                
-                Text(title)
-                    .font(DesignSystem.Typography.bodyBold)
-                    .foregroundColor(DesignSystem.Colors.primaryText)
-            }
-            
-            ForEach(items.filter { $0.1 != nil }, id: \.0) { item in
-                HStack {
-                    Text(item.0)
-                        .font(DesignSystem.Typography.subheadline)
-                        .foregroundColor(DesignSystem.Colors.secondaryText)
-                    
-                    Spacer()
-                    
-                    Text(item.1!)
-                        .font(DesignSystem.Typography.subheadline)
-                        .fontWeight(.semibold)
-                        .foregroundColor(DesignSystem.Colors.primaryText)
-                }
-            }
+        VStack(spacing: 6) {
+            Image(systemName: icon)
+                .font(.system(size: 16))
+                .foregroundColor(color)
+
+            Text(value)
+                .font(.system(size: 18, weight: .bold))
+                .foregroundColor(DesignSystem.Colors.primaryText)
+
+            Text(label)
+                .font(.system(size: 11))
+                .foregroundColor(DesignSystem.Colors.tertiaryText)
         }
-        .padding(DesignSystem.Spacing.md)
+        .frame(width: 70)
+        .padding(.vertical, 12)
         .background(
-            RoundedRectangle(cornerRadius: 12)
+            RoundedRectangle(cornerRadius: 10)
                 .fill(color.opacity(0.1))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .strokeBorder(color.opacity(0.3), lineWidth: 1)
-                )
         )
     }
 }

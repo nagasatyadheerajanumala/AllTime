@@ -457,10 +457,26 @@ struct DailyInsightsView: View {
                         .background(DesignSystem.Colors.primary.opacity(0.15))
                         .clipShape(Circle())
 
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(intervention.action)
-                            .font(.subheadline.weight(.medium))
-                            .foregroundColor(DesignSystem.Colors.primaryText)
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(spacing: 8) {
+                            Text(intervention.action)
+                                .font(.subheadline.weight(.medium))
+                                .foregroundColor(DesignSystem.Colors.primaryText)
+
+                            // Time context badge
+                            if let timeLabel = intervention.timeLabel {
+                                Text(timeLabel)
+                                    .font(.system(size: 10, weight: .medium))
+                                    .foregroundColor(timeContextColor(intervention.timeContext))
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(
+                                        Capsule()
+                                            .fill(timeContextColor(intervention.timeContext).opacity(0.15))
+                                    )
+                            }
+                        }
+
                         Text(intervention.detail)
                             .font(.caption)
                             .foregroundColor(DesignSystem.Colors.secondaryText)
@@ -469,9 +485,11 @@ struct DailyInsightsView: View {
 
                     Spacer()
 
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 12))
-                        .foregroundColor(DesignSystem.Colors.tertiaryText)
+                    if intervention.deepLink != nil {
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 12))
+                            .foregroundColor(DesignSystem.Colors.tertiaryText)
+                    }
                 }
                 .padding(DesignSystem.Spacing.sm)
                 .background(
@@ -479,6 +497,16 @@ struct DailyInsightsView: View {
                         .fill(DesignSystem.Colors.cardBackground)
                 )
             }
+        }
+    }
+
+    private func timeContextColor(_ context: String?) -> Color {
+        switch context {
+        case "morning": return DesignSystem.Colors.amber
+        case "afternoon": return DesignSystem.Colors.blue
+        case "evening": return DesignSystem.Colors.indigo
+        case "midday": return DesignSystem.Colors.emerald
+        default: return DesignSystem.Colors.primary
         }
     }
 

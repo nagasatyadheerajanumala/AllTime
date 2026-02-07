@@ -124,3 +124,19 @@ struct OAuthStartResponse: Codable {
     }
 }
 
+// MARK: - Event Deduplication Response
+
+struct DeduplicationResponse: Codable {
+    let status: String
+    let totalEvents: Int
+    let duplicatesRemoved: Int
+    let message: String
+
+    enum CodingKeys: String, CodingKey {
+        case status
+        case totalEvents = "totalEvents"
+        case duplicatesRemoved = "duplicatesRemoved"
+        case message
+    }
+}
+

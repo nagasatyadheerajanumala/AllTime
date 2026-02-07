@@ -12,6 +12,7 @@ struct DayTimelineView: View {
     @Binding var selectedDate: Date
     let events: [Event]
     let onEventTap: (Event) -> Void
+    var onCreateEventAt: ((Date) -> Void)? = nil  // Callback for creating event at tapped time
 
     private let calendar = Calendar.current
 
@@ -155,6 +156,34 @@ struct DayTimelineView: View {
                     // Single Canvas for the entire timeline
                     // All elements positioned using the SAME coordinate system
                     ZStack(alignment: .topLeading) {
+
+                        // LAYER 0: Tap target for creating events on empty space
+                        Color.clear
+                            .contentShape(Rectangle())
+                            .onTapGesture { location in
+                                // Only trigger if onCreateEventAt is provided
+                                guard let onCreateEventAt = onCreateEventAt else { return }
+
+                                // Calculate the tapped time from Y position
+                                let tappedY = location.y
+                                let hourDecimal = tappedY / hourHeight
+
+                                // Only create events during valid hours (0-24)
+                                guard hourDecimal >= 0 && hourDecimal <= 24 else { return }
+
+                                // Convert to date, snapping to 15-minute increments
+                                let hour = Int(hourDecimal)
+                                let minuteDecimal = (hourDecimal - CGFloat(hour)) * 60
+                                let minute = (Int(minuteDecimal) / 15) * 15  // Snap to 15-min
+
+                                var components = calendar.dateComponents([.year, .month, .day], from: selectedDate)
+                                components.hour = min(hour, 23)
+                                components.minute = minute
+
+                                if let eventDate = calendar.date(from: components) {
+                                    onCreateEventAt(eventDate)
+                                }
+                            }
 
                         // LAYER 1: Hour grid lines (drawn at exact hour positions)
                         ForEach(hours, id: \.self) { hour in

@@ -5,9 +5,22 @@ struct AddEventView: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var viewModel: AddEventViewModel
     @State private var isAllDay = false
-    
+
+    /// Create mode: pass initialDate
     init(initialDate: Date = Date()) {
         _viewModel = StateObject(wrappedValue: AddEventViewModel(initialDate: initialDate))
+    }
+
+    /// Edit mode: pass existing event to edit
+    init(eventToEdit: Event) {
+        _viewModel = StateObject(wrappedValue: AddEventViewModel(eventToEdit: eventToEdit))
+        _isAllDay = State(initialValue: eventToEdit.allDay ?? false)
+    }
+
+    /// Edit mode from EventDetails
+    init(eventDetailsToEdit: EventDetails) {
+        _viewModel = StateObject(wrappedValue: AddEventViewModel(eventDetailsToEdit: eventDetailsToEdit))
+        _isAllDay = State(initialValue: eventDetailsToEdit.allDay)
     }
     
     var body: some View {
@@ -419,7 +432,7 @@ struct AddEventView: View {
                         // Save Button
                         Button(action: {
                             Task {
-                                await viewModel.createEvent(isAllDay: isAllDay)
+                                await viewModel.saveEvent(isAllDay: isAllDay)
                                 // Dismiss immediately on success - success message will show briefly
                                 if viewModel.isSuccess {
                                     // Small delay to show success feedback, then dismiss
@@ -435,11 +448,11 @@ struct AddEventView: View {
                                     ProgressView()
                                         .tint(.white)
                                 } else {
-                                    Image(systemName: "checkmark.circle.fill")
+                                    Image(systemName: viewModel.isEditMode ? "checkmark.circle.fill" : "plus.circle.fill")
                                         .font(.system(size: 18))
                                 }
-                                
-                                Text(viewModel.isCreating ? "Creating..." : "Create Event")
+
+                                Text(viewModel.isCreating ? (viewModel.isEditMode ? "Saving..." : "Creating...") : (viewModel.isEditMode ? "Save Changes" : "Create Event"))
                                     .fontWeight(.semibold)
                             }
                             .frame(maxWidth: .infinity)
@@ -527,7 +540,7 @@ struct AddEventView: View {
                     .padding(DesignSystem.Spacing.md)
                 }
             }
-            .navigationTitle("New Event")
+            .navigationTitle(viewModel.isEditMode ? "Edit Event" : "New Event")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -563,12 +576,51 @@ class AddEventViewModel: ObservableObject {
     @Published var selectedColor: String = "#3B82F6"  // Default blue color
     @Published var saveToDeviceCalendar: Bool = true  // Also save to device's native calendar (EventKit)
 
+    // Edit mode properties
+    let isEditMode: Bool
+    let editingEventId: Int64?
+
+    /// Create mode initializer
     init(initialDate: Date = Date()) {
+        self.isEditMode = false
+        self.editingEventId = nil
         self.startDate = initialDate
         // Set end date to 1 hour after start date, preserving the selected day
         let calendar = Calendar.current
         self.endDate = calendar.date(byAdding: .hour, value: 1, to: initialDate) ?? initialDate.addingTimeInterval(3600)
     }
+
+    /// Edit mode initializer from Event
+    init(eventToEdit: Event) {
+        self.isEditMode = true
+        self.editingEventId = eventToEdit.id
+        self.title = eventToEdit.title
+        self.description = eventToEdit.description ?? ""
+        self.location = eventToEdit.locationName ?? ""
+        self.startDate = eventToEdit.startDate ?? Date()
+        self.endDate = eventToEdit.endDate ?? Date().addingTimeInterval(3600)
+        self.selectedColor = eventToEdit.eventColor ?? "#3B82F6"
+        self.saveToDeviceCalendar = false  // Don't duplicate when editing
+    }
+
+    /// Edit mode initializer from EventDetails
+    init(eventDetailsToEdit: EventDetails) {
+        self.isEditMode = true
+        self.editingEventId = eventDetailsToEdit.id
+        self.title = eventDetailsToEdit.title ?? ""
+        self.description = eventDetailsToEdit.description ?? ""
+        self.location = eventDetailsToEdit.location ?? ""
+
+        // Parse ISO 8601 dates
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        self.startDate = formatter.date(from: eventDetailsToEdit.startTime) ?? Date()
+        self.endDate = formatter.date(from: eventDetailsToEdit.endTime) ?? Date().addingTimeInterval(3600)
+
+        self.selectedColor = "#3B82F6"  // Default, could be extended to include color
+        self.saveToDeviceCalendar = false  // Don't duplicate when editing
+    }
+
     @Published var isCreating = false
     @Published var isSuccess = false
     @Published var errorMessage: String?
@@ -622,6 +674,93 @@ class AddEventViewModel: ObservableObject {
         attendees.removeAll { $0.lowercased() == email.lowercased() }
     }
     
+    /// Unified save function - calls createEvent or updateEvent based on mode
+    func saveEvent(isAllDay: Bool) async {
+        if isEditMode {
+            await updateEvent(isAllDay: isAllDay)
+        } else {
+            await createEvent(isAllDay: isAllDay)
+        }
+    }
+
+    /// Update an existing event
+    func updateEvent(isAllDay: Bool) async {
+        guard let eventId = editingEventId else {
+            errorMessage = "No event to update"
+            return
+        }
+
+        guard !title.trimmingCharacters(in: .whitespaces).isEmpty else {
+            errorMessage = "Please enter an event title"
+            return
+        }
+
+        guard endDate > startDate else {
+            errorMessage = "End time must be after start time"
+            return
+        }
+
+        isCreating = true
+        errorMessage = nil
+        successMessage = nil
+
+        do {
+            // Adjust end date for all-day events
+            var actualEndDate = endDate
+            if isAllDay {
+                let calendar = Calendar.current
+                if let nextDay = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: startDate)) {
+                    actualEndDate = nextDay
+                }
+            }
+
+            let response = try await apiService.updateEvent(
+                eventId: eventId,
+                title: title,
+                description: description.isEmpty ? nil : description,
+                location: location.isEmpty ? nil : location,
+                startDate: startDate,
+                endDate: actualEndDate,
+                isAllDay: isAllDay,
+                eventColor: selectedColor
+            )
+
+            // Build success message
+            var message = "Event '\(response.title)' updated successfully!"
+
+            if response.syncStatus.status == "synced" {
+                if let provider = response.syncStatus.provider {
+                    message += "\n✅ Synced to \(provider.capitalized) Calendar"
+                }
+            } else if response.syncStatus.status == "sync_failed" {
+                if let error = response.syncStatus.error {
+                    message += "\n⚠️ Sync failed: \(error)"
+                }
+            }
+
+            successMessage = message
+            isSuccess = true
+            isCreating = false
+
+            // Post notification for UI to refresh events
+            NotificationCenter.default.post(name: NSNotification.Name("EventUpdated"), object: response)
+
+            print("✅ AddEventViewModel: Event updated successfully")
+            print("   - Event ID: \(response.id)")
+            print("   - Sync status: \(response.syncStatus.status)")
+
+        } catch let error as NSError {
+            errorMessage = error.localizedDescription
+            isCreating = false
+            print("❌ AddEventViewModel: Failed to update event: \(error.localizedDescription)")
+        } catch {
+            errorMessage = "Failed to update event: \(error.localizedDescription)"
+            isCreating = false
+            print("❌ AddEventViewModel: Failed to update event: \(error)")
+        }
+    }
+
+    /// Create a new event
     func createEvent(isAllDay: Bool) async {
         guard !title.trimmingCharacters(in: .whitespaces).isEmpty else {
             errorMessage = "Please enter an event title"

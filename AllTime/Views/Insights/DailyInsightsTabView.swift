@@ -269,22 +269,19 @@ struct DailyInsightsTabView: View {
                 .padding(.horizontal)
                 .padding(.top, 16)
 
-            // For TODAY or TOMORROW: Also show Clara's Pattern Insights (forward-looking)
-            if Calendar.current.isDateInToday(selectedDate) || isTomorrow(selectedDate) {
-                if viewModel.isLoadingPrediction {
-                    predictionLoadingView
-                        .padding(.horizontal)
-                } else if let prediction = viewModel.todayPrediction {
-                    // Actionable Pattern Insights (THE VALUE - only for today/tomorrow)
-                    patternInsightsSection(prediction)
-                        .padding(.horizontal)
-                } else if let forecast = viewModel.dayForecast {
-                    // Pattern insights from forecast for tomorrow/future dates
-                    forecastPatternInsights(forecast)
-                        .padding(.horizontal)
-                }
+            // Show Clara's Pattern Insights for ALL dates (today, past, or future)
+            if viewModel.isLoadingPrediction {
+                predictionLoadingView
+                    .padding(.horizontal)
+            } else if let prediction = viewModel.todayPrediction {
+                // Today's prediction with actionable insights
+                patternInsightsSection(prediction)
+                    .padding(.horizontal)
+            } else if let forecast = viewModel.dayForecast {
+                // Pattern insights from forecast (works for past and future dates)
+                forecastPatternInsights(forecast)
+                    .padding(.horizontal)
             }
-            // For HISTORICAL days: No pattern insights - just the metrics (already shown above)
 
             // Quick Stats
             dayStatsRow(insights)
@@ -1371,8 +1368,9 @@ class DailyInsightsTabViewModel: ObservableObject {
         // Load predictions/forecasts based on date
         if calendar.isDateInToday(date) {
             await loadTodayPrediction(forceRefresh: forceRefresh)
-        } else if isFutureDate {
-            // Load forecast for future dates (tomorrow, etc.)
+        } else {
+            // Load forecast for any other date (past or future)
+            // Backend supports pattern-based insights for all dates
             await loadDayForecast(for: date, forceRefresh: forceRefresh)
         }
     }

@@ -9,6 +9,7 @@ struct DayViewContent: View {
     let onRefresh: () -> Void
     let onEventTap: (Event) -> Void
     let onAddEvent: () -> Void
+    var onCreateEventAt: ((Date) -> Void)? = nil  // Create event at specific time
 
     var body: some View {
         VStack(spacing: 0) {
@@ -24,7 +25,8 @@ struct DayViewContent: View {
             DayTimelineView(
                 selectedDate: $selectedDate,
                 events: events,
-                onEventTap: onEventTap
+                onEventTap: onEventTap,
+                onCreateEventAt: onCreateEventAt
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(DesignSystem.Colors.background)
