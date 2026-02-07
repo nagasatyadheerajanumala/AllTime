@@ -1168,3 +1168,6 @@ Authorization: Bearer <access_token>
 ---
 
 *Generated for AllTime Backend API v1.0*
+
+
+A final version submitted for apple review 
