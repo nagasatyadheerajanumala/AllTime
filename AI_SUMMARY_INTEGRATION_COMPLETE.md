@@ -1,3 +1,5 @@
+This will be depricated
+
 # ✅ AI-Powered Daily Summary Integration - COMPLETE
 
 **Date:** December 6, 2025
