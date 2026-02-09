@@ -267,6 +267,7 @@ private struct CollapsibleClaraPromptButton: View {
 /// Expanded: Drains, deposits, peak/low windows, recommendations
 struct CollapsibleEnergyBudgetCard: View {
     let energyBudget: EnergyBudget
+    var calibration: ScoreCalibration? = nil
     let tileId: String
     @ObservedObject var expansionManager: TileExpansionManager
 
@@ -309,6 +310,12 @@ struct CollapsibleEnergyBudgetCard: View {
                                     .font(.caption)
                             }
                             .foregroundColor(energyBudget.trajectoryColor)
+
+                            if let label = calibration?.contextLabel {
+                                Text(label)
+                                    .font(.system(size: 10))
+                                    .foregroundColor(DesignSystem.Colors.tertiaryText)
+                            }
                         }
                     }
 

@@ -324,9 +324,12 @@ class EventNotificationService: ObservableObject {
         }
 
         // Long meeting warning (90+ min)
-        if let duration = event.duration, duration >= 90 {
+        // Note: duration is in SECONDS (TimeInterval), so 90 min = 5400 seconds
+        if let duration = event.duration, duration >= 5400 {
+            let hours = duration / 3600
+            let displayHours = hours >= 1.5 ? String(format: "%.1fh", hours) : String(format: "%dm", Int(duration / 60))
             return [
-                "Long one ahead (\(duration/60)h)",
+                "Long one ahead (\(displayHours))",
                 "Buckle up — long meeting",
                 "Marathon meeting incoming"
             ].randomElement()!
@@ -434,8 +437,8 @@ class EventNotificationService: ObservableObject {
         else if titleLower.contains("1:1") || titleLower.contains("1-1") {
             // Don't add extra text for 1:1s
         }
-        // Long meeting prep
-        else if let duration = event.duration, duration >= 90 {
+        // Long meeting prep (90+ min = 5400 seconds)
+        else if let duration = event.duration, duration >= 5400 {
             body += ". It's a long one — snacks recommended."
         }
 

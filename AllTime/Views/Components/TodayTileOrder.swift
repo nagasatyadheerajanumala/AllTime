@@ -32,8 +32,10 @@ enum TodayReorderableTile: String, CaseIterable, Identifiable, Codable, Transfer
     case actionsRow = "actions_row"
     case upNext = "up_next"
 
-    // Fixed tiles (always at bottom, not reorderable)
+    // Reorderable (schedule)
     case schedule = "schedule"
+
+    // Fixed tiles (always at bottom, not reorderable)
     case healthAccess = "health_access"
 
     var id: String { rawValue }
@@ -41,7 +43,7 @@ enum TodayReorderableTile: String, CaseIterable, Identifiable, Codable, Transfer
     /// Whether this tile can be reordered by the user
     var isReorderable: Bool {
         switch self {
-        case .heroSummary, .criticalHealthAlert, .schedule, .healthAccess:
+        case .heroSummary, .criticalHealthAlert, .healthAccess:
             return false
         default:
             return true
@@ -90,6 +92,7 @@ enum TodayReorderableTile: String, CaseIterable, Identifiable, Codable, Transfer
             .primaryRecommendation,
             .claraPrompts,
             .energyBudget,
+            .schedule,
             .decisionMoments,
             .similarWeek,
             .meetingSpots,

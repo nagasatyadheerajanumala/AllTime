@@ -4,6 +4,7 @@ struct TodayView: View {
     @EnvironmentObject var calendarViewModel: CalendarViewModel
     @StateObject private var briefingViewModel = TodayBriefingViewModel()
     @StateObject private var overviewViewModel = TodayOverviewViewModel()
+    @StateObject private var unifiedViewModel = UnifiedTodayViewModel()
     @StateObject private var timeIntelligenceService = TimeIntelligenceService.shared
     @State private var selectedEvent: Event?
     @State private var showingAddEvent = false
@@ -42,10 +43,6 @@ struct TodayView: View {
 
     // Task management for cancellation
     @State private var loadTask: Task<Void, Never>?
-
-    // DESIGN PHILOSOPHY: Today is the DECISION SURFACE, not a calendar.
-    // We answer "What should I do?" not "What's on my schedule?"
-    // Schedule listing is deliberately REMOVED - users can see that in Calendar tab.
 
     private var todayEvents: [Event] {
         calendarViewModel.eventsForToday().sorted { event1, event2 in
@@ -135,7 +132,28 @@ struct TodayView: View {
                         // Reorder mode header (appears when active)
                         ReorderModeHeader()
 
-                        // HERO: Today's Overview Card - All key metrics in one glanceable tile
+                        // COMMITMENT MOMENT: Top prominence when user hasn't responded
+                        if let commitment = unifiedViewModel.unified?.commitment,
+                           commitment.showCommitmentUI == true {
+                            CommitmentMomentCard(
+                                commitment: commitment,
+                                toneState: unifiedViewModel.unified?.toneState,
+                                onCommit: { Task { await unifiedViewModel.commitToAction() } },
+                                onChange: { Task { await unifiedViewModel.changeAction() } },
+                                onDismiss: { Task { await unifiedViewModel.dismissAction() } }
+                            )
+                            .padding(.horizontal, DesignSystem.Spacing.md)
+                            .cardStagger(index: 0)
+                        }
+
+                        // PRIMARY INSIGHT: The ONE verdict from Clara
+                        if let insight = unifiedViewModel.unified?.primaryInsight {
+                            PrimaryInsightCard(insight: insight)
+                                .padding(.horizontal, DesignSystem.Spacing.md)
+                                .cardStagger(index: 0)
+                        }
+
+                        // HERO: Today's Overview Card - Calendar-first with events prominent
                         HeroSummaryCard(
                             overview: overviewViewModel.overview,
                             briefing: briefingViewModel.briefing,
@@ -145,6 +163,10 @@ struct TodayView: View {
                             isLoading: weekDriftLoading || overviewViewModel.isLoading || briefingViewModel.isLoading,
                             onTap: { showingSummaryDetail = true },
                             onInterventionTap: handleInterventionTap,
+                            todayEvents: todayEvents,
+                            onEventTap: { event in
+                                selectedEvent = event
+                            },
                             fallbackMeetingCount: todayMeetingCount,
                             showSleepUI: effectiveShowSleepUI
                         )
@@ -153,16 +175,31 @@ struct TodayView: View {
 
                         // DAILY INSIGHT: Clara's ONE opinionated point of view
                         // This transforms Clara from a reporter to an advisor
-                        if let primaryRec = briefingViewModel.briefing?.primaryRecommendation {
+                        // Uses unified tone state when available, falls back to briefing
+                        if let primaryRec = unifiedViewModel.unified?.primaryRecommendation ?? briefingViewModel.briefing?.primaryRecommendation {
                             DailyInsightCard(
                                 recommendation: primaryRec,
                                 onTap: {
                                     selectedPrimaryRecommendation = primaryRec
-                                }
+                                },
+                                onCommit: {
+                                    Task { await unifiedViewModel.commitToAction() }
+                                },
+                                onChange: {
+                                    Task { await unifiedViewModel.changeAction() }
+                                },
+                                onDismiss: {
+                                    Task { await unifiedViewModel.dismissAction() }
+                                },
+                                toneState: unifiedViewModel.unified?.toneState ?? briefingViewModel.briefing?.toneState
                             )
                             .padding(.horizontal, DesignSystem.Spacing.md)
                             .cardStagger(index: 1)
                         }
+
+                        // Conflicts card (only visible when conflicts exist)
+                        TodayConflictsCard()
+                            .padding(.horizontal, DesignSystem.Spacing.md)
 
                         // Reorderable tiles (user-customizable order)
                         ForEach(tileOrderManager.tileOrder, id: \.self) { tileType in
@@ -191,7 +228,8 @@ struct TodayView: View {
                     async let calendarRefresh: () = calendarViewModel.refreshEvents()
                     async let briefingRefresh: () = briefingViewModel.refresh()
                     async let overviewRefresh: () = overviewViewModel.refresh()
-                    _ = await (calendarRefresh, briefingRefresh, overviewRefresh)
+                    async let unifiedRefresh: () = unifiedViewModel.refresh()
+                    _ = await (calendarRefresh, briefingRefresh, overviewRefresh, unifiedRefresh)
                 }
 
                 // Floating Action Button
@@ -297,16 +335,17 @@ struct TodayView: View {
                     // Second: Sync health data to backend (for historical analysis)
                     await HealthSyncService.shared.syncRecentDays()
 
-                    // Then: Load everything in parallel (including week drift AND Time Intelligence)
+                    // Then: Load everything in parallel (including week drift, unified, AND Time Intelligence)
                     async let calendarTask: () = calendarViewModel.loadEventsForSelectedDate(Date())
                     async let healthTask: () = healthMetricsService.checkAuthorizationStatus()
                     async let briefingTask: () = briefingViewModel.fetchBriefing()
                     async let overviewTask: () = overviewViewModel.fetchOverview()
                     async let driftTask: () = fetchWeekDrift()
+                    async let unifiedTask: () = unifiedViewModel.fetchUnified()
                     async let intelligenceTask: () = timeIntelligenceService.fetchTodayIntelligence()
 
                     // Wait for all to complete (parallel execution)
-                    _ = await (calendarTask, healthTask, briefingTask, overviewTask, driftTask, intelligenceTask)
+                    _ = await (calendarTask, healthTask, briefingTask, overviewTask, driftTask, unifiedTask, intelligenceTask)
                 }
             }
             .onDisappear {
@@ -318,20 +357,30 @@ struct TodayView: View {
                 // Refresh calendar and briefing when an event is created
                 print("📅 TodayView: Received EventCreated notification, refreshing data...")
                 Task {
-                    // Refresh calendar events
-                    await calendarViewModel.refreshEvents()
-                    // Refresh briefing (recommendations may change based on new events)
-                    await briefingViewModel.refresh()
+                    async let calRefresh: () = calendarViewModel.refreshEvents()
+                    async let briefRefresh: () = briefingViewModel.refresh()
+                    async let uniRefresh: () = unifiedViewModel.refresh()
+                    _ = await (calRefresh, briefRefresh, uniRefresh)
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("EventDeleted"))) { _ in
+                // Refresh calendar and briefing when an event is deleted
+                print("🗑️ TodayView: Received EventDeleted notification, refreshing data...")
+                Task {
+                    async let calRefresh: () = calendarViewModel.refreshEvents()
+                    async let briefRefresh: () = briefingViewModel.refresh()
+                    async let uniRefresh: () = unifiedViewModel.refresh()
+                    _ = await (calRefresh, briefRefresh, uniRefresh)
                 }
             }
             .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("TaskCreated"))) { _ in
                 // Refresh overview when a task is created (updates the Tasks tile)
                 print("✅ TodayView: Received TaskCreated notification, refreshing tasks...")
                 Task {
-                    // Refresh overview which contains the todo tile
-                    await overviewViewModel.fetchOverview()
-                    // Also refresh briefing as tasks may affect recommendations
-                    await briefingViewModel.refresh()
+                    async let ovRefresh: () = overviewViewModel.fetchOverview()
+                    async let briefRefresh: () = briefingViewModel.refresh()
+                    async let uniRefresh: () = unifiedViewModel.refresh()
+                    _ = await (ovRefresh, briefRefresh, uniRefresh)
                 }
             }
             // Handle action notifications from detail views
@@ -396,9 +445,10 @@ struct TodayView: View {
             EmptyView()
 
         case .energyBudget:
-            if let energyBudget = briefingViewModel.briefing?.energyBudget {
+            if let energyBudget = unifiedViewModel.unified?.energyBudget ?? briefingViewModel.briefing?.energyBudget {
                 CollapsibleEnergyBudgetCard(
                     energyBudget: energyBudget,
+                    calibration: unifiedViewModel.unified?.energyCalibration ?? briefingViewModel.briefing?.energyCalibration,
                     tileId: TileExpansionManager.TileId.energyBudget.rawValue,
                     expansionManager: tileExpansionManager
                 )
@@ -444,8 +494,18 @@ struct TodayView: View {
                 .padding(.horizontal, DesignSystem.Spacing.md)
                 .cardStagger(index: index + 1)
 
+        case .schedule:
+            TodayScheduleSection(
+                events: todayEvents,
+                currentEvent: currentEvent,
+                onEventTap: { event in selectedEvent = event }
+            )
+            .reorderableTile(.schedule)
+            .padding(.horizontal, DesignSystem.Spacing.md)
+            .cardStagger(index: index + 1)
+
         // Fixed tiles (handled separately, not rendered here)
-        case .heroSummary, .criticalHealthAlert, .schedule, .healthAccess:
+        case .heroSummary, .criticalHealthAlert, .healthAccess:
             EmptyView()
         }
     }
@@ -598,12 +658,8 @@ struct TodayView: View {
         }
     }
 
-    // MARK: - Events Section (DEPRECATED)
-    // NOTE: Schedule listing has been INTENTIONALLY REMOVED from the Today tab.
-    // The Today tab is a DECISION SURFACE, not a calendar display.
-    // Users should view their schedule in the Calendar tab.
-    // This code is kept for reference but is no longer used in the main body.
-    @available(*, deprecated, message: "Schedule viewing belongs in Calendar tab")
+    // MARK: - Events Section (Legacy - replaced by TodayScheduleSection tile)
+    @available(*, deprecated, message: "Replaced by TodayScheduleSection in reorderable tiles")
     private var eventsSection: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
             // Section header
@@ -690,7 +746,11 @@ struct TodayView: View {
 
     private var refreshButton: some View {
         Button(action: {
-            Task { await briefingViewModel.refresh() }
+            Task {
+                async let b: () = briefingViewModel.refresh()
+                async let u: () = unifiedViewModel.refresh()
+                _ = await (b, u)
+            }
         }) {
             Image(systemName: "arrow.clockwise")
                 .font(.system(size: 14, weight: .medium))

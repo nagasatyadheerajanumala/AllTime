@@ -21,6 +21,7 @@ struct DailyBriefingResponse: Codable, Identifiable {
     // New fields for Clara's opinionated intelligence
     let primaryRecommendation: PrimaryRecommendation?  // THE one thing to do today
     let energyBudget: EnergyBudget?                    // Time → Energy transformation
+    let energyCalibration: ScoreCalibration?            // Personal energy context
     let claraPrompts: [ClaraPrompt]?                   // Contextual prompts for Clara
 
     // 1 Risk + 1 Opportunity + 1 Recommendation model
@@ -30,6 +31,9 @@ struct DailyBriefingResponse: Codable, Identifiable {
     // Sleep data visibility control
     let showSleepUI: Bool?                             // Whether to show sleep-related UI
     let sleepTrackingStatus: String?                   // Reason if sleep data is unreliable
+
+    // Tone state for context-aware language
+    let toneState: String?                             // "firm_directive", "ambitious", "protective", "permissive_reflective", "recovery"
 
     var id: String { date }
 
@@ -50,11 +54,13 @@ struct DailyBriefingResponse: Codable, Identifiable {
         case dayNarrative = "day_narrative"
         case primaryRecommendation = "primary_recommendation"
         case energyBudget = "energy_budget"
+        case energyCalibration = "energy_calibration"
         case claraPrompts = "clara_prompts"
         case riskInsight = "risk_insight"
         case opportunityInsight = "opportunity_insight"
         case showSleepUI = "show_sleep_ui"
         case sleepTrackingStatus = "sleep_tracking_status"
+        case toneState = "tone_state"
     }
 }
 
@@ -821,6 +827,11 @@ struct PrimaryRecommendation: Codable, Identifiable {
     let confidence: Int?                  // 0-100 how confident Clara is
     let ignoredConsequence: String?       // What happens if they ignore this
 
+    // Commitment moment fields
+    let commitmentStatus: String?         // "pending", "committed", "changed", "dismissed"
+    let commitmentId: Int?
+    let showCommitmentUI: Bool?
+
     // Identifiable conformance - non-optional id
     var id: String { rawId ?? action }
     var recommendationId: String { id }
@@ -831,6 +842,9 @@ struct PrimaryRecommendation: Codable, Identifiable {
         case deepLink = "deep_link"
         case confidence
         case ignoredConsequence = "ignored_consequence"
+        case commitmentStatus = "commitment_status"
+        case commitmentId = "commitment_id"
+        case showCommitmentUI = "show_commitment_ui"
     }
 
     // Urgency styling
@@ -1164,5 +1178,37 @@ struct OpportunityInsight: Codable, Identifiable {
 
     var isHighConfidence: Bool {
         (confidence ?? 0) >= 80
+    }
+}
+
+// MARK: - Commitment Stats
+struct CommitmentStats: Codable {
+    let streak: Int
+    let followThroughRate: Double
+    let commitRate: Double
+    let totalCommitted: Int
+
+    enum CodingKeys: String, CodingKey {
+        case streak
+        case followThroughRate = "follow_through_rate"
+        case commitRate = "commit_rate"
+        case totalCommitted = "total_committed"
+    }
+}
+
+// MARK: - Score Calibration
+struct ScoreCalibration: Codable {
+    let currentValue: Double?
+    let userAverage: Double?
+    let percentile: Double?
+    let bestThreshold: Double?
+    let contextLabel: String?
+
+    enum CodingKeys: String, CodingKey {
+        case currentValue = "current_value"
+        case userAverage = "user_average"
+        case percentile
+        case bestThreshold = "best_threshold"
+        case contextLabel = "context_label"
     }
 }

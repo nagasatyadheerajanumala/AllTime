@@ -23,9 +23,13 @@ class HealthSyncService: ObservableObject {
     private let debounceInterval: TimeInterval = 2.0 // 2 seconds
     
     private init() {
-        // Load last sync date
-        if let dateString = userDefaults.string(forKey: lastSyncKey),
-           let date = Self.dateFormatter.date(from: dateString) {
+        // One-time reset: force full 30-day resync after sync date range bug fix
+        if !userDefaults.bool(forKey: "syncDateRangeFixApplied_v1") {
+            userDefaults.removeObject(forKey: lastSyncKey)
+            userDefaults.set(true, forKey: "syncDateRangeFixApplied_v1")
+            lastSyncDate = nil
+        } else if let dateString = userDefaults.string(forKey: lastSyncKey),
+                  let date = Self.dateFormatter.date(from: dateString) {
             lastSyncDate = date
         }
     }
@@ -75,18 +79,19 @@ class HealthSyncService: ObservableObject {
             
             // Determine date range to sync
             let calendar = Calendar.current
-            let today = calendar.startOfDay(for: Date())
-            
+            let now = Date()
+            let todayStart = calendar.startOfDay(for: now)
+
             let startDate: Date
             if let lastSync = lastSyncDate {
-                // Sync from last sync date forward
-                startDate = lastSync
+                // Sync from start of the last-synced day to capture any updated data
+                startDate = calendar.startOfDay(for: lastSync)
             } else {
                 // First sync: sync last 30 days (to match capacity analysis period)
-                startDate = calendar.date(byAdding: .day, value: -30, to: today) ?? today
+                startDate = calendar.date(byAdding: .day, value: -30, to: todayStart) ?? todayStart
             }
-            
-            let endDate = today
+
+            let endDate = now
             
             os_log("Syncing health metrics from %@ to %@", log: Self.logger, type: .info, Self.dateFormatter.string(from: startDate), Self.dateFormatter.string(from: endDate))
 
@@ -112,9 +117,7 @@ class HealthSyncService: ObservableObject {
             guard !metrics.isEmpty else {
                 os_log("No metrics to sync (HealthKit may not have data for this range)", log: Self.logger, type: .info)
                 isSyncing = false
-                let syncTime = Date()  // Use actual sync time
-                lastSyncDate = syncTime
-                userDefaults.set(Self.dateFormatter.string(from: syncTime), forKey: lastSyncKey)
+                // Don't advance lastSyncDate when nothing was fetched
                 return
             }
             
@@ -173,13 +176,14 @@ class HealthSyncService: ObservableObject {
 
             // Fetch metrics using HealthMetricsService
             let calendar = Calendar.current
-            let today = calendar.startOfDay(for: Date())
-            guard let startDate = calendar.date(byAdding: .day, value: -n, to: today) else {
+            let now = Date()
+            let todayStart = calendar.startOfDay(for: now)
+            guard let startDate = calendar.date(byAdding: .day, value: -n, to: todayStart) else {
                 os_log("Failed to calculate start date", log: Self.logger, type: .error)
                 isSyncing = false
                 return
             }
-            let metrics = try await healthMetricsService.fetchDailyMetrics(for: startDate, endDate: today)
+            let metrics = try await healthMetricsService.fetchDailyMetrics(for: startDate, endDate: now)
             
             guard !metrics.isEmpty else {
                 os_log("No metrics to sync", log: Self.logger, type: .info)

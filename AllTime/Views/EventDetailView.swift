@@ -7,6 +7,8 @@ struct EventDetailView: View {
     @State private var errorMessage: String?
     @State private var copiedLink = false
     @State private var showingEditEvent = false
+    @State private var showingDeleteConfirmation = false
+    @State private var isDeleting = false
     @Environment(\.dismiss) private var dismiss
 
     private let apiService = APIService()
@@ -185,10 +187,20 @@ struct EventDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
-                Button {
-                    showingEditEvent = true
+                Menu {
+                    Button {
+                        showingEditEvent = true
+                    } label: {
+                        Label("Edit Event", systemImage: "pencil")
+                    }
+
+                    Button(role: .destructive) {
+                        showingDeleteConfirmation = true
+                    } label: {
+                        Label("Delete Event", systemImage: "trash")
+                    }
                 } label: {
-                    Text("Edit")
+                    Image(systemName: "ellipsis.circle")
                         .font(.system(size: 17, weight: .regular))
                         .foregroundColor(DesignSystem.Colors.primary)
                 }
@@ -202,6 +214,14 @@ struct EventDetailView: View {
                         .foregroundColor(DesignSystem.Colors.primary)
                 }
             }
+        }
+        .alert("Delete Event", isPresented: $showingDeleteConfirmation) {
+            Button("Cancel", role: .cancel) { }
+            Button("Delete", role: .destructive) {
+                deleteEvent()
+            }
+        } message: {
+            Text("Are you sure you want to delete this event? This action cannot be undone.")
         }
         .sheet(isPresented: $showingEditEvent) {
             if let event = eventDetails {
@@ -837,6 +857,32 @@ struct EventDetailView: View {
             return "apple.logo"
         default:
             return "calendar"
+        }
+    }
+
+    private func deleteEvent() {
+        isDeleting = true
+
+        Task {
+            do {
+                try await apiService.deleteEvent(eventId: eventId)
+                await MainActor.run {
+                    isDeleting = false
+                    // Post notification to refresh calendar views
+                    NotificationCenter.default.post(name: NSNotification.Name("EventDeleted"), object: nil)
+                    dismiss()
+                }
+            } catch let error as NSError {
+                await MainActor.run {
+                    isDeleting = false
+                    errorMessage = "Failed to delete event: \(error.localizedDescription)"
+                }
+            } catch {
+                await MainActor.run {
+                    isDeleting = false
+                    errorMessage = "Failed to delete event: \(error.localizedDescription)"
+                }
+            }
         }
     }
 }

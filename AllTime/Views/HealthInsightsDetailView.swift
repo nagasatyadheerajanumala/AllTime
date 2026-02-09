@@ -46,6 +46,7 @@ struct HealthInsightsDetailView: View {
                     print("📊 HealthInsightsView: New range: \(newValue.days) days (from \(newValue.startDate))")
                     Task {
                         await viewModel.loadInsights(startDate: newValue.startDate, endDate: Date(), forceRefresh: false)
+                        await viewModel.loadAchievements(startDate: newValue.startDate, endDate: Date(), forceRefresh: false)
                     }
                 }
 
@@ -190,12 +191,13 @@ struct HealthInsightsDetailView: View {
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("HealthGoalsUpdated"))) { _ in
-            // Regenerate insights when goals are updated (invalidate cache first)
-            print("📊 HealthInsightsView: Health goals updated, invalidating cache and regenerating insights...")
+            // Regenerate insights, streaks, and achievements when goals are updated
+            print("📊 HealthInsightsView: Health goals updated, invalidating cache and regenerating all data...")
             Task {
-                // Invalidate cache by clearing it, then reload
                 await viewModel.invalidateCache()
-                await viewModel.loadInsights(startDate: selectedRange.startDate, endDate: Date(), forceRefresh: false)
+                await viewModel.loadInsights(startDate: selectedRange.startDate, endDate: Date(), forceRefresh: true)
+                await viewModel.loadStreaks(forceRefresh: true)
+                await viewModel.loadAchievements(startDate: selectedRange.startDate, endDate: Date(), forceRefresh: true)
             }
         }
     }
@@ -1407,12 +1409,24 @@ class HealthInsightsDetailViewModel: ObservableObject {
         let endStr = formatter.string(from: endDate)
         let cacheKeyWithRange = "\(achievementsCacheKey)_\(startStr)_\(endStr)"
 
-        // Try cache first
+        // Force refresh - delete old cache first
+        if forceRefresh {
+            await cacheService.delete(filename: cacheKeyWithRange)
+            print("🗑️ HealthInsightsViewModel: Cleared achievements cache for force refresh")
+        }
+
+        // Try cache first (unless force refreshing)
         if !forceRefresh {
             if let cached = await cacheService.loadJSON(HealthAchievementsResponse.self, filename: cacheKeyWithRange) {
-                achievements = cached
-                print("✅ HealthInsightsViewModel: Loaded achievements from cache - \(cached.badges.count) badges")
-                return
+                // If cached data has 0 badges AND no comparisons, it's likely corrupt - fetch fresh
+                if cached.badges.isEmpty && cached.distanceComparison == nil && cached.calorieComparison == nil {
+                    print("🗑️ HealthInsightsViewModel: Cached achievements appears empty/corrupt, fetching fresh")
+                    await cacheService.delete(filename: cacheKeyWithRange)
+                } else {
+                    achievements = cached
+                    print("✅ HealthInsightsViewModel: Loaded achievements from cache - \(cached.badges.count) badges")
+                    return
+                }
             } else {
                 print("🏆 HealthInsightsViewModel: No achievements cache found, fetching from API")
             }

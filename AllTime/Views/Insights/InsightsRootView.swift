@@ -41,9 +41,29 @@ struct InsightsRootView: View {
             switch self {
             case .forecast: return "sparkles"
             case .daily: return "sun.max.fill"
-            case .weekly: return "calendar.badge.clock"
-            case .monthly: return "calendar"
-            case .health: return "heart.fill"
+            case .weekly: return "calendar"
+            case .monthly: return "tablecells"
+            case .health: return "waveform.path.ecg.rectangle"
+            }
+        }
+
+        var iconColor: Color {
+            switch self {
+            case .forecast: return .indigo
+            case .daily: return .orange
+            case .weekly: return .blue
+            case .monthly: return .green
+            case .health: return .red
+            }
+        }
+
+        var subtitle: String {
+            switch self {
+            case .forecast: return "Next week"
+            case .daily: return "Today"
+            case .weekly: return "7 days"
+            case .monthly: return "30+ days"
+            case .health: return "Wellness"
             }
         }
     }
@@ -86,10 +106,11 @@ struct InsightsRootView: View {
                         .onAppear { monthlyViewLoaded = true }
                 }
 
-                // Health View
-                if selectedSection == .health {
+                // Health View - kept alive once loaded to prevent task cancellation
+                if healthViewLoaded || selectedSection == .health {
                     HealthInsightsDetailView()
-                        .transition(contentTransition)
+                        .opacity(selectedSection == .health ? 1 : 0)
+                        .allowsHitTesting(selectedSection == .health)
                         .onAppear { healthViewLoaded = true }
                 }
             }
@@ -141,7 +162,7 @@ struct InsightsRootView: View {
 
     private var sectionPicker: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: DesignSystem.Spacing.xs) {
+            HStack(spacing: 10) {
                 ForEach(InsightsSection.allCases, id: \.self) { section in
                     sectionButton(section)
                 }
@@ -153,14 +174,19 @@ struct InsightsRootView: View {
                         let impact = UIImpactFeedbackGenerator(style: .light)
                         impact.impactOccurred()
                     }) {
-                        Image(systemName: "target")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundColor(DesignSystem.Colors.primary)
-                            .frame(width: 36, height: 36)
-                            .background(
-                                Circle()
-                                    .fill(DesignSystem.Colors.primary.opacity(0.15))
-                            )
+                        VStack(spacing: 6) {
+                            Image(systemName: "target")
+                                .font(.system(size: 24, weight: .medium))
+                                .foregroundColor(DesignSystem.Colors.primary)
+                            Text("Goals")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundColor(DesignSystem.Colors.primaryText)
+                        }
+                        .frame(width: 72, height: 72)
+                        .background(
+                            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.md)
+                                .fill(DesignSystem.Colors.cardBackground)
+                        )
                     }
                     .buttonStyle(PlainButtonStyle())
                     .transition(.opacity.combined(with: .scale))
@@ -177,26 +203,29 @@ struct InsightsRootView: View {
     }
 
     private func sectionButton(_ section: InsightsSection) -> some View {
-        Button(action: {
-            // Track previous section for direction-aware transition
+        let isSelected = selectedSection == section
+
+        return Button(action: {
             previousSection = selectedSection
             selectedSection = section
             HapticManager.shared.lightTap()
         }) {
-            HStack(spacing: 4) {
+            VStack(spacing: 6) {
                 Image(systemName: section.icon)
-                    .font(.caption2.weight(.semibold))
+                    .font(.system(size: 24, weight: .medium))
+                    .foregroundColor(isSelected ? .white : section.iconColor)
                 Text(section.rawValue)
-                    .font(.subheadline.weight(.medium))
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(isSelected ? .white : DesignSystem.Colors.primaryText)
+                Text(section.subtitle)
+                    .font(.system(size: 10))
+                    .foregroundColor(isSelected ? .white.opacity(0.7) : DesignSystem.Colors.tertiaryText)
             }
-            .foregroundColor(selectedSection == section ? .white : DesignSystem.Colors.secondaryText)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
+            .frame(width: 72, height: 72)
             .background(
                 RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.md)
-                    .fill(selectedSection == section ? Color.indigo : DesignSystem.Colors.cardBackground)
+                    .fill(isSelected ? section.iconColor : DesignSystem.Colors.cardBackground)
             )
-            .scaleEffect(selectedSection == section ? 1.0 : 0.98)
             .animation(.spring(response: 0.25, dampingFraction: 0.75), value: selectedSection)
         }
         .buttonStyle(PlainButtonStyle())

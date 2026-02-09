@@ -6,80 +6,177 @@ import SwiftUI
 struct PrimaryRecommendationCard: View {
     let recommendation: PrimaryRecommendation
     var onTap: (() -> Void)? = nil
+    var onCommit: (() -> Void)? = nil
+    var onChange: (() -> Void)? = nil
+    var onDismiss: (() -> Void)? = nil
+    var toneState: String? = nil
+
+    @State private var commitAnimating = false
+
+    private var isCommitted: Bool {
+        recommendation.commitmentStatus?.lowercased() == "committed"
+    }
+
+    private var showCommitmentButtons: Bool {
+        recommendation.showCommitmentUI == true && !isCommitted
+    }
+
+    private var accentColor: Color {
+        switch toneState?.lowercased() {
+        case "ambitious": return DesignSystem.Colors.emerald
+        case "protective": return DesignSystem.Colors.amber
+        case "recovery": return DesignSystem.Colors.secondaryText
+        case "permissive_reflective": return DesignSystem.Colors.blue
+        default: return recommendation.urgencyColor
+        }
+    }
 
     var body: some View {
-        Button(action: { onTap?() }) {
-            VStack(alignment: .leading, spacing: 12) {
-                // Header with urgency badge
-                HStack {
-                    Image(systemName: recommendation.displayIcon)
-                        .font(.system(size: 20, weight: .semibold))
-                        .foregroundColor(.white)
-                        .frame(width: 36, height: 36)
-                        .background(recommendation.urgencyColor)
-                        .clipShape(RoundedRectangle(cornerRadius: 10))
+        VStack(alignment: .leading, spacing: 12) {
+            Button(action: { onTap?() }) {
+                VStack(alignment: .leading, spacing: 12) {
+                    // Header with urgency badge
+                    HStack {
+                        Image(systemName: recommendation.displayIcon)
+                            .font(.system(size: 20, weight: .semibold))
+                            .foregroundColor(.white)
+                            .frame(width: 36, height: 36)
+                            .background(accentColor)
+                            .clipShape(RoundedRectangle(cornerRadius: 10))
 
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(recommendation.urgencyLabel)
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundColor(recommendation.urgencyColor)
-                            .textCase(.uppercase)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(recommendation.urgencyLabel)
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundColor(accentColor)
+                                .textCase(.uppercase)
 
-                        if recommendation.isHighConfidence {
-                            HStack(spacing: 4) {
-                                Image(systemName: "checkmark.seal.fill")
-                                    .font(.system(size: 10))
-                                Text("Clara recommends")
-                                    .font(.system(size: 11))
+                            if recommendation.isHighConfidence {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "checkmark.seal.fill")
+                                        .font(.system(size: 10))
+                                    Text("Clara recommends")
+                                        .font(.system(size: 11))
+                                }
+                                .foregroundColor(DesignSystem.Colors.secondaryText)
                             }
-                            .foregroundColor(DesignSystem.Colors.secondaryText)
+                        }
+
+                        Spacer()
+
+                        if isCommitted {
+                            // Committed badge
+                            HStack(spacing: 4) {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .font(.system(size: 14))
+                                Text("Committed")
+                                    .font(.system(size: 12, weight: .semibold))
+                            }
+                            .foregroundColor(DesignSystem.Colors.emerald)
+                        } else {
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundColor(DesignSystem.Colors.tertiaryText)
                         }
                     }
 
-                    Spacer()
-
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(DesignSystem.Colors.tertiaryText)
-                }
-
-                // Main action text
-                Text(recommendation.action)
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(DesignSystem.Colors.primaryText)
-                    .multilineTextAlignment(.leading)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                // Reason
-                if let reason = recommendation.reason, !reason.isEmpty {
-                    Text(reason)
-                        .font(.system(size: 14))
-                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                    // Main action text
+                    Text(recommendation.action)
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(DesignSystem.Colors.primaryText)
                         .multilineTextAlignment(.leading)
-                        .lineLimit(3)
-                }
+                        .fixedSize(horizontal: false, vertical: true)
 
-                // Consequence warning (if ignored)
-                if let consequence = recommendation.ignoredConsequence, !consequence.isEmpty {
-                    HStack(spacing: 6) {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .font(.system(size: 12))
-                        Text(consequence)
-                            .font(.system(size: 12))
+                    // Reason
+                    if let reason = recommendation.reason, !reason.isEmpty {
+                        Text(reason)
+                            .font(.system(size: 14))
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
+                            .multilineTextAlignment(.leading)
+                            .lineLimit(3)
                     }
-                    .foregroundColor(DesignSystem.Colors.amber)
-                    .padding(.top, 4)
+
+                    // Consequence warning (if ignored)
+                    if let consequence = recommendation.ignoredConsequence, !consequence.isEmpty {
+                        HStack(spacing: 6) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .font(.system(size: 12))
+                            Text(consequence)
+                                .font(.system(size: 12))
+                        }
+                        .foregroundColor(DesignSystem.Colors.amber)
+                        .padding(.top, 4)
+                    }
                 }
             }
-            .padding(16)
-            .background(DesignSystem.Colors.cardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: 16))
-            .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .stroke(recommendation.urgencyColor.opacity(0.3), lineWidth: 1)
-            )
+            .buttonStyle(PlainButtonStyle())
+
+            // Commitment buttons
+            if showCommitmentButtons {
+                HStack(spacing: 10) {
+                    Button(action: {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                            commitAnimating = true
+                        }
+                        let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+                        impactFeedback.impactOccurred()
+                        onCommit?()
+                    }) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 13, weight: .bold))
+                            Text("Commit")
+                                .font(.system(size: 14, weight: .semibold))
+                        }
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 18)
+                        .padding(.vertical, 10)
+                        .background(accentColor)
+                        .clipShape(Capsule())
+                        .scaleEffect(commitAnimating ? 1.05 : 1.0)
+                    }
+
+                    Button(action: {
+                        let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+                        impactFeedback.impactOccurred()
+                        onChange?()
+                    }) {
+                        Text("Change")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 10)
+                            .background(DesignSystem.Colors.cardBackground)
+                            .clipShape(Capsule())
+                            .overlay(
+                                Capsule()
+                                    .stroke(DesignSystem.Colors.tertiaryText.opacity(0.3), lineWidth: 1)
+                            )
+                    }
+
+                    Button(action: {
+                        let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+                        impactFeedback.impactOccurred()
+                        onDismiss?()
+                    }) {
+                        Text("Dismiss")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(DesignSystem.Colors.tertiaryText)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 10)
+                    }
+
+                    Spacer()
+                }
+                .padding(.top, 4)
+            }
         }
-        .buttonStyle(PlainButtonStyle())
+        .padding(16)
+        .background(DesignSystem.Colors.cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(accentColor.opacity(0.3), lineWidth: 1)
+        )
     }
 }
 
@@ -87,6 +184,7 @@ struct PrimaryRecommendationCard: View {
 /// Shows how today's inputs (sleep, meetings, activity) transform into energy capacity.
 struct EnergyBudgetCard: View {
     let energyBudget: EnergyBudget
+    var calibration: ScoreCalibration? = nil
     @State private var isExpanded = false
 
     var body: some View {
@@ -123,6 +221,13 @@ struct EnergyBudgetCard: View {
                                 .font(.system(size: 13))
                         }
                         .foregroundColor(energyBudget.trajectoryColor)
+
+                        // Calibration context
+                        if let label = calibration?.contextLabel {
+                            Text(label)
+                                .font(.system(size: 11))
+                                .foregroundColor(DesignSystem.Colors.tertiaryText)
+                        }
                     }
 
                     Spacer()

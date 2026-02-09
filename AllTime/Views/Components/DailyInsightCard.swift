@@ -5,9 +5,32 @@ import SwiftUI
 struct DailyInsightCard: View {
     let recommendation: PrimaryRecommendation
     var onTap: (() -> Void)? = nil
+    var onCommit: (() -> Void)? = nil
+    var onChange: (() -> Void)? = nil
+    var onDismiss: (() -> Void)? = nil
+    var toneState: String? = nil
 
-    /// Urgency-based accent color
+    @State private var commitAnimating = false
+
+    private var isCommitted: Bool {
+        recommendation.commitmentStatus?.lowercased() == "committed"
+    }
+
+    private var showCommitmentButtons: Bool {
+        recommendation.showCommitmentUI == true && !isCommitted
+    }
+
+    /// Urgency-based accent color, adjusted for tone state
     private var accentColor: Color {
+        if let tone = toneState?.lowercased() {
+            switch tone {
+            case "ambitious": return Color(red: 0.2, green: 0.8, blue: 0.5) // Emerald
+            case "protective": return Color(red: 0.95, green: 0.6, blue: 0.2) // Amber
+            case "recovery": return Color(red: 0.55, green: 0.55, blue: 0.6) // Muted gray
+            case "permissive_reflective": return Color(red: 0.4, green: 0.7, blue: 0.95) // Soft blue
+            default: break
+            }
+        }
         switch recommendation.urgency?.lowercased() {
         case "now": return Color(red: 0.95, green: 0.3, blue: 0.3)  // Urgent red
         case "today": return Color(red: 0.95, green: 0.6, blue: 0.2) // Amber
@@ -89,12 +112,23 @@ struct DailyInsightCard: View {
 
                 Spacer(minLength: 8)
 
-                // Chevron
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(DesignSystem.Colors.tertiaryText)
+                if isCommitted {
+                    HStack(spacing: 4) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 14))
+                        Text("Committed")
+                            .font(.system(size: 12, weight: .semibold))
+                    }
+                    .foregroundColor(Color(red: 0.2, green: 0.8, blue: 0.5))
+                } else {
+                    // Chevron
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(DesignSystem.Colors.tertiaryText)
+                }
             }
             .padding(16)
+            .padding(.bottom, showCommitmentButtons ? 0 : 0)
             .background(
                 RoundedRectangle(cornerRadius: 16)
                     .fill(DesignSystem.Colors.cardBackground)
@@ -114,6 +148,63 @@ struct DailyInsightCard: View {
             )
         }
         .buttonStyle(InsightScaleButtonStyle())
+
+        // Commitment buttons below the card
+        if showCommitmentButtons {
+            HStack(spacing: 10) {
+                Button(action: {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                        commitAnimating = true
+                    }
+                    let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+                    impactFeedback.impactOccurred()
+                    onCommit?()
+                }) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 13, weight: .bold))
+                        Text("Commit")
+                            .font(.system(size: 14, weight: .semibold))
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 10)
+                    .background(accentColor)
+                    .clipShape(Capsule())
+                    .scaleEffect(commitAnimating ? 1.05 : 1.0)
+                }
+
+                Button(action: {
+                    let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+                    impactFeedback.impactOccurred()
+                    onChange?()
+                }) {
+                    Text("Change")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .background(DesignSystem.Colors.cardBackground)
+                        .clipShape(Capsule())
+                        .overlay(Capsule().stroke(Color.gray.opacity(0.3), lineWidth: 1))
+                }
+
+                Button(action: {
+                    let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+                    impactFeedback.impactOccurred()
+                    onDismiss?()
+                }) {
+                    Text("Dismiss")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(DesignSystem.Colors.tertiaryText)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                }
+
+                Spacer()
+            }
+            .padding(.top, 8)
+        }
     }
 }
 
@@ -141,7 +232,10 @@ private struct InsightScaleButtonStyle: ButtonStyle {
                 icon: "shield.lefthalf.filled",
                 deepLink: nil,
                 confidence: 90,
-                ignoredConsequence: "You'll end the day with zero deep work done"
+                ignoredConsequence: "You'll end the day with zero deep work done",
+                commitmentStatus: nil,
+                commitmentId: nil,
+                showCommitmentUI: true
             )
         )
 
@@ -156,7 +250,10 @@ private struct InsightScaleButtonStyle: ButtonStyle {
                 icon: "bolt.fill",
                 deepLink: nil,
                 confidence: 85,
-                ignoredConsequence: nil
+                ignoredConsequence: nil,
+                commitmentStatus: "committed",
+                commitmentId: 1,
+                showCommitmentUI: false
             )
         )
     }

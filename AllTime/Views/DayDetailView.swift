@@ -3,36 +3,53 @@ import SwiftUI
 /// Apple Calendar-style day detail view showing time-grouped events
 struct DayDetailView: View {
     let date: Date
-    let events: [CalendarEvent]
+    let initialEvents: [CalendarEvent]
     @Environment(\.dismiss) var dismiss
     @State private var selectedEventId: Int64?
-    
+
+    // Local copy of events that can be modified after deletion
+    @State private var localEvents: [CalendarEvent] = []
+
+    // Edit/Delete state
+    @State private var eventToEdit: Int64?
+    @State private var eventDetailsToEdit: EventDetails?
+    @State private var isLoadingEventDetails = false
+    @State private var showingEditEvent = false
+    @State private var eventToDelete: CalendarEvent?
+    @State private var showingDeleteConfirmation = false
+    @State private var isDeleting = false
+    @State private var deleteError: String?
+
+    private let apiService = APIService()
+
     private let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "EEEE, MMMM d, yyyy"
         return formatter
     }()
-    
+
     private let timeFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "h:mm a"
         formatter.timeZone = TimeZone.current
         return formatter
     }()
-    
+
     var body: some View {
         NavigationView {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    // Date header
+            List {
+                // Date header section
+                Section {
                     Text(dateFormatter.string(from: date))
                         .font(.title2)
                         .fontWeight(.bold)
-                        .padding(.horizontal)
-                        .padding(.top)
-                    
-                    if events.isEmpty {
-                        // Empty state - actionable framing
+                        .listRowBackground(Color.clear)
+                        .listRowInsets(EdgeInsets(top: 16, leading: 16, bottom: 8, trailing: 16))
+                }
+
+                if localEvents.isEmpty {
+                    // Empty state - actionable framing
+                    Section {
                         VStack(spacing: 12) {
                             Image(systemName: "calendar.badge.plus")
                                 .font(.system(size: 40))
@@ -47,54 +64,70 @@ struct DayDetailView: View {
                                 .foregroundColor(DesignSystem.Colors.secondaryText)
                         }
                         .frame(maxWidth: .infinity)
-                        .padding(.top, 100)
-                    } else {
-                        // All-day events first
-                        let allDayEvents = events.filter { $0.allDay }
-                        let timedEvents = events.filter { !$0.allDay }
-                            .sorted { 
-                                guard let start1 = $0.startDate, let start2 = $1.startDate else { return false }
-                                return start1 < start2
-                            }
-                        
-                        if !allDayEvents.isEmpty {
-                            SectionHeader(title: "All Day")
-                            
-                            ForEach(allDayEvents) { event in
-                                EventCard(event: event, onTap: {
-                                    selectedEventId = Int64(event.id)
-                                })
-                            }
+                        .padding(.vertical, 60)
+                        .listRowBackground(Color.clear)
+                    }
+                } else {
+                    // All-day events first
+                    let allDayEvents = localEvents.filter { $0.allDay }
+                    let timedEvents = localEvents.filter { !$0.allDay }
+                        .sorted {
+                            guard let start1 = $0.startDate, let start2 = $1.startDate else { return false }
+                            return start1 < start2
                         }
-                        
-                        // Timed events grouped by hour
-                        if !timedEvents.isEmpty {
-                            SectionHeader(title: "Scheduled")
-                            
-                            ForEach(groupedEvents(timedEvents), id: \.key) { group in
-                                VStack(alignment: .leading, spacing: 8) {
-                                    Text(formatHour(group.key))
-                                        .font(.caption)
-                                        .foregroundColor(.gray)
-                                        .padding(.leading)
 
-                                    ForEach(group.value) { event in
-                                        EventCard(event: event, onTap: {
-                                            selectedEventId = Int64(event.id)
-                                        })
+                    if !allDayEvents.isEmpty {
+                        Section(header: Text("All Day").font(.subheadline).foregroundColor(.gray)) {
+                            ForEach(allDayEvents) { event in
+                                SwipeableEventRow(
+                                    event: event,
+                                    onTap: {
+                                        selectedEventId = Int64(event.id)
+                                    },
+                                    onEdit: {
+                                        loadEventDetailsForEdit(eventId: Int64(event.id))
+                                    },
+                                    onDelete: {
+                                        eventToDelete = event
+                                        showingDeleteConfirmation = true
                                     }
-                                }
+                                )
                             }
                         }
                     }
 
-                    // Mood Check-In at the bottom
+                    // Timed events grouped by hour
+                    if !timedEvents.isEmpty {
+                        ForEach(groupedEvents(timedEvents), id: \.key) { group in
+                            Section(header: Text(formatHour(group.key)).font(.caption).foregroundColor(.gray)) {
+                                ForEach(group.value) { event in
+                                    SwipeableEventRow(
+                                        event: event,
+                                        onTap: {
+                                            selectedEventId = Int64(event.id)
+                                        },
+                                        onEdit: {
+                                            loadEventDetailsForEdit(eventId: Int64(event.id))
+                                        },
+                                        onDelete: {
+                                            eventToDelete = event
+                                            showingDeleteConfirmation = true
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Mood Check-In at the bottom
+                Section {
                     MoodCheckInCardView()
-                        .padding(.horizontal)
-                        .padding(.top, 20)
-                        .padding(.bottom, 40)
+                        .listRowInsets(EdgeInsets(top: 20, leading: 16, bottom: 40, trailing: 16))
+                        .listRowBackground(Color.clear)
                 }
             }
+            .listStyle(.insetGrouped)
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -113,6 +146,99 @@ struct DayDetailView: View {
                     EventDetailView(eventId: eventId)
                 }
             }
+            .sheet(isPresented: $showingEditEvent) {
+                if let eventDetails = eventDetailsToEdit {
+                    AddEventView(eventDetailsToEdit: eventDetails)
+                        .onDisappear {
+                            eventDetailsToEdit = nil
+                            // Refresh calendar after edit
+                            NotificationCenter.default.post(name: NSNotification.Name("EventCreated"), object: nil)
+                        }
+                }
+            }
+            .alert("Delete Event", isPresented: $showingDeleteConfirmation) {
+                Button("Cancel", role: .cancel) {
+                    eventToDelete = nil
+                }
+                Button("Delete", role: .destructive) {
+                    if let event = eventToDelete {
+                        deleteEvent(event)
+                    }
+                }
+            } message: {
+                if let event = eventToDelete {
+                    Text("Are you sure you want to delete \"\(event.title)\"? This action cannot be undone.")
+                }
+            }
+            .alert("Error", isPresented: Binding(
+                get: { deleteError != nil },
+                set: { if !$0 { deleteError = nil } }
+            )) {
+                Button("OK", role: .cancel) { }
+            } message: {
+                if let error = deleteError {
+                    Text(error)
+                }
+            }
+            .overlay {
+                if isLoadingEventDetails {
+                    Color.black.opacity(0.3)
+                        .ignoresSafeArea()
+                    ProgressView("Loading...")
+                        .padding()
+                        .background(Color(.systemBackground))
+                        .cornerRadius(10)
+                }
+            }
+            .onAppear {
+                localEvents = initialEvents
+            }
+        }
+    }
+
+    // MARK: - Actions
+
+    private func loadEventDetailsForEdit(eventId: Int64) {
+        isLoadingEventDetails = true
+
+        Task {
+            do {
+                let details = try await apiService.getEventDetails(eventId: eventId)
+                await MainActor.run {
+                    self.eventDetailsToEdit = details
+                    self.isLoadingEventDetails = false
+                    self.showingEditEvent = true
+                }
+            } catch {
+                await MainActor.run {
+                    self.isLoadingEventDetails = false
+                    self.deleteError = "Failed to load event for editing: \(error.localizedDescription)"
+                }
+            }
+        }
+    }
+
+    private func deleteEvent(_ event: CalendarEvent) {
+        isDeleting = true
+
+        Task {
+            do {
+                try await apiService.deleteEvent(eventId: Int64(event.id))
+                await MainActor.run {
+                    isDeleting = false
+                    eventToDelete = nil
+                    // Remove the deleted event from local list (keeps popup open)
+                    localEvents.removeAll { $0.id == event.id }
+                    // Post notification to refresh calendar views
+                    NotificationCenter.default.post(name: NSNotification.Name("EventDeleted"), object: nil)
+                }
+            } catch {
+                await MainActor.run {
+                    isDeleting = false
+                    eventToDelete = nil
+                    deleteError = "Failed to delete event: \(error.localizedDescription)"
+                }
+            }
         }
     }
     
@@ -124,7 +250,7 @@ struct DayDetailView: View {
         }
         return grouped.sorted { $0.key < $1.key }
     }
-    
+
     private func formatHour(_ hour: Int) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "h:mm a"
@@ -135,10 +261,111 @@ struct DayDetailView: View {
     }
 }
 
+// MARK: - Swipeable Event Row (for List with swipe actions)
+struct SwipeableEventRow: View {
+    let event: CalendarEvent
+    let onTap: () -> Void
+    let onEdit: () -> Void
+    let onDelete: () -> Void
+
+    private let timeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "h:mm a"
+        formatter.timeZone = TimeZone.current
+        return formatter
+    }()
+
+    private var eventColor: Color {
+        event.displayColor
+    }
+
+    var body: some View {
+        Button(action: {
+            HapticManager.shared.lightTap()
+            onTap()
+        }) {
+            HStack(alignment: .center, spacing: 12) {
+                // Color indicator
+                Rectangle()
+                    .fill(eventColor)
+                    .frame(width: 4, height: 50)
+                    .cornerRadius(2)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    // Title
+                    Text(event.title)
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(.primary)
+                        .lineLimit(1)
+
+                    // Time
+                    if !event.allDay, let startDate = event.startDate, let endDate = event.endDate {
+                        Text("\(timeFormatter.string(from: startDate)) - \(timeFormatter.string(from: endDate))")
+                            .font(.system(size: 14))
+                            .foregroundColor(.gray)
+                    } else if event.allDay {
+                        Text("All day")
+                            .font(.system(size: 14))
+                            .foregroundColor(.gray)
+                    }
+
+                    // Location
+                    if let location = event.location {
+                        if let locationName = location.name, !locationName.isEmpty {
+                            HStack(spacing: 4) {
+                                Image(systemName: "mappin.circle.fill")
+                                    .font(.system(size: 11))
+                                Text(locationName)
+                                    .font(.system(size: 13))
+                                    .lineLimit(1)
+                            }
+                            .foregroundColor(.gray)
+                        } else if let locationAddress = location.address, !locationAddress.isEmpty {
+                            HStack(spacing: 4) {
+                                Image(systemName: "mappin.circle.fill")
+                                    .font(.system(size: 11))
+                                Text(locationAddress)
+                                    .font(.system(size: 13))
+                                    .lineLimit(1)
+                            }
+                            .foregroundColor(.gray)
+                        }
+                    }
+                }
+
+                Spacer()
+
+                // Chevron to indicate tappable
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(Color(.tertiaryLabel))
+            }
+            .padding(.vertical, 8)
+        }
+        .buttonStyle(PlainButtonStyle())
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            Button(role: .destructive) {
+                HapticManager.shared.warning()
+                onDelete()
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
+
+            Button {
+                HapticManager.shared.lightTap()
+                onEdit()
+            } label: {
+                Label("Edit", systemImage: "pencil")
+            }
+            .tint(.blue)
+        }
+    }
+}
+
 // MARK: - Section Header
 struct SectionHeader: View {
     let title: String
-    
+
     var body: some View {
         Text(title)
             .font(.headline)
@@ -148,18 +375,18 @@ struct SectionHeader: View {
     }
 }
 
-// MARK: - Event Card
+// MARK: - Event Card (for non-swipeable contexts)
 struct EventCard: View {
     let event: CalendarEvent
     let onTap: () -> Void
-    
+
     private let timeFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "h:mm a"
         formatter.timeZone = TimeZone.current
         return formatter
     }()
-    
+
     private var eventColor: Color {
         event.displayColor
     }
@@ -175,20 +402,20 @@ struct EventCard: View {
                     .fill(eventColor)
                     .frame(width: 4)
                     .cornerRadius(2)
-                
+
                 VStack(alignment: .leading, spacing: 4) {
                     // Title
                     Text(event.title)
                         .font(.headline)
                         .foregroundColor(.primary)
-                    
+
                     // Time
                     if !event.allDay, let startDate = event.startDate, let endDate = event.endDate {
                         Text("\(timeFormatter.string(from: startDate)) - \(timeFormatter.string(from: endDate))")
                             .font(.subheadline)
                             .foregroundColor(.gray)
                     }
-                    
+
                             // Location
                             if let location = event.location {
                                 if let locationName = location.name, !locationName.isEmpty {
@@ -210,7 +437,7 @@ struct EventCard: View {
                                 }
                             }
                 }
-                
+
                 Spacer()
             }
             .padding()
@@ -226,7 +453,7 @@ struct EventCard: View {
 #Preview {
     DayDetailView(
         date: Date(),
-        events: [
+        initialEvents: [
             CalendarEvent(
                 id: 1,
                 title: "Team Meeting",

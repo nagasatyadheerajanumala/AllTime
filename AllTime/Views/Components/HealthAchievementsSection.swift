@@ -28,7 +28,7 @@ struct HealthAchievementsSection: View {
                             .font(.system(size: 18, weight: .semibold))
                             .foregroundColor(DesignSystem.Colors.amber)
 
-                        Text("Your Achievements")
+                        Text("Achievements")
                             .font(DesignSystem.Typography.title3)
                             .fontWeight(.bold)
                             .foregroundColor(DesignSystem.Colors.primaryText)
@@ -38,15 +38,8 @@ struct HealthAchievementsSection: View {
 
                     if !achievements.badges.isEmpty {
                         Text("\(achievements.badges.count) badges")
-                            .font(DesignSystem.Typography.caption)
-                            .fontWeight(.medium)
+                            .font(.caption.weight(.medium))
                             .foregroundColor(DesignSystem.Colors.amber)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 5)
-                            .background(
-                                Capsule()
-                                    .fill(DesignSystem.Colors.amber.opacity(0.15))
-                            )
                     }
 
                     Image(systemName: "chevron.right")
@@ -59,40 +52,28 @@ struct HealthAchievementsSection: View {
 
             if isExpanded {
                 VStack(spacing: 12) {
-                    // Distance Comparison Card
-                    if let comparison = achievements.distanceComparison {
-                        ComparisonCard(
-                            comparison: comparison,
-                            color: DesignSystem.Colors.emerald,
-                            stats: [
-                                (formatNumber(achievements.totals.steps), "steps"),
-                                (String(format: "%.1f", achievements.totals.distanceMiles), "miles"),
-                                (String(format: "%.1f", achievements.totals.distanceMiles / Double(max(achievements.periodDays, 1))), "mi/day")
-                            ]
-                        )
-                    }
+                    // Comparisons as a grouped card with rows
+                    let comparisons = buildComparisons()
+                    if !comparisons.isEmpty {
+                        VStack(spacing: 0) {
+                            ForEach(Array(comparisons.enumerated()), id: \.offset) { index, item in
+                                ComparisonRow(
+                                    emoji: item.emoji,
+                                    headline: item.headline,
+                                    description: item.description,
+                                    stats: item.stats,
+                                    color: item.color
+                                )
 
-                    // Calorie Comparison Card
-                    if let comparison = achievements.calorieComparison {
-                        ComparisonCard(
-                            comparison: comparison,
-                            color: DesignSystem.Colors.errorRed,
-                            stats: [
-                                (formatNumber(achievements.totals.calories), "kcal"),
-                                (formatNumber(achievements.totals.calories / max(achievements.periodDays, 1)), "kcal/day")
-                            ]
-                        )
-                    }
-
-                    // Activity Comparison Card
-                    if let comparison = achievements.activityComparison {
-                        ComparisonCard(
-                            comparison: comparison,
-                            color: DesignSystem.Colors.amber,
-                            stats: [
-                                ("\(achievements.totals.activeMinutes)", "active min"),
-                                ("\(achievements.totals.activeMinutes / max(achievements.periodDays, 1))", "min/day")
-                            ]
+                                if index < comparisons.count - 1 {
+                                    Divider()
+                                        .padding(.leading, 56)
+                                }
+                            }
+                        }
+                        .background(
+                            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.md)
+                                .fill(DesignSystem.Colors.cardBackground)
                         )
                     }
 
@@ -113,6 +94,51 @@ struct HealthAchievementsSection: View {
         }
     }
 
+    private func buildComparisons() -> [ComparisonRowData] {
+        var items: [ComparisonRowData] = []
+
+        if let c = achievements.distanceComparison {
+            items.append(ComparisonRowData(
+                emoji: c.emoji ?? "👟",
+                headline: c.headline,
+                description: c.description,
+                stats: [
+                    (formatNumber(achievements.totals.steps), "steps"),
+                    (String(format: "%.1f", achievements.totals.distanceMiles), "mi")
+                ],
+                color: DesignSystem.Colors.emerald
+            ))
+        }
+
+        if let c = achievements.calorieComparison {
+            items.append(ComparisonRowData(
+                emoji: c.emoji ?? "🔥",
+                headline: c.headline,
+                description: c.description,
+                stats: [
+                    (formatNumber(achievements.totals.calories), "kcal"),
+                    (formatNumber(achievements.totals.calories / max(achievements.periodDays, 1)), "/day")
+                ],
+                color: DesignSystem.Colors.errorRed
+            ))
+        }
+
+        if let c = achievements.activityComparison {
+            items.append(ComparisonRowData(
+                emoji: c.emoji ?? "⚡",
+                headline: c.headline,
+                description: c.description,
+                stats: [
+                    ("\(achievements.totals.activeMinutes)", "min"),
+                    ("\(achievements.totals.activeMinutes / max(achievements.periodDays, 1))", "/day")
+                ],
+                color: DesignSystem.Colors.amber
+            ))
+        }
+
+        return items
+    }
+
     private func formatNumber(_ num: Int) -> String {
         if num >= 1000 {
             return String(format: "%.1fk", Double(num) / 1000.0)
@@ -121,94 +147,68 @@ struct HealthAchievementsSection: View {
     }
 }
 
-// MARK: - Comparison Card
+// MARK: - Comparison Row Data
 
-struct ComparisonCard: View {
-    let comparison: ComparisonData
-    let color: Color
+private struct ComparisonRowData {
+    let emoji: String
+    let headline: String
+    let description: String
     let stats: [(String, String)]
+    let color: Color
+}
+
+// MARK: - Comparison Row
+
+struct ComparisonRow: View {
+    let emoji: String
+    let headline: String
+    let description: String
+    let stats: [(String, String)]
+    let color: Color
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 12) {
+                // Emoji icon
                 ZStack {
                     Circle()
-                        .fill(color.opacity(0.15))
-                        .frame(width: 44, height: 44)
-
-                    Text(comparison.emoji ?? "🏆")
-                        .font(.system(size: 22))
+                        .fill(color.opacity(0.12))
+                        .frame(width: 40, height: 40)
+                    Text(emoji)
+                        .font(.system(size: 20))
                 }
 
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(comparison.headline)
-                        .font(.headline.weight(.bold))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(headline)
+                        .font(.subheadline.weight(.semibold))
                         .foregroundColor(DesignSystem.Colors.primaryText)
+                        .lineLimit(1)
 
-                    Text(comparison.description)
+                    Text(description)
                         .font(.caption)
                         .foregroundColor(DesignSystem.Colors.secondaryText)
                         .lineLimit(2)
                 }
 
-                Spacer()
-            }
+                Spacer(minLength: 4)
 
-            // Stats pills
-            HStack(spacing: 12) {
-                ForEach(Array(stats.enumerated()), id: \.offset) { _, stat in
-                    AchievementStatPill(value: stat.0, label: stat.1, color: color)
+                // Inline stats
+                HStack(spacing: 8) {
+                    ForEach(Array(stats.enumerated()), id: \.offset) { _, stat in
+                        VStack(spacing: 1) {
+                            Text(stat.0)
+                                .font(.system(size: 13, weight: .bold, design: .rounded))
+                                .foregroundColor(color)
+                            Text(stat.1)
+                                .font(.system(size: 9))
+                                .foregroundColor(DesignSystem.Colors.tertiaryText)
+                        }
+                    }
                 }
             }
-
-            // Fun fact if available
-            if let funFact = comparison.funFact, !funFact.isEmpty {
-                HStack(spacing: 6) {
-                    Image(systemName: "lightbulb.fill")
-                        .font(.system(size: 10))
-                        .foregroundColor(DesignSystem.Colors.amber)
-                    Text(funFact)
-                        .font(.system(size: 11))
-                        .foregroundColor(DesignSystem.Colors.tertiaryText)
-                        .lineLimit(2)
-                }
-                .padding(.top, 4)
-            }
         }
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg)
-                .fill(DesignSystem.Colors.cardBackground)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg)
-                .strokeBorder(color.opacity(0.2), lineWidth: 1)
-        )
-    }
-}
-
-// MARK: - Stat Pill
-
-struct AchievementStatPill: View {
-    let value: String
-    let label: String
-    let color: Color
-
-    var body: some View {
-        VStack(spacing: 2) {
-            Text(value)
-                .font(.subheadline.weight(.bold))
-                .foregroundColor(color)
-            Text(label)
-                .font(.system(size: 10))
-                .foregroundColor(DesignSystem.Colors.tertiaryText)
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(color.opacity(0.1))
-        )
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
     }
 }
 
@@ -220,16 +220,16 @@ struct AchievementBadgesView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Badges Earned")
-                .font(.subheadline.weight(.semibold))
+                .font(.caption.weight(.semibold))
                 .foregroundColor(DesignSystem.Colors.secondaryText)
+                .textCase(.uppercase)
+                .tracking(0.5)
 
-            LazyVGrid(columns: [
-                GridItem(.flexible(), spacing: 10),
-                GridItem(.flexible(), spacing: 10),
-                GridItem(.flexible(), spacing: 10)
-            ], spacing: 10) {
-                ForEach(badges) { badge in
-                    BadgeCardView(badge: badge)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 12) {
+                    ForEach(badges) { badge in
+                        BadgeCardView(badge: badge)
+                    }
                 }
             }
         }
@@ -242,34 +242,36 @@ struct BadgeCardView: View {
     let badge: BadgeData
 
     var body: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: 8) {
             ZStack {
                 Circle()
-                    .fill(badge.tierEnum.color.opacity(0.2))
-                    .frame(width: 44, height: 44)
+                    .fill(badge.tierEnum.color.opacity(0.15))
+                    .frame(width: 48, height: 48)
 
                 Circle()
-                    .strokeBorder(badge.tierEnum.color, lineWidth: 2)
-                    .frame(width: 44, height: 44)
+                    .strokeBorder(badge.tierEnum.color.opacity(0.4), lineWidth: 1.5)
+                    .frame(width: 48, height: 48)
 
                 Image(systemName: badge.icon)
-                    .font(.system(size: 18, weight: .semibold))
+                    .font(.system(size: 20, weight: .semibold))
                     .foregroundColor(badge.categoryColor)
             }
 
-            Text(badge.name)
-                .font(.system(size: 10, weight: .semibold))
-                .foregroundColor(DesignSystem.Colors.primaryText)
-                .multilineTextAlignment(.center)
-                .lineLimit(2)
+            VStack(spacing: 2) {
+                Text(badge.name)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
 
-            Text(badge.tierEnum.displayName)
-                .font(.system(size: 8, weight: .medium))
-                .foregroundColor(badge.tierEnum.color)
+                Text(badge.tierEnum.displayName)
+                    .font(.system(size: 9, weight: .medium))
+                    .foregroundColor(badge.tierEnum.color)
+            }
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 10)
-        .padding(.horizontal, 6)
+        .frame(width: 80)
+        .padding(.vertical, 12)
+        .padding(.horizontal, 8)
         .background(
             RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.md)
                 .fill(DesignSystem.Colors.cardBackground)
@@ -292,10 +294,11 @@ struct CollapsedPreview: View {
                         .font(.caption)
                         .lineLimit(1)
                 }
-                .foregroundColor(DesignSystem.Colors.emerald)
+                .foregroundColor(DesignSystem.Colors.secondaryText)
             }
 
             if !achievements.badges.isEmpty {
+                Spacer()
                 HStack(spacing: 4) {
                     Image(systemName: "medal.fill")
                         .font(.system(size: 12))
@@ -303,9 +306,9 @@ struct CollapsedPreview: View {
                         .font(.caption)
                 }
                 .foregroundColor(DesignSystem.Colors.amber)
+            } else {
+                Spacer()
             }
-
-            Spacer()
         }
         .padding(12)
         .background(
@@ -321,21 +324,21 @@ struct MotivationalMessageView: View {
     let message: String
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(alignment: .top, spacing: 10) {
             Image(systemName: "sparkles")
-                .font(.system(size: 16))
+                .font(.system(size: 14))
                 .foregroundColor(DesignSystem.Colors.amber)
 
             Text(message)
-                .font(.subheadline)
+                .font(.caption)
                 .foregroundColor(DesignSystem.Colors.secondaryText)
                 .fixedSize(horizontal: false, vertical: true)
         }
-        .padding(14)
+        .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.md)
-                .fill(DesignSystem.Colors.amber.opacity(0.1))
+                .fill(DesignSystem.Colors.amber.opacity(0.08))
         )
     }
 }
@@ -389,7 +392,7 @@ struct MotivationalMessageView: View {
                     BadgeData(id: "calories", name: "Calorie Crusher", description: "4000+ calories burned!", tier: "silver", icon: "flame.circle.fill", category: "calories"),
                     BadgeData(id: "active", name: "Fitness Warrior", description: "300+ active minutes!", tier: "gold", icon: "bolt.circle.fill", category: "activity")
                 ],
-                motivationalMessage: "Amazing work! You're crushing your goals and earning badges left and right. Keep up this incredible momentum! 🌟"
+                motivationalMessage: "Amazing work! You're crushing your goals and earning badges left and right. Keep up this incredible momentum!"
             )
         )
         .padding()

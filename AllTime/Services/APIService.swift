@@ -3230,6 +3230,67 @@ class APIService: ObservableObject {
         }
     }
 
+    // MARK: - Delete Event
+
+    /// Delete an event by ID
+    /// - Parameter eventId: The ID of the event to delete
+    func deleteEvent(eventId: Int64) async throws {
+        guard let token = accessToken else {
+            throw NSError(
+                domain: "AllTime",
+                code: 401,
+                userInfo: [NSLocalizedDescriptionKey: "Authentication required. Please sign in again."]
+            )
+        }
+
+        let url = try makeURL("\(baseURL)/events/\(eventId)")
+        print("🗑️ APIService: ===== DELETING EVENT =====")
+        print("🗑️ APIService: Event ID: \(eventId)")
+        print("🗑️ APIService: URL: \(url)")
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "DELETE"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.timeoutInterval = Constants.API.timeout
+
+        let (data, response) = try await session.data(for: request)
+
+        // Handle specific status codes
+        if let httpResponse = response as? HTTPURLResponse {
+            switch httpResponse.statusCode {
+            case 200:
+                print("✅ APIService: Event deleted successfully")
+                return
+            case 401:
+                throw NSError(
+                    domain: "AllTime",
+                    code: 401,
+                    userInfo: [NSLocalizedDescriptionKey: "Session expired. Please sign in again."]
+                )
+            case 403:
+                throw NSError(
+                    domain: "AllTime",
+                    code: 403,
+                    userInfo: [NSLocalizedDescriptionKey: "You do not have permission to delete this event."]
+                )
+            case 404:
+                throw NSError(
+                    domain: "AllTime",
+                    code: 404,
+                    userInfo: [NSLocalizedDescriptionKey: "Event not found or already deleted."]
+                )
+            default:
+                let errorMessage = String(data: data, encoding: .utf8) ?? "Unknown error"
+                print("❌ APIService: Delete failed with status \(httpResponse.statusCode): \(errorMessage)")
+                throw NSError(
+                    domain: "AllTime",
+                    code: httpResponse.statusCode,
+                    userInfo: [NSLocalizedDescriptionKey: "Failed to delete event: \(errorMessage)"]
+                )
+            }
+        }
+    }
+
     // MARK: - Event Deduplication
 
     /// Remove duplicate events (cross-source duplicates from Google/Microsoft/EventKit)
@@ -7319,5 +7380,98 @@ class APIService: ObservableObject {
         let decoder = APIService.sharedDecoder
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         return try decoder.decode(NotificationStatsResponse.self, from: data)
+    }
+
+    // MARK: - Event Discovery
+
+    func fetchDiscoveredEvents(startDate: String? = nil, endDate: String? = nil) async throws -> DiscoveredEventsResponse {
+        var urlString = "\(baseURL)/api/discover/events"
+        var queryItems: [String] = []
+        if let s = startDate { queryItems.append("start_date=\(s)") }
+        if let e = endDate { queryItems.append("end_date=\(e)") }
+        if !queryItems.isEmpty {
+            urlString += "?" + queryItems.joined(separator: "&")
+        }
+
+        let url = try makeURL(urlString)
+
+        func makeRequest() async throws -> DiscoveredEventsResponse {
+            var request = URLRequest(url: url)
+            request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+
+            let (data, response) = try await session.data(for: request)
+            try await validateResponse(response, data: data)
+
+            let decoder = APIService.sharedDecoder
+            return try decoder.decode(DiscoveredEventsResponse.self, from: data)
+        }
+
+        do {
+            return try await makeRequest()
+        } catch let error as APIError where error.code == "401_REFRESHED" {
+            return try await makeRequest()
+        }
+    }
+
+    func generateDiscoveredEvents() async throws -> DiscoveredEventsResponse {
+        let url = try makeURL("\(baseURL)/api/discover/events/generate")
+
+        func makeRequest() async throws -> DiscoveredEventsResponse {
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.timeoutInterval = 60 // AI generation can take time
+
+            let (data, response) = try await session.data(for: request)
+            try await validateResponse(response, data: data)
+
+            let decoder = APIService.sharedDecoder
+            return try decoder.decode(DiscoveredEventsResponse.self, from: data)
+        }
+
+        do {
+            return try await makeRequest()
+        } catch let error as APIError where error.code == "401_REFRESHED" {
+            return try await makeRequest()
+        }
+    }
+
+    func acceptDiscoveredEvent(id: Int64) async throws {
+        let url = try makeURL("\(baseURL)/api/discover/events/\(id)/accept")
+
+        func makeRequest() async throws {
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+
+            let (data, response) = try await session.data(for: request)
+            try await validateResponse(response, data: data)
+        }
+
+        do {
+            try await makeRequest()
+        } catch let error as APIError where error.code == "401_REFRESHED" {
+            try await makeRequest()
+        }
+    }
+
+    func dismissDiscoveredEvent(id: Int64) async throws {
+        let url = try makeURL("\(baseURL)/api/discover/events/\(id)/dismiss")
+
+        func makeRequest() async throws {
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+
+            let (data, response) = try await session.data(for: request)
+            try await validateResponse(response, data: data)
+        }
+
+        do {
+            try await makeRequest()
+        } catch let error as APIError where error.code == "401_REFRESHED" {
+            try await makeRequest()
+        }
     }
 }

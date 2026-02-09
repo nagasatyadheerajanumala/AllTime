@@ -41,22 +41,10 @@ struct HealthStreaksSection: View {
 
                     Spacer()
 
-                    // Active streaks count badge
                     if streaks.totalActiveStreaks > 0 {
-                        HStack(spacing: 4) {
-                            Image(systemName: "flame.fill")
-                                .font(.system(size: 11))
-                            Text("\(streaks.totalActiveStreaks) active")
-                                .font(DesignSystem.Typography.caption)
-                                .fontWeight(.medium)
-                        }
-                        .foregroundColor(DesignSystem.Colors.amber)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 5)
-                        .background(
-                            Capsule()
-                                .fill(DesignSystem.Colors.amber.opacity(0.15))
-                        )
+                        Text("\(streaks.totalActiveStreaks) active")
+                            .font(.caption.weight(.medium))
+                            .foregroundColor(DesignSystem.Colors.amber)
                     }
 
                     if isLoading {
@@ -64,7 +52,6 @@ struct HealthStreaksSection: View {
                             .scaleEffect(0.7)
                     }
 
-                    // Chevron indicator
                     Image(systemName: "chevron.right")
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundColor(DesignSystem.Colors.tertiaryText)
@@ -73,7 +60,7 @@ struct HealthStreaksSection: View {
             }
             .buttonStyle(PlainButtonStyle())
 
-            // Collapsed Preview - show best streak summary
+            // Collapsed Preview
             if !isExpanded {
                 if let best = bestStreak, best.currentStreak > 0 {
                     HStack(spacing: 12) {
@@ -100,7 +87,7 @@ struct HealthStreaksSection: View {
                                         .foregroundColor(DesignSystem.Colors.amber)
                                 }
                             }
-                            Text("\(best.displayName) • Tap to see all")
+                            Text("\(best.displayName) \u{2022} Tap to see all")
                                 .font(.caption)
                                 .foregroundColor(DesignSystem.Colors.secondaryText)
                         }
@@ -113,12 +100,11 @@ struct HealthStreaksSection: View {
                             .fill(DesignSystem.Colors.cardBackground)
                     )
                 } else {
-                    // No active streaks preview
                     HStack(spacing: 8) {
                         Image(systemName: "flame")
                             .font(.system(size: 14))
                             .foregroundColor(DesignSystem.Colors.tertiaryText)
-                        Text("No active streaks • Tap to see goals")
+                        Text("No active streaks \u{2022} Tap to see goals")
                             .font(.caption)
                             .foregroundColor(DesignSystem.Colors.secondaryText)
                     }
@@ -131,126 +117,104 @@ struct HealthStreaksSection: View {
                 }
             }
 
-            // Expanded Content - Streaks Grid
+            // Expanded Content - List-style rows in a grouped card
             if isExpanded {
                 if streaks.sortedStreaks.isEmpty {
                     NoActiveStreaksView()
                 } else {
-                    LazyVGrid(columns: [
-                        GridItem(.flexible(), spacing: 12),
-                        GridItem(.flexible(), spacing: 12)
-                    ], spacing: 12) {
-                        ForEach(streaks.sortedStreaks.prefix(6)) { streak in
-                            StreakCard(streak: streak)
+                    VStack(spacing: 0) {
+                        ForEach(Array(streaks.sortedStreaks.prefix(6).enumerated()), id: \.element.id) { index, streak in
+                            StreakRow(streak: streak)
+
+                            if index < min(streaks.sortedStreaks.count, 6) - 1 {
+                                Divider()
+                                    .padding(.leading, 52)
+                            }
                         }
                     }
+                    .background(
+                        RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.md)
+                            .fill(DesignSystem.Colors.cardBackground)
+                    )
                 }
             }
         }
     }
 }
 
-// MARK: - Individual Streak Card
+// MARK: - Streak Row (List-style)
 
-struct StreakCard: View {
+struct StreakRow: View {
     let streak: HealthStreak
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            // Header: Icon + Goal Type
-            HStack(spacing: 8) {
-                // Goal type icon
-                ZStack {
-                    Circle()
-                        .fill(streak.statusColor.opacity(0.15))
-                        .frame(width: 32, height: 32)
+        HStack(spacing: 12) {
+            // Goal type icon
+            ZStack {
+                Circle()
+                    .fill(streak.isActive ? streak.color.opacity(0.15) : DesignSystem.Colors.tertiaryText.opacity(0.1))
+                    .frame(width: 36, height: 36)
 
-                    Image(systemName: streak.icon)
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(streak.statusColor)
-                }
+                Image(systemName: streak.icon)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(streak.isActive ? streak.color : DesignSystem.Colors.tertiaryText)
+            }
 
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(streak.displayName)
-                        .font(DesignSystem.Typography.caption)
-                        .fontWeight(.semibold)
-                        .foregroundColor(DesignSystem.Colors.primaryText)
-                        .lineLimit(1)
+            // Name + status
+            VStack(alignment: .leading, spacing: 2) {
+                Text(streak.displayName)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
 
-                    // Status indicator
-                    if streak.isAtRisk && streak.isActive {
+                if streak.isActive {
+                    if streak.isAtRisk {
                         HStack(spacing: 3) {
-                            Image(systemName: "exclamationmark.circle.fill")
+                            Circle()
+                                .fill(DesignSystem.Colors.amber)
+                                .frame(width: 6, height: 6)
+                            Text("At risk today")
+                                .font(.caption2)
+                                .foregroundColor(DesignSystem.Colors.amber)
+                        }
+                    } else if streak.isPersonalBest && streak.currentStreak > 1 {
+                        HStack(spacing: 3) {
+                            Image(systemName: "trophy.fill")
                                 .font(.system(size: 9))
-                            Text("At risk")
-                                .font(.system(size: 10, weight: .medium))
+                            Text("Personal best!")
+                                .font(.caption2)
                         }
                         .foregroundColor(DesignSystem.Colors.amber)
-                    } else if !streak.isActive {
-                        Text("Start today!")
-                            .font(.system(size: 10, weight: .medium))
+                    } else if streak.longestStreak > streak.currentStreak {
+                        Text("Best: \(streak.longestStreak) days")
+                            .font(.caption2)
                             .foregroundColor(DesignSystem.Colors.tertiaryText)
                     }
+                } else {
+                    Text("Best: \(streak.longestStreak) days")
+                        .font(.caption2)
+                        .foregroundColor(DesignSystem.Colors.tertiaryText)
                 }
-
-                Spacer()
             }
 
-            // Main streak number with flame
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
+            Spacer()
+
+            // Streak count
+            HStack(spacing: 4) {
                 if streak.isActive {
                     Image(systemName: "flame.fill")
-                        .font(.system(size: 20))
-                        .foregroundColor(streak.isAtRisk ? DesignSystem.Colors.amber : DesignSystem.Colors.amber)
+                        .font(.system(size: 12))
+                        .foregroundColor(DesignSystem.Colors.amber)
                 }
-
                 Text("\(streak.currentStreak)")
-                    .font(.system(size: 32, weight: .bold, design: .rounded))
+                    .font(.system(size: 20, weight: .bold, design: .rounded))
                     .foregroundColor(streak.isActive ? DesignSystem.Colors.primaryText : DesignSystem.Colors.tertiaryText)
-
                 Text(streak.currentStreak == 1 ? "day" : "days")
-                    .font(DesignSystem.Typography.caption)
+                    .font(.caption2)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
             }
-
-            // Personal best indicator
-            if streak.isPersonalBest && streak.currentStreak > 1 {
-                HStack(spacing: 4) {
-                    Image(systemName: "trophy.fill")
-                        .font(.system(size: 10))
-                    Text("Personal Best!")
-                        .font(.system(size: 10, weight: .semibold))
-                }
-                .foregroundColor(DesignSystem.Colors.amber)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(
-                    Capsule()
-                        .fill(DesignSystem.Colors.amber.opacity(0.15))
-                )
-            } else if streak.longestStreak > streak.currentStreak {
-                // Show longest streak if different from current
-                HStack(spacing: 4) {
-                    Image(systemName: "crown.fill")
-                        .font(.system(size: 9))
-                    Text("Best: \(streak.longestStreak) days")
-                        .font(.system(size: 10, weight: .medium))
-                }
-                .foregroundColor(DesignSystem.Colors.tertiaryText)
-            }
         }
-        .padding(14)
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.md)
-                .fill(DesignSystem.Colors.cardBackground)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.md)
-                .strokeBorder(
-                    streak.isPersonalBest ? DesignSystem.Colors.amber.opacity(0.3) : Color.clear,
-                    lineWidth: 1.5
-                )
-        )
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
     }
 }
 
@@ -293,7 +257,6 @@ struct StreakHighlightBanner: View {
     var body: some View {
         if let bestStreak = streaks.bestStreak, bestStreak.currentStreak > 0 {
             HStack(spacing: 12) {
-                // Flame icon
                 ZStack {
                     Circle()
                         .fill(DesignSystem.Colors.amber.opacity(0.15))
@@ -318,7 +281,7 @@ struct StreakHighlightBanner: View {
                         }
                     }
 
-                    Text("\(bestStreak.displayName) • \(streaks.totalActiveStreaks) goals on track")
+                    Text("\(bestStreak.displayName) \u{2022} \(streaks.totalActiveStreaks) goals on track")
                         .font(DesignSystem.Typography.caption)
                         .foregroundColor(DesignSystem.Colors.secondaryText)
                 }
@@ -347,7 +310,6 @@ struct StreakHighlightBanner: View {
 #Preview("Streaks Section") {
     ScrollView {
         VStack(spacing: 20) {
-            // Sample data
             HealthStreaksSection(
                 streaks: HealthStreaksSummary(
                     totalActiveStreaks: 3,

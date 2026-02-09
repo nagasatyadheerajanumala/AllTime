@@ -201,6 +201,7 @@ struct PremiumCalendarGrid: View {
     let events: [Event]
     let viewMode: CalendarViewMode
     var onDayTap: ((Date, [Event]) -> Void)? = nil  // New callback for day tap
+    var clashDates: Set<String> = []  // ISO date strings (yyyy-MM-dd) with conflicts
 
     private let calendar = Calendar.current
 
@@ -233,6 +234,7 @@ struct PremiumCalendarGrid: View {
                         hasEvents: hasEventsOnDate(date),
                         eventCount: eventCountOnDate(date),
                         events: eventsForDay(date),
+                        hasConflict: hasConflictOnDate(date),
                         onTap: {
                             withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                                 selectedDate = date
@@ -375,6 +377,18 @@ struct PremiumCalendarGrid: View {
         let normalizedDate = calendar.startOfDay(for: date)
         return eventsByDate[normalizedDate] ?? []
     }
+
+    private static let clashDateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd"
+        f.timeZone = TimeZone.current
+        return f
+    }()
+
+    private func hasConflictOnDate(_ date: Date) -> Bool {
+        let dateString = Self.clashDateFormatter.string(from: date)
+        return clashDates.contains(dateString)
+    }
 }
 
 // MARK: - Premium Calendar Day Cell
@@ -386,6 +400,7 @@ struct PremiumCalendarDayCell: View {
     let hasEvents: Bool
     let eventCount: Int
     let events: [Event]
+    var hasConflict: Bool = false
     let onTap: () -> Void
 
     private let dateFormatter: DateFormatter = {
@@ -400,12 +415,21 @@ struct PremiumCalendarDayCell: View {
         }) {
             VStack(alignment: .leading, spacing: 3) {
                 // Day number - cleaner Apple-like styling
-                HStack {
-                    Text(dateFormatter.string(from: date))
-                        .font(.system(size: 14, weight: isToday ? .bold : .medium))
-                        .foregroundColor(textColor)
+                ZStack(alignment: .topTrailing) {
+                    HStack {
+                        Text(dateFormatter.string(from: date))
+                            .font(.system(size: 14, weight: isToday ? .bold : .medium))
+                            .foregroundColor(textColor)
 
-                    Spacer()
+                        Spacer()
+                    }
+
+                    // Red conflict badge
+                    if hasConflict && isCurrentMonth {
+                        Circle()
+                            .fill(Color.red)
+                            .frame(width: 6, height: 6)
+                    }
                 }
                 .padding(.horizontal, 4)
                 .padding(.top, 4)

@@ -2,7 +2,7 @@ import SwiftUI
 
 // MARK: - Hero Summary Card (Today's Overview)
 /// The ONE tile that tells you everything about your day.
-/// Design: Glanceable in < 1 second. Color = status. No scrolling.
+/// Design: Calendar-first - shows events prominently, health metrics compactly.
 struct HeroSummaryCard: View {
     let overview: TodayOverviewResponse?
     let briefing: DailyBriefingResponse?
@@ -12,6 +12,12 @@ struct HeroSummaryCard: View {
     let isLoading: Bool
     let onTap: () -> Void
     let onInterventionTap: (DriftIntervention) -> Void
+
+    /// Today's events for displaying in the card
+    var todayEvents: [Event] = []
+
+    /// Callback when an event is tapped
+    var onEventTap: ((Event) -> Void)? = nil
 
     /// Fallback meeting count from calendar events (used when intelligence is nil)
     var fallbackMeetingCount: Int = 0
@@ -62,7 +68,9 @@ struct HeroSummaryCard: View {
     }
 
     private var primaryIntervention: DriftIntervention? {
-        driftStatus?.interventions.first
+        // Don't show intervention button if DailyInsightCard already shows the primary recommendation
+        guard briefing?.primaryRecommendation == nil else { return nil }
+        return driftStatus?.interventions.first
     }
 
     // MARK: - Computed Metrics
@@ -76,7 +84,12 @@ struct HeroSummaryCard: View {
     }
 
     private var energyPercent: Int {
-        100 - min(intelligence?.capacityOverloadPercent ?? 50, 100)
+        // Prefer energyBudget.currentLevel (same source as the Energy Budget card)
+        // to avoid showing conflicting numbers on the same screen
+        if let level = briefing?.energyBudget?.currentLevel {
+            return min(max(level, 0), 100)
+        }
+        return 100 - min(intelligence?.capacityOverloadPercent ?? 50, 100)
     }
 
     private var meetingCount: Int {
@@ -308,14 +321,18 @@ struct HeroSummaryCard: View {
     // MARK: - Main Content
 
     private var mainContent: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 12) {
             // Header: Day progress circle + Date + Status badge
             headerSection
                 .padding(.horizontal, 20)
                 .padding(.top, 20)
 
-            // Metrics Grid: 4 metrics, always visible, no scrolling
-            metricsGrid
+            // COMPACT Health Row: Just 2 key metrics (was 4)
+            compactHealthRow
+                .padding(.horizontal, 16)
+
+            // EVENTS TODAY: Show upcoming meetings with context
+            eventsSection
                 .padding(.horizontal, 16)
 
             // Action button (if needed)
@@ -324,8 +341,227 @@ struct HeroSummaryCard: View {
                     .padding(.horizontal, 16)
             }
 
-            Spacer().frame(height: 16)
+            Spacer().frame(height: 12)
         }
+    }
+
+    // MARK: - Compact Health Row (2 metrics instead of 4)
+
+    private var compactHealthRow: some View {
+        let metrics = compactMetrics
+        return HStack(spacing: 8) {
+            ForEach(Array(metrics.enumerated()), id: \.offset) { index, metric in
+                CompactMetricTile(
+                    icon: metric.icon,
+                    value: metric.value,
+                    unit: metric.unit,
+                    label: metric.label,
+                    color: metric.color,
+                    changePercent: metric.changePercent
+                )
+            }
+        }
+    }
+
+    /// Only 2 key metrics for compact display
+    private var compactMetrics: [(icon: String, value: String, unit: String, label: String, color: Color, changePercent: Int?)] {
+        var metrics: [(icon: String, value: String, unit: String, label: String, color: Color, changePercent: Int?)] = []
+
+        // First: Energy (most actionable metric)
+        metrics.append((
+            icon: "bolt.fill",
+            value: "\(energyPercent)",
+            unit: "%",
+            label: "Energy",
+            color: energyColor,
+            changePercent: nil
+        ))
+
+        // Second: Meetings count
+        metrics.append((
+            icon: "calendar",
+            value: "\(meetingCount)",
+            unit: "",
+            label: "Meetings",
+            color: meetingsColor,
+            changePercent: meetingsChangePercent
+        ))
+
+        return metrics
+    }
+
+    // MARK: - Events Section
+
+    private var eventsSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            // Day context summary
+            if !dayContextSummary.isEmpty {
+                HStack(spacing: 6) {
+                    Image(systemName: dayContextIcon)
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(dayContextColor)
+                    Text(dayContextSummary)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.white.opacity(0.7))
+                }
+            }
+
+            // Upcoming events (max 3)
+            let upcomingEvents = getUpcomingEvents()
+            if upcomingEvents.isEmpty {
+                // No events state
+                HStack(spacing: 10) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 16))
+                        .foregroundColor(DesignSystem.Colors.emerald)
+                    Text("No meetings scheduled")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(.white.opacity(0.8))
+                    Spacer()
+                }
+                .padding(12)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color.white.opacity(0.05))
+                )
+            } else {
+                VStack(spacing: 6) {
+                    ForEach(upcomingEvents.prefix(3), id: \.id) { event in
+                        EventPreviewRow(event: event, onTap: {
+                            onEventTap?(event)
+                        })
+                    }
+
+                    // Show "more events" if there are more
+                    if upcomingEvents.count > 3 {
+                        HStack {
+                            Spacer()
+                            Text("+ \(upcomingEvents.count - 3) more")
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundColor(.white.opacity(0.5))
+                        }
+                        .padding(.top, 2)
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Day Context Helpers
+
+    private func getUpcomingEvents() -> [Event] {
+        let now = Date()
+        return todayEvents
+            .filter { event in
+                guard let endDate = event.endDate ?? event.startDate else { return false }
+                // Show events that haven't ended yet
+                return endDate > now && !event.allDay
+            }
+            .sorted { event1, event2 in
+                guard let start1 = event1.startDate, let start2 = event2.startDate else { return false }
+                return start1 < start2
+            }
+    }
+
+    private var dayContextSummary: String {
+        let now = Date()
+        let calendar = Calendar.current
+        let hour = calendar.component(.hour, from: now)
+
+        let upcomingEvents = getUpcomingEvents()
+        let timedEvents = todayEvents.filter { !$0.allDay }
+
+        if timedEvents.isEmpty {
+            return "Clear schedule today"
+        }
+
+        // Check morning (before noon)
+        let morningEvents = timedEvents.filter { event in
+            guard let start = event.startDate else { return false }
+            let eventHour = calendar.component(.hour, from: start)
+            return eventHour < 12
+        }
+
+        // Check afternoon (noon to 5pm)
+        let afternoonEvents = timedEvents.filter { event in
+            guard let start = event.startDate else { return false }
+            let eventHour = calendar.component(.hour, from: start)
+            return eventHour >= 12 && eventHour < 17
+        }
+
+        // Check evening (5pm+)
+        let eveningEvents = timedEvents.filter { event in
+            guard let start = event.startDate else { return false }
+            let eventHour = calendar.component(.hour, from: start)
+            return eventHour >= 17
+        }
+
+        // Generate contextual summary based on current time
+        if hour < 12 {
+            // Morning
+            if morningEvents.count >= 3 {
+                if let lastMorning = morningEvents.sorted(by: { ($0.endDate ?? $0.startDate ?? now) < ($1.endDate ?? $1.startDate ?? now) }).last,
+                   let endTime = lastMorning.endDate {
+                    let formatter = DateFormatter()
+                    formatter.dateFormat = "h:mm a"
+                    return "Morning busy until \(formatter.string(from: endTime))"
+                }
+                return "Morning is packed"
+            } else if afternoonEvents.count >= 3 {
+                return "Afternoon is full"
+            } else if let nextEvent = upcomingEvents.first, let startTime = nextEvent.startDate {
+                let formatter = DateFormatter()
+                formatter.dateFormat = "h:mm a"
+                return "Free until \(formatter.string(from: startTime))"
+            }
+        } else if hour < 17 {
+            // Afternoon
+            if afternoonEvents.count >= 3 {
+                return "Afternoon is packed"
+            } else if eveningEvents.count >= 2 {
+                return "Evening has meetings"
+            } else if let nextEvent = upcomingEvents.first, let startTime = nextEvent.startDate {
+                let formatter = DateFormatter()
+                formatter.dateFormat = "h:mm a"
+                return "Next at \(formatter.string(from: startTime))"
+            }
+        } else {
+            // Evening
+            if eveningEvents.count >= 2 {
+                return "Evening is busy"
+            } else if upcomingEvents.isEmpty {
+                return "Day is winding down"
+            }
+        }
+
+        // Default based on total count
+        if timedEvents.count >= 5 {
+            return "Busy day ahead"
+        } else if timedEvents.count >= 3 {
+            return "\(timedEvents.count) meetings today"
+        }
+
+        return ""
+    }
+
+    private var dayContextIcon: String {
+        let summary = dayContextSummary.lowercased()
+        if summary.contains("packed") || summary.contains("full") || summary.contains("busy") {
+            return "exclamationmark.circle.fill"
+        } else if summary.contains("free") || summary.contains("clear") || summary.contains("winding") {
+            return "checkmark.circle.fill"
+        }
+        return "info.circle.fill"
+    }
+
+    private var dayContextColor: Color {
+        let summary = dayContextSummary.lowercased()
+        if summary.contains("packed") || summary.contains("full") || summary.contains("busy") {
+            return DesignSystem.Colors.amber
+        } else if summary.contains("free") || summary.contains("clear") {
+            return DesignSystem.Colors.emerald
+        }
+        return DesignSystem.Colors.blue
     }
 
     // MARK: - Header Section
@@ -338,8 +574,10 @@ struct HeroSummaryCard: View {
             // Date and greeting
             VStack(alignment: .leading, spacing: 4) {
                 Text(dayName)
-                    .font(.system(size: 24, weight: .bold, design: .rounded))
+                    .font(.system(size: 20, weight: .bold, design: .rounded))
                     .foregroundColor(.white)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
 
                 Text(dateString)
                     .font(.system(size: 14, weight: .medium))
@@ -650,7 +888,152 @@ struct HeroSummaryCard: View {
     }
 }
 
-// MARK: - Hero Metric Tile
+// MARK: - Compact Metric Tile (for 2-metric row)
+
+private struct CompactMetricTile: View {
+    let icon: String
+    let value: String
+    let unit: String
+    let label: String
+    let color: Color
+    var changePercent: Int? = nil
+
+    var body: some View {
+        HStack(spacing: 10) {
+            // Icon
+            Image(systemName: icon)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundColor(color)
+                .frame(width: 32, height: 32)
+                .background(
+                    Circle()
+                        .fill(color.opacity(0.15))
+                )
+
+            // Value and label
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 2) {
+                    Text(value)
+                        .font(.system(size: 18, weight: .bold, design: .rounded))
+                        .foregroundColor(.white)
+                    if !unit.isEmpty {
+                        Text(unit)
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(.white.opacity(0.5))
+                    }
+                    // Change indicator
+                    if let change = changePercent, change != 0 {
+                        HStack(spacing: 1) {
+                            Image(systemName: change > 0 ? "arrow.up" : "arrow.down")
+                                .font(.system(size: 8, weight: .bold))
+                            Text("\(abs(change))%")
+                                .font(.system(size: 9, weight: .semibold))
+                        }
+                        .foregroundColor(label == "Meetings" ? (change > 0 ? DesignSystem.Colors.errorRed : DesignSystem.Colors.emerald) : (change >= 0 ? DesignSystem.Colors.emerald : DesignSystem.Colors.errorRed))
+                    }
+                }
+                Text(label)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(.white.opacity(0.5))
+            }
+
+            Spacer()
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .frame(maxWidth: .infinity)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(color.opacity(0.08))
+        )
+    }
+}
+
+// MARK: - Event Preview Row
+
+private struct EventPreviewRow: View {
+    let event: Event
+    let onTap: () -> Void
+
+    private var eventColor: Color {
+        // Use source-based color
+        switch event.source.lowercased() {
+        case "google":
+            return Color(hex: "4285F4")
+        case "microsoft":
+            return Color(hex: "FF6B35")
+        case "eventkit", "apple":
+            return Color(hex: "AF52DE")
+        default:
+            return DesignSystem.Colors.primary
+        }
+    }
+
+    private var timeString: String {
+        guard let startDate = event.startDate else { return "" }
+        let formatter = DateFormatter()
+        formatter.dateFormat = "h:mm a"
+        return formatter.string(from: startDate)
+    }
+
+    private var isCurrentEvent: Bool {
+        guard let start = event.startDate, let end = event.endDate else { return false }
+        let now = Date()
+        return now >= start && now <= end
+    }
+
+    var body: some View {
+        Button(action: onTap) {
+            HStack(spacing: 10) {
+                // Color bar
+                Rectangle()
+                    .fill(eventColor)
+                    .frame(width: 3, height: 36)
+                    .cornerRadius(1.5)
+
+                // Time
+                Text(timeString)
+                    .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                    .foregroundColor(isCurrentEvent ? DesignSystem.Colors.emerald : .white.opacity(0.6))
+                    .frame(width: 60, alignment: .leading)
+
+                // Title
+                Text(event.title)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(.white.opacity(0.9))
+                    .lineLimit(1)
+
+                Spacer()
+
+                // Current indicator
+                if isCurrentEvent {
+                    Text("NOW")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundColor(DesignSystem.Colors.emerald)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 3)
+                        .background(
+                            Capsule()
+                                .fill(DesignSystem.Colors.emerald.opacity(0.2))
+                        )
+                }
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundColor(.white.opacity(0.3))
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(Color.white.opacity(isCurrentEvent ? 0.08 : 0.04))
+            )
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+}
+
+// MARK: - Hero Metric Tile (Original, kept for compatibility)
 
 private struct HeroMetricTile: View {
     let icon: String
@@ -800,6 +1183,8 @@ extension HeroSummaryCard {
         self.isLoading = isLoading
         self.onTap = onTap
         self.onInterventionTap = { _ in }
+        self.todayEvents = []
+        self.onEventTap = nil
     }
 
     init(
@@ -818,6 +1203,8 @@ extension HeroSummaryCard {
         self.isLoading = isLoading
         self.onTap = onTap
         self.onInterventionTap = onInterventionTap
+        self.todayEvents = []
+        self.onEventTap = nil
     }
 }
 

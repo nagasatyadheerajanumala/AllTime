@@ -16,9 +16,19 @@ struct InsightsTabView: View {
             switch self {
             case .forecast: return "sparkles"
             case .daily: return "sun.max.fill"
-            case .weekly: return "calendar.badge.clock"
-            case .monthly: return "calendar.circle"
-            case .health: return "heart.fill"
+            case .weekly: return "calendar"
+            case .monthly: return "tablecells"
+            case .health: return "waveform.path.ecg.rectangle"
+            }
+        }
+
+        var iconColor: Color {
+            switch self {
+            case .forecast: return .indigo
+            case .daily: return .orange
+            case .weekly: return .blue
+            case .monthly: return .green
+            case .health: return .red
             }
         }
 
@@ -102,43 +112,42 @@ struct InsightsTabView: View {
     }
 
     private var sectionPicker: some View {
-        HStack(spacing: 6) {
-            ForEach(InsightsSection.allCases, id: \.self) { section in
-                sectionButton(section)
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 10) {
+                ForEach(InsightsSection.allCases, id: \.self) { section in
+                    sectionButton(section)
+                }
             }
+            .padding(.horizontal, DesignSystem.Spacing.screenMargin)
         }
-        .padding(.horizontal, DesignSystem.Spacing.screenMargin)
         .padding(.vertical, DesignSystem.Spacing.sm)
         .background(DesignSystem.Colors.background)
     }
 
     private func sectionButton(_ section: InsightsSection) -> some View {
-        Button(action: {
+        let isSelected = selectedSection == section
+
+        return Button(action: {
             withAnimation(.easeInOut(duration: 0.2)) {
                 selectedSection = section
             }
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
         }) {
-            VStack(spacing: 3) {
+            VStack(spacing: 6) {
                 Image(systemName: section.icon)
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.system(size: 24, weight: .medium))
+                    .foregroundColor(isSelected ? .white : section.iconColor)
                 Text(section.rawValue)
-                    .font(.system(size: 11, weight: .semibold))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(isSelected ? .white : DesignSystem.Colors.primaryText)
+                Text(section.description)
+                    .font(.system(size: 10))
+                    .foregroundColor(isSelected ? .white.opacity(0.7) : DesignSystem.Colors.tertiaryText)
             }
-            .foregroundColor(selectedSection == section ? .white : DesignSystem.Colors.secondaryText)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 10)
+            .frame(width: 72, height: 72)
             .background(
                 RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.md)
-                    .fill(selectedSection == section ?
-                          LinearGradient(colors: [DesignSystem.Colors.primary, DesignSystem.Colors.primaryDark], startPoint: .topLeading, endPoint: .bottomTrailing) :
-                          LinearGradient(colors: [DesignSystem.Colors.cardBackground, DesignSystem.Colors.cardBackground], startPoint: .topLeading, endPoint: .bottomTrailing))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.md)
-                    .stroke(selectedSection == section ? Color.clear : DesignSystem.Colors.calmBorder, lineWidth: 0.5)
+                    .fill(isSelected ? section.iconColor : DesignSystem.Colors.cardBackground)
             )
         }
         .buttonStyle(PlainButtonStyle())

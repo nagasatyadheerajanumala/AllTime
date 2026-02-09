@@ -6,6 +6,7 @@ enum CalendarViewMode {
 
 struct CalendarView: View {
     @EnvironmentObject var calendarViewModel: CalendarViewModel
+    @StateObject private var clashesViewModel = MeetingClashesViewModel()
     @State private var showingEventDetail = false
     @State private var selectedEventId: Int64?
     @State private var viewMode: CalendarViewMode = .month
@@ -27,7 +28,25 @@ struct CalendarView: View {
 
     // Event creation at specific time
     @State private var eventCreationDate: Date?
-    
+
+    // MARK: - Clash Computed Properties
+
+    /// Set of date strings (yyyy-MM-dd) that have conflicts — for calendar grid badges
+    private var clashDatesSet: Set<String> {
+        Set(clashesViewModel.clashDates)
+    }
+
+    /// Set of event IDs involved in clashes for the currently selected date — for day timeline
+    private var clashingEventIdsForSelectedDate: Set<Int64> {
+        let clashes = clashesViewModel.clashesForDate(calendarViewModel.selectedDate)
+        var ids = Set<Int64>()
+        for clash in clashes {
+            ids.insert(clash.eventA.id)
+            ids.insert(clash.eventB.id)
+        }
+        return ids
+    }
+
     var body: some View {
         NavigationView {
             ZStack {
@@ -96,7 +115,8 @@ struct CalendarView: View {
                             onCreateEventAt: { date in
                                 eventCreationDate = date
                                 showingAddEvent = true
-                            }
+                            },
+                            clashingEventIds: clashingEventIdsForSelectedDate
                         )
                     }
                 } else {
@@ -168,7 +188,8 @@ struct CalendarView: View {
                                             selectedDayEvents = events
                                             useDarkThemeForSheet = true  // Day view in wheel mode
                                             showingDayDetail = true
-                                        }
+                                        },
+                                        clashDates: clashDatesSet
                                     )
                                     .padding(.horizontal, DesignSystem.Spacing.md)
                                 }
@@ -184,14 +205,16 @@ struct CalendarView: View {
                                         selectedDayEvents = events
                                         useDarkThemeForSheet = false  // Traditional style uses light theme
                                         showingDayDetail = true
-                                    }
+                                    },
+                                    clashDates: clashDatesSet
                                 )
                                 .padding(.horizontal, DesignSystem.Spacing.md)
                             }
                             
                             // Meeting Clashes Section (if any)
                             MeetingClashesSection(
-                                selectedDate: calendarViewModel.selectedDate
+                                selectedDate: calendarViewModel.selectedDate,
+                                viewModel: clashesViewModel
                             )
                             .padding(.horizontal, DesignSystem.Spacing.md)
 
@@ -227,12 +250,18 @@ struct CalendarView: View {
             .sheet(isPresented: $showingDayDetail) {
                 DayDetailView(
                     date: selectedDayForDetail,
-                    events: selectedDayEvents
+                    initialEvents: selectedDayEvents
                 )
                 .preferredColorScheme(useDarkThemeForSheet ? .dark : nil)
             }
             .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("EventCreated"))) { _ in
                 // Use fast refresh for immediate update after event creation
+                Task {
+                    await calendarViewModel.refreshEventsFromBackend()
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("EventDeleted"))) { _ in
+                // Refresh calendar after event deletion
                 Task {
                     await calendarViewModel.refreshEventsFromBackend()
                 }
@@ -243,11 +272,20 @@ struct CalendarView: View {
                 if !calendarViewModel.isLoading && calendarViewModel.events.isEmpty {
                     await calendarViewModel.refreshEventsFromBackend()
                 }
+                // Load clashes for the current month range
+                await loadClashesForCurrentRange()
             }
             .onChange(of: calendarViewModel.selectedDate) { oldDate, newDate in
                 // Use low priority for date change loads - UI already has data
                 Task(priority: .utility) {
                     await calendarViewModel.loadEventsForSelectedDate(newDate)
+                }
+                // Reload clashes if navigated to a different month
+                let calendar = Calendar.current
+                if !calendar.isDate(oldDate, equalTo: newDate, toGranularity: .month) {
+                    Task {
+                        await loadClashesForCurrentRange()
+                    }
                 }
             }
             .alert("Calendar Connection Expired", isPresented: $calendarViewModel.showReconnectAlert) {
@@ -267,6 +305,14 @@ struct CalendarView: View {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
         return formatter.string(from: calendarViewModel.selectedDate)
+    }
+
+    /// Load clashes covering the visible date range (±14 days from selected date)
+    private func loadClashesForCurrentRange() async {
+        let calendar = Calendar.current
+        let start = calendar.date(byAdding: .day, value: -14, to: calendarViewModel.selectedDate) ?? calendarViewModel.selectedDate
+        let end = calendar.date(byAdding: .day, value: 14, to: calendarViewModel.selectedDate) ?? calendarViewModel.selectedDate
+        await clashesViewModel.loadClashes(startDate: start, endDate: end)
     }
 
     // MARK: - FAB Menu (same as TodayView)
@@ -421,7 +467,7 @@ struct CalendarView: View {
 
 struct MeetingClashesSection: View {
     let selectedDate: Date
-    @StateObject private var viewModel = MeetingClashesViewModel()
+    @ObservedObject var viewModel: MeetingClashesViewModel
     @State private var showAllClashes = false
 
     var body: some View {

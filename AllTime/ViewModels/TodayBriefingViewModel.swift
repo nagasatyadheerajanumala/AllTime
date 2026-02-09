@@ -10,6 +10,7 @@ class TodayBriefingViewModel: ObservableObject {
     @Published var hasError: Bool = false
     @Published var errorMessage: String?
     @Published var lastRefreshDate: Date?
+    @Published var commitmentStats: CommitmentStats?
 
     // MARK: - Fresh HealthKit Data (from shared service)
     /// Fresh health metrics from HealthKit - sourced from HealthMetricsService.shared
@@ -206,6 +207,53 @@ class TodayBriefingViewModel: ObservableObject {
     /// Refresh briefing (pull-to-refresh)
     func refresh() async {
         await fetchBriefing(forceRefresh: true)
+    }
+
+    // MARK: - Commitment Actions
+
+    func commitToAction() async {
+        await respondToCommitment(response: "COMMITTED")
+    }
+
+    func changeAction() async {
+        await respondToCommitment(response: "CHANGED")
+    }
+
+    func dismissAction() async {
+        await respondToCommitment(response: "DISMISSED")
+    }
+
+    private func respondToCommitment(response: String, changedTo: String? = nil) async {
+        guard let token = KeychainManager.shared.getAccessToken() else { return }
+
+        let timezone = TimeZone.current.identifier
+        let encodedTimezone = timezone.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? timezone
+
+        guard let url = URL(string: "\(Constants.API.baseURL)/api/v1/today/commitment?timezone=\(encodedTimezone)") else { return }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = Constants.API.timeout
+
+        var body: [String: String] = ["response": response]
+        if let changedTo = changedTo {
+            body["changed_to"] = changedTo
+        }
+
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+
+        do {
+            let (_, httpResponse) = try await URLSession.shared.data(for: request)
+            if let http = httpResponse as? HTTPURLResponse, http.statusCode == 200 {
+                print("Commitment response recorded: \(response)")
+                // Refresh briefing to get updated commitment status
+                await fetchBriefing(forceRefresh: true)
+            }
+        } catch {
+            print("Failed to record commitment: \(error.localizedDescription)")
+        }
     }
 
     // MARK: - Private Methods

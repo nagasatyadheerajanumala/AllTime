@@ -10,6 +10,7 @@ struct DayViewContent: View {
     let onEventTap: (Event) -> Void
     let onAddEvent: () -> Void
     var onCreateEventAt: ((Date) -> Void)? = nil  // Create event at specific time
+    var clashingEventIds: Set<Int64> = []  // Event IDs involved in conflicts
 
     var body: some View {
         VStack(spacing: 0) {
@@ -26,7 +27,8 @@ struct DayViewContent: View {
                 selectedDate: $selectedDate,
                 events: events,
                 onEventTap: onEventTap,
-                onCreateEventAt: onCreateEventAt
+                onCreateEventAt: onCreateEventAt,
+                clashingEventIds: clashingEventIds
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(DesignSystem.Colors.background)

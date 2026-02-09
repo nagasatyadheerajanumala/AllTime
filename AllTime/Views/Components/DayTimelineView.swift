@@ -13,6 +13,7 @@ struct DayTimelineView: View {
     let events: [Event]
     let onEventTap: (Event) -> Void
     var onCreateEventAt: ((Date) -> Void)? = nil  // Callback for creating event at tapped time
+    var clashingEventIds: Set<Int64> = []  // Event IDs that are in a conflict
 
     private let calendar = Calendar.current
 
@@ -221,6 +222,7 @@ struct DayTimelineView: View {
 
                             EventBlock(
                                 event: positionedEvent.event,
+                                isClashing: clashingEventIds.contains(positionedEvent.event.id),
                                 onTap: { onEventTap(positionedEvent.event) }
                             )
                             .frame(width: eventWidth, height: eventHeight)
@@ -308,6 +310,7 @@ struct PositionedTimelineEvent {
 // MARK: - Event Block - iOS Calendar Style
 struct EventBlock: View {
     let event: Event
+    var isClashing: Bool = false
     let onTap: () -> Void
     
     private let timeFormatter: DateFormatter = {
@@ -331,51 +334,62 @@ struct EventBlock: View {
     }
     
     // Left border accent - iOS Calendar style (slightly more visible)
-    private var borderColor: Color {
-        eventColor.opacity(0.7)
+    // Orange when clashing to indicate conflict
+    private var accentColor: Color {
+        isClashing ? .orange : eventColor.opacity(0.7)
     }
     
     var body: some View {
         Button(action: onTap) {
             HStack(spacing: 0) {
-                // Left accent border - iOS Calendar style
+                // Left accent border - orange when clashing
                 Rectangle()
-                    .fill(borderColor)
+                    .fill(accentColor)
                     .frame(width: 3)
-                
+
                 // Event content
-                VStack(alignment: .leading, spacing: 3) {
-                    // Event title
-                    Text(event.title)
-                        .font(.system(size: 13, weight: .medium, design: .default))
-                        .foregroundColor(DesignSystem.Colors.primaryText)
-                        .lineLimit(2)
-                        .multilineTextAlignment(.leading)
-                        .fixedSize(horizontal: false, vertical: true)
-                    
-                    // Time range
-                    if let startDate = event.startDate, let endDate = event.endDate {
-                        Text("\(timeFormatter.string(from: startDate)) - \(timeFormatter.string(from: endDate))")
-                            .font(.system(size: 11, weight: .regular, design: .default))
-                            .foregroundColor(DesignSystem.Colors.secondaryText)
-                            .lineLimit(1)
-                    }
-                    
-                    // Location (if available and space permits)
-                    if let location = event.locationName, !location.isEmpty {
-                        HStack(spacing: 3) {
-                            Image(systemName: "location.fill")
-                                .font(.system(size: 9, weight: .regular))
-                            Text(location)
-                                .font(.system(size: 10, weight: .regular, design: .default))
+                ZStack(alignment: .topTrailing) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        // Event title
+                        Text(event.title)
+                            .font(.system(size: 13, weight: .medium, design: .default))
+                            .foregroundColor(DesignSystem.Colors.primaryText)
+                            .lineLimit(2)
+                            .multilineTextAlignment(.leading)
+                            .fixedSize(horizontal: false, vertical: true)
+
+                        // Time range
+                        if let startDate = event.startDate, let endDate = event.endDate {
+                            Text("\(timeFormatter.string(from: startDate)) - \(timeFormatter.string(from: endDate))")
+                                .font(.system(size: 11, weight: .regular, design: .default))
+                                .foregroundColor(DesignSystem.Colors.secondaryText)
                                 .lineLimit(1)
                         }
-                        .foregroundColor(DesignSystem.Colors.tertiaryText)
+
+                        // Location (if available and space permits)
+                        if let location = event.locationName, !location.isEmpty {
+                            HStack(spacing: 3) {
+                                Image(systemName: "location.fill")
+                                    .font(.system(size: 9, weight: .regular))
+                                Text(location)
+                                    .font(.system(size: 10, weight: .regular, design: .default))
+                                    .lineLimit(1)
+                            }
+                            .foregroundColor(DesignSystem.Colors.tertiaryText)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 6)
+
+                    // Clash warning icon
+                    if isClashing {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.system(size: 9))
+                            .foregroundColor(.orange)
+                            .padding(4)
                     }
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 6)
             }
             .background(
                 RoundedRectangle(cornerRadius: 8)
@@ -383,7 +397,10 @@ struct EventBlock: View {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 8)
-                    .strokeBorder(DesignSystem.Colors.tertiaryText.opacity(0.15), lineWidth: 0.5)
+                    .strokeBorder(
+                        isClashing ? Color.orange.opacity(0.6) : DesignSystem.Colors.tertiaryText.opacity(0.15),
+                        lineWidth: isClashing ? 1.5 : 0.5
+                    )
             )
         }
         .buttonStyle(PlainButtonStyle())
