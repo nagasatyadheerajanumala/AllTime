@@ -337,9 +337,9 @@
 				INFOPLIST_KEY_CFBundleDisplayName = "My Clara";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
 				INFOPLIST_KEY_NSCalendarsUsageDescription = "App needs access to your calendar.";
-				INFOPLIST_KEY_NSHealthClinicalHealthRecordsShareUsageDescription = "Clara uses clinical records to improve health insights.";
-				INFOPLIST_KEY_NSHealthShareUsageDescription = "Clara uses your health data to provide insights about your activity, sleep, and wellness.";
-				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Clara needs write access to sync health data with your account and provide personalized insights.";
+				INFOPLIST_KEY_NSHealthClinicalHealthRecordsShareUsageDescription = "Clara uses clinical records from Apple Health to improve your wellness insights.";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Clara reads your Apple Health data (steps, sleep, heart rate, workouts, active energy, exercise minutes) to provide personalized wellness insights and show how your schedule affects your well-being.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Clara needs write access to sync health data with your Apple Health and provide personalized wellness insights.";
 				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "Clara uses your location to help you add location information to your profile and events.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Clara uses your location to help you add location information to your profile and events.";
 				INFOPLIST_KEY_NSRemindersFullAccessUsageDescription = "Clara needs full access to your reminders to sync reminders created in the app to your iOS Reminders app.";
@@ -413,9 +413,9 @@
 				INFOPLIST_KEY_CFBundleDisplayName = "My Clara";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
 				INFOPLIST_KEY_NSCalendarsUsageDescription = "App needs access to your calendar.";
-				INFOPLIST_KEY_NSHealthClinicalHealthRecordsShareUsageDescription = "Clara uses clinical records to improve health insights.";
-				INFOPLIST_KEY_NSHealthShareUsageDescription = "Clara uses your health data to provide insights about your activity, sleep, and wellness.";
-				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Clara needs write access to sync health data with your account and provide personalized insights.";
+				INFOPLIST_KEY_NSHealthClinicalHealthRecordsShareUsageDescription = "Clara uses clinical records from Apple Health to improve your wellness insights.";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Clara reads your Apple Health data (steps, sleep, heart rate, workouts, active energy, exercise minutes) to provide personalized wellness insights and show how your schedule affects your well-being.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Clara needs write access to sync health data with your Apple Health and provide personalized wellness insights.";
 				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "Clara uses your location to help you add location information to your profile and events.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Clara uses your location to help you add location information to your profile and events.";
 				INFOPLIST_KEY_NSRemindersFullAccessUsageDescription = "Clara needs full access to your reminders to sync reminders created in the app to your iOS Reminders app.";

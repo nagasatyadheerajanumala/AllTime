@@ -7,6 +7,7 @@ enum CalendarViewMode {
 struct CalendarView: View {
     @EnvironmentObject var calendarViewModel: CalendarViewModel
     @StateObject private var clashesViewModel = MeetingClashesViewModel()
+    @StateObject private var discoveryViewModel = EventDiscoveryViewModel()
     @State private var showingEventDetail = false
     @State private var selectedEventId: Int64?
     @State private var viewMode: CalendarViewMode = .month
@@ -189,7 +190,8 @@ struct CalendarView: View {
                                             useDarkThemeForSheet = true  // Day view in wheel mode
                                             showingDayDetail = true
                                         },
-                                        clashDates: clashDatesSet
+                                        clashDates: clashDatesSet,
+                                        discoveredEventCounts: discoveredEventCounts
                                     )
                                     .padding(.horizontal, DesignSystem.Spacing.md)
                                 }
@@ -206,7 +208,8 @@ struct CalendarView: View {
                                         useDarkThemeForSheet = false  // Traditional style uses light theme
                                         showingDayDetail = true
                                     },
-                                    clashDates: clashDatesSet
+                                    clashDates: clashDatesSet,
+                                    discoveredEventCounts: discoveredEventCounts
                                 )
                                 .padding(.horizontal, DesignSystem.Spacing.md)
                             }
@@ -217,6 +220,33 @@ struct CalendarView: View {
                                 viewModel: clashesViewModel
                             )
                             .padding(.horizontal, DesignSystem.Spacing.md)
+
+                            // Discovered Event Suggestions
+                            if !discoveryViewModel.eventsForDate(calendarViewModel.selectedDate).isEmpty {
+                                VStack(alignment: .leading, spacing: 8) {
+                                    HStack {
+                                        Image(systemName: "sparkles")
+                                            .foregroundColor(Color(hex: "5EEAD4"))
+                                        Text("Suggestions")
+                                            .font(.headline)
+                                            .fontWeight(.semibold)
+                                    }
+                                    .padding(.horizontal, 4)
+
+                                    ForEach(discoveryViewModel.eventsForDate(calendarViewModel.selectedDate)) { event in
+                                        DiscoveredEventCard(
+                                            event: event,
+                                            onAccept: {
+                                                Task { await discoveryViewModel.acceptEvent(event) }
+                                            },
+                                            onDismiss: {
+                                                Task { await discoveryViewModel.dismissEvent(event) }
+                                            }
+                                        )
+                                    }
+                                }
+                                .padding(.horizontal, DesignSystem.Spacing.md)
+                            }
 
                             // Mood Check-In (moved from Today for less clutter)
                             MoodCheckInCardView()
@@ -250,7 +280,8 @@ struct CalendarView: View {
             .sheet(isPresented: $showingDayDetail) {
                 DayDetailView(
                     date: selectedDayForDetail,
-                    initialEvents: selectedDayEvents
+                    initialEvents: selectedDayEvents,
+                    discoveryViewModel: discoveryViewModel
                 )
                 .preferredColorScheme(useDarkThemeForSheet ? .dark : nil)
             }
@@ -274,6 +305,8 @@ struct CalendarView: View {
                 }
                 // Load clashes for the current month range
                 await loadClashesForCurrentRange()
+                // Load discovered event suggestions
+                await discoveryViewModel.loadEvents()
             }
             .onChange(of: calendarViewModel.selectedDate) { oldDate, newDate in
                 // Use low priority for date change loads - UI already has data
@@ -301,6 +334,18 @@ struct CalendarView: View {
         }
     }
     
+    private var discoveredEventCounts: [Date: Int] {
+        var counts: [Date: Int] = [:]
+        let calendar = Calendar.current
+        for event in discoveryViewModel.discoveredEvents {
+            if let date = event.startDate {
+                let day = calendar.startOfDay(for: date)
+                counts[day, default: 0] += 1
+            }
+        }
+        return counts
+    }
+
     private var formattedSelectedDate: String {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium

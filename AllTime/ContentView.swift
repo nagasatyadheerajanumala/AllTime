@@ -16,8 +16,11 @@ struct ContentView: View {
     @EnvironmentObject var calendarViewModel: CalendarViewModel
     
     @StateObject private var syncScheduler = SyncScheduler.shared
+    @StateObject private var interestsViewModel = InterestsViewModel()
     @Environment(\.scenePhase) private var scenePhase
     @State private var hasDismissedProfileSetup = false
+    @State private var showInterestsSetup = false
+    @State private var hasCheckedInterests = false
 
     var body: some View {
         Group {
@@ -56,6 +59,28 @@ struct ContentView: View {
                 } else {
                     // User has dismissed setup screen (completed or skipped)
                     PremiumTabView()
+                        .sheet(isPresented: $showInterestsSetup) {
+                            InterestsSetupView(isOnboarding: true, onComplete: {
+                                showInterestsSetup = false
+                                // Trigger event generation after interests saved
+                                Task {
+                                    let apiService = APIService()
+                                    _ = try? await apiService.generateDiscoveredEvents()
+                                }
+                            })
+                        }
+                        .task {
+                            // Check if interests setup is needed (only once)
+                            if !hasCheckedInterests {
+                                hasCheckedInterests = true
+                                await interestsViewModel.loadExistingInterests()
+                                if !interestsViewModel.setupCompleted && interestsViewModel.totalSelected == 0 {
+                                    // Delay slightly to let main view settle
+                                    try? await Task.sleep(nanoseconds: 1_500_000_000)
+                                    showInterestsSetup = true
+                                }
+                            }
+                        }
                 }
             } else {
                 SignInView()

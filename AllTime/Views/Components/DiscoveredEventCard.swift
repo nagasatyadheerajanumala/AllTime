@@ -71,8 +71,16 @@ struct DiscoveredEventCard: View {
                         .foregroundColor(.primary)
                         .lineLimit(2)
 
-                    // Time and location
+                    // Date, time and location
                     HStack(spacing: 12) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "calendar")
+                                .font(.caption2)
+                            Text(event.formattedDate)
+                                .font(.caption)
+                        }
+                        .foregroundColor(.secondary)
+
                         HStack(spacing: 4) {
                             Image(systemName: "clock")
                                 .font(.caption2)
@@ -80,17 +88,17 @@ struct DiscoveredEventCard: View {
                                 .font(.caption)
                         }
                         .foregroundColor(.secondary)
+                    }
 
-                        if let loc = event.locationName, !loc.isEmpty {
-                            HStack(spacing: 4) {
-                                Image(systemName: "mappin")
-                                    .font(.caption2)
-                                Text(loc)
-                                    .font(.caption)
-                                    .lineLimit(1)
-                            }
-                            .foregroundColor(.secondary)
+                    if let loc = event.locationName, !loc.isEmpty {
+                        HStack(spacing: 4) {
+                            Image(systemName: "mappin")
+                                .font(.caption2)
+                            Text(loc)
+                                .font(.caption)
+                                .lineLimit(1)
                         }
+                        .foregroundColor(.secondary)
                     }
                 }
                 .padding(.horizontal, 12)
@@ -98,8 +106,7 @@ struct DiscoveredEventCard: View {
             }
             .background(
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(Color(.systemBackground))
-                    .shadow(color: .black.opacity(0.06), radius: 4, x: 0, y: 2)
+                    .fill(DesignSystem.Colors.cardBackground)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 12)

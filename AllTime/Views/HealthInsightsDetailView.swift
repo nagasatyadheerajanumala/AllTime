@@ -75,6 +75,18 @@ struct HealthInsightsDetailView: View {
                     }
                 } else if let insights = viewModel.insights {
                     VStack(spacing: 16) {
+                        // Apple Health attribution
+                        HStack(spacing: 6) {
+                            Image(systemName: "heart.fill")
+                                .font(.caption2)
+                                .foregroundColor(.red)
+                            Text("Powered by Apple Health")
+                                .font(.caption2)
+                                .foregroundColor(DesignSystem.Colors.secondaryText)
+                            Spacer()
+                        }
+                        .padding(.horizontal, 4)
+
                         // 0. HEALTH GOAL STREAKS - Gamification at the top
                         if let streaks = viewModel.streaks {
                             HealthStreaksSection(
@@ -1222,12 +1234,12 @@ struct HealthInsightsPermissionRequiredView: View {
                 .font(.system(size: 64))
                 .foregroundColor(.orange)
             
-            Text("Health Data Access Required")
+            Text("Apple Health Access Required")
                 .font(DesignSystem.Typography.title2)
                 .fontWeight(.bold)
                 .foregroundColor(DesignSystem.Colors.primaryText)
-            
-            Text("To view your health insights, Clara needs access to your Health data.")
+
+            Text("Clara reads data from Apple Health — including steps, sleep, heart rate, and workouts — to generate personalized wellness insights.")
                 .font(DesignSystem.Typography.body)
                 .foregroundColor(DesignSystem.Colors.secondaryText)
                 .multilineTextAlignment(.center)

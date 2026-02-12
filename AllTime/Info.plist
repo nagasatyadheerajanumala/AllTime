@@ -9,9 +9,9 @@
 		<string>INSendMessageIntent</string>
 	</array>
 	<key>NSHealthDataUsageDescription</key>
-	<string>My Clara uses your health data to provide personalized insights.</string>
+	<string>My Clara reads your Apple Health data — including steps, sleep, heart rate, workouts, active energy, and exercise minutes — to provide personalized wellness insights and show how your schedule affects your well-being.</string>
 	<key>NSHealthRecordsUsageDescription</key>
-	<string>My Clara uses clinical records to improve your health insights.</string>
+	<string>My Clara uses clinical records from Apple Health to improve your health insights and wellness recommendations.</string>
 	<key>NSCalendarsUsageDescription</key>
 	<string>My Clara needs access to your calendar to help you manage your time.</string>
 	<key>NSRemindersUsageDescription</key>

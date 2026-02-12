@@ -328,12 +328,12 @@ struct HealthPermissionCard: View {
                     .foregroundColor(.red)
                 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Enable Health Data")
+                    Text("Connect Apple Health")
                         .font(DesignSystem.Typography.body)
                         .fontWeight(.semibold)
                         .foregroundColor(DesignSystem.Colors.primaryText)
-                    
-                    Text("Connect your health data to see how your calendar load affects your activity, sleep, and well-being.")
+
+                    Text("Connect Apple Health to see how your calendar load affects your activity, sleep, and well-being.")
                         .font(DesignSystem.Typography.caption)
                         .foregroundColor(DesignSystem.Colors.secondaryText)
                         .fixedSize(horizontal: false, vertical: true)

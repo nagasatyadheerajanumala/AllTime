@@ -237,11 +237,11 @@ struct HealthPermissionPromptView: View {
                 .font(.system(size: 50))
                 .foregroundColor(Color(hex: "EC4899"))
 
-            Text("Health Data Required")
+            Text("Apple Health Access Required")
                 .font(.headline)
                 .foregroundColor(DesignSystem.Colors.primaryText)
 
-            Text("Enable Health permissions to see personalized health insights and correlations with your schedule.")
+            Text("Clara uses Apple Health data (steps, sleep, heart rate, workouts) to show personalized wellness insights and correlations with your schedule.")
                 .font(.subheadline)
                 .foregroundColor(DesignSystem.Colors.secondaryText)
                 .multilineTextAlignment(.center)
@@ -249,7 +249,7 @@ struct HealthPermissionPromptView: View {
             Button(action: {
                 HealthKitManager.shared.safeRequestIfNeeded()
             }) {
-                Text("Enable Health Access")
+                Text("Connect Apple Health")
                     .font(.subheadline.weight(.semibold))
                     .foregroundColor(.white)
                     .padding(.horizontal, 24)

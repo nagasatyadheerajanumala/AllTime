@@ -4,6 +4,7 @@ import SwiftUI
 struct DayDetailView: View {
     let date: Date
     let initialEvents: [CalendarEvent]
+    var discoveryViewModel: EventDiscoveryViewModel? = nil
     @Environment(\.dismiss) var dismiss
     @State private var selectedEventId: Int64?
 
@@ -115,6 +116,28 @@ struct DayDetailView: View {
                                         }
                                     )
                                 }
+                            }
+                        }
+                    }
+                }
+
+                // Discovered Event Suggestions
+                if let vm = discoveryViewModel {
+                    let suggestions = vm.eventsForDate(date)
+                    if !suggestions.isEmpty {
+                        Section(header: HStack(spacing: 4) {
+                            Image(systemName: "sparkles")
+                                .foregroundColor(Color(hex: "5EEAD4"))
+                            Text("Suggestions")
+                        }) {
+                            ForEach(suggestions) { event in
+                                DiscoveredEventCard(
+                                    event: event,
+                                    onAccept: { Task { await vm.acceptEvent(event) } },
+                                    onDismiss: { Task { await vm.dismissEvent(event) } }
+                                )
+                                .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
+                                .listRowBackground(Color.clear)
                             }
                         }
                     }

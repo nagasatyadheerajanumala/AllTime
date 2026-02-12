@@ -2,6 +2,7 @@ import SwiftUI
 
 struct TodayView: View {
     @EnvironmentObject var calendarViewModel: CalendarViewModel
+    @StateObject private var discoveryViewModel = EventDiscoveryViewModel()
     @StateObject private var briefingViewModel = TodayBriefingViewModel()
     @StateObject private var overviewViewModel = TodayOverviewViewModel()
     @StateObject private var unifiedViewModel = UnifiedTodayViewModel()
@@ -146,13 +147,6 @@ struct TodayView: View {
                             .cardStagger(index: 0)
                         }
 
-                        // PRIMARY INSIGHT: The ONE verdict from Clara
-                        if let insight = unifiedViewModel.unified?.primaryInsight {
-                            PrimaryInsightCard(insight: insight)
-                                .padding(.horizontal, DesignSystem.Spacing.md)
-                                .cardStagger(index: 0)
-                        }
-
                         // HERO: Today's Overview Card - Calendar-first with events prominent
                         HeroSummaryCard(
                             overview: overviewViewModel.overview,
@@ -200,6 +194,38 @@ struct TodayView: View {
                         // Conflicts card (only visible when conflicts exist)
                         TodayConflictsCard()
                             .padding(.horizontal, DesignSystem.Spacing.md)
+
+                        // Discovered Event Suggestions (upcoming)
+                        if discoveryViewModel.hasEvents {
+                            VStack(alignment: .leading, spacing: 10) {
+                                HStack {
+                                    Image(systemName: "sparkles")
+                                        .foregroundColor(Color(hex: "5EEAD4"))
+                                    Text("Suggested for You")
+                                        .font(.headline)
+                                        .fontWeight(.semibold)
+                                    Spacer()
+                                    Text("\(discoveryViewModel.discoveredEvents.count) upcoming")
+                                        .font(.caption)
+                                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                                }
+                                .padding(.horizontal, 4)
+
+                                ForEach(discoveryViewModel.discoveredEvents.prefix(3)) { event in
+                                    DiscoveredEventCard(
+                                        event: event,
+                                        onAccept: {
+                                            Task { await discoveryViewModel.acceptEvent(event) }
+                                        },
+                                        onDismiss: {
+                                            Task { await discoveryViewModel.dismissEvent(event) }
+                                        }
+                                    )
+                                }
+                            }
+                            .padding(.horizontal, DesignSystem.Spacing.md)
+                            .cardStagger(index: 2)
+                        }
 
                         // Reorderable tiles (user-customizable order)
                         ForEach(tileOrderManager.tileOrder, id: \.self) { tileType in
@@ -343,9 +369,10 @@ struct TodayView: View {
                     async let driftTask: () = fetchWeekDrift()
                     async let unifiedTask: () = unifiedViewModel.fetchUnified()
                     async let intelligenceTask: () = timeIntelligenceService.fetchTodayIntelligence()
+                    async let discoveryTask: () = discoveryViewModel.loadEvents()
 
                     // Wait for all to complete (parallel execution)
-                    _ = await (calendarTask, healthTask, briefingTask, overviewTask, driftTask, unifiedTask, intelligenceTask)
+                    _ = await (calendarTask, healthTask, briefingTask, overviewTask, driftTask, unifiedTask, intelligenceTask, discoveryTask)
                 }
             }
             .onDisappear {

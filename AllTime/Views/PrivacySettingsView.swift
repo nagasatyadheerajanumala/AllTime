@@ -51,13 +51,41 @@ struct PrivacySettingsView: View {
             }
 
             Section {
-                // HealthKit Status
+                // Apple Health Connection Status
                 HStack {
-                    Label("HealthKit Status", systemImage: "heart.fill")
+                    Label("Apple Health", systemImage: "heart.fill")
                         .foregroundColor(.pink)
                     Spacer()
                     Text(healthMetricsService.isAuthorized ? "Connected" : "Not Connected")
                         .foregroundColor(healthMetricsService.isAuthorized ? .green : .secondary)
+                }
+
+                // What data we read
+                if healthMetricsService.isAuthorized {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Data read from Apple Health:")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        HStack(spacing: 12) {
+                            Label("Steps", systemImage: "figure.walk")
+                            Label("Sleep", systemImage: "moon.fill")
+                        }
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        HStack(spacing: 12) {
+                            Label("Heart Rate", systemImage: "heart.fill")
+                            Label("Workouts", systemImage: "figure.run")
+                        }
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        HStack(spacing: 12) {
+                            Label("Active Energy", systemImage: "flame.fill")
+                            Label("Active Minutes", systemImage: "timer")
+                        }
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    }
+                    .padding(.vertical, 4)
                 }
 
                 // Last Sync Date
@@ -75,7 +103,7 @@ struct PrivacySettingsView: View {
                     showResyncAlert = true
                 }) {
                     HStack {
-                        Label("Resync Health Data", systemImage: "arrow.triangle.2.circlepath")
+                        Label("Resync Apple Health Data", systemImage: "arrow.triangle.2.circlepath")
                         Spacer()
                         if isResyncingHealth {
                             ProgressView()
@@ -85,9 +113,9 @@ struct PrivacySettingsView: View {
                 }
                 .disabled(isResyncingHealth || !healthMetricsService.isAuthorized)
             } header: {
-                Text("Health Data")
+                Text("Apple Health Integration")
             } footer: {
-                Text("If your health data appears incorrect, try resyncing. This will fetch the last 30 days of data from HealthKit.")
+                Text("Clara reads your health data from the Apple Health app to provide personalized wellness insights. This includes steps, sleep, heart rate, workouts, active energy, and exercise minutes. No health data is written back to Apple Health.")
             }
 
             // Clara Sleep Insights Section
@@ -120,7 +148,7 @@ struct PrivacySettingsView: View {
                     ? "Clara uses your sleep data to provide personalized insights and recommendations. Sleep metrics are shown throughout the app."
                     : "Sleep data is disabled. Sleep metrics will be hidden from all views and Clara will not make sleep-related recommendations.")
             }
-            .alert("Resync Health Data?", isPresented: $showResyncAlert) {
+            .alert("Resync Apple Health Data?", isPresented: $showResyncAlert) {
                 Button("Cancel", role: .cancel) { }
                 Button("Resync") {
                     Task {
@@ -130,7 +158,7 @@ struct PrivacySettingsView: View {
                     }
                 }
             } message: {
-                Text("This will clear cached health data and resync the last 30 days from HealthKit. This may take a moment.")
+                Text("This will clear cached data and resync the last 30 days from Apple Health. This may take a moment.")
             }
 
             Section {

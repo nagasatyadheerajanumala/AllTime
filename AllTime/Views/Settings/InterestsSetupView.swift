@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct InterestsSetupView: View {
+    var isOnboarding: Bool = false
+    var onComplete: (() -> Void)? = nil
     @StateObject private var viewModel = InterestsViewModel()
     @Environment(\.dismiss) private var dismiss
     @State private var showingSaveSuccess = false
@@ -68,8 +70,14 @@ struct InterestsSetupView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") { dismiss() }
-                        .foregroundColor(DesignSystem.Colors.primary)
+                    Button(isOnboarding ? "Skip" : "Cancel") {
+                        if let onComplete = onComplete, isOnboarding {
+                            onComplete()
+                        } else {
+                            dismiss()
+                        }
+                    }
+                    .foregroundColor(DesignSystem.Colors.primary)
                 }
             }
             .overlay {
@@ -226,7 +234,15 @@ struct InterestsSetupView: View {
             Task {
                 let success = await viewModel.saveInterests()
                 if success {
-                    showingSaveSuccess = true
+                    // Always regenerate event suggestions when interests change
+                    let apiService = APIService()
+                    _ = try? await apiService.generateDiscoveredEvents()
+
+                    if let onComplete = onComplete {
+                        onComplete()
+                    } else {
+                        showingSaveSuccess = true
+                    }
                 }
             }
         }) {

@@ -11,7 +11,7 @@ struct TodayHealthCard: View {
                     .font(.title3)
                     .foregroundColor(.white)
 
-                Text("Health Data Access Required")
+                Text("Apple Health Access Required")
                     .font(.headline)
                     .foregroundColor(.white)
 
@@ -19,7 +19,7 @@ struct TodayHealthCard: View {
             }
 
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                Text("Clara needs access to your Health data to provide personalized insights.")
+                Text("Clara reads data from Apple Health (steps, sleep, heart rate, workouts) to provide personalized wellness insights.")
                     .font(.subheadline)
                     .foregroundColor(.white.opacity(0.9))
             }

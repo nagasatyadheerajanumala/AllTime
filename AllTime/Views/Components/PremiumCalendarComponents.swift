@@ -202,6 +202,7 @@ struct PremiumCalendarGrid: View {
     let viewMode: CalendarViewMode
     var onDayTap: ((Date, [Event]) -> Void)? = nil  // New callback for day tap
     var clashDates: Set<String> = []  // ISO date strings (yyyy-MM-dd) with conflicts
+    var discoveredEventCounts: [Date: Int] = [:]  // date → count of discovered events
 
     private let calendar = Calendar.current
 
@@ -235,6 +236,7 @@ struct PremiumCalendarGrid: View {
                         eventCount: eventCountOnDate(date),
                         events: eventsForDay(date),
                         hasConflict: hasConflictOnDate(date),
+                        discoveredEventCount: discoveredEventCounts[calendar.startOfDay(for: date)] ?? 0,
                         onTap: {
                             withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                                 selectedDate = date
@@ -401,6 +403,7 @@ struct PremiumCalendarDayCell: View {
     let eventCount: Int
     let events: [Event]
     var hasConflict: Bool = false
+    var discoveredEventCount: Int = 0
     let onTap: () -> Void
 
     private let dateFormatter: DateFormatter = {
@@ -424,11 +427,19 @@ struct PremiumCalendarDayCell: View {
                         Spacer()
                     }
 
-                    // Red conflict badge
-                    if hasConflict && isCurrentMonth {
-                        Circle()
-                            .fill(Color.red)
-                            .frame(width: 6, height: 6)
+                    HStack(spacing: 3) {
+                        // Mint suggestion dot
+                        if discoveredEventCount > 0 && isCurrentMonth {
+                            Circle()
+                                .fill(Color(hex: "5EEAD4"))
+                                .frame(width: 6, height: 6)
+                        }
+                        // Red conflict badge
+                        if hasConflict && isCurrentMonth {
+                            Circle()
+                                .fill(Color.red)
+                                .frame(width: 6, height: 6)
+                        }
                     }
                 }
                 .padding(.horizontal, 4)
