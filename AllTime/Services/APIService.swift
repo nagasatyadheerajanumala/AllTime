@@ -407,11 +407,21 @@ class APIService: ObservableObject {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
-        
+
         let (data, response) = try await session.data(for: request)
         try await validateResponse(response, data: data)
     }
-    
+
+    func deleteAccount() async throws {
+        let url = try makeURL("\(baseURL)/api/user/account")
+        var request = URLRequest(url: url)
+        request.httpMethod = "DELETE"
+        request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+
+        let (data, response) = try await session.data(for: request)
+        try await validateResponse(response, data: data)
+    }
+
     func refreshToken(refreshToken: String) async throws -> RefreshTokenResponse {
         let url = try makeURL("\(baseURL)/auth/refresh")
         print("🔄 APIService: Refreshing token at \(url)")

@@ -6,9 +6,15 @@ struct PrivacySettingsView: View {
     @State private var crashReportingEnabled = true
     @State private var isResyncingHealth = false
     @State private var showResyncAlert = false
+    @State private var showDeleteConfirmation = false
+    @State private var isDeletingAccount = false
+    @State private var showDeleteError = false
+    @State private var deleteErrorMessage = ""
     @ObservedObject private var healthSyncService = HealthSyncService.shared
     @ObservedObject private var healthMetricsService = HealthMetricsService.shared
     @ObservedObject private var userPreferences = UserPreferencesService.shared
+    @EnvironmentObject var authService: AuthenticationService
+    private let apiService = APIService()
 
     var body: some View {
         List {
@@ -41,9 +47,19 @@ struct PrivacySettingsView: View {
                     exportUserData()
                 }
 
-                Button("Delete My Account", role: .destructive) {
-                    // This would require backend implementation
+                Button(role: .destructive) {
+                    showDeleteConfirmation = true
+                } label: {
+                    HStack {
+                        Text("Delete My Account")
+                        Spacer()
+                        if isDeletingAccount {
+                            ProgressView()
+                                .scaleEffect(0.8)
+                        }
+                    }
                 }
+                .disabled(isDeletingAccount)
             } header: {
                 Text("Data Management")
             } footer: {
@@ -160,6 +176,19 @@ struct PrivacySettingsView: View {
             } message: {
                 Text("This will clear cached data and resync the last 30 days from Apple Health. This may take a moment.")
             }
+            .alert("Delete Account?", isPresented: $showDeleteConfirmation) {
+                Button("Cancel", role: .cancel) { }
+                Button("Delete", role: .destructive) {
+                    deleteAccount()
+                }
+            } message: {
+                Text("This will permanently delete your account and all associated data. This action cannot be undone.")
+            }
+            .alert("Error", isPresented: $showDeleteError) {
+                Button("OK", role: .cancel) { }
+            } message: {
+                Text(deleteErrorMessage)
+            }
 
             Section {
                 VStack(alignment: .leading, spacing: 8) {
@@ -184,10 +213,30 @@ struct PrivacySettingsView: View {
         // This would implement data export functionality
         print("Exporting user data...")
     }
+
+    private func deleteAccount() {
+        isDeletingAccount = true
+        Task {
+            do {
+                try await apiService.deleteAccount()
+                await MainActor.run {
+                    // Sign out locally after successful server deletion
+                    authService.signOut(reason: "Account deleted")
+                }
+            } catch {
+                await MainActor.run {
+                    isDeletingAccount = false
+                    deleteErrorMessage = "Failed to delete account. Please try again."
+                    showDeleteError = true
+                }
+            }
+        }
+    }
 }
 
 #Preview {
     NavigationView {
         PrivacySettingsView()
+            .environmentObject(AuthenticationService())
     }
 }
