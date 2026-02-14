@@ -13,11 +13,15 @@
 	<key>NSHealthRecordsUsageDescription</key>
 	<string>My Clara uses clinical records from Apple Health to improve your health insights and wellness recommendations.</string>
 	<key>NSCalendarsUsageDescription</key>
-	<string>My Clara needs access to your calendar to help you manage your time.</string>
+	<string>My Clara reads your calendar events — including event titles, times, and locations — to display your schedule, detect conflicts between overlapping meetings, and provide AI-powered time management suggestions. For example, Clara may suggest blocking focus time when your afternoon is meeting-free.</string>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>My Clara reads your calendar events — including event titles, times, and locations — to display your schedule, detect conflicts between overlapping meetings, and provide AI-powered time management suggestions. For example, Clara may suggest blocking focus time when your afternoon is meeting-free. Full access also lets Clara create events like focus time blocks directly on your calendar.</string>
 	<key>NSRemindersUsageDescription</key>
-	<string>My Clara needs access to your reminders to help you stay organized.</string>
+	<string>My Clara reads your reminders to show them alongside your calendar events and help you prioritize your day. For example, Clara may remind you of overdue tasks during a free slot in your schedule.</string>
 	<key>NSRemindersFullAccessUsageDescription</key>
 	<string>My Clara needs full access to your reminders to sync reminders created in the app to your iOS Reminders app.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>My Clara uses your location to provide weather-aware scheduling suggestions and help you add location details to events. For example, Clara may factor in commute time when suggesting when to leave for your next meeting.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>My Clara needs camera access to take photos of your calendar for event import.</string>
 	<key>NSPhotoLibraryUsageDescription</key>

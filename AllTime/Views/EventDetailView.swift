@@ -837,7 +837,7 @@ struct EventDetailView: View {
     
     private func openInMaps(location: String) {
         let encodedLocation = location.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
-        if let url = URL(string: "http://maps.apple.com/?q=\(encodedLocation)") {
+        if let url = URL(string: "https://maps.apple.com/?q=\(encodedLocation)") {
             UIApplication.shared.open(url)
         }
     }

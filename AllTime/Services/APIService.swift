@@ -299,7 +299,12 @@ class APIService: ObservableObject {
             print("🌐 APIService: Email not provided (will be omitted from JSON)")
             // Don't include email key if nil/empty - backend handles this
         }
-        
+
+        // Add authorization code if provided (needed for Apple token revocation support)
+        if let authCode = authorizationCode, !authCode.isEmpty {
+            jsonDict["authorizationCode"] = authCode
+        }
+
         print("🌐 APIService: JSON Dictionary keys: \(jsonDict.keys.joined(separator: ", "))")
         print("🌐 APIService: identityToken length: \(identityToken.count) characters")
         print("🌐 APIService: identityToken prefix: \(identityToken.prefix(50))...")

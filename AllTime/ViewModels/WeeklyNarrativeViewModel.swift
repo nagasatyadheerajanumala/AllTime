@@ -66,6 +66,24 @@ class WeeklyNarrativeViewModel: ObservableObject {
                 self?.objectWillChange.send()
             }
             .store(in: &cancellables)
+
+        // Invalidate forecast cache when events are created/synced (e.g. image import)
+        NotificationCenter.default.publisher(for: Notification.Name("EventCreated"))
+            .merge(with: NotificationCenter.default.publisher(for: Notification.Name("CalendarSynced")))
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                Task { [weak self] in
+                    await self?.invalidateForecastCache()
+                }
+            }
+            .store(in: &cancellables)
+    }
+
+    /// Invalidate forecast caches and refetch fresh data
+    private func invalidateForecastCache() async {
+        await memoryCache.remove(forecastMemCacheKey)
+        await cacheService.delete(filename: forecastDiskCacheKey)
+        await fetchNextWeekForecast(forceRefresh: true)
     }
 
     // MARK: - Sleep Reliability

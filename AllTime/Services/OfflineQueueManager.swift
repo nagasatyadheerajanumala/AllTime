@@ -210,6 +210,7 @@ class OfflineQueueManager: ObservableObject {
 
                 if operation.retryCount < maxRetries {
                     remainingOperations.append(operation)
+                    
                     os_log("[OFFLINE] Operation failed (attempt %{public}d/%{public}d): %{public}@",
                            log: log, type: .error, operation.retryCount, maxRetries, error.localizedDescription)
                 } else {

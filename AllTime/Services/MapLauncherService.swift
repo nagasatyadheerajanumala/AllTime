@@ -95,7 +95,7 @@ struct MapLauncherService {
         let encodedAddress = address.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
 
         // Use Apple Maps with address
-        let urlString = "http://maps.apple.com/?daddr=\(encodedAddress)"
+        let urlString = "https://maps.apple.com/?daddr=\(encodedAddress)"
         if let url = URL(string: urlString) {
             UIApplication.shared.open(url)
         }

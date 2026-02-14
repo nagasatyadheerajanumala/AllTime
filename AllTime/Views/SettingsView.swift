@@ -16,6 +16,11 @@ struct SettingsView: View {
     @State private var isDeduplicating = false
     @State private var deduplicationResult: String?
     @State private var showDeduplicationAlert = false
+    @State private var showDeleteAccountConfirmation = false
+    @State private var isDeletingAccount = false
+    @State private var showDeleteError = false
+    @State private var deleteErrorMessage = ""
+    private let apiService = APIService()
     
     // Computed property to get user - prioritize authService, fallback to settingsViewModel
     private var currentUser: User? {
@@ -215,7 +220,7 @@ struct SettingsView: View {
                         .foregroundColor(.secondary)
                 }
 
-                // Sign Out Section
+                // Account Section
                 Section {
                     Button(action: {
                         authService.signOut()
@@ -228,6 +233,27 @@ struct SettingsView: View {
                             Spacer()
                         }
                     }
+
+                    Button(role: .destructive, action: {
+                        showDeleteAccountConfirmation = true
+                    }) {
+                        HStack {
+                            Spacer()
+                            if isDeletingAccount {
+                                ProgressView()
+                                    .scaleEffect(0.8)
+                                    .padding(.trailing, 8)
+                            }
+                            Text("Delete Account")
+                                .font(.system(size: 17, weight: .regular))
+                            Spacer()
+                        }
+                    }
+                    .disabled(isDeletingAccount)
+                } footer: {
+                    Text("Deleting your account will permanently remove all your data, including calendar events, health data, and preferences.")
+                        .font(.system(size: 13))
+                        .foregroundColor(.secondary)
                 }
                 }
                 .safeAreaPadding(.bottom, 110) // Reserve space for tab bar
@@ -256,6 +282,39 @@ struct SettingsView: View {
                     Button("OK", role: .cancel) { }
                 } message: {
                     Text(deduplicationResult ?? "")
+                }
+                .alert("Delete Account?", isPresented: $showDeleteAccountConfirmation) {
+                    Button("Cancel", role: .cancel) { }
+                    Button("Delete", role: .destructive) {
+                        deleteAccount()
+                    }
+                } message: {
+                    Text("This will permanently delete your account and all associated data. This action cannot be undone.")
+                }
+                .alert("Error", isPresented: $showDeleteError) {
+                    Button("OK", role: .cancel) { }
+                } message: {
+                    Text(deleteErrorMessage)
+                }
+            }
+        }
+    }
+
+    // MARK: - Account Deletion
+
+    private func deleteAccount() {
+        isDeletingAccount = true
+        Task {
+            do {
+                try await apiService.deleteAccount()
+                await MainActor.run {
+                    authService.signOut(reason: "Account deleted")
+                }
+            } catch {
+                await MainActor.run {
+                    isDeletingAccount = false
+                    deleteErrorMessage = "Failed to delete account. Please try again."
+                    showDeleteError = true
                 }
             }
         }

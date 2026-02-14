@@ -21,6 +21,7 @@ struct ContentView: View {
     @State private var hasDismissedProfileSetup = false
     @State private var showInterestsSetup = false
     @State private var hasCheckedInterests = false
+    @AppStorage("hasAcceptedDataConsent") private var hasAcceptedDataConsent = false
 
     var body: some View {
         Group {
@@ -38,11 +39,12 @@ struct ContentView: View {
                     }
                 }
             } else if authService.isAuthenticated {
-                // Show profile setup only for new users who haven't completed profile
-                // After user skips or completes, they go to main app
-                // We use a state variable to track if user has dismissed the setup screen
-                // Check hasDismissedProfileSetup FIRST to prevent re-evaluation during editing
-                if !hasDismissedProfileSetup {
+                if !hasAcceptedDataConsent {
+                    // Show data consent before anything else (App Store 5.1.1)
+                    DataConsentView(onConsent: {
+                        hasAcceptedDataConsent = true
+                    })
+                } else if !hasDismissedProfileSetup {
                     // Check if profile needs to be completed
                     if let user = authService.currentUser,
                        let profileCompleted = user.profileCompleted,
@@ -52,17 +54,13 @@ struct ContentView: View {
                         })
                             .environmentObject(authService)
                     } else {
-                        // Profile already completed or user object not available yet
-                        // Show main app
                         PremiumTabView()
                     }
                 } else {
-                    // User has dismissed setup screen (completed or skipped)
                     PremiumTabView()
                         .sheet(isPresented: $showInterestsSetup) {
                             InterestsSetupView(isOnboarding: true, onComplete: {
                                 showInterestsSetup = false
-                                // Trigger event generation after interests saved
                                 Task {
                                     let apiService = APIService()
                                     _ = try? await apiService.generateDiscoveredEvents()
@@ -70,12 +68,10 @@ struct ContentView: View {
                             })
                         }
                         .task {
-                            // Check if interests setup is needed (only once)
                             if !hasCheckedInterests {
                                 hasCheckedInterests = true
                                 await interestsViewModel.loadExistingInterests()
                                 if !interestsViewModel.setupCompleted && interestsViewModel.totalSelected == 0 {
-                                    // Delay slightly to let main view settle
                                     try? await Task.sleep(nanoseconds: 1_500_000_000)
                                     showInterestsSetup = true
                                 }

@@ -193,7 +193,7 @@ struct ClassySignInView: View {
                     .frame(minHeight: 50, maxHeight: 80)
 
                 // Footer - minimal and elegant
-                VStack(spacing: 8) {
+                VStack(spacing: 10) {
                     HStack(spacing: 6) {
                         Image(systemName: "lock.fill")
                             .font(.system(size: 9, weight: .medium))
@@ -202,6 +202,14 @@ struct ClassySignInView: View {
                             .tracking(1)
                     }
                     .foregroundColor(.white.opacity(0.25))
+
+                    HStack(spacing: 4) {
+                        Link("Privacy Policy", destination: URL(string: "https://theclaraai.com/privacy")!)
+                        Text("·")
+                        Link("Terms of Service", destination: URL(string: "https://theclaraai.com/terms")!)
+                    }
+                    .font(.system(size: 11, weight: .regular))
+                    .foregroundColor(.white.opacity(0.3))
                 }
                 .opacity(buttonOpacity)
 

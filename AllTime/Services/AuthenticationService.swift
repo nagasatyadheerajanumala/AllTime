@@ -86,6 +86,18 @@ class AuthenticationService: NSObject, ObservableObject {
             }
         }
 
+        // Listen for Apple credential revocation (App Store requirement)
+        NotificationCenter.default.addObserver(
+            forName: ASAuthorizationAppleIDProvider.credentialRevokedNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                os_log("[AUTH] Apple credential revoked notification received", log: self?.log ?? .default, type: .fault)
+                self?.signOut(reason: "Apple credential revoked")
+            }
+        }
+
         // Start session restoration
         Task {
             await restoreSession()
@@ -645,6 +657,7 @@ class AuthenticationService: NSObject, ObservableObject {
         UserDefaults.standard.removeObject(forKey: "user_profile")
         UserDefaults.standard.removeObject(forKey: "userId")
         UserDefaults.standard.removeObject(forKey: "user_first_name")
+        UserDefaults.standard.removeObject(forKey: "hasAcceptedDataConsent")
 
         // Reset state
         currentUser = nil

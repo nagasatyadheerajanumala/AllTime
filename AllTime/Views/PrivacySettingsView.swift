@@ -10,6 +10,9 @@ struct PrivacySettingsView: View {
     @State private var isDeletingAccount = false
     @State private var showDeleteError = false
     @State private var deleteErrorMessage = ""
+    @State private var isExporting = false
+    @State private var showExportSheet = false
+    @State private var exportFileURL: URL? = nil
     @ObservedObject private var healthSyncService = HealthSyncService.shared
     @ObservedObject private var healthMetricsService = HealthMetricsService.shared
     @ObservedObject private var userPreferences = UserPreferencesService.shared
@@ -43,9 +46,19 @@ struct PrivacySettingsView: View {
             }
 
             Section {
-                Button("Export My Data") {
+                Button(action: {
                     exportUserData()
+                }) {
+                    HStack {
+                        Text("Export My Data")
+                        Spacer()
+                        if isExporting {
+                            ProgressView()
+                                .scaleEffect(0.8)
+                        }
+                    }
                 }
+                .disabled(isExporting)
 
                 Button(role: .destructive) {
                     showDeleteConfirmation = true
@@ -207,11 +220,60 @@ struct PrivacySettingsView: View {
         }
         .navigationTitle("Privacy & Security")
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $showExportSheet) {
+            if let exportURL = exportFileURL {
+                ShareSheet(activityItems: [exportURL])
+            }
+        }
     }
 
     private func exportUserData() {
-        // This would implement data export functionality
-        print("Exporting user data...")
+        isExporting = true
+        Task {
+            do {
+                let user = try await apiService.fetchUserProfile()
+
+                // Build a readable JSON dictionary of user data
+                var exportData: [String: Any] = [
+                    "id": user.id,
+                    "profileCompleted": user.profileCompleted ?? false
+                ]
+                if let email = user.email { exportData["email"] = email }
+                if let fullName = user.fullName { exportData["fullName"] = fullName }
+                if let createdAt = user.createdAt { exportData["createdAt"] = createdAt }
+                if let dateOfBirth = user.dateOfBirth { exportData["dateOfBirth"] = dateOfBirth }
+                if let gender = user.gender { exportData["gender"] = gender }
+                if let location = user.location { exportData["location"] = location }
+                if let bio = user.bio { exportData["bio"] = bio }
+                if let phoneNumber = user.phoneNumber { exportData["phoneNumber"] = phoneNumber }
+                if let profilePictureUrl = user.profilePictureUrl { exportData["profilePictureUrl"] = profilePictureUrl }
+
+                let wrapper: [String: Any] = [
+                    "exportDate": ISO8601DateFormatter().string(from: Date()),
+                    "appName": "AllTime",
+                    "userData": exportData
+                ]
+
+                let jsonData = try JSONSerialization.data(withJSONObject: wrapper, options: [.prettyPrinted, .sortedKeys])
+
+                // Write to a temporary file
+                let tempDir = FileManager.default.temporaryDirectory
+                let fileURL = tempDir.appendingPathComponent("AllTime_MyData.json")
+                try jsonData.write(to: fileURL)
+
+                await MainActor.run {
+                    exportFileURL = fileURL
+                    isExporting = false
+                    showExportSheet = true
+                }
+            } catch {
+                await MainActor.run {
+                    isExporting = false
+                    deleteErrorMessage = "Failed to export data. Please try again."
+                    showDeleteError = true
+                }
+            }
+        }
     }
 
     private func deleteAccount() {
@@ -232,6 +294,14 @@ struct PrivacySettingsView: View {
             }
         }
     }
+}
+
+private struct ShareSheet: UIViewControllerRepresentable {
+    let activityItems: [Any]
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: activityItems, applicationActivities: nil)
+    }
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
 
 #Preview {
