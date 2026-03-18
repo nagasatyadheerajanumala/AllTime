@@ -82,10 +82,14 @@ struct AddEventView: View {
                             
                             DatePicker("Start", selection: $viewModel.startDate, displayedComponents: isAllDay ? [.date] : [.date, .hourAndMinute])
                                 .datePickerStyle(.compact)
-                            
-                            DatePicker("End", selection: $viewModel.endDate, displayedComponents: isAllDay ? [.date] : [.date, .hourAndMinute])
+                                .onChange(of: viewModel.startDate) { _, newStart in
+                                    // Auto-set end time to 30 minutes after start time
+                                    viewModel.endDate = Calendar.current.date(byAdding: .minute, value: 30, to: newStart) ?? newStart.addingTimeInterval(1800)
+                                }
+
+                            DatePicker("End", selection: $viewModel.endDate, in: viewModel.startDate..., displayedComponents: isAllDay ? [.date] : [.date, .hourAndMinute])
                                 .datePickerStyle(.compact)
-                            
+
                             Toggle("All Day", isOn: $isAllDay)
                                 .toggleStyle(.switch)
                                 .onChange(of: isAllDay) { _, _ in
@@ -325,7 +329,7 @@ struct AddEventView: View {
 
                                 // Add attendee input
                                 HStack(spacing: DesignSystem.Spacing.sm) {
-                                    TextField("Add attendee email", text: $viewModel.newAttendeeEmail)
+                                    TextField("Name or email", text: $viewModel.newAttendeeEmail)
                                         .font(DesignSystem.Typography.body)
                                         .foregroundColor(DesignSystem.Colors.primaryText)
                                         .keyboardType(.emailAddress)
@@ -344,6 +348,50 @@ struct AddEventView: View {
                                             .foregroundColor(DesignSystem.Colors.primary)
                                     }
                                     .disabled(viewModel.newAttendeeEmail.trimmingCharacters(in: .whitespaces).isEmpty)
+                                }
+                                .onChange(of: viewModel.newAttendeeEmail) { _, _ in
+                                    viewModel.updateConnectionSuggestions()
+                                }
+
+                                // Connection suggestions dropdown
+                                if !viewModel.connectionSuggestions.isEmpty {
+                                    VStack(spacing: 0) {
+                                        ForEach(Array(viewModel.connectionSuggestions.prefix(4).enumerated()), id: \.element.id) { index, conn in
+                                            Button {
+                                                if let email = conn.email {
+                                                    viewModel.attendees.append(email.lowercased())
+                                                    viewModel.newAttendeeEmail = ""
+                                                    viewModel.connectionSuggestions = []
+                                                }
+                                            } label: {
+                                                HStack(spacing: 10) {
+                                                    ProfilePictureView(profilePictureUrl: conn.profilePictureUrl, size: 28)
+                                                    VStack(alignment: .leading, spacing: 1) {
+                                                        Text(conn.displayName)
+                                                            .font(.system(size: 14, weight: .medium))
+                                                            .foregroundColor(DesignSystem.Colors.primaryText)
+                                                        if let email = conn.email {
+                                                            Text(email)
+                                                                .font(.system(size: 12))
+                                                                .foregroundColor(DesignSystem.Colors.secondaryText)
+                                                        }
+                                                    }
+                                                    Spacer()
+                                                }
+                                                .padding(.vertical, 8)
+                                                .padding(.horizontal, 12)
+                                            }
+                                            if index < viewModel.connectionSuggestions.prefix(4).count - 1 {
+                                                Divider()
+                                            }
+                                        }
+                                    }
+                                    .background(DesignSystem.Colors.cardBackground)
+                                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 10)
+                                            .stroke(DesignSystem.Colors.calmBorder, lineWidth: 0.5)
+                                    )
                                 }
 
                                 // Attendees list
@@ -549,6 +597,24 @@ struct AddEventView: View {
                     }
                     .foregroundColor(DesignSystem.Colors.secondaryText)
                 }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button {
+                        Task {
+                            await viewModel.saveEvent(isAllDay: isAllDay)
+                            if viewModel.isSuccess {
+                                try? await Task.sleep(nanoseconds: 500_000_000)
+                                await MainActor.run {
+                                    dismiss()
+                                }
+                            }
+                        }
+                    } label: {
+                        Text(viewModel.isEditMode ? "Save" : "Create")
+                            .fontWeight(.semibold)
+                            .foregroundColor(viewModel.title.isEmpty ? DesignSystem.Colors.secondaryText : DesignSystem.Colors.primary)
+                    }
+                    .disabled(viewModel.isCreating || viewModel.title.isEmpty || viewModel.isLoadingCalendars)
+                }
             }
             .onAppear {
                 // Load calendars when view appears
@@ -575,6 +641,8 @@ class AddEventViewModel: ObservableObject {
     @Published var addGoogleMeet: Bool = false  // Whether to add Google Meet link
     @Published var selectedColor: String = "#3B82F6"  // Default blue color
     @Published var saveToDeviceCalendar: Bool = true  // Also save to device's native calendar (EventKit)
+    @Published var networkConnections: [NetworkConnection] = []
+    @Published var connectionSuggestions: [NetworkConnection] = []
 
     // Edit mode properties
     let isEditMode: Bool
@@ -585,9 +653,9 @@ class AddEventViewModel: ObservableObject {
         self.isEditMode = false
         self.editingEventId = nil
         self.startDate = initialDate
-        // Set end date to 1 hour after start date, preserving the selected day
+        // Set end date to 30 minutes after start date
         let calendar = Calendar.current
-        self.endDate = calendar.date(byAdding: .hour, value: 1, to: initialDate) ?? initialDate.addingTimeInterval(3600)
+        self.endDate = calendar.date(byAdding: .minute, value: 30, to: initialDate) ?? initialDate.addingTimeInterval(1800)
     }
 
     /// Edit mode initializer from Event
@@ -636,12 +704,37 @@ class AddEventViewModel: ObservableObject {
             let response = try await apiService.getConnectedCalendars()
             calendars = response.calendars
             print("✅ AddEventViewModel: Loaded \(calendars.count) calendars")
+
+            // Default to first linked calendar (Google preferred, then Microsoft)
+            if selectedCalendar == nil, !calendars.isEmpty {
+                selectedCalendar = calendars.first(where: { $0.provider == "google" })
+                    ?? calendars.first
+            }
         } catch {
             print("❌ AddEventViewModel: Failed to load calendars: \(error)")
         }
         isLoadingCalendars = false
+
+        // Load network connections for attendee autocomplete
+        do {
+            networkConnections = try await apiService.getNetworkConnections()
+            print("✅ AddEventViewModel: Loaded \(networkConnections.count) network connections")
+        } catch {
+            print("⚠️ AddEventViewModel: Failed to load network connections: \(error)")
+        }
     }
     
+    func updateConnectionSuggestions() {
+        let query = newAttendeeEmail.lowercased().trimmingCharacters(in: .whitespaces)
+        guard query.count >= 2 else { connectionSuggestions = []; return }
+        connectionSuggestions = networkConnections.filter { conn in
+            let name = conn.displayName.lowercased()
+            let email = (conn.email ?? "").lowercased()
+            let alreadyAdded = attendees.contains(where: { $0.lowercased() == email })
+            return !alreadyAdded && (name.contains(query) || email.contains(query))
+        }
+    }
+
     func addAttendee() {
         let email = newAttendeeEmail.trimmingCharacters(in: .whitespaces)
         guard !email.isEmpty else { return }
@@ -856,6 +949,22 @@ class AddEventViewModel: ObservableObject {
                 }
             } else if !response.syncStatus.synced {
                 message += "\n⚠️ Saved to AllTime only (no calendar selected)"
+            }
+
+            // Send in-app invites to network connections who were added as attendees
+            let connectionUserIds = networkConnections
+                .filter { conn in attendees.contains((conn.email ?? "").lowercased()) }
+                .compactMap { $0.userId }
+            if !connectionUserIds.isEmpty {
+                do {
+                    let inviteResponse = try await apiService.inviteConnectionsToEvent(
+                        eventId: response.id, connectionUserIds: connectionUserIds)
+                    if inviteResponse.invitedCount > 0 {
+                        message += "\n👥 In-app invite sent to \(inviteResponse.invitedCount) connection\(inviteResponse.invitedCount == 1 ? "" : "s")"
+                    }
+                } catch {
+                    print("⚠️ AddEventViewModel: Failed to send in-app invites: \(error)")
+                }
             }
 
             successMessage = message

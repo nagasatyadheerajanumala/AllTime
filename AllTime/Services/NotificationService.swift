@@ -51,7 +51,6 @@ class NotificationService: NSObject, ObservableObject {
         content.title = "Your Daily Summary is Ready"
         content.body = "Check out your AI-generated calendar insights for today"
         content.sound = .default
-        content.badge = 1
         
         // Schedule for the selected time
         let calendar = Calendar.current
@@ -233,6 +232,9 @@ extension Notification.Name {
     static let navigateToToday = Notification.Name("navigateToToday")
     static let navigateToDayReview = Notification.Name("navigateToDayReview")
     static let navigateToDailyInsights = Notification.Name("navigateToDailyInsights")
+
+    // Clara chat → dismiss and navigate to a tab
+    static let claraDismissAndNavigate = Notification.Name("claraDismissAndNavigate")
 
     // Calendar deep link actions
     static let showBufferTimeSuggestion = Notification.Name("showBufferTimeSuggestion")

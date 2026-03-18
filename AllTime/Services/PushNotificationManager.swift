@@ -73,10 +73,15 @@ class PushNotificationManager: NSObject, ObservableObject {
 
         Task {
             do {
-                try await apiService.registerDeviceToken(deviceToken)
+                #if DEBUG
+                let apnsEnvironment = "sandbox"
+                #else
+                let apnsEnvironment = "production"
+                #endif
+                try await apiService.registerDeviceToken(deviceToken, environment: apnsEnvironment)
                 isRegistered = true
                 isLoading = false
-                print("🔔 PushNotificationManager: Device token registered successfully")
+                print("🔔 PushNotificationManager: Device token registered successfully (env: \(apnsEnvironment))")
             } catch {
                 errorMessage = error.localizedDescription
                 isLoading = false
@@ -144,6 +149,9 @@ extension PushNotificationManager: UNUserNotificationCenterDelegate {
     }
     
     func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
+        // Clear badge when notification is tapped
+        UNUserNotificationCenter.current().setBadgeCount(0)
+
         // Handle notification tap
         let userInfo = response.notification.request.content.userInfo
         let type = userInfo["type"] as? String
@@ -175,12 +183,12 @@ extension PushNotificationManager: UNUserNotificationCenterDelegate {
             return
         }
 
-        // Handle evening summary notifications
+        // Handle evening summary notifications → navigate to Daily Insights
         if type == "evening_summary" {
-            os_log("[DEEPLINK] Evening summary notification - navigating to Day Review", log: log, type: .info)
+            os_log("[DEEPLINK] Evening summary notification - navigating to Daily Insights", log: log, type: .info)
             Task { @MainActor in
-                await handleAuthenticatedNavigation(destination: "day-review") {
-                    NavigationManager.shared.navigateToDayReview()
+                await handleAuthenticatedNavigation(destination: "insights") {
+                    NavigationManager.shared.navigateToDailyInsights()
                 }
             }
             completionHandler()

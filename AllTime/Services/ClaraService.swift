@@ -36,7 +36,7 @@ class ClaraService {
         let url = try makeURL("\(baseURL)/api/v1/clara/chat")
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
-        request.timeoutInterval = timeout
+        request.timeoutInterval = 90 // Tool-based chat may need multiple OpenAI round trips
         request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
@@ -65,6 +65,120 @@ class ClaraService {
 
         print("✅ ClaraService: Got response in \(chatResponse.responseTimeMs)ms")
         return chatResponse
+    }
+
+    // MARK: - Stream Chat with Clara (SSE)
+
+    /// Stream a chat response from Clara via Server-Sent Events.
+    /// Returns an async stream of events: status updates, tool results, text tokens, and the final done event.
+    func chatStream(message: String, sessionId: String? = nil) -> AsyncThrowingStream<ClaraSSEEvent, Error> {
+        AsyncThrowingStream { continuation in
+            Task {
+                do {
+                    let url = try makeURL("\(baseURL)/api/v1/clara/chat/stream")
+                    var request = URLRequest(url: url)
+                    request.httpMethod = "POST"
+                    request.timeoutInterval = 60
+                    request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+                    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                    request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
+
+                    let timezone = TimeZone.current.identifier
+                    let body = ClaraChatRequest(message: message, sessionId: sessionId, timezone: timezone)
+                    request.httpBody = try JSONEncoder().encode(body)
+
+                    print("🔄 ClaraService: Starting stream for: \(message.prefix(50))...")
+
+                    let (bytes, response) = try await session.bytes(for: request)
+
+                    guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
+                        let statusCode = (response as? HTTPURLResponse)?.statusCode ?? 0
+                        continuation.finish(throwing: ClaraError.serverError(statusCode: statusCode, message: "Stream failed"))
+                        return
+                    }
+
+                    var eventType: String? = nil
+                    var eventDataLines: [String] = []
+
+                    for try await line in bytes.lines {
+                        if line.hasPrefix("event:") {
+                            eventType = String(line.dropFirst(6)).trimmingCharacters(in: .whitespaces)
+                        } else if line.hasPrefix("data:") {
+                            // Accumulate data lines (SSE spec allows multi-line data)
+                            eventDataLines.append(String(line.dropFirst(5)).trimmingCharacters(in: .whitespaces))
+                        } else if line.isEmpty {
+                            // Empty line = end of SSE event
+                            let eventData = eventDataLines.joined(separator: "\n")
+                            if let type = eventType, !eventData.isEmpty {
+                                if let event = self.parseSSEEvent(type: type, data: eventData) {
+                                    continuation.yield(event)
+                                    if case .done = event {
+                                        continuation.finish()
+                                        return
+                                    }
+                                }
+                            }
+                            eventType = nil
+                            eventDataLines = []
+                        }
+                    }
+
+                    continuation.finish()
+                } catch {
+                    print("❌ ClaraService: Stream error: \(error)")
+                    continuation.finish(throwing: error)
+                }
+            }
+        }
+    }
+
+    /// Parse a single SSE event into a typed ClaraSSEEvent
+    private func parseSSEEvent(type: String, data: String) -> ClaraSSEEvent? {
+        guard let jsonData = data.data(using: .utf8) else {
+            print("⚠️ ClaraSSE: Could not convert data to UTF-8 for event: \(type)")
+            return nil
+        }
+        let decoder = APIService.sharedDecoder
+
+        switch type {
+        case "status":
+            if let parsed = try? JSONDecoder().decode([String: String].self, from: jsonData),
+               let message = parsed["message"] {
+                return .status(message: message)
+            }
+            print("⚠️ ClaraSSE: Failed to parse status event: \(data.prefix(200))")
+        case "tool_result":
+            if let result = try? decoder.decode(ToolResultForUI.self, from: jsonData) {
+                return .toolResult(result)
+            }
+            print("⚠️ ClaraSSE: Failed to parse tool_result event: \(data.prefix(200))")
+        case "token":
+            if let parsed = try? JSONDecoder().decode([String: String].self, from: jsonData),
+               let text = parsed["text"] {
+                return .token(text: text)
+            }
+            print("⚠️ ClaraSSE: Failed to parse token event: \(data.prefix(200))")
+        case "done":
+            if let doneData = try? decoder.decode(ClaraStreamDoneData.self, from: jsonData) {
+                return .done(doneData)
+            }
+            // Log the actual error for debugging
+            do {
+                _ = try decoder.decode(ClaraStreamDoneData.self, from: jsonData)
+            } catch {
+                print("⚠️ ClaraSSE: Failed to parse done event: \(error)")
+                print("⚠️ ClaraSSE: Done data: \(data.prefix(500))")
+            }
+        case "error":
+            if let parsed = try? JSONDecoder().decode([String: String].self, from: jsonData),
+               let error = parsed["error"] {
+                return .error(message: error)
+            }
+            print("⚠️ ClaraSSE: Failed to parse error event: \(data.prefix(200))")
+        default:
+            print("⚠️ ClaraSSE: Unknown event type: \(type)")
+        }
+        return nil
     }
 
     /// Get a quick context summary (for debug/UI purposes).
@@ -240,8 +354,11 @@ struct ClaraChatResponse: Codable {
     let insights: [ResponseInsight]?
     let contextMetrics: ContextMetrics?
 
-    // Action result (if user requested an action)
+    // Legacy action result (backward compat)
     let actionResult: ActionResult?
+
+    // NEW: Multiple tool results from function calling
+    let toolResults: [ToolResultForUI]?
 
     enum CodingKeys: String, CodingKey {
         case response
@@ -251,6 +368,7 @@ struct ClaraChatResponse: Codable {
         case insights
         case contextMetrics = "context_metrics"
         case actionResult = "action_result"
+        case toolResults = "tool_results"
     }
 }
 
@@ -366,9 +484,10 @@ struct TaskData: Codable, Identifiable {
     let dueDate: String?
     let priority: String?
     let completed: Bool?
+    let status: String?
 
     enum CodingKeys: String, CodingKey {
-        case id, title, priority, completed
+        case id, title, priority, completed, status
         case dueDate = "due_date"
     }
 }
@@ -409,6 +528,292 @@ struct ReminderData: Codable, Identifiable {
         case id, title
         case dueDate = "due_date"
         case dueTime = "due_time"
+    }
+}
+
+// MARK: - Tool Result Models (Function Calling)
+
+/// Result from a tool execution (new function calling system)
+struct ToolResultForUI: Codable, Identifiable {
+    let toolName: String
+    let displayType: String  // "card", "confirmation", "inline"
+    let data: ToolResultPayload?
+
+    var id: String { toolName }
+
+    enum CodingKeys: String, CodingKey {
+        case toolName = "tool_name"
+        case displayType = "display_type"
+        case data
+    }
+}
+
+/// Unified payload covering all tool result shapes
+struct ToolResultPayload: Codable {
+    // Common
+    let success: Bool?
+    let count: Int?
+    let date: String?
+    let message: String?
+    let error: String?
+    let filter: String?
+
+    // Events (get_events, get_upcoming_events)
+    let events: [ToolEventData]?
+    let endDate: String?
+
+    // Free slots (get_free_slots)
+    let freeSlots: [FreeSlotData]?
+    let totalFreeMinutes: Int?
+
+    // Tasks (get_tasks)
+    let tasks: [TaskData]?
+
+    // Day schedule (get_day_schedule)
+    let eventCount: Int?
+    let tasksDue: [TaskData]?
+    let taskCount: Int?
+    let freeBlocks: [FreeSlotData]?
+    let totalMeetingMinutes: Int?
+
+    // Reminders (get_reminders)
+    let reminders: [ReminderData]?
+
+    // Places (search_places)
+    let places: [PlaceData]?
+    let query: String?
+    let type: String?
+
+    // Health (get_health_summary)
+    let dailyData: [HealthDayData]?
+    let summary: HealthSummaryData?
+    let dateRange: DateRangeData?
+
+    // Mutation results
+    let eventId: String?
+    let title: String?
+    let startTime: String?
+    let endTime: String?
+    let durationMinutes: Int?
+    let location: String?
+    let oldDate: String?
+    let oldTime: String?
+    let newDate: String?
+    let newTime: String?
+    let time: String?
+    let id: Int64?
+    let dueDate: String?
+    let dueTime: String?
+    let priority: String?
+    let actionType: String?
+
+    // Social scheduling (find_mutual_free_time, send_scheduling_proposal)
+    let proposalId: Int64?
+    let slots: [SchedulingSlotData]?
+    let slotCount: Int?
+    let calendarsChecked: Int?
+    let alltimeParticipants: [String]?
+    let externalParticipants: [String]?
+    let attendeesNotified: Bool?
+
+    // Network (get_network_connections, schedule_with_connection)
+    let connections: [NetworkConnectionData]?
+    let connectionName: String?
+
+    enum CodingKeys: String, CodingKey {
+        case success, count, date, message, error, filter
+        case events
+        case endDate = "end_date"
+        case freeSlots = "free_slots"
+        case totalFreeMinutes = "total_free_minutes"
+        case tasks
+        case eventCount = "event_count"
+        case tasksDue = "tasks_due"
+        case taskCount = "task_count"
+        case freeBlocks = "free_blocks"
+        case totalMeetingMinutes = "total_meeting_minutes"
+        case reminders
+        case places, query, type
+        case dailyData = "daily_data"
+        case summary
+        case dateRange = "date_range"
+        case eventId = "event_id"
+        case title
+        case startTime = "start_time"
+        case endTime = "end_time"
+        case durationMinutes = "duration_minutes"
+        case location
+        case oldDate = "old_date"
+        case oldTime = "old_time"
+        case newDate = "new_date"
+        case newTime = "new_time"
+        case time
+        case id
+        case dueDate = "due_date"
+        case dueTime = "due_time"
+        case priority
+        case actionType = "_action_type"
+        case proposalId = "proposal_id"
+        case slots
+        case slotCount = "slot_count"
+        case calendarsChecked = "calendars_checked"
+        case alltimeParticipants = "alltime_participants"
+        case externalParticipants = "external_participants"
+        case attendeesNotified = "attendees_notified"
+        case connections
+        case connectionName = "connection_name"
+    }
+}
+
+/// Event data returned by tool executor
+struct ToolEventData: Codable, Identifiable {
+    let title: String?
+    let date: String?
+    let startTime: String?
+    let endTime: String?
+    let location: String?
+    let allDay: Bool?
+    let sourceEventId: String?
+
+    var id: String { "\(title ?? "event")_\(startTime ?? "")" }
+
+    enum CodingKeys: String, CodingKey {
+        case title, date, location
+        case startTime = "start_time"
+        case endTime = "end_time"
+        case allDay = "all_day"
+        case sourceEventId = "source_event_id"
+    }
+}
+
+/// Free time slot
+struct FreeSlotData: Codable, Identifiable {
+    let startTime: String
+    let endTime: String
+    let durationMinutes: Int
+
+    var id: String { "\(startTime)_\(endTime)" }
+
+    enum CodingKeys: String, CodingKey {
+        case startTime = "start_time"
+        case endTime = "end_time"
+        case durationMinutes = "duration_minutes"
+    }
+}
+
+/// Single day health data from tool executor
+struct HealthDayData: Codable, Identifiable {
+    let date: String?
+    let steps: Int?
+    let sleepMinutes: Int?
+    let sleepHours: Double?
+    let sleepQualityScore: Double?
+    let restingHeartRate: Int?
+    let hrv: Double?
+    let activeMinutes: Int?
+    let activeEnergyBurned: Double?
+    let workoutsCount: Int?
+
+    var id: String { date ?? "unknown_day" }
+
+    enum CodingKeys: String, CodingKey {
+        case date, steps, hrv
+        case sleepMinutes = "sleep_minutes"
+        case sleepHours = "sleep_hours"
+        case sleepQualityScore = "sleep_quality_score"
+        case restingHeartRate = "resting_heart_rate"
+        case activeMinutes = "active_minutes"
+        case activeEnergyBurned = "active_energy_burned"
+        case workoutsCount = "workouts_count"
+    }
+}
+
+/// Aggregated health summary for multi-day requests
+struct HealthSummaryData: Codable {
+    let avgSteps: Double?
+    let avgSleepHours: Double?
+    let daysWithData: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case avgSteps = "avg_steps"
+        case avgSleepHours = "avg_sleep_hours"
+        case daysWithData = "days_with_data"
+    }
+}
+
+/// Date range for health queries
+struct DateRangeData: Codable {
+    let start: String?
+    let end: String?
+}
+
+/// Scheduling slot from mutual free time search
+struct SchedulingSlotData: Codable, Identifiable {
+    let date: String?
+    let dayOfWeek: String?
+    let startTime: String?
+    let endTime: String?
+    let score: Int?
+    let durationMinutes: Int?
+
+    var id: String { "\(date ?? "")-\(startTime ?? "")" }
+
+    enum CodingKeys: String, CodingKey {
+        case date, score
+        case dayOfWeek = "day_of_week"
+        case startTime = "start_time"
+        case endTime = "end_time"
+        case durationMinutes = "duration_minutes"
+    }
+}
+
+struct NetworkConnectionData: Codable, Identifiable {
+    let connectionId: Int64?
+    let userId: Int64?
+    let fullName: String?
+    let email: String?
+    let profilePictureUrl: String?
+    let status: String?
+    let sharedInterests: [String]?
+
+    var id: Int64 { connectionId ?? 0 }
+
+    enum CodingKeys: String, CodingKey {
+        case connectionId = "connection_id"
+        case userId = "user_id"
+        case fullName = "full_name"
+        case email
+        case profilePictureUrl = "profile_picture_url"
+        case status
+        case sharedInterests = "shared_interests"
+    }
+}
+
+// MARK: - SSE Streaming Types
+
+/// Events received during SSE streaming
+enum ClaraSSEEvent {
+    case status(message: String)
+    case toolResult(ToolResultForUI)
+    case token(text: String)
+    case done(ClaraStreamDoneData)
+    case error(message: String)
+}
+
+/// Final data sent with "done" SSE event
+struct ClaraStreamDoneData: Codable {
+    let response: String
+    let sessionId: String?
+    let insights: [ResponseInsight]?
+    let contextMetrics: ContextMetrics?
+    let toolResults: [ToolResultForUI]?
+
+    enum CodingKeys: String, CodingKey {
+        case response
+        case sessionId = "session_id"
+        case insights
+        case contextMetrics = "context_metrics"
+        case toolResults = "tool_results"
     }
 }
 

@@ -235,6 +235,24 @@ struct ConnectedCalendarsView: View {
                 await viewModel.loadDiscoveredCalendars()
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("GoogleCalendarConnected"))) { _ in
+            Task {
+                try? await Task.sleep(nanoseconds: 1_500_000_000)
+                await viewModel.loadProviders()
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("MicrosoftCalendarConnected"))) { _ in
+            Task {
+                try? await Task.sleep(nanoseconds: 1_500_000_000)
+                await viewModel.loadProviders()
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("GoogleCalendarDisconnected"))) { _ in
+            Task { await viewModel.loadProviders() }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("MicrosoftCalendarDisconnected"))) { _ in
+            Task { await viewModel.loadProviders() }
+        }
     }
 }
 

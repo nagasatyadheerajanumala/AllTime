@@ -123,7 +123,7 @@ struct CalendarView: View {
                 } else {
                     // Month/Week view
                     ScrollView {
-                        VStack(spacing: DesignSystem.Spacing.lg) {
+                        LazyVStack(spacing: DesignSystem.Spacing.lg) {
                             // Premium Calendar Header with Month/Year and Week Strip
                             PremiumCalendarHeader(
                                 selectedDate: $calendarViewModel.selectedDate,

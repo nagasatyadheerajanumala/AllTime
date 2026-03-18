@@ -22,6 +22,11 @@ struct TodayView: View {
     @State private var selectedClaraPrompt: ClaraPrompt? = nil
     @State private var selectedPrimaryRecommendation: PrimaryRecommendation? = nil
 
+    // Share event
+    @State private var eventToShare: Event?
+    @State private var shareEventId: Int64?
+    @State private var isAcceptingForShare = false
+
     // Say No / Decline Recommendations
     @State private var selectedDeclineRecommendation: DeclineRecommendationDTO? = nil
 
@@ -45,6 +50,10 @@ struct TodayView: View {
     // Task management for cancellation
     @State private var loadTask: Task<Void, Never>?
 
+    // Static keyword lists - allocated once, not on every body evaluation
+    private static let nonMeetingKeywords: [String] = ["focus", "lunch", "break", "blocked", "hold", "personal", "commute", "travel", "holiday", "birthday", "pto", "vacation", "out of office", "ooo"]
+    private static let holidayKeywords: [String] = ["holiday", "christmas", "thanksgiving", "new year", "independence", "memorial", "labor day", "veterans"]
+
     private var todayEvents: [Event] {
         calendarViewModel.eventsForToday().sorted { event1, event2 in
             guard let start1 = event1.startDate, let start2 = event2.startDate else { return false }
@@ -57,11 +66,7 @@ struct TodayView: View {
         todayEvents.filter { event in
             guard !event.allDay else { return false }
             let title = event.title.lowercased()
-            let nonMeetingKeywords = ["focus", "lunch", "break", "blocked", "hold", "personal", "commute", "travel", "holiday", "birthday", "pto", "vacation", "out of office", "ooo"]
-            for keyword in nonMeetingKeywords {
-                if title.contains(keyword) { return false }
-            }
-            return true
+            return !Self.nonMeetingKeywords.contains { title.contains($0) }
         }.count
     }
 
@@ -96,16 +101,9 @@ struct TodayView: View {
     /// Get the name of today's holiday (if any)
     private var todayHolidayName: String? {
         todayEvents.first { event in
-            event.title.lowercased().contains("holiday") ||
-            event.allDay && (
-                event.title.lowercased().contains("christmas") ||
-                event.title.lowercased().contains("thanksgiving") ||
-                event.title.lowercased().contains("new year") ||
-                event.title.lowercased().contains("independence") ||
-                event.title.lowercased().contains("memorial") ||
-                event.title.lowercased().contains("labor day") ||
-                event.title.lowercased().contains("veterans")
-            )
+            let title = event.title.lowercased()
+            return title.contains("holiday") ||
+                (event.allDay && Self.holidayKeywords.contains { title.contains($0) })
         }?.title
     }
 
@@ -219,6 +217,17 @@ struct TodayView: View {
                                         },
                                         onDismiss: {
                                             Task { await discoveryViewModel.dismissEvent(event) }
+                                        },
+                                        onShare: {
+                                            Task {
+                                                isAcceptingForShare = true
+                                                // Accept first to create calendar event, then share
+                                                let createdId = await discoveryViewModel.acceptEvent(event)
+                                                isAcceptingForShare = false
+                                                if let eventId = createdId {
+                                                    shareEventId = eventId
+                                                }
+                                            }
                                         }
                                     )
                                 }
@@ -279,6 +288,22 @@ struct TodayView: View {
             }
             .sheet(isPresented: $showingAddEvent) {
                 AddEventView(initialDate: Date())
+            }
+            .sheet(isPresented: Binding(
+                get: { eventToShare != nil },
+                set: { if !$0 { eventToShare = nil } }
+            )) {
+                if let event = eventToShare {
+                    ShareEventSheet(event: event)
+                }
+            }
+            .sheet(isPresented: Binding(
+                get: { shareEventId != nil },
+                set: { if !$0 { shareEventId = nil } }
+            )) {
+                if let eventId = shareEventId {
+                    ShareEventByIdSheet(eventId: eventId)
+                }
             }
             .sheet(isPresented: $showingSummaryDetail) {
                 TodaySummaryDetailView(
@@ -525,7 +550,8 @@ struct TodayView: View {
             TodayScheduleSection(
                 events: todayEvents,
                 currentEvent: currentEvent,
-                onEventTap: { event in selectedEvent = event }
+                onEventTap: { event in selectedEvent = event },
+                onShareEvent: { event in eventToShare = event }
             )
             .reorderableTile(.schedule)
             .padding(.horizontal, DesignSystem.Spacing.md)

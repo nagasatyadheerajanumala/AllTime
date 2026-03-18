@@ -25,13 +25,13 @@ struct HealthInsightsDetailView: View {
         var startDate: Date {
             let calendar = Calendar.current
             let today = calendar.startOfDay(for: Date())
-            return calendar.date(byAdding: .day, value: -(days - 1), to: today) ?? today
+            return calendar.date(byAdding: .day, value: -days, to: today) ?? today
         }
     }
     
     var body: some View {
         ScrollView {
-            VStack(spacing: DesignSystem.Spacing.md) {
+            LazyVStack(spacing: DesignSystem.Spacing.md) {
                 // Date Range Picker
                 Picker("Range", selection: $selectedRange) {
                     ForEach(DateRange.allCases, id: \.self) { range in
@@ -45,8 +45,9 @@ struct HealthInsightsDetailView: View {
                     print("📊 HealthInsightsView: Date range changed from '\(oldValue.rawValue)' to '\(newValue.rawValue)'")
                     print("📊 HealthInsightsView: New range: \(newValue.days) days (from \(newValue.startDate))")
                     Task {
-                        await viewModel.loadInsights(startDate: newValue.startDate, endDate: Date(), forceRefresh: false)
-                        await viewModel.loadAchievements(startDate: newValue.startDate, endDate: Date(), forceRefresh: false)
+                        async let insightsTask: () = viewModel.loadInsights(startDate: newValue.startDate, endDate: Date(), forceRefresh: false)
+                        async let achievementsTask: () = viewModel.loadAchievements(startDate: newValue.startDate, endDate: Date(), forceRefresh: false)
+                        _ = await (insightsTask, achievementsTask)
                     }
                 }
 
@@ -160,12 +161,13 @@ struct HealthInsightsDetailView: View {
         }
         .background(DesignSystem.Colors.background)
         .refreshable {
-            // User explicitly pulled to refresh - force refresh
+            // User explicitly pulled to refresh - force refresh all in parallel
             if healthMetricsService.isAuthorized {
-                await viewModel.loadInsights(startDate: selectedRange.startDate, endDate: Date(), forceRefresh: true)
-                await viewModel.refreshLocalChart(rangeDays: selectedRange.days)
-                await viewModel.loadStreaks(forceRefresh: true)
-                await viewModel.loadAchievements(startDate: selectedRange.startDate, endDate: Date(), forceRefresh: true)
+                async let insightsTask: () = viewModel.loadInsights(startDate: selectedRange.startDate, endDate: Date(), forceRefresh: true)
+                async let chartTask: () = viewModel.refreshLocalChart(rangeDays: selectedRange.days)
+                async let streaksTask: () = viewModel.loadStreaks(forceRefresh: true)
+                async let achievementsTask: () = viewModel.loadAchievements(startDate: selectedRange.startDate, endDate: Date(), forceRefresh: true)
+                _ = await (insightsTask, chartTask, streaksTask, achievementsTask)
             }
         }
         .onAppear {
@@ -177,12 +179,11 @@ struct HealthInsightsDetailView: View {
                 // ALWAYS try to load from cache first (even if insights exist in memory)
                 // This ensures we show cached data immediately after tab switches
                 if healthMetricsService.isAuthorized {
-                    // Load from cache first - this will populate insights if cache exists
-                    await viewModel.loadInsights(startDate: selectedRange.startDate, endDate: Date(), forceRefresh: false)
-                    // Load health goal streaks
-                    await viewModel.loadStreaks(forceRefresh: false)
-                    // Load achievements with AI-generated comparisons
-                    await viewModel.loadAchievements(startDate: selectedRange.startDate, endDate: Date(), forceRefresh: false)
+                    // Load all data in parallel for instant display
+                    async let insightsTask: () = viewModel.loadInsights(startDate: selectedRange.startDate, endDate: Date(), forceRefresh: false)
+                    async let streaksTask: () = viewModel.loadStreaks(forceRefresh: false)
+                    async let achievementsTask: () = viewModel.loadAchievements(startDate: selectedRange.startDate, endDate: Date(), forceRefresh: false)
+                    _ = await (insightsTask, streaksTask, achievementsTask)
                 }
             }
         }
@@ -199,7 +200,10 @@ struct HealthInsightsDetailView: View {
         }
         .onChange(of: healthSyncService.lastSyncDate) { _, _ in
             Task {
+                // Invalidate stale caches and force-refresh insights after health data sync
+                await viewModel.invalidateCache()
                 await viewModel.refreshLocalChart(rangeDays: selectedRange.days)
+                await viewModel.loadInsights(startDate: selectedRange.startDate, endDate: Date(), forceRefresh: true)
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("HealthGoalsUpdated"))) { _ in
@@ -207,9 +211,10 @@ struct HealthInsightsDetailView: View {
             print("📊 HealthInsightsView: Health goals updated, invalidating cache and regenerating all data...")
             Task {
                 await viewModel.invalidateCache()
-                await viewModel.loadInsights(startDate: selectedRange.startDate, endDate: Date(), forceRefresh: true)
-                await viewModel.loadStreaks(forceRefresh: true)
-                await viewModel.loadAchievements(startDate: selectedRange.startDate, endDate: Date(), forceRefresh: true)
+                async let insightsTask: () = viewModel.loadInsights(startDate: selectedRange.startDate, endDate: Date(), forceRefresh: true)
+                async let streaksTask: () = viewModel.loadStreaks(forceRefresh: true)
+                async let achievementsTask: () = viewModel.loadAchievements(startDate: selectedRange.startDate, endDate: Date(), forceRefresh: true)
+                _ = await (insightsTask, streaksTask, achievementsTask)
             }
         }
     }
@@ -897,6 +902,43 @@ struct WeeklyHealthChartsSection: View {
             }
             .sorted(by: { $0.date < $1.date })
     }
+
+    /// Indices of points that should show value annotations
+    /// For ≤7 days: show all labels; 8-14: max, min, first, last; 15+: max and min only
+    private var annotatedIndices: Set<Int> {
+        guard !chartPoints.isEmpty else { return [] }
+        let count = chartPoints.count
+
+        if count <= 7 {
+            // Show all labels for weekly view
+            return Set(0..<count)
+        }
+
+        var indices = Set<Int>()
+        // Max value
+        if let maxIdx = chartPoints.enumerated().max(by: { $0.element.value < $1.element.value })?.offset {
+            indices.insert(maxIdx)
+        }
+        // Min value
+        if let minIdx = chartPoints.enumerated().min(by: { $0.element.value < $1.element.value })?.offset {
+            indices.insert(minIdx)
+        }
+
+        if count <= 14 {
+            // Also show first and last for 14-day view
+            indices.insert(0)
+            indices.insert(count - 1)
+        }
+        return indices
+    }
+
+    /// Compute appropriate x-axis stride based on data point count
+    private var xAxisStrideDays: Int {
+        let count = chartPoints.count
+        if count <= 7 { return 1 }
+        if count <= 14 { return 3 }
+        return 7 // 30-day view: show weekly ticks
+    }
     
     private var effectiveMetric: MetricType {
         let available = availableMetrics
@@ -954,36 +996,53 @@ struct WeeklyHealthChartsSection: View {
                     )
                 } else {
                 Chart {
-                    ForEach(chartPoints) { point in
+                    ForEach(Array(chartPoints.enumerated()), id: \.element.id) { index, point in
                         AreaMark(
                             x: .value("Day", point.date),
                             y: .value(effectiveMetric.displayName, point.value)
                         )
                         .foregroundStyle(effectiveMetric.color.opacity(0.15))
-                        
+
                         LineMark(
                             x: .value("Day", point.date),
                             y: .value(effectiveMetric.displayName, point.value)
                         )
                         .interpolationMethod(.catmullRom)
                         .foregroundStyle(effectiveMetric.color)
-                        
-                        PointMark(
-                            x: .value("Day", point.date),
-                            y: .value(effectiveMetric.displayName, point.value)
-                        )
-                        .foregroundStyle(effectiveMetric.color)
-                        .annotation(position: .top) {
-                            Text(effectiveMetric.formattedValue(point.value))
-                                .font(.caption2)
-                                .foregroundColor(DesignSystem.Colors.secondaryText)
+
+                        if chartPoints.count <= 14 {
+                            PointMark(
+                                x: .value("Day", point.date),
+                                y: .value(effectiveMetric.displayName, point.value)
+                            )
+                            .foregroundStyle(effectiveMetric.color)
+                            .symbolSize(annotatedIndices.contains(index) ? 30 : 16)
+                        }
+
+                        if annotatedIndices.contains(index) {
+                            PointMark(
+                                x: .value("Day", point.date),
+                                y: .value(effectiveMetric.displayName, point.value)
+                            )
+                            .foregroundStyle(effectiveMetric.color)
+                            .symbolSize(30)
+                            .annotation(position: .top, spacing: 4) {
+                                Text(effectiveMetric.formattedValue(point.value))
+                                    .font(.caption2)
+                                    .fontWeight(.medium)
+                                    .foregroundColor(DesignSystem.Colors.primaryText)
+                            }
                         }
                     }
                 }
                 .chartXAxis {
-                    AxisMarks(values: .stride(by: .day)) { value in
+                    AxisMarks(values: .stride(by: .day, count: xAxisStrideDays)) { value in
+                        AxisGridLine()
                         if let date = value.as(Date.self) {
-                            AxisValueLabel(MetricType.axisFormatter.string(from: date))
+                            AxisValueLabel {
+                                Text(MetricType.axisDateLabel(date, dayCount: chartPoints.count))
+                                    .font(.caption2)
+                            }
                         }
                     }
                 }
@@ -1048,6 +1107,21 @@ struct WeeklyHealthChartsSection: View {
             formatter.dateFormat = "E"
             return formatter
         }()
+
+        static let axisShortFormatter: DateFormatter = {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "M/d"
+            return formatter
+        }()
+
+        /// Returns an appropriate axis label based on the number of data points
+        static func axisDateLabel(_ date: Date, dayCount: Int) -> String {
+            if dayCount <= 7 {
+                return axisFormatter.string(from: date) // "Mon", "Tue", etc.
+            } else {
+                return axisShortFormatter.string(from: date) // "2/10", "2/14", etc.
+            }
+        }
         
         var displayName: String {
             switch self {

@@ -4,9 +4,10 @@ struct ReminderBadgeView: View {
     let eventId: Int64
     @State private var reminderCount: Int = 0
     @State private var isLoading = false
-    
+    @State private var hasLoaded = false
+
     private let apiService = APIService()
-    
+
     var body: some View {
         Group {
             if isLoading {
@@ -31,11 +32,12 @@ struct ReminderBadgeView: View {
             loadReminderCount()
         }
     }
-    
+
     private func loadReminderCount() {
-        guard !isLoading else { return }
+        // Only fetch once — don't re-fetch every time the row scrolls back into view
+        guard !hasLoaded, !isLoading else { return }
         isLoading = true
-        
+
         Task {
             do {
                 let reminders = try await apiService.getRemindersForEvent(eventId: eventId)
@@ -43,11 +45,13 @@ struct ReminderBadgeView: View {
                 await MainActor.run {
                     reminderCount = pendingCount
                     isLoading = false
+                    hasLoaded = true
                 }
             } catch {
                 print("Error loading reminder count: \(error)")
                 await MainActor.run {
                     isLoading = false
+                    hasLoaded = true
                 }
             }
         }

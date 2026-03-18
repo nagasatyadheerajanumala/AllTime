@@ -430,14 +430,15 @@ struct ProfileDetailView: View {
             var updatedUser: User? = nil
             
             if let image = profilePicture {
-                // For MVP, we'll need to upload to a storage service first
-                // For now, we'll skip profile picture upload or use a placeholder
-                // TODO: Implement image upload to storage service (Firebase Storage, AWS S3, etc.)
-                print("📸 ProfileDetailView: Profile picture selected but upload not implemented yet")
-                print("📸 ProfileDetailView: Once upload is implemented, use POST /api/user/profile/picture endpoint")
-                // Example implementation:
-                // let imageUrl = try await uploadImageToStorage(image)
-                // updatedUser = try await apiService.updateProfilePicture(url: imageUrl)
+                // Compress and upload to backend (which stores in GCS)
+                if let jpegData = image.jpegData(compressionQuality: 0.7) {
+                    print("📸 ProfileDetailView: Uploading profile picture (\(jpegData.count) bytes)")
+                    updatedUser = try await apiService.uploadProfilePicture(
+                        imageData: jpegData,
+                        contentType: "image/jpeg"
+                    )
+                    print("📸 ProfileDetailView: Profile picture uploaded successfully")
+                }
             }
             
             // Update other profile fields using PUT /api/user/update

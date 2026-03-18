@@ -11,10 +11,9 @@ struct EventRemindersSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("Reminders".uppercased())
+                Text("Reminders")
                     .font(.system(size: 13, weight: .medium))
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .tracking(0.5)
+                    .foregroundColor(DesignSystem.Colors.tertiaryText)
                 
                 Spacer()
                 
@@ -74,11 +73,7 @@ struct EventRemindersSection: View {
                 }
             }
         }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(UIColor.secondarySystemGroupedBackground))
-        )
+        .calmCard()
         .onAppear {
             Task {
                 await loadReminders()

@@ -4,6 +4,7 @@ import SwiftUI
 struct LocalEventDetailSheet: View {
     let event: Event
     @Environment(\.dismiss) private var dismiss
+    @State private var showShareSheet = false
 
     private let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -85,6 +86,21 @@ struct LocalEventDetailSheet: View {
                         }
                     }
 
+                    // Share Event
+                    Button(action: { showShareSheet = true }) {
+                        HStack(spacing: DesignSystem.Spacing.sm) {
+                            Image(systemName: "paperplane.fill")
+                                .font(.system(size: 14, weight: .medium))
+                            Text("Share Event")
+                                .font(.system(size: 15, weight: .semibold))
+                        }
+                        .foregroundColor(DesignSystem.Colors.violet)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(DesignSystem.Colors.violet.opacity(0.1))
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                    }
+
                     Spacer(minLength: 40)
                 }
                 .padding(DesignSystem.Spacing.lg)
@@ -98,6 +114,9 @@ struct LocalEventDetailSheet: View {
                     }
                     .foregroundColor(DesignSystem.Colors.primary)
                 }
+            }
+            .sheet(isPresented: $showShareSheet) {
+                ShareEventSheet(event: event)
             }
         }
     }

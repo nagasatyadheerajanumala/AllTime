@@ -26,11 +26,11 @@ struct CommitmentMomentCard: View {
             // Header
             HStack(spacing: 8) {
                 Image(systemName: "target")
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.system(size: 12, weight: .semibold))
                     .foregroundColor(accentColor)
 
                 Text("Today's Commitment")
-                    .font(.subheadline.weight(.semibold))
+                    .font(.system(size: 12, weight: .semibold))
                     .foregroundColor(DesignSystem.Colors.secondaryText)
 
                 Spacer()
@@ -38,14 +38,14 @@ struct CommitmentMomentCard: View {
 
             // The action
             Text(commitment.action ?? "Make today count")
-                .font(.title3.weight(.bold))
+                .font(.system(size: 16, weight: .bold))
                 .foregroundColor(DesignSystem.Colors.primaryText)
                 .fixedSize(horizontal: false, vertical: true)
 
             // The reason
             if let reason = commitment.reason {
                 Text(reason)
-                    .font(.subheadline)
+                    .font(.system(size: 13))
                     .foregroundColor(DesignSystem.Colors.secondaryText)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -61,15 +61,15 @@ struct CommitmentMomentCard: View {
                     }
                     onCommit()
                 }) {
-                    HStack(spacing: 6) {
+                    HStack(spacing: 5) {
                         Image(systemName: "checkmark.circle.fill")
-                            .font(.system(size: 16, weight: .semibold))
+                            .font(.system(size: 13, weight: .semibold))
                         Text("Commit")
-                            .font(.subheadline.weight(.semibold))
+                            .font(.system(size: 13, weight: .semibold))
                     }
                     .foregroundColor(.white)
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 10)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
                     .background(
                         Capsule().fill(accentColor)
                     )
@@ -83,10 +83,10 @@ struct CommitmentMomentCard: View {
                     onChange()
                 }) {
                     Text("Change")
-                        .font(.subheadline.weight(.medium))
+                        .font(.system(size: 13, weight: .medium))
                         .foregroundColor(DesignSystem.Colors.secondaryText)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 10)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
                         .background(
                             Capsule()
                                 .strokeBorder(DesignSystem.Colors.tertiaryText.opacity(0.3), lineWidth: 1)
@@ -100,16 +100,16 @@ struct CommitmentMomentCard: View {
                     onDismiss()
                 }) {
                     Text("Skip")
-                        .font(.subheadline.weight(.medium))
+                        .font(.system(size: 13, weight: .medium))
                         .foregroundColor(DesignSystem.Colors.tertiaryText)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 10)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
                 }
 
                 Spacer()
             }
         }
-        .padding(DesignSystem.Spacing.lg)
+        .padding(DesignSystem.Spacing.md)
         .background(
             RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg)
                 .fill(DesignSystem.Colors.cardBackground)

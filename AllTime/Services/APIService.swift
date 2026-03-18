@@ -10,6 +10,7 @@ class APIService: ObservableObject {
     // IMPORTANT: JSONDecoder is a reference type. If we return a shared instance,
     // any code that modifies it (setting keyDecodingStrategy, dateDecodingStrategy)
     // will affect ALL other code using the same decoder.
+    
     // Therefore, we return a NEW instance each time to avoid cross-contamination.
     static var sharedDecoder: JSONDecoder {
         JSONDecoder()
@@ -524,9 +525,8 @@ class APIService: ObservableObject {
             let (data, response) = try await session.data(for: request)
             try await validateResponse(response, data: data)
 
-            let decoder = APIService.sharedDecoder
-            decoder.keyDecodingStrategy = .convertFromSnakeCase
-            return try decoder.decode(User.self, from: data)
+            // User model has explicit CodingKeys — do NOT use .convertFromSnakeCase
+            return try APIService.sharedDecoder.decode(User.self, from: data)
         }
 
         do {
@@ -599,11 +599,10 @@ class APIService: ObservableObject {
             }
             
             try await validateResponse(response, data: data)
-            
-            let decoder = APIService.sharedDecoder
-            decoder.keyDecodingStrategy = .convertFromSnakeCase
-            let user = try decoder.decode(User.self, from: data)
-            
+
+            // User model has explicit CodingKeys — do NOT use .convertFromSnakeCase
+            let user = try APIService.sharedDecoder.decode(User.self, from: data)
+
             print("✅ APIService: Profile setup successful!")
             print("✅ APIService: User ID: \(user.id)")
             print("✅ APIService: Profile completed: \(user.profileCompleted ?? false)")
@@ -688,10 +687,10 @@ class APIService: ObservableObject {
         }
         
         try await validateResponse(response, data: data)
-        
+
+        // User model has explicit CodingKeys — do NOT use .convertFromSnakeCase
         let decoder = APIService.sharedDecoder
-        decoder.keyDecodingStrategy = .convertFromSnakeCase
-        
+
         do {
             let user = try decoder.decode(User.self, from: data)
             print("✅ APIService: Profile updated successfully")
@@ -747,10 +746,10 @@ class APIService: ObservableObject {
         }
         
         try await validateResponse(response, data: data)
-        
+
+        // User model has explicit CodingKeys — do NOT use .convertFromSnakeCase
         let decoder = APIService.sharedDecoder
-        decoder.keyDecodingStrategy = .convertFromSnakeCase
-        
+
         do {
             let user = try decoder.decode(User.self, from: data)
             print("✅ APIService: Profile picture updated successfully")
@@ -775,7 +774,36 @@ class APIService: ObservableObject {
             throw error
         }
     }
-    
+
+    func uploadProfilePicture(imageData: Data, contentType: String = "image/jpeg") async throws -> User {
+        let url = try makeURL("\(baseURL)/api/user/profile/picture/upload")
+        print("🌐 APIService: ===== UPLOAD PROFILE PICTURE =====")
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 60 // longer timeout for upload
+
+        let base64String = imageData.base64EncodedString()
+        let body: [String: String] = [
+            "image_data": base64String,
+            "content_type": contentType
+        ]
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+
+        let (data, response) = try await session.data(for: request)
+
+        if let httpResponse = response as? HTTPURLResponse {
+            print("🌐 APIService: Upload response status: \(httpResponse.statusCode)")
+        }
+
+        try await validateResponse(response, data: data)
+
+        // User model has explicit CodingKeys — do NOT use .convertFromSnakeCase
+        return try APIService.sharedDecoder.decode(User.self, from: data)
+    }
+
     // MARK: - Events
     func fetchEvents(
         startDate: Date? = nil,
@@ -1203,18 +1231,21 @@ class APIService: ObservableObject {
     }
     
     // MARK: - Push Notifications
-    func registerDeviceToken(_ deviceToken: String) async throws {
+    func registerDeviceToken(_ deviceToken: String, environment: String = "production") async throws {
         // Backend endpoint: POST /push/register (per API documentation)
         let url = try makeURL("\(baseURL)/push/register")
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
-        
-        // Backend expects snake_case: device_token
-        let body = ["device_token": deviceToken]
+
+        // Backend expects snake_case: device_token and apns_environment
+        let body: [String: String] = [
+            "device_token": deviceToken,
+            "apns_environment": environment
+        ]
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
-        
+
         let (data, response) = try await session.data(for: request)
         try await validateResponse(response, data: data)
     }
@@ -7452,22 +7483,30 @@ class APIService: ObservableObject {
         }
     }
 
-    func acceptDiscoveredEvent(id: Int64) async throws {
+    /// Accept a discovered event. Returns the created calendar event ID if available.
+    func acceptDiscoveredEvent(id: Int64) async throws -> Int64? {
         let url = try makeURL("\(baseURL)/api/discover/events/\(id)/accept")
 
-        func makeRequest() async throws {
+        func makeRequest() async throws -> Int64? {
             var request = URLRequest(url: url)
             request.httpMethod = "POST"
             request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
 
             let (data, response) = try await session.data(for: request)
             try await validateResponse(response, data: data)
+
+            // Parse created_event_id from response
+            if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let createdId = json["created_event_id"] as? Int64 {
+                return createdId
+            }
+            return nil
         }
 
         do {
-            try await makeRequest()
+            return try await makeRequest()
         } catch let error as APIError where error.code == "401_REFRESHED" {
-            try await makeRequest()
+            return try await makeRequest()
         }
     }
 
@@ -7487,6 +7526,427 @@ class APIService: ObservableObject {
             try await makeRequest()
         } catch let error as APIError where error.code == "401_REFRESHED" {
             try await makeRequest()
+        }
+    }
+
+    // MARK: - Network (My Network)
+
+    func getNetworkConnections() async throws -> [NetworkConnection] {
+        let url = try makeURL("\(baseURL)/api/v1/network/connections")
+
+        func makeRequest() async throws -> [NetworkConnection] {
+            var request = URLRequest(url: url)
+            request.httpMethod = "GET"
+            request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+
+            let (data, response) = try await session.data(for: request)
+            try await validateResponse(response, data: data)
+            return try JSONDecoder().decode([NetworkConnection].self, from: data)
+        }
+
+        do {
+            return try await makeRequest()
+        } catch let error as APIError where error.code == "401_REFRESHED" {
+            return try await makeRequest()
+        }
+    }
+
+    func getNetworkPendingRequests() async throws -> [NetworkConnection] {
+        let url = try makeURL("\(baseURL)/api/v1/network/requests/pending")
+
+        func makeRequest() async throws -> [NetworkConnection] {
+            var request = URLRequest(url: url)
+            request.httpMethod = "GET"
+            request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+
+            let (data, response) = try await session.data(for: request)
+            try await validateResponse(response, data: data)
+            return try JSONDecoder().decode([NetworkConnection].self, from: data)
+        }
+
+        do {
+            return try await makeRequest()
+        } catch let error as APIError where error.code == "401_REFRESHED" {
+            return try await makeRequest()
+        }
+    }
+
+    func getNetworkSentRequests() async throws -> [NetworkConnection] {
+        let url = try makeURL("\(baseURL)/api/v1/network/requests/sent")
+
+        func makeRequest() async throws -> [NetworkConnection] {
+            var request = URLRequest(url: url)
+            request.httpMethod = "GET"
+            request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+
+            let (data, response) = try await session.data(for: request)
+            try await validateResponse(response, data: data)
+            return try JSONDecoder().decode([NetworkConnection].self, from: data)
+        }
+
+        do {
+            return try await makeRequest()
+        } catch let error as APIError where error.code == "401_REFRESHED" {
+            return try await makeRequest()
+        }
+    }
+
+    func getNetworkStats() async throws -> NetworkStats {
+        let url = try makeURL("\(baseURL)/api/v1/network/stats")
+
+        func makeRequest() async throws -> NetworkStats {
+            var request = URLRequest(url: url)
+            request.httpMethod = "GET"
+            request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+
+            let (data, response) = try await session.data(for: request)
+            try await validateResponse(response, data: data)
+            return try JSONDecoder().decode(NetworkStats.self, from: data)
+        }
+
+        do {
+            return try await makeRequest()
+        } catch let error as APIError where error.code == "401_REFRESHED" {
+            return try await makeRequest()
+        }
+    }
+
+    func getNetworkSuggestions() async throws -> [NetworkSuggestion] {
+        let url = try makeURL("\(baseURL)/api/v1/network/suggestions")
+
+        func makeRequest() async throws -> [NetworkSuggestion] {
+            var request = URLRequest(url: url)
+            request.httpMethod = "GET"
+            request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+
+            let (data, response) = try await session.data(for: request)
+            try await validateResponse(response, data: data)
+            return try JSONDecoder().decode([NetworkSuggestion].self, from: data)
+        }
+
+        do {
+            return try await makeRequest()
+        } catch let error as APIError where error.code == "401_REFRESHED" {
+            return try await makeRequest()
+        }
+    }
+
+    func sendNetworkRequest(email: String) async throws -> SendConnectionRequestResponse {
+        let url = try makeURL("\(baseURL)/api/v1/network/request")
+
+        func makeRequest() async throws -> SendConnectionRequestResponse {
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.httpBody = try JSONEncoder().encode(["email": email])
+
+            let (data, response) = try await session.data(for: request)
+            try await validateResponse(response, data: data)
+            return try JSONDecoder().decode(SendConnectionRequestResponse.self, from: data)
+        }
+
+        do {
+            return try await makeRequest()
+        } catch let error as APIError where error.code == "401_REFRESHED" {
+            return try await makeRequest()
+        }
+    }
+
+    func acceptNetworkRequest(connectionId: Int64) async throws -> SendConnectionRequestResponse {
+        let url = try makeURL("\(baseURL)/api/v1/network/accept/\(connectionId)")
+
+        func makeRequest() async throws -> SendConnectionRequestResponse {
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+
+            let (data, response) = try await session.data(for: request)
+            try await validateResponse(response, data: data)
+            return try JSONDecoder().decode(SendConnectionRequestResponse.self, from: data)
+        }
+
+        do {
+            return try await makeRequest()
+        } catch let error as APIError where error.code == "401_REFRESHED" {
+            return try await makeRequest()
+        }
+    }
+
+    func declineNetworkRequest(connectionId: Int64) async throws -> SendConnectionRequestResponse {
+        let url = try makeURL("\(baseURL)/api/v1/network/decline/\(connectionId)")
+
+        func makeRequest() async throws -> SendConnectionRequestResponse {
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+
+            let (data, response) = try await session.data(for: request)
+            try await validateResponse(response, data: data)
+            return try JSONDecoder().decode(SendConnectionRequestResponse.self, from: data)
+        }
+
+        do {
+            return try await makeRequest()
+        } catch let error as APIError where error.code == "401_REFRESHED" {
+            return try await makeRequest()
+        }
+    }
+
+    func removeNetworkConnection(connectionId: Int64) async throws -> SendConnectionRequestResponse {
+        let url = try makeURL("\(baseURL)/api/v1/network/\(connectionId)")
+
+        func makeRequest() async throws -> SendConnectionRequestResponse {
+            var request = URLRequest(url: url)
+            request.httpMethod = "DELETE"
+            request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+
+            let (data, response) = try await session.data(for: request)
+            try await validateResponse(response, data: data)
+            return try JSONDecoder().decode(SendConnectionRequestResponse.self, from: data)
+        }
+
+        do {
+            return try await makeRequest()
+        } catch let error as APIError where error.code == "401_REFRESHED" {
+            return try await makeRequest()
+        }
+    }
+
+    func getConnectionFreeTime(connectionUserId: Int64, date: String) async throws -> ConnectionFreeTime {
+        var components = try makeURLComponents("\(baseURL)/api/v1/network/\(connectionUserId)/free-time")
+        components.queryItems = [URLQueryItem(name: "date", value: date)]
+        guard let url = components.url else {
+            throw NSError(domain: "AllTime", code: 400, userInfo: [NSLocalizedDescriptionKey: "Invalid URL"])
+        }
+
+        func makeRequest() async throws -> ConnectionFreeTime {
+            var request = URLRequest(url: url)
+            request.httpMethod = "GET"
+            request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+
+            let (data, response) = try await session.data(for: request)
+            try await validateResponse(response, data: data)
+            return try JSONDecoder().decode(ConnectionFreeTime.self, from: data)
+        }
+
+        do {
+            return try await makeRequest()
+        } catch let error as APIError where error.code == "401_REFRESHED" {
+            return try await makeRequest()
+        }
+    }
+
+    func acceptNetworkSuggestion(id: Int64) async throws -> SendConnectionRequestResponse {
+        let url = try makeURL("\(baseURL)/api/v1/network/suggestions/\(id)/accept")
+
+        func makeRequest() async throws -> SendConnectionRequestResponse {
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+
+            let (data, response) = try await session.data(for: request)
+            try await validateResponse(response, data: data)
+            return try JSONDecoder().decode(SendConnectionRequestResponse.self, from: data)
+        }
+
+        do {
+            return try await makeRequest()
+        } catch let error as APIError where error.code == "401_REFRESHED" {
+            return try await makeRequest()
+        }
+    }
+
+    func dismissNetworkSuggestion(id: Int64) async throws -> SendConnectionRequestResponse {
+        let url = try makeURL("\(baseURL)/api/v1/network/suggestions/\(id)/dismiss")
+
+        func makeRequest() async throws -> SendConnectionRequestResponse {
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+
+            let (data, response) = try await session.data(for: request)
+            try await validateResponse(response, data: data)
+            return try JSONDecoder().decode(SendConnectionRequestResponse.self, from: data)
+        }
+
+        do {
+            return try await makeRequest()
+        } catch let error as APIError where error.code == "401_REFRESHED" {
+            return try await makeRequest()
+        }
+    }
+
+    func inviteConnectionsToEvent(eventId: Int64, connectionUserIds: [Int64]) async throws -> EventInviteResponse {
+        let url = try makeURL("\(baseURL)/api/v1/network/events/invite")
+
+        func makeRequest() async throws -> EventInviteResponse {
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+            let body: [String: Any] = [
+                "event_id": eventId,
+                "connection_user_ids": connectionUserIds
+            ]
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+
+            let (data, response) = try await session.data(for: request)
+            try await validateResponse(response, data: data)
+            return try JSONDecoder().decode(EventInviteResponse.self, from: data)
+        }
+
+        do {
+            return try await makeRequest()
+        } catch let error as APIError where error.code == "401_REFRESHED" {
+            return try await makeRequest()
+        }
+    }
+
+    func getMatchingConnectionsForEvent(eventId: Int64) async throws -> [EventInterestMatch] {
+        let url = try makeURL("\(baseURL)/api/v1/network/events/\(eventId)/matching-connections")
+
+        func makeRequest() async throws -> [EventInterestMatch] {
+            var request = URLRequest(url: url)
+            request.httpMethod = "GET"
+            request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+
+            let (data, response) = try await session.data(for: request)
+            try await validateResponse(response, data: data)
+            return try JSONDecoder().decode([EventInterestMatch].self, from: data)
+        }
+
+        do {
+            return try await makeRequest()
+        } catch let error as APIError where error.code == "401_REFRESHED" {
+            return try await makeRequest()
+        }
+    }
+
+    // MARK: - Smart Social Cards
+
+    func getSmartSocialCards() async throws -> [SmartSocialCard] {
+        let url = try makeURL("\(baseURL)/api/v1/network/smart-cards")
+
+        func makeRequest() async throws -> [SmartSocialCard] {
+            var request = URLRequest(url: url)
+            request.httpMethod = "GET"
+            request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+
+            let (data, response) = try await session.data(for: request)
+            try await validateResponse(response, data: data)
+            return try JSONDecoder().decode([SmartSocialCard].self, from: data)
+        }
+
+        do {
+            return try await makeRequest()
+        } catch let error as APIError where error.code == "401_REFRESHED" {
+            return try await makeRequest()
+        }
+    }
+
+    func getSmartCardsForConnection(connectionUserId: Int64) async throws -> [SmartSocialCard] {
+        let url = try makeURL("\(baseURL)/api/v1/network/smart-cards/\(connectionUserId)")
+
+        func makeRequest() async throws -> [SmartSocialCard] {
+            var request = URLRequest(url: url)
+            request.httpMethod = "GET"
+            request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+
+            let (data, response) = try await session.data(for: request)
+            try await validateResponse(response, data: data)
+            return try JSONDecoder().decode([SmartSocialCard].self, from: data)
+        }
+
+        do {
+            return try await makeRequest()
+        } catch let error as APIError where error.code == "401_REFRESHED" {
+            return try await makeRequest()
+        }
+    }
+
+    func getInterestBasedEvents(connectionUserId: Int64) async throws -> [InterestBasedEvent] {
+        let url = try makeURL("\(baseURL)/api/v1/network/connections/\(connectionUserId)/interest-events")
+
+        func makeRequest() async throws -> [InterestBasedEvent] {
+            var request = URLRequest(url: url)
+            request.httpMethod = "GET"
+            request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+
+            let (data, response) = try await session.data(for: request)
+            try await validateResponse(response, data: data)
+            return try JSONDecoder().decode([InterestBasedEvent].self, from: data)
+        }
+
+        do {
+            return try await makeRequest()
+        } catch let error as APIError where error.code == "401_REFRESHED" {
+            return try await makeRequest()
+        }
+    }
+
+    // MARK: - Event Invites (Receive/Accept/Decline)
+
+    func getReceivedEventInvites() async throws -> [EventInvite] {
+        let url = try makeURL("\(baseURL)/api/v1/network/events/invites/received")
+
+        func makeRequest() async throws -> [EventInvite] {
+            var request = URLRequest(url: url)
+            request.httpMethod = "GET"
+            request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+
+            let (data, response) = try await session.data(for: request)
+            try await validateResponse(response, data: data)
+            return try JSONDecoder().decode([EventInvite].self, from: data)
+        }
+
+        do {
+            return try await makeRequest()
+        } catch let error as APIError where error.code == "401_REFRESHED" {
+            return try await makeRequest()
+        }
+    }
+
+    func acceptEventInvite(inviteId: Int64) async throws -> AcceptInviteResponse {
+        let url = try makeURL("\(baseURL)/api/v1/network/events/invites/\(inviteId)/accept")
+
+        func makeRequest() async throws -> AcceptInviteResponse {
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+            let (data, response) = try await session.data(for: request)
+            try await validateResponse(response, data: data)
+            return try JSONDecoder().decode(AcceptInviteResponse.self, from: data)
+        }
+
+        do {
+            return try await makeRequest()
+        } catch let error as APIError where error.code == "401_REFRESHED" {
+            return try await makeRequest()
+        }
+    }
+
+    func declineEventInvite(inviteId: Int64) async throws -> SendConnectionRequestResponse {
+        let url = try makeURL("\(baseURL)/api/v1/network/events/invites/\(inviteId)/decline")
+
+        func makeRequest() async throws -> SendConnectionRequestResponse {
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            request.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+            let (data, response) = try await session.data(for: request)
+            try await validateResponse(response, data: data)
+            return try JSONDecoder().decode(SendConnectionRequestResponse.self, from: data)
+        }
+
+        do {
+            return try await makeRequest()
+        } catch let error as APIError where error.code == "401_REFRESHED" {
+            return try await makeRequest()
         }
     }
 }

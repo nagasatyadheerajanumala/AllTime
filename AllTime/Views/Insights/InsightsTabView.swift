@@ -34,7 +34,10 @@ struct InsightsTabView: View {
 
         var description: String {
             switch self {
-            case .forecast: return "Next Week"
+            case .forecast:
+                // Mon-Thu: show this week; Fri-Sun: show next week
+                let weekday = Calendar.current.component(.weekday, from: Date())
+                return (weekday >= 2 && weekday <= 5) ? "This Week" : "Next Week"
             case .daily: return "Today"
             case .weekly: return "7 days"
             case .monthly: return "30-60 days"
@@ -68,6 +71,20 @@ struct InsightsTabView: View {
             }
         }
         .background(DesignSystem.Colors.background)
+        .onReceive(NotificationCenter.default.publisher(for: .navigateToDailyInsights)) { _ in
+            withAnimation {
+                selectedSection = .daily
+            }
+        }
+        .onAppear {
+            // Fallback: if navigated here via deep link, check insightsSection
+            if let section = NavigationManager.shared.insightsSection {
+                if section == "daily" { selectedSection = .daily }
+                else if section == "weekly" { selectedSection = .weekly }
+                else if section == "health" { selectedSection = .health }
+                NavigationManager.shared.insightsSection = nil
+            }
+        }
     }
 
     private var header: some View {

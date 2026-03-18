@@ -59,6 +59,7 @@ struct ClaraChatBubble: View {
 // MARK: - Clara Typing Indicator
 struct ClaraTypingIndicator: View {
     @State private var animatingDot = 0
+    @State private var dotsTimer: Timer?
 
     var body: some View {
         HStack(alignment: .top, spacing: DesignSystem.Spacing.sm + 2) {
@@ -77,11 +78,15 @@ struct ClaraTypingIndicator: View {
             .background(DesignSystem.Colors.cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: DesignSystem.Components.chatBubbleRadius))
             .onAppear {
-                Timer.scheduledTimer(withTimeInterval: 0.3, repeats: true) { _ in
+                dotsTimer = Timer.scheduledTimer(withTimeInterval: 0.3, repeats: true) { _ in
                     withAnimation(.easeInOut(duration: 0.2)) {
                         animatingDot = (animatingDot + 1) % 3
                     }
                 }
+            }
+            .onDisappear {
+                dotsTimer?.invalidate()
+                dotsTimer = nil
             }
 
             Spacer()

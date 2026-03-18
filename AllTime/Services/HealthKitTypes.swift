@@ -8,24 +8,54 @@ struct HealthKitTypes {
     /// These are the EXACT instances used for both requestAuthorization and authorizationStatus
     static let all: Set<HKObjectType> = {
         var types = Set<HKObjectType>()
-        
-        // Quantity types
+
+        // Core quantity types
         types.insert(HKObjectType.quantityType(forIdentifier: .stepCount)!)
         types.insert(HKObjectType.quantityType(forIdentifier: .activeEnergyBurned)!)
         types.insert(HKObjectType.quantityType(forIdentifier: .appleExerciseTime)!)
         types.insert(HKObjectType.quantityType(forIdentifier: .appleStandTime)!)
         types.insert(HKObjectType.quantityType(forIdentifier: .restingHeartRate)!)
         types.insert(HKObjectType.quantityType(forIdentifier: .heartRateVariabilitySDNN)!)
-        
-        // Category type
+
+        // Heart rate
+        types.insert(HKObjectType.quantityType(forIdentifier: .heartRate)!)
+        types.insert(HKObjectType.quantityType(forIdentifier: .walkingHeartRateAverage)!)
+
+        // Blood pressure
+        types.insert(HKObjectType.quantityType(forIdentifier: .bloodPressureSystolic)!)
+        types.insert(HKObjectType.quantityType(forIdentifier: .bloodPressureDiastolic)!)
+
+        // Respiratory and oxygen
+        types.insert(HKObjectType.quantityType(forIdentifier: .respiratoryRate)!)
+        types.insert(HKObjectType.quantityType(forIdentifier: .oxygenSaturation)!)
+
+        // Distance metrics
+        types.insert(HKObjectType.quantityType(forIdentifier: .distanceWalkingRunning)!)
+        types.insert(HKObjectType.quantityType(forIdentifier: .distanceCycling)!)
+        types.insert(HKObjectType.quantityType(forIdentifier: .distanceSwimming)!)
+        types.insert(HKObjectType.quantityType(forIdentifier: .flightsClimbed)!)
+
+        // Body measurements
+        types.insert(HKObjectType.quantityType(forIdentifier: .bodyMass)!)
+        types.insert(HKObjectType.quantityType(forIdentifier: .bodyFatPercentage)!)
+        types.insert(HKObjectType.quantityType(forIdentifier: .leanBodyMass)!)
+
+        // Blood glucose
+        types.insert(HKObjectType.quantityType(forIdentifier: .bloodGlucose)!)
+
+        // Fitness
+        types.insert(HKObjectType.quantityType(forIdentifier: .vo2Max)!)
+
+        // Category types
         types.insert(HKObjectType.categoryType(forIdentifier: .sleepAnalysis)!)
-        
+        types.insert(HKObjectType.categoryType(forIdentifier: .mindfulSession)!)
+
         // Workout type (MUST use HKObjectType.workoutType() - no forIdentifier)
         types.insert(HKObjectType.workoutType())
-        
-        // Verify we have exactly 8 types
-        assert(types.count == 8, "CRITICAL: Must have exactly 8 HealthKit types, got \(types.count)")
-        
+
+        // Verify we have exactly 24 types
+        assert(types.count == 24, "CRITICAL: Must have exactly 24 HealthKit types, got \(types.count)")
+
         return types
     }()
     

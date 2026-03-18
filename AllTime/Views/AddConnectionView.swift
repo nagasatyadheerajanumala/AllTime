@@ -70,28 +70,24 @@ struct AddConnectionView: View {
                             .font(.caption)
                             .foregroundColor(.secondary)
 
-                        // Google Calendar - Native OAuth
+                        // Google Calendar - Native OAuth (supports multiple accounts)
                         ProviderCard(
                             title: "Google Calendar",
-                            description: googleAuthManager.isConnected ? "✅ Connected" : "Sync your Google Calendar events",
+                            description: googleAuthManager.isConnected ? "✅ Connected — Tap to add another account" : "Sync your Google Calendar events",
                             icon: "g.circle.fill",
                             color: .red
                         ) {
-                            if !googleAuthManager.isConnected {
-                                googleAuthManager.startGoogleOAuth()
-                            }
+                            googleAuthManager.startGoogleOAuth()
                         }
 
-                        // Microsoft Outlook - Native OAuth
+                        // Microsoft Outlook - Native OAuth (supports multiple accounts)
                         ProviderCard(
                             title: "Microsoft Outlook",
-                            description: microsoftAuthManager.isConnected ? "✅ Connected" : "Sync your Outlook calendar events",
+                            description: microsoftAuthManager.isConnected ? "✅ Connected — Tap to add another account" : "Sync your Outlook calendar events",
                             icon: "m.circle.fill",
                             color: .blue
                         ) {
-                            if !microsoftAuthManager.isConnected {
-                                microsoftAuthManager.startMicrosoftOAuth()
-                            }
+                            microsoftAuthManager.startMicrosoftOAuth()
                         }
 
                         Divider()
@@ -250,12 +246,16 @@ struct AddConnectionView: View {
                 syncEventKitCalendars()
             }
         }
-        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("MicrosoftCalendarConnected"))) { _ in
-            // Refresh calendar list when Microsoft calendar is connected
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("GoogleCalendarConnected"))) { _ in
             Task {
-                // Small delay to ensure backend has processed the connection
-                try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
-                dismiss() // Close the add calendar view
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                dismiss()
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("MicrosoftCalendarConnected"))) { _ in
+            Task {
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                dismiss()
             }
         }
     }

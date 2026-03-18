@@ -111,6 +111,7 @@ extension Animation {
 // MARK: - View Modifiers for Smooth Interactions
 
 /// Adds press effect to any view
+/// Uses onLongPressGesture instead of DragGesture to avoid conflicting with ScrollView
 struct PressEffectModifier: ViewModifier {
     @State private var isPressed = false
 
@@ -119,18 +120,14 @@ struct PressEffectModifier: ViewModifier {
             .scaleEffect(isPressed ? 0.96 : 1.0)
             .opacity(isPressed ? 0.9 : 1.0)
             .animation(.quickSpring, value: isPressed)
-            .simultaneousGesture(
-                DragGesture(minimumDistance: 0)
-                    .onChanged { _ in
-                        if !isPressed {
-                            isPressed = true
-                            HapticManager.shared.lightTap()
-                        }
-                    }
-                    .onEnded { _ in
-                        isPressed = false
-                    }
-            )
+            .onLongPressGesture(minimumDuration: .infinity, pressing: { pressing in
+                if pressing {
+                    isPressed = true
+                    HapticManager.shared.lightTap()
+                } else {
+                    isPressed = false
+                }
+            }, perform: { })
     }
 }
 
@@ -190,6 +187,7 @@ struct SlideUpModifier: ViewModifier {
 
 /// Comprehensive staggered appear animation with accessibility support
 /// Use this for choreographed content reveals where items appear sequentially
+/// Only animates on first appear — does NOT reset on disappear
 struct StaggeredAppearModifier: ViewModifier {
     @Environment(\.accessibilityReduceMotion) var reduceMotion
     let index: Int
@@ -218,17 +216,17 @@ struct StaggeredAppearModifier: ViewModifier {
                 value: isVisible
             )
             .onAppear {
+                guard !isVisible else { return }
                 Task { @MainActor in
                     isVisible = true
                 }
-            }
-            .onDisappear {
-                isVisible = false
             }
     }
 }
 
 /// Card-specific staggered animation with more pronounced effect
+/// Only animates on first appear — does NOT reset on disappear to avoid
+/// re-animating every time a card scrolls back into view
 struct CardStaggerModifier: ViewModifier {
     @Environment(\.accessibilityReduceMotion) var reduceMotion
     let index: Int
@@ -237,26 +235,24 @@ struct CardStaggerModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
             .opacity(isVisible ? 1 : 0)
-            .offset(y: reduceMotion ? 0 : (isVisible ? 0 : 20))  // Reduced offset
-            .scaleEffect(reduceMotion ? 1 : (isVisible ? 1 : 0.95))  // Less scale change
+            .offset(y: reduceMotion ? 0 : (isVisible ? 0 : 20))
+            .scaleEffect(reduceMotion ? 1 : (isVisible ? 1 : 0.95))
             .animation(
-                reduceMotion ? .none : .spring(response: 0.3, dampingFraction: 0.85)  // Faster, snappier
-                    .delay(0.05 + Double(index) * 0.04),  // Faster stagger
+                reduceMotion ? .none : .spring(response: 0.3, dampingFraction: 0.85)
+                    .delay(0.05 + Double(index) * 0.04),
                 value: isVisible
             )
             .onAppear {
-                // Use Task for cleaner async handling
+                guard !isVisible else { return }
                 Task { @MainActor in
                     isVisible = true
                 }
-            }
-            .onDisappear {
-                isVisible = false
             }
     }
 }
 
 /// Grid item staggered animation (for LazyVGrid patterns)
+/// Only animates on first appear — does NOT reset on disappear
 struct GridStaggerModifier: ViewModifier {
     @Environment(\.accessibilityReduceMotion) var reduceMotion
     let row: Int
@@ -278,12 +274,10 @@ struct GridStaggerModifier: ViewModifier {
                 value: isVisible
             )
             .onAppear {
+                guard !isVisible else { return }
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.01) {
                     isVisible = true
                 }
-            }
-            .onDisappear {
-                isVisible = false
             }
     }
 }

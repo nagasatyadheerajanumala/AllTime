@@ -52,7 +52,7 @@ enum Tab: Int, CaseIterable, Identifiable {
         case .calendar: return "calendar"
         case .health: return "heart"
         case .reminders: return "bell"
-        case .settings: return "gearshape"
+        case .settings: return "person.circle"
         }
     }
 
@@ -63,7 +63,7 @@ enum Tab: Int, CaseIterable, Identifiable {
         case .calendar: return "calendar"
         case .health: return "heart.fill"
         case .reminders: return "bell.fill"
-        case .settings: return "gearshape.fill"
+        case .settings: return "person.circle.fill"
         }
     }
 
@@ -74,7 +74,7 @@ enum Tab: Int, CaseIterable, Identifiable {
         case .calendar: return "Calendar"
         case .health: return "Health"
         case .reminders: return "Reminders"
-        case .settings: return "Settings"
+        case .settings: return "Profile"
         }
     }
 
@@ -85,7 +85,7 @@ enum Tab: Int, CaseIterable, Identifiable {
         case .calendar: return .blue
         case .health: return .pink
         case .reminders: return .purple
-        case .settings: return .gray
+        case .settings: return DesignSystem.Colors.violet
         }
     }
 }
@@ -96,6 +96,7 @@ struct MainTabView: View {
     @StateObject private var summaryViewModel = DailySummaryViewModel()
     @StateObject private var settingsViewModel = SettingsViewModel()
     @StateObject private var reminderViewModel = ReminderViewModel()
+    @ObservedObject private var navigationManager = NavigationManager.shared
 
     @State private var selectedTab: Tab = .calendar
     @State private var dragOffset: CGFloat = 0
@@ -176,7 +177,7 @@ struct MainTabView: View {
             DaySummaryView().environmentObject(calendarViewModel)
         }
         .sheet(isPresented: $showingDayReview) {
-            DailyInsightsView()
+            DayReviewView()
         }
         .onReceive(NotificationCenter.default.publisher(for: .navigateToEveningSummary)) { _ in
             showingDaySummary = true
@@ -193,6 +194,21 @@ struct MainTabView: View {
         .onReceive(NotificationCenter.default.publisher(for: .navigateToSummary)) { _ in
             showingDaySummary = true
         }
+        .onChange(of: navigationManager.selectedTab) { _, newTab in
+            if let tab = Tab(rawValue: newTab), tab != selectedTab {
+                withAnimation { selectedTab = tab }
+            }
+        }
+        .onChange(of: navigationManager.navigateToCalendarDate) { _, newDate in
+            if let date = newDate {
+                withAnimation {
+                    selectedTab = .calendar
+                    visitedTabs.insert(.calendar)
+                }
+                calendarViewModel.selectedDate = Calendar.current.startOfDay(for: date)
+                navigationManager.navigateToCalendarDate = nil
+            }
+        }
     }
 
     private func preloadAdjacentTabs() {
@@ -208,7 +224,7 @@ struct MainTabView: View {
         case .calendar: CalendarView().environmentObject(calendarViewModel)
         case .health: HealthSummaryView()
         case .reminders: ReminderListView().environmentObject(reminderViewModel)
-        case .settings: SettingsView().environmentObject(settingsViewModel)
+        case .settings: ProfileView().environmentObject(settingsViewModel)
         }
     }
 }

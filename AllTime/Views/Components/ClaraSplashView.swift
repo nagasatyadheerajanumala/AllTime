@@ -14,6 +14,7 @@ struct ClaraLoadingView: View {
     @State private var taglineOpacity: Double = 1.0
     @State private var logoScale: CGFloat = 0.9
     @State private var logoOpacity: Double = 0
+    @State private var taglineTimer: Timer?
 
     // Light purple gradient for background
     private var lightGradient: LinearGradient {
@@ -96,11 +97,15 @@ struct ClaraLoadingView: View {
             // Start tagline rotation
             startTaglineRotation()
         }
+        .onDisappear {
+            taglineTimer?.invalidate()
+            taglineTimer = nil
+        }
     }
 
     private func startTaglineRotation() {
         // Rotate taglines every 2 seconds
-        Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { _ in
+        taglineTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { _ in
             // Fade out
             withAnimation(.easeInOut(duration: 0.25)) {
                 taglineOpacity = 0
@@ -120,6 +125,7 @@ struct ClaraLoadingView: View {
 // MARK: - Loading Dots Animation
 struct LoadingDotsView: View {
     @State private var animatingDot = 0
+    @State private var dotsTimer: Timer?
 
     var body: some View {
         HStack(spacing: 8) {
@@ -133,9 +139,13 @@ struct LoadingDotsView: View {
         }
         .onAppear {
             // Animate dots in sequence
-            Timer.scheduledTimer(withTimeInterval: 0.4, repeats: true) { _ in
+            dotsTimer = Timer.scheduledTimer(withTimeInterval: 0.4, repeats: true) { _ in
                 animatingDot = (animatingDot + 1) % 3
             }
+        }
+        .onDisappear {
+            dotsTimer?.invalidate()
+            dotsTimer = nil
         }
     }
 }

@@ -39,6 +39,14 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         let tokenString = deviceToken.map { String(format: "%02.2hhx", $0) }.joined()
         print("🔔 AppDelegate: Received device token: \(tokenString.prefix(20))...")
 
+        // Detect APNs environment: Xcode builds use sandbox, TestFlight/App Store use production
+        #if DEBUG
+        let apnsEnvironment = "sandbox"
+        #else
+        let apnsEnvironment = "production"
+        #endif
+        print("🔔 AppDelegate: APNs environment: \(apnsEnvironment)")
+
         // Save token locally for immediate use
         UserDefaults.standard.set(tokenString, forKey: "device_token")
         print("🔔 AppDelegate: Device token saved to UserDefaults")
@@ -47,7 +55,7 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         Task {
             do {
                 let apiService = APIService()
-                try await apiService.registerDeviceToken(tokenString)
+                try await apiService.registerDeviceToken(tokenString, environment: apnsEnvironment)
                 print("🔔 AppDelegate: Device token registered with backend")
             } catch {
                 print("🔔 AppDelegate: Failed to register device token with backend: \(error.localizedDescription)")

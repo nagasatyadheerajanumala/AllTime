@@ -27,6 +27,9 @@ struct ExpandableText: View {
         self.lineSpacing = lineSpacing
     }
 
+    @State private var visibleHeight: CGFloat = 0
+    @State private var fullHeight: CGFloat = 0
+
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(text)
@@ -36,25 +39,28 @@ struct ExpandableText: View {
                 .lineLimit(isExpanded ? nil : lineLimit)
                 .fixedSize(horizontal: false, vertical: true)
                 .background(
-                    // Invisible view to measure if text is truncated
-                    GeometryReader { visibleGeo in
-                        ZStack {
-                            Text(text)
-                                .font(font)
-                                .lineSpacing(lineSpacing)
-                                .fixedSize(horizontal: false, vertical: true)
-                                .background(
-                                    GeometryReader { fullGeo in
-                                        Color.clear.onAppear {
-                                            // If full text height > visible height, it's truncated
-                                            isTruncated = fullGeo.size.height > visibleGeo.size.height + 10
-                                        }
-                                    }
-                                )
+                    GeometryReader { geo in
+                        Color.clear.onAppear {
+                            visibleHeight = geo.size.height
+                            isTruncated = fullHeight > visibleHeight + 10
                         }
-                        .frame(height: .infinity)
-                        .hidden()
                     }
+                )
+                .overlay(
+                    Text(text)
+                        .font(font)
+                        .lineSpacing(lineSpacing)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .lineLimit(nil)
+                        .hidden()
+                        .background(
+                            GeometryReader { geo in
+                                Color.clear.onAppear {
+                                    fullHeight = geo.size.height
+                                    isTruncated = fullHeight > visibleHeight + 10
+                                }
+                            }
+                        )
                 )
 
             // Show More/Less button only if text is long enough

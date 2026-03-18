@@ -11,6 +11,7 @@ struct TodayScheduleSection: View {
     let events: [Event]
     let currentEvent: Event?
     let onEventTap: (Event) -> Void
+    var onShareEvent: ((Event) -> Void)? = nil
 
     @State private var isExpanded: Bool = true
 
@@ -80,7 +81,7 @@ struct TodayScheduleSection: View {
                     if !allDayEvents.isEmpty {
                         VStack(spacing: 0) {
                             ForEach(Array(allDayEvents.enumerated()), id: \.element.id) { index, event in
-                                AllDayEventRow(event: event, onTap: { onEventTap(event) })
+                                AllDayEventRow(event: event, onTap: { onEventTap(event) }, onShare: onShareEvent != nil ? { onShareEvent?(event) } : nil)
 
                                 if index < allDayEvents.count - 1 {
                                     Divider()
@@ -102,7 +103,8 @@ struct TodayScheduleSection: View {
                                     event: event,
                                     isCurrent: event.id == currentEvent?.id,
                                     isPast: isPast(event),
-                                    onTap: { onEventTap(event) }
+                                    onTap: { onEventTap(event) },
+                                    onShare: onShareEvent != nil ? { onShareEvent?(event) } : nil
                                 )
 
                                 if index < timedEvents.count - 1 {
@@ -134,6 +136,7 @@ private struct ScheduleEventRow: View {
     let isCurrent: Bool
     let isPast: Bool
     let onTap: () -> Void
+    var onShare: (() -> Void)? = nil
 
     private var timeString: String {
         guard let start = event.startDate else { return "" }
@@ -225,6 +228,15 @@ private struct ScheduleEventRow: View {
             .padding(.vertical, 10)
         }
         .buttonStyle(PlainButtonStyle())
+        .contextMenu {
+            if let onShare = onShare {
+                Button {
+                    onShare()
+                } label: {
+                    Label("Share Event", systemImage: "paperplane")
+                }
+            }
+        }
     }
 }
 
@@ -233,6 +245,7 @@ private struct ScheduleEventRow: View {
 private struct AllDayEventRow: View {
     let event: Event
     let onTap: () -> Void
+    var onShare: (() -> Void)? = nil
 
     var body: some View {
         Button(action: onTap) {
@@ -265,5 +278,14 @@ private struct AllDayEventRow: View {
             .padding(.vertical, 10)
         }
         .buttonStyle(PlainButtonStyle())
+        .contextMenu {
+            if let onShare = onShare {
+                Button {
+                    onShare()
+                } label: {
+                    Label("Share Event", systemImage: "paperplane")
+                }
+            }
+        }
     }
 }

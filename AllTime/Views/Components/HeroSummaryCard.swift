@@ -305,7 +305,8 @@ struct HeroSummaryCard: View {
         .frame(maxWidth: .infinity)
         .background(cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 28))
-        .shadow(color: severityColor.opacity(0.2), radius: 20, y: 10)
+        .compositingGroup()
+        .shadow(color: severityColor.opacity(0.15), radius: 8, y: 4)
         .contentShape(Rectangle())
         .onTapGesture {
             onTap()

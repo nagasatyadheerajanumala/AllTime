@@ -64,9 +64,9 @@ struct PremiumTabView: View {
                         .onAppear { remindersViewCreated = true }
                 }
 
-                // Settings View (Tab 4)
+                // Profile View (Tab 4)
                 if settingsViewCreated || navigationManager.selectedTab == 4 {
-                    SettingsView()
+                    ProfileView()
                         .opacity(navigationManager.selectedTab == 4 ? 1 : 0)
                         .allowsHitTesting(navigationManager.selectedTab == 4)
                         .onAppear { settingsViewCreated = true }
@@ -115,6 +115,16 @@ struct PremiumTabView: View {
         .sheet(isPresented: $showingClaraChat) {
             ClaraChatView()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .claraDismissAndNavigate)) { notification in
+            let tabIndex = notification.userInfo?["tabIndex"] as? Int ?? 0
+            showingClaraChat = false
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                navigationManager.selectedTab = tabIndex
+            }
+        }
+        .onChange(of: navigationManager.selectedTab) { oldTab, newTab in
+            print("📱 PremiumTabView: selectedTab changed from \(oldTab) to \(newTab)")
+        }
         .ignoresSafeArea(.keyboard)
         .onAppear {
             guard !hasRequestedHealthKit else {
@@ -151,7 +161,7 @@ struct FloatingTabBar: View {
         ("calendar", "calendar", "Calendar", .blue),
         ("chart.bar.xaxis", "chart.bar.xaxis", "Insights", .indigo),
         ("bell", "bell.fill", "Reminders", .purple),
-        ("gearshape", "gearshape.fill", "Settings", .gray)
+        ("person.circle", "person.circle.fill", "Profile", DesignSystem.Colors.violet)
     ]
 
     private let barHeight: CGFloat = 60

@@ -207,7 +207,7 @@ struct ClaraChatView: View {
                             .id(message.id)
                     }
 
-                    if viewModel.isTyping {
+                    if viewModel.isTyping && !viewModel.messages.contains(where: { $0.isStreaming }) {
                         ClaraTypingBubble()
                             .id("typing")
                     }
@@ -371,56 +371,160 @@ class ClaraChatViewModel: ObservableObject {
         isTyping = true
         error = nil
 
-        // Call API
         Task {
-            do {
-                let response = try await ClaraService.shared.chat(
-                    message: trimmedText,
-                    sessionId: sessionId
-                )
+            // Use non-streaming for reliability — streaming can be re-enabled
+            // once the backend SSE endpoint is confirmed working in production
+            await sendWithoutStreaming(trimmedText)
+        }
+    }
 
-                isTyping = false
-                sessionId = response.sessionId
+    /// Send message via SSE streaming, fall back to non-streaming on failure
+    private func sendWithStreaming(_ text: String) async {
+        // Add a placeholder Clara message for streaming
+        var claraMessage = ClaraMessage(content: "", isClara: true, isStreaming: true)
+        let claraMessageId = claraMessage.id
+        messages.append(claraMessage)
+        isTyping = false // We have the streaming bubble now
 
-                // Create Clara message with structured data and action results
-                var claraMessage = ClaraMessage(content: response.response, isClara: true)
-                claraMessage.insights = response.insights
-                claraMessage.contextMetrics = response.contextMetrics
-                claraMessage.actionResult = response.actionResult
-                messages.append(claraMessage)
+        var collectedToolResults: [ToolResultForUI] = []
+        var streamFailed = false
 
-                // Post notifications to refresh relevant views after Clara actions
-                if let actionResult = response.actionResult, actionResult.success {
-                    switch actionResult.actionType {
-                    case "create_reminder":
-                        NotificationCenter.default.post(name: NSNotification.Name("RefreshReminders"), object: nil)
-                        // Sync to iOS Reminders app
-                        await self.syncClaraReminderToEventKit(actionResult.data)
-                    case "complete_reminder", "delete_reminder":
-                        NotificationCenter.default.post(name: NSNotification.Name("RefreshReminders"), object: nil)
-                    case "create_task", "complete_task", "delete_task":
-                        NotificationCenter.default.post(name: NSNotification.Name("TaskCreated"), object: nil)
-                    case "create_event", "edit_event", "delete_event":
-                        NotificationCenter.default.post(name: NSNotification.Name("RefreshCalendar"), object: nil)
-                    default:
-                        break
+        do {
+            let stream = ClaraService.shared.chatStream(message: text, sessionId: sessionId)
+
+            for try await event in stream {
+                guard let idx = messages.firstIndex(where: { $0.id == claraMessageId }) else { continue }
+
+                switch event {
+                case .status(let msg):
+                    messages[idx].statusMessage = msg
+
+                case .toolResult(let result):
+                    collectedToolResults.append(result)
+                    messages[idx].toolResults = collectedToolResults
+                    // Post refresh notifications for mutations
+                    postRefreshNotification(for: result.toolName)
+
+                case .token(let tokenText):
+                    messages[idx].statusMessage = nil
+                    messages[idx].content += tokenText
+
+                case .done(let doneData):
+                    messages[idx].content = doneData.response
+                    messages[idx].isStreaming = false
+                    messages[idx].statusMessage = nil
+                    messages[idx].insights = doneData.insights
+                    messages[idx].contextMetrics = doneData.contextMetrics
+                    if let results = doneData.toolResults, !results.isEmpty {
+                        messages[idx].toolResults = results
                     }
+                    sessionId = doneData.sessionId
+
+                    // Post refresh for any mutation tool results
+                    if let results = doneData.toolResults {
+                        for result in results {
+                            postRefreshNotification(for: result.toolName)
+                        }
+                    }
+
+                case .error(let msg):
+                    messages[idx].content = msg
+                    messages[idx].isStreaming = false
+                    messages[idx].isError = true
                 }
-
-            } catch {
-                isTyping = false
-                self.error = error.localizedDescription
-
-                // Authoritative fallback - no apology, no "try again"
-                let errorMessage = ClaraMessage(
-                    content: "Analysis unavailable. Protect your time today. Do not add commitments without purpose.",
-                    isClara: true,
-                    isError: true
-                )
-                messages.append(errorMessage)
-
-                print("❌ Clara chat error: \(error)")
             }
+
+            // Mark streaming complete
+            if let idx = messages.firstIndex(where: { $0.id == claraMessageId }) {
+                messages[idx].isStreaming = false
+                // Safety net: if stream completed but no content received, fall back
+                if messages[idx].content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    && messages[idx].toolResults == nil
+                    && !messages[idx].isError {
+                    print("⚠️ Stream completed with empty content, falling back to non-streaming")
+                    streamFailed = true
+                    messages.removeAll { $0.id == claraMessageId }
+                }
+            }
+
+        } catch {
+            streamFailed = true
+            print("⚠️ Stream failed, falling back to non-streaming: \(error)")
+
+            // Remove the streaming placeholder
+            messages.removeAll { $0.id == claraMessageId }
+        }
+
+        // Fallback to non-streaming if stream failed or empty
+        if streamFailed {
+            await sendWithoutStreaming(text)
+        }
+    }
+
+    /// Non-streaming fallback using the regular chat endpoint
+    private func sendWithoutStreaming(_ text: String) async {
+        isTyping = true
+
+        do {
+            let response = try await ClaraService.shared.chat(
+                message: text,
+                sessionId: sessionId
+            )
+
+            isTyping = false
+            sessionId = response.sessionId
+
+            var claraMessage = ClaraMessage(content: response.response, isClara: true)
+            claraMessage.insights = response.insights
+            claraMessage.contextMetrics = response.contextMetrics
+            claraMessage.actionResult = response.actionResult
+            claraMessage.toolResults = response.toolResults
+            messages.append(claraMessage)
+
+            // Post notifications for legacy action results
+            if let actionResult = response.actionResult, actionResult.success {
+                postRefreshNotification(for: actionResult.actionType)
+            }
+
+            // Post notifications for tool results
+            if let toolResults = response.toolResults {
+                for result in toolResults {
+                    postRefreshNotification(for: result.toolName)
+                }
+            }
+
+            // Sync reminders to EventKit if needed
+            if let actionResult = response.actionResult, actionResult.success,
+               actionResult.actionType == "create_reminder" {
+                await syncClaraReminderToEventKit(actionResult.data)
+            }
+
+        } catch {
+            isTyping = false
+            self.error = error.localizedDescription
+
+            let errorMessage = ClaraMessage(
+                content: "Analysis unavailable. Protect your time today. Do not add commitments without purpose.",
+                isClara: true,
+                isError: true
+            )
+            messages.append(errorMessage)
+
+            print("❌ Clara chat error: \(error)")
+        }
+    }
+
+    /// Post refresh notifications to update relevant views after mutations
+    private func postRefreshNotification(for actionType: String) {
+        switch actionType {
+        case "create_reminder", "complete_reminder", "delete_reminder":
+            NotificationCenter.default.post(name: NSNotification.Name("RefreshReminders"), object: nil)
+        case "create_task", "complete_task", "delete_task":
+            NotificationCenter.default.post(name: NSNotification.Name("TaskCreated"), object: nil)
+        case "create_event", "edit_event", "delete_event":
+            NotificationCenter.default.post(name: NSNotification.Name("RefreshCalendar"), object: nil)
+        default:
+            break
         }
     }
 
@@ -533,17 +637,22 @@ class ClaraChatViewModel: ObservableObject {
 // MARK: - Clara Message Model
 struct ClaraMessage: Identifiable {
     let id = UUID()
-    let content: String
+    var content: String
     let isClara: Bool
     let timestamp: Date = Date()
     var isError: Bool = false
+    var isStreaming: Bool = false
+    var statusMessage: String? = nil
 
     // Structured data for enhanced UI
     var insights: [ResponseInsight]?
     var contextMetrics: ContextMetrics?
 
-    // Action result (places, tasks, itinerary, etc.)
+    // Legacy action result (backward compat)
     var actionResult: ActionResult?
+
+    // NEW: Multiple tool results from function calling
+    var toolResults: [ToolResultForUI]?
 }
 
 // MARK: - Message Bubble
@@ -588,32 +697,61 @@ struct ClaraMessageBubble: View {
 
                 // Clara message with markdown support + structured data
                 VStack(alignment: .leading, spacing: 12) {
-                    // Text response bubble
-                    VStack(alignment: .leading, spacing: 6) {
-                        markdownText(message.content, isClara: true)
-
-                        Text(formatTime(message.timestamp))
-                            .font(.system(size: 11))
-                            .foregroundColor(DesignSystem.Colors.tertiaryText)
+                    // Status message during streaming
+                    if let status = message.statusMessage {
+                        HStack(spacing: 8) {
+                            ProgressView()
+                                .scaleEffect(0.7)
+                            Text(status)
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundColor(DesignSystem.Colors.violet)
+                        }
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .background(DesignSystem.Colors.violet.opacity(0.08))
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
                     }
-                    .padding(14)
-                    .background(DesignSystem.Colors.cardBackground)
-                    .clipShape(ClaraBubbleShape(isFromUser: false))
 
-                    // Action result (places, tasks, itinerary, etc.)
-                    if let actionResult = message.actionResult {
+                    // Text response bubble (show if we have content or not streaming)
+                    if !message.content.isEmpty || !message.isStreaming {
+                        VStack(alignment: .leading, spacing: 6) {
+                            markdownText(message.content + (message.isStreaming ? "▊" : ""), isClara: true)
+
+                            if !message.isStreaming {
+                                Text(formatTime(message.timestamp))
+                                    .font(.system(size: 11))
+                                    .foregroundColor(DesignSystem.Colors.tertiaryText)
+                            }
+                        }
+                        .padding(14)
+                        .background(DesignSystem.Colors.cardBackground)
+                        .clipShape(ClaraBubbleShape(isFromUser: false))
+                    }
+
+                    // Tool results (new function calling system)
+                    if let toolResults = message.toolResults, !toolResults.isEmpty {
+                        ForEach(Array(toolResults.enumerated()), id: \.offset) { _, result in
+                            ClaraToolResultCardView(result: result)
+                        }
+                    }
+
+                    // Legacy action result (backward compat)
+                    if message.toolResults == nil || message.toolResults?.isEmpty == true,
+                       let actionResult = message.actionResult {
                         ClaraActionResultView(actionResult: actionResult)
                     }
 
-                    // Metrics row (if available and no action result)
+                    // Metrics row (if available and no action/tool results)
                     if message.actionResult == nil,
+                       (message.toolResults == nil || message.toolResults?.isEmpty == true),
                        let metrics = message.contextMetrics,
                        (metrics.meetingCount ?? 0) > 0 || (metrics.freeMinutes ?? 0) > 0 {
                         ClaraMetricsRow(metrics: metrics)
                     }
 
-                    // Insight cards (if available and no action result)
+                    // Insight cards (if available and no action/tool results)
                     if message.actionResult == nil,
+                       (message.toolResults == nil || message.toolResults?.isEmpty == true),
                        let insights = message.insights, !insights.isEmpty {
                         VStack(spacing: 8) {
                             ForEach(insights) { insight in

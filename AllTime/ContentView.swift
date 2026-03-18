@@ -22,6 +22,7 @@ struct ContentView: View {
     @State private var showInterestsSetup = false
     @State private var hasCheckedInterests = false
     @AppStorage("hasAcceptedDataConsent") private var hasAcceptedDataConsent = false
+    @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = false
 
     var body: some View {
         Group {
@@ -43,6 +44,10 @@ struct ContentView: View {
                     // Show data consent before anything else (App Store 5.1.1)
                     DataConsentView(onConsent: {
                         hasAcceptedDataConsent = true
+                    })
+                } else if !hasSeenOnboarding {
+                    OnboardingView(onComplete: {
+                        hasSeenOnboarding = true
                     })
                 } else if !hasDismissedProfileSetup {
                     // Check if profile needs to be completed

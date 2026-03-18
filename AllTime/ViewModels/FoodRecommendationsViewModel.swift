@@ -21,6 +21,7 @@ class FoodRecommendationsViewModel: ObservableObject {
 
     // Dietary filters
     @Published var activeDietaryFilters: Set<DietaryFilter> = []
+    @Published var activeDiningStyles: Set<DiningStyle> = []
     @Published var minRating: Double? = nil
     @Published var openNowOnly: Bool = false
 
@@ -48,6 +49,16 @@ class FoodRecommendationsViewModel: ObservableObject {
             if let distanceKm = spot.distanceKm {
                 let distanceMiles = distanceKm * 0.621371
                 if distanceMiles > maxDistanceMiles {
+                    return false
+                }
+            }
+
+            // Filter by dining style (OR logic - match ANY selected style)
+            if !activeDiningStyles.isEmpty {
+                let matchesAny = activeDiningStyles.contains { style in
+                    spot.matchesDiningStyle(style)
+                }
+                if !matchesAny {
                     return false
                 }
             }
@@ -80,32 +91,24 @@ class FoodRecommendationsViewModel: ObservableObject {
     }
 
     var hasActiveFilters: Bool {
-        !activeDietaryFilters.isEmpty || minRating != nil || openNowOnly
+        !activeDietaryFilters.isEmpty || !activeDiningStyles.isEmpty || minRating != nil || openNowOnly
     }
 
-    // Filtered lists by dietary type for section display
-    var veganSpots: [FoodSpot] {
-        foodSpots.filter { $0.isVegan == true || $0.hasVeganOptions == true }
-    }
+    // Cached dietary filter results - updated when foodSpots changes
+    @Published private(set) var veganSpots: [FoodSpot] = []
+    @Published private(set) var vegetarianSpots: [FoodSpot] = []
+    @Published private(set) var glutenFreeSpots: [FoodSpot] = []
+    @Published private(set) var organicSpots: [FoodSpot] = []
+    @Published private(set) var halalSpots: [FoodSpot] = []
+    @Published private(set) var kosherSpots: [FoodSpot] = []
 
-    var vegetarianSpots: [FoodSpot] {
-        foodSpots.filter { ($0.isVegetarian == true || $0.hasVegetarianOptions == true) && $0.isVegan != true }
-    }
-
-    var glutenFreeSpots: [FoodSpot] {
-        foodSpots.filter { $0.isGlutenFree == true || $0.hasGlutenFreeOptions == true }
-    }
-
-    var organicSpots: [FoodSpot] {
-        foodSpots.filter { $0.isOrganic == true }
-    }
-
-    var halalSpots: [FoodSpot] {
-        foodSpots.filter { $0.isHalal == true }
-    }
-
-    var kosherSpots: [FoodSpot] {
-        foodSpots.filter { $0.isKosher == true }
+    private func updateDietaryFilters() {
+        veganSpots = foodSpots.filter { $0.isVegan == true || $0.hasVeganOptions == true }
+        vegetarianSpots = foodSpots.filter { ($0.isVegetarian == true || $0.hasVegetarianOptions == true) && $0.isVegan != true }
+        glutenFreeSpots = foodSpots.filter { $0.isGlutenFree == true || $0.hasGlutenFreeOptions == true }
+        organicSpots = foodSpots.filter { $0.isOrganic == true }
+        halalSpots = foodSpots.filter { $0.isHalal == true }
+        kosherSpots = foodSpots.filter { $0.isKosher == true }
     }
 
     // MARK: - Public Methods
@@ -169,6 +172,7 @@ class FoodRecommendationsViewModel: ObservableObject {
                 .sorted { ($0.distanceKm ?? 999) < ($1.distanceKm ?? 999) }
 
             foodSpots = uniqueSpots
+            updateDietaryFilters()
             userLocation = response.userLocation
 
             if let radius = response.searchRadiusKm {
@@ -220,8 +224,21 @@ class FoodRecommendationsViewModel: ObservableObject {
         activeDietaryFilters.contains(filter)
     }
 
+    func toggleDiningStyle(_ style: DiningStyle) {
+        if activeDiningStyles.contains(style) {
+            activeDiningStyles.remove(style)
+        } else {
+            activeDiningStyles.insert(style)
+        }
+    }
+
+    func isDiningStyleActive(_ style: DiningStyle) -> Bool {
+        activeDiningStyles.contains(style)
+    }
+
     func clearAllFilters() {
         activeDietaryFilters.removeAll()
+        activeDiningStyles.removeAll()
         minRating = nil
         openNowOnly = false
     }

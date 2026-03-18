@@ -190,25 +190,32 @@ struct ComparisonRow: View {
                         .lineLimit(2)
                 }
 
-                Spacer(minLength: 4)
+                Spacer(minLength: 0)
+            }
 
-                // Inline stats
-                HStack(spacing: 8) {
-                    ForEach(Array(stats.enumerated()), id: \.offset) { _, stat in
-                        VStack(spacing: 1) {
-                            Text(stat.0)
-                                .font(.system(size: 13, weight: .bold, design: .rounded))
-                                .foregroundColor(color)
-                            Text(stat.1)
-                                .font(.system(size: 9))
-                                .foregroundColor(DesignSystem.Colors.tertiaryText)
-                        }
+            // Stats as horizontal pill row below description
+            HStack(spacing: 8) {
+                ForEach(Array(stats.enumerated()), id: \.offset) { _, stat in
+                    HStack(spacing: 3) {
+                        Text(stat.0)
+                            .font(.system(size: 12, weight: .bold, design: .rounded))
+                            .foregroundColor(color)
+                        Text(stat.1)
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundColor(color.opacity(0.7))
                     }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(
+                        Capsule()
+                            .fill(color.opacity(0.1))
+                    )
                 }
             }
+            .padding(.leading, 52)
         }
         .padding(.horizontal, 14)
-        .padding(.vertical, 12)
+        .padding(.vertical, 14)
     }
 }
 
@@ -219,11 +226,17 @@ struct AchievementBadgesView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Badges Earned")
-                .font(.caption.weight(.semibold))
-                .foregroundColor(DesignSystem.Colors.secondaryText)
-                .textCase(.uppercase)
-                .tracking(0.5)
+            HStack(spacing: 6) {
+                Image(systemName: "medal.fill")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(DesignSystem.Colors.amber)
+
+                Text("Badges Earned")
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .textCase(.uppercase)
+                    .tracking(0.5)
+            }
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 12) {
@@ -241,41 +254,95 @@ struct AchievementBadgesView: View {
 struct BadgeCardView: View {
     let badge: BadgeData
 
+    private var tierGradient: [Color] {
+        switch badge.tierEnum {
+        case .bronze:
+            return [Color(red: 0.8, green: 0.5, blue: 0.2), Color(red: 0.6, green: 0.35, blue: 0.15)]
+        case .silver:
+            return [Color.white.opacity(0.12), Color.gray.opacity(0.08)]
+        case .gold:
+            return [DesignSystem.Colors.amber, DesignSystem.Colors.amber.opacity(0.6)]
+        case .platinum:
+            return [Color(red: 0.9, green: 0.9, blue: 1.0).opacity(0.15), Color.blue.opacity(0.08)]
+        }
+    }
+
+    private var tierGradientOpacity: Double {
+        switch badge.tierEnum {
+        case .bronze: return 0.12
+        case .silver: return 1.0 // already has opacity baked in
+        case .gold: return 0.15
+        case .platinum: return 1.0 // already has opacity baked in
+        }
+    }
+
     var body: some View {
         VStack(spacing: 8) {
+            // Double-ring icon
             ZStack {
+                // Outer ring (stroke with gap)
+                Circle()
+                    .strokeBorder(badge.tierEnum.color.opacity(0.3), lineWidth: 1.5)
+                    .frame(width: 54, height: 54)
+
+                // Inner fill circle
                 Circle()
                     .fill(badge.tierEnum.color.opacity(0.15))
-                    .frame(width: 48, height: 48)
-
-                Circle()
-                    .strokeBorder(badge.tierEnum.color.opacity(0.4), lineWidth: 1.5)
-                    .frame(width: 48, height: 48)
+                    .frame(width: 46, height: 46)
 
                 Image(systemName: badge.icon)
-                    .font(.system(size: 20, weight: .semibold))
+                    .font(.system(size: 22, weight: .semibold))
                     .foregroundColor(badge.categoryColor)
             }
 
-            VStack(spacing: 2) {
+            VStack(spacing: 4) {
                 Text(badge.name)
                     .font(.system(size: 11, weight: .medium))
                     .foregroundColor(DesignSystem.Colors.primaryText)
                     .multilineTextAlignment(.center)
                     .lineLimit(2)
 
+                // Tier label as colored pill
                 Text(badge.tierEnum.displayName)
-                    .font(.system(size: 9, weight: .medium))
+                    .font(.system(size: 9, weight: .semibold))
                     .foregroundColor(badge.tierEnum.color)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 2)
+                    .background(
+                        Capsule()
+                            .fill(badge.tierEnum.color.opacity(0.12))
+                    )
             }
         }
-        .frame(width: 80)
-        .padding(.vertical, 12)
+        .frame(width: 100)
+        .padding(.vertical, 14)
         .padding(.horizontal, 8)
         .background(
-            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.md)
-                .fill(DesignSystem.Colors.cardBackground)
+            ZStack {
+                // Base card fill
+                RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.md)
+                    .fill(DesignSystem.Colors.cardBackground)
+
+                // Tier-specific gradient overlay
+                RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.md)
+                    .fill(
+                        LinearGradient(
+                            colors: tierGradient,
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .opacity(tierGradientOpacity)
+            }
         )
+        .overlay(alignment: .top) {
+            // Top-edge accent line
+            RoundedRectangle(cornerRadius: 0.5)
+                .fill(badge.tierEnum.color.opacity(0.5))
+                .frame(height: 1)
+                .padding(.horizontal, 12)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.md))
     }
 }
 

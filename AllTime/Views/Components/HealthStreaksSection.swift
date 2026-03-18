@@ -14,9 +14,9 @@ struct HealthStreaksSection: View {
     let isLoading: Bool
     @State private var isExpanded: Bool = false
 
-    // Show best streak in collapsed state
-    private var bestStreak: HealthStreak? {
-        streaks.sortedStreaks.first
+    // Top 3 active streaks for collapsed preview
+    private var topActiveStreaks: [HealthStreak] {
+        Array(streaks.activeStreaks.prefix(3))
     }
 
     var body: some View {
@@ -32,6 +32,7 @@ struct HealthStreaksSection: View {
                         Image(systemName: "flame.fill")
                             .font(.system(size: 18, weight: .semibold))
                             .foregroundColor(DesignSystem.Colors.amber)
+                            .chronaGlow(color: DesignSystem.Colors.amber, opacity: 0.3)
 
                         Text("Goal Streaks")
                             .font(DesignSystem.Typography.title3)
@@ -60,39 +61,19 @@ struct HealthStreaksSection: View {
             }
             .buttonStyle(PlainButtonStyle())
 
-            // Collapsed Preview
+            // Collapsed Preview — horizontal streak pills
             if !isExpanded {
-                if let best = bestStreak, best.currentStreak > 0 {
-                    HStack(spacing: 12) {
-                        ZStack {
-                            Circle()
-                                .fill(best.color.opacity(0.15))
-                                .frame(width: 36, height: 36)
-                            Image(systemName: best.icon)
-                                .font(.system(size: 16, weight: .semibold))
-                                .foregroundColor(best.color)
-                        }
-
-                        VStack(alignment: .leading, spacing: 2) {
-                            HStack(spacing: 4) {
-                                Image(systemName: "flame.fill")
-                                    .font(.system(size: 12))
-                                    .foregroundColor(DesignSystem.Colors.amber)
-                                Text("\(best.currentStreak)-day streak")
-                                    .font(.subheadline.weight(.semibold))
-                                    .foregroundColor(DesignSystem.Colors.primaryText)
-                                if best.isPersonalBest {
-                                    Image(systemName: "trophy.fill")
-                                        .font(.system(size: 10))
-                                        .foregroundColor(DesignSystem.Colors.amber)
-                                }
-                            }
-                            Text("\(best.displayName) \u{2022} Tap to see all")
-                                .font(.caption)
-                                .foregroundColor(DesignSystem.Colors.secondaryText)
+                if !topActiveStreaks.isEmpty {
+                    HStack(spacing: 8) {
+                        ForEach(topActiveStreaks) { streak in
+                            StreakPill(streak: streak)
                         }
 
                         Spacer()
+
+                        Text("Tap to see all")
+                            .font(.caption2)
+                            .foregroundColor(DesignSystem.Colors.tertiaryText)
                     }
                     .padding(12)
                     .background(
@@ -117,7 +98,7 @@ struct HealthStreaksSection: View {
                 }
             }
 
-            // Expanded Content - List-style rows in a grouped card
+            // Expanded Content
             if isExpanded {
                 if streaks.sortedStreaks.isEmpty {
                     NoActiveStreaksView()
@@ -142,79 +123,163 @@ struct HealthStreaksSection: View {
     }
 }
 
+// MARK: - Streak Pill (Collapsed Preview)
+
+struct StreakPill: View {
+    let streak: HealthStreak
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Image(systemName: streak.icon)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundColor(streak.color)
+
+            Text("\(streak.currentStreak)")
+                .font(.system(size: 13, weight: .bold, design: .rounded))
+                .foregroundColor(DesignSystem.Colors.primaryText)
+
+            Image(systemName: "flame.fill")
+                .font(.system(size: 9))
+                .foregroundColor(DesignSystem.Colors.amber)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(
+            Capsule()
+                .fill(streak.color.opacity(0.12))
+        )
+    }
+}
+
 // MARK: - Streak Row (List-style)
 
 struct StreakRow: View {
     let streak: HealthStreak
+    @State private var isPulsing: Bool = false
 
     var body: some View {
-        HStack(spacing: 12) {
-            // Goal type icon
-            ZStack {
-                Circle()
-                    .fill(streak.isActive ? streak.color.opacity(0.15) : DesignSystem.Colors.tertiaryText.opacity(0.1))
-                    .frame(width: 36, height: 36)
-
-                Image(systemName: streak.icon)
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundColor(streak.isActive ? streak.color : DesignSystem.Colors.tertiaryText)
+        HStack(spacing: 0) {
+            // Left accent bar for active streaks
+            if streak.isActive {
+                RoundedRectangle(cornerRadius: 1)
+                    .fill(streak.color)
+                    .frame(width: 2)
+                    .padding(.vertical, 4)
+            } else {
+                Color.clear.frame(width: 2)
             }
 
-            // Name + status
-            VStack(alignment: .leading, spacing: 2) {
-                Text(streak.displayName)
-                    .font(.subheadline.weight(.medium))
-                    .foregroundColor(DesignSystem.Colors.primaryText)
+            HStack(spacing: 12) {
+                // Goal type icon
+                ZStack {
+                    Circle()
+                        .fill(streak.isActive ? streak.color.opacity(0.15) : DesignSystem.Colors.tertiaryText.opacity(0.06))
+                        .frame(width: 36, height: 36)
 
-                if streak.isActive {
-                    if streak.isAtRisk {
-                        HStack(spacing: 3) {
-                            Circle()
-                                .fill(DesignSystem.Colors.amber)
-                                .frame(width: 6, height: 6)
-                            Text("At risk today")
+                    Image(systemName: streak.icon)
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(streak.isActive ? streak.color : DesignSystem.Colors.tertiaryText.opacity(0.5))
+                }
+
+                // Name + status
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(streak.displayName)
+                        .font(.subheadline.weight(.medium))
+                        .foregroundColor(streak.isActive ? DesignSystem.Colors.primaryText : DesignSystem.Colors.tertiaryText)
+
+                    if streak.isActive {
+                        if streak.isAtRisk {
+                            HStack(spacing: 3) {
+                                Circle()
+                                    .fill(DesignSystem.Colors.amber)
+                                    .frame(width: 6, height: 6)
+                                    .scaleEffect(isPulsing ? 1.3 : 1.0)
+                                    .opacity(isPulsing ? 0.6 : 1.0)
+                                    .onAppear {
+                                        withAnimation(AppAnimations.pulse) {
+                                            isPulsing = true
+                                        }
+                                    }
+                                Text("At risk today")
+                                    .font(.caption2)
+                                    .foregroundColor(DesignSystem.Colors.amber)
+                            }
+                        } else if streak.isPersonalBest && streak.currentStreak > 1 {
+                            // Gold gradient banner for personal best
+                            HStack(spacing: 4) {
+                                Image(systemName: "trophy.fill")
+                                    .font(.system(size: 9))
+                                Text("Personal best!")
+                                    .font(.caption2.weight(.semibold))
+                            }
+                            .foregroundColor(DesignSystem.Colors.amber)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 2)
+                            .background(
+                                Capsule()
+                                    .fill(
+                                        LinearGradient(
+                                            colors: [
+                                                DesignSystem.Colors.amber.opacity(0.2),
+                                                DesignSystem.Colors.amber.opacity(0.08)
+                                            ],
+                                            startPoint: .leading,
+                                            endPoint: .trailing
+                                        )
+                                    )
+                            )
+                        } else if streak.longestStreak > streak.currentStreak {
+                            Text("Best: \(streak.longestStreak) days")
                                 .font(.caption2)
-                                .foregroundColor(DesignSystem.Colors.amber)
+                                .foregroundColor(DesignSystem.Colors.tertiaryText)
                         }
-                    } else if streak.isPersonalBest && streak.currentStreak > 1 {
-                        HStack(spacing: 3) {
-                            Image(systemName: "trophy.fill")
-                                .font(.system(size: 9))
-                            Text("Personal best!")
+                    } else {
+                        // Inactive — soft CTA
+                        if streak.longestStreak > 0 {
+                            Text("Best: \(streak.longestStreak) days \u{2022} Start today")
                                 .font(.caption2)
+                                .foregroundColor(DesignSystem.Colors.tertiaryText.opacity(0.7))
+                        } else {
+                            Text("Start today")
+                                .font(.caption2.weight(.medium))
+                                .foregroundColor(DesignSystem.Colors.tertiaryText.opacity(0.7))
                         }
-                        .foregroundColor(DesignSystem.Colors.amber)
-                    } else if streak.longestStreak > streak.currentStreak {
-                        Text("Best: \(streak.longestStreak) days")
-                            .font(.caption2)
-                            .foregroundColor(DesignSystem.Colors.tertiaryText)
                     }
-                } else {
-                    Text("Best: \(streak.longestStreak) days")
-                        .font(.caption2)
-                        .foregroundColor(DesignSystem.Colors.tertiaryText)
                 }
-            }
 
-            Spacer()
+                Spacer()
 
-            // Streak count
-            HStack(spacing: 4) {
+                // Streak count — gradient pill for active, plain for inactive
                 if streak.isActive {
-                    Image(systemName: "flame.fill")
-                        .font(.system(size: 12))
-                        .foregroundColor(DesignSystem.Colors.amber)
+                    HStack(spacing: 4) {
+                        Image(systemName: "flame.fill")
+                            .font(.system(size: 12))
+                            .foregroundColor(DesignSystem.Colors.amber)
+                            .scaleEffect(streak.isAtRisk && isPulsing ? 1.15 : 1.0)
+                        Text("\(streak.currentStreak)")
+                            .font(.system(size: 20, weight: .bold, design: .rounded))
+                            .foregroundColor(DesignSystem.Colors.primaryText)
+                        Text(streak.currentStreak == 1 ? "day" : "days")
+                            .font(.caption2)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(
+                        Capsule()
+                            .fill(streak.color.opacity(0.1))
+                    )
+                } else {
+                    Text("0 days")
+                        .font(.system(size: 14, weight: .medium, design: .rounded))
+                        .foregroundColor(DesignSystem.Colors.tertiaryText.opacity(0.5))
                 }
-                Text("\(streak.currentStreak)")
-                    .font(.system(size: 20, weight: .bold, design: .rounded))
-                    .foregroundColor(streak.isActive ? DesignSystem.Colors.primaryText : DesignSystem.Colors.tertiaryText)
-                Text(streak.currentStreak == 1 ? "day" : "days")
-                    .font(.caption2)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
             }
+            .padding(.leading, 10)
+            .padding(.trailing, 14)
+            .padding(.vertical, 12)
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 12)
+        .opacity(streak.isActive ? 1.0 : 0.55)
     }
 }
 

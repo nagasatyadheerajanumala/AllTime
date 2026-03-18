@@ -186,6 +186,12 @@ class CalendarImportViewModel: ObservableObject {
                 // Clear cache to force fresh fetch when calendar view loads
                 EventCacheManager.shared.clearCache()
 
+                // Clear forecast/pattern intelligence caches so Insights tab shows updated data
+                await CacheService.shared.delete(filename: "next_week_forecast")
+                await CacheService.shared.delete(filename: "pattern_intelligence")
+                await InMemoryCache.shared.remove("mem_next_week_forecast")
+                await InMemoryCache.shared.remove("mem_pattern_intelligence")
+
                 print("📅 CalendarImport: Import successful! Saved \(count) events")
                 self.showingSuccessAlert = true
             } catch let error as ImportError {

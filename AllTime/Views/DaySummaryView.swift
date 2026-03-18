@@ -25,7 +25,7 @@ struct DaySummaryView: View {
                     loadingView
                 } else {
                     ScrollView {
-                        VStack(spacing: 24) {
+                        LazyVStack(spacing: 24) {
                             // Header with greeting
                             headerSection
 

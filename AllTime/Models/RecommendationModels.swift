@@ -43,6 +43,10 @@ struct FoodSpot: Codable, Identifiable {
     let placeId: String?
     let mapUrl: String?
 
+    // Dining style and numeric price level from backend
+    let diningStyle: String?
+    let priceLevelNumeric: Int?
+
     // New dietary flags from backend
     let isHealthy: Bool?
     let isVegan: Bool?
@@ -70,6 +74,8 @@ struct FoodSpot: Codable, Identifiable {
         case dietaryTags = "dietary_tags"
         case placeId = "place_id"
         case mapUrl = "map_url"
+        case diningStyle = "dining_style"
+        case priceLevelNumeric = "price_level_numeric"
         case isHealthy = "is_healthy"
         case isVegan = "is_vegan"
         case isVegetarian = "is_vegetarian"
@@ -125,6 +131,12 @@ struct FoodSpot: Codable, Identifiable {
         return "\(count)"
     }
 
+    /// Check if spot matches a dining style
+    func matchesDiningStyle(_ style: DiningStyle) -> Bool {
+        guard let ds = diningStyle else { return false }
+        return ds == style.apiValue
+    }
+
     /// Check if spot matches dietary preference
     func matchesDietaryFilter(_ filter: DietaryFilter) -> Bool {
         switch filter {
@@ -170,6 +182,46 @@ enum DietaryFilter: String, CaseIterable {
         case .organic: return Color(red: 0.1, green: 0.6, blue: 0.3)
         case .halal: return .teal
         case .kosher: return .blue
+        }
+    }
+}
+
+/// Dining style filter options
+enum DiningStyle: String, CaseIterable {
+    case fineDining = "Fine Dining"
+    case sitDown = "Sit Down"
+    case fastCasual = "Fast Casual"
+    case fastFood = "Fast Food"
+    case delivery = "Delivery"
+
+    var icon: String {
+        switch self {
+        case .fineDining: return "wineglass.fill"
+        case .sitDown: return "chair.lounge.fill"
+        case .fastCasual: return "cup.and.saucer.fill"
+        case .fastFood: return "takeoutbag.and.cup.and.straw.fill"
+        case .delivery: return "bicycle"
+        }
+    }
+
+    var color: Color {
+        switch self {
+        case .fineDining: return Color(red: 0.6, green: 0.3, blue: 0.7)
+        case .sitDown: return Color(red: 0.2, green: 0.5, blue: 0.8)
+        case .fastCasual: return Color(red: 0.9, green: 0.6, blue: 0.2)
+        case .fastFood: return Color(red: 0.9, green: 0.3, blue: 0.3)
+        case .delivery: return Color(red: 0.3, green: 0.7, blue: 0.5)
+        }
+    }
+
+    /// Value matching backend dining_style strings
+    var apiValue: String {
+        switch self {
+        case .fineDining: return "fine_dining"
+        case .sitDown: return "sit_down"
+        case .fastCasual: return "fast_casual"
+        case .fastFood: return "fast_food"
+        case .delivery: return "delivery"
         }
     }
 }

@@ -132,7 +132,7 @@ struct DailyInsightCard: View {
             .background(
                 RoundedRectangle(cornerRadius: 16)
                     .fill(DesignSystem.Colors.cardBackground)
-                    .shadow(color: .black.opacity(0.08), radius: 12, y: 4)
+                    .shadow(color: .black.opacity(0.06), radius: 6, y: 3)
             )
             .overlay(
                 // Subtle accent line on left edge

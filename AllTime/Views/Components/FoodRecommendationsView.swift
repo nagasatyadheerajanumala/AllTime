@@ -330,6 +330,20 @@ struct FoodRecommendationsView: View {
                 }
             }
 
+            // Dining Style section
+            Text("Dining Style")
+                .font(.subheadline.weight(.semibold))
+                .foregroundColor(DesignSystem.Colors.primaryText)
+                .padding(.top, 4)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(DiningStyle.allCases, id: \.self) { style in
+                        diningStyleChip(style)
+                    }
+                }
+            }
+
             // Additional filters row
             HStack(spacing: 12) {
                 // Open Now toggle
@@ -398,6 +412,28 @@ struct FoodRecommendationsView: View {
             .overlay(
                 RoundedRectangle(cornerRadius: 16)
                     .stroke(isActive ? filter.color : DesignSystem.Colors.tertiaryText.opacity(0.3), lineWidth: 1)
+            )
+        }
+    }
+
+    private func diningStyleChip(_ style: DiningStyle) -> some View {
+        let isActive = viewModel.isDiningStyleActive(style)
+
+        return Button(action: { viewModel.toggleDiningStyle(style) }) {
+            HStack(spacing: 6) {
+                Image(systemName: style.icon)
+                    .font(.system(size: 12, weight: .semibold))
+                Text(style.rawValue)
+                    .font(.caption.weight(.semibold))
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(isActive ? style.color : DesignSystem.Colors.cardBackgroundElevated)
+            .foregroundColor(isActive ? .white : DesignSystem.Colors.secondaryText)
+            .cornerRadius(16)
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(isActive ? style.color : DesignSystem.Colors.tertiaryText.opacity(0.3), lineWidth: 1)
             )
         }
     }
@@ -817,12 +853,28 @@ struct FoodSpotCard: View {
                         .foregroundColor(DesignSystem.Colors.primaryText)
                         .lineLimit(1)
 
-                    // Cuisine and category
+                    // Cuisine, dining style, and category
                     HStack(spacing: 6) {
                         if let cuisine = spot.cuisine {
                             Text(cuisine)
                                 .font(.caption)
                                 .foregroundColor(DesignSystem.Colors.tertiaryText)
+                        }
+
+                        // Dining style badge
+                        if let ds = spot.diningStyle,
+                           let style = DiningStyle.allCases.first(where: { $0.apiValue == ds }) {
+                            HStack(spacing: 3) {
+                                Image(systemName: style.icon)
+                                    .font(.system(size: 8))
+                                Text(style.rawValue)
+                                    .font(.system(size: 9, weight: .semibold))
+                            }
+                            .foregroundColor(style.color)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(style.color.opacity(0.15))
+                            .cornerRadius(4)
                         }
 
                         // Dietary tags (show first 2)

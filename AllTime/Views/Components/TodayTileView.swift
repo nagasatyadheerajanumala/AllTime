@@ -123,7 +123,8 @@ struct TodayTileView<Content: View>: View {
                 RoundedRectangle(cornerRadius: DesignSystem.Today.tileCornerRadius)
                     .fill(gradient ?? type.defaultGradient)
             )
-            .shadow(color: Color.black.opacity(0.15), radius: 12, x: 0, y: 6)
+            .compositingGroup()
+            .shadow(color: Color.black.opacity(0.12), radius: 6, x: 0, y: 3)
         }
         .buttonStyle(TileButtonStyle())
     }

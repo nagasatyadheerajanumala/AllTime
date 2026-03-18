@@ -19,23 +19,28 @@ class NavigationManager: ObservableObject {
     /// Pending deep link destination (used when user needs to sign in first)
     @Published var pendingDestination: String? = nil
 
+    /// Navigate to Network view (under Profile tab)
+    @Published var showNetwork: Bool = false
+
+    /// Navigate to Calendar tab on a specific date (e.g. after accepting an invite)
+    @Published var navigateToCalendarDate: Date? = nil
+
     /// Tab enumeration for type-safe navigation
+    /// IMPORTANT: These indices MUST match PremiumTabView's tab order
     enum Tab: Int, CaseIterable {
         case today = 0
-        case insights = 1
-        case calendar = 2
-        case health = 3
-        case reminders = 4
-        case settings = 5
+        case calendar = 1
+        case insights = 2
+        case reminders = 3
+        case settings = 4
 
         var title: String {
             switch self {
             case .today: return "Today"
-            case .insights: return "Insights"
             case .calendar: return "Calendar"
-            case .health: return "Health"
+            case .insights: return "Insights"
             case .reminders: return "Reminders"
-            case .settings: return "Settings"
+            case .settings: return "Profile"
             }
         }
     }
@@ -54,9 +59,10 @@ class NavigationManager: ObservableObject {
         selectedTab = Tab.calendar.rawValue
     }
 
-    /// Navigate to Health tab
+    /// Navigate to Health (Insights tab → Health section)
     func navigateToHealth() {
-        selectedTab = Tab.health.rawValue
+        insightsSection = "health"
+        selectedTab = Tab.insights.rawValue
     }
 
     /// Navigate to Reminders tab
@@ -64,9 +70,20 @@ class NavigationManager: ObservableObject {
         selectedTab = Tab.reminders.rawValue
     }
 
-    /// Navigate to Settings tab
+    /// Navigate to Settings/Profile tab
     func navigateToSettings() {
         selectedTab = Tab.settings.rawValue
+    }
+
+    /// Navigate to Profile tab (alias for navigateToSettings)
+    func navigateToProfile() {
+        selectedTab = Tab.settings.rawValue
+    }
+
+    /// Navigate to Network (Profile tab → Network view)
+    func navigateToNetwork() {
+        selectedTab = Tab.settings.rawValue
+        showNetwork = true
     }
 
     /// Navigate to Insights tab
@@ -77,11 +94,16 @@ class NavigationManager: ObservableObject {
     /// Navigate to Daily Insights (Insights tab → Daily section)
     /// Used by evening summary notifications
     func navigateToDailyInsights() {
-        print("📱 NavigationManager: Navigating to Daily Insights")
+        print("📱 NavigationManager: Navigating to Daily Insights, setting selectedTab=\(Tab.insights.rawValue) (insights)")
         insightsSection = "daily"
         selectedTab = Tab.insights.rawValue
-        // Post notification so InsightsRootView can switch to Daily section
-        NotificationCenter.default.post(name: .navigateToDailyInsights, object: nil)
+        print("📱 NavigationManager: selectedTab is now \(selectedTab), insightsSection=\(insightsSection ?? "nil")")
+        // Delay notification post to allow InsightsTabView to mount first
+        // (tabs are lazily loaded, so the view may not exist yet to receive the notification)
+        Task {
+            try? await Task.sleep(nanoseconds: 300_000_000) // 0.3s
+            NotificationCenter.default.post(name: .navigateToDailyInsights, object: nil)
+        }
     }
 
     /// Navigate to a specific tab
@@ -124,8 +146,10 @@ class NavigationManager: ObservableObject {
             navigateToHealth()
         case "reminders":
             navigateToReminders()
-        case "settings":
+        case "settings", "profile":
             navigateToSettings()
+        case "network":
+            navigateToNetwork()
         default:
             print("📱 NavigationManager: Unknown destination: \(destination)")
         }
@@ -150,31 +174,60 @@ class NavigationManager: ObservableObject {
 
         switch path {
         case "calendar":
-            navigateToCalendar()
             // Handle calendar-specific actions
             if let action = params["action"] {
+                navigateToCalendar()
                 handleCalendarAction(action, params: params)
             }
-            if let date = params["date"] {
-                // TODO: Navigate to specific date
-                print("📱 NavigationManager: Navigate to date: \(date)")
+            if let dateStr = params["date"] {
+                // Navigate to specific calendar date (e.g. from accepted invite notification)
+                let formatter = DateFormatter()
+                formatter.dateFormat = "yyyy-MM-dd"
+                if let date = formatter.date(from: dateStr) {
+                    print("📱 NavigationManager: Navigating to calendar date: \(dateStr)")
+                    navigateToCalendarDate = date
+                } else {
+                    navigateToCalendar()
+                }
+            } else {
+                navigateToCalendar()
             }
         case "today":
             navigateToToday()
+        case "daily-summary":
+            // Morning briefing → Daily Insights tab
+            navigateToDailyInsights()
+        case "day-review":
+            // Evening summary → Day Review
+            navigateToDayReview()
         case "insights":
             navigateToInsights()
-            if let section = params["section"] {
+            // Support both "section" and "tab" param names
+            if let section = params["section"] ?? params["tab"] {
                 insightsSection = section
             }
+        case "clashes":
+            // Calendar clash notifications → Calendar tab
+            navigateToCalendar()
+        case "tasks":
+            // Task reminders → Reminders tab
+            navigateToReminders()
         case "health":
             navigateToHealth()
         case "reminders":
             navigateToReminders()
-        case "settings":
+        case "settings", "profile":
             navigateToSettings()
+        case "network":
+            navigateToNetwork()
         default:
-            print("📱 NavigationManager: Unknown deep link path: \(path)")
-            navigateToToday() // Default fallback
+            // Handle paths like "reminders/123" where the ID is part of the path
+            if path.starts(with: "reminders") {
+                navigateToReminders()
+            } else {
+                print("📱 NavigationManager: Unknown deep link path: \(path)")
+                navigateToToday() // Default fallback
+            }
         }
     }
 

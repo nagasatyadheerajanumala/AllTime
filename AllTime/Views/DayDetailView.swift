@@ -20,6 +20,7 @@ struct DayDetailView: View {
     @State private var showingDeleteConfirmation = false
     @State private var isDeleting = false
     @State private var deleteError: String?
+    @State private var eventToShare: CalendarEvent?
 
     private let apiService = APIService()
 
@@ -91,6 +92,9 @@ struct DayDetailView: View {
                                     onDelete: {
                                         eventToDelete = event
                                         showingDeleteConfirmation = true
+                                    },
+                                    onShare: {
+                                        eventToShare = event
                                     }
                                 )
                             }
@@ -113,6 +117,9 @@ struct DayDetailView: View {
                                         onDelete: {
                                             eventToDelete = event
                                             showingDeleteConfirmation = true
+                                        },
+                                        onShare: {
+                                            eventToShare = event
                                         }
                                     )
                                 }
@@ -203,6 +210,14 @@ struct DayDetailView: View {
                     Text(error)
                 }
             }
+            .sheet(isPresented: Binding(
+                get: { eventToShare != nil },
+                set: { if !$0 { eventToShare = nil } }
+            )) {
+                if let event = eventToShare {
+                    ShareEventSheet(event: event)
+                }
+            }
             .overlay {
                 if isLoadingEventDetails {
                     Color.black.opacity(0.3)
@@ -290,6 +305,7 @@ struct SwipeableEventRow: View {
     let onTap: () -> Void
     let onEdit: () -> Void
     let onDelete: () -> Void
+    var onShare: (() -> Void)? = nil
 
     private let timeFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -381,6 +397,16 @@ struct SwipeableEventRow: View {
                 Label("Edit", systemImage: "pencil")
             }
             .tint(.blue)
+
+            if let onShare = onShare {
+                Button {
+                    HapticManager.shared.lightTap()
+                    onShare()
+                } label: {
+                    Label("Share", systemImage: "paperplane")
+                }
+                .tint(DesignSystem.Colors.violet)
+            }
         }
     }
 }

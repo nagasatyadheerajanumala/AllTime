@@ -28,6 +28,12 @@ class WalkRecommendationsViewModel: ObservableObject {
     // MARK: - Computed Properties
     var filteredWalkRoutes: [WalkRouteRecommendation] {
         walkRoutes.filter { route in
+            // Filter by difficulty
+            if let routeDifficulty = route.difficulty?.lowercased(),
+               routeDifficulty != selectedDifficulty.rawValue {
+                return false
+            }
+
             // Filter by distance
             guard let distanceKm = route.distanceKm else { return true }
             let distanceMiles = distanceKm * 0.621371

@@ -2,7 +2,7 @@
 //  SettingsView.swift
 //  AllTime
 //
-//  Redesigned with Apple's design principles
+//  Redesigned with premium calm card design system
 //
 
 import SwiftUI
@@ -21,243 +21,305 @@ struct SettingsView: View {
     @State private var showDeleteError = false
     @State private var deleteErrorMessage = ""
     private let apiService = APIService()
-    
+
     // Computed property to get user - prioritize authService, fallback to settingsViewModel
     private var currentUser: User? {
         authService.currentUser ?? settingsViewModel.user
     }
-    
+
     var body: some View {
         NavigationView {
             ZStack {
                 // Background
                 DesignSystem.Colors.background
                     .ignoresSafeArea()
-                
-                List {
-                // Profile Section - Apple-style header
-                Section {
-                    NavigationLink(destination: ProfileDetailView()
-                        .environmentObject(authService)
-                        .environmentObject(settingsViewModel)) {
-                        HStack(spacing: 16) {
-                            // Profile Picture - Larger, more prominent
-                            ProfilePictureView(
-                                profilePictureUrl: currentUser?.profilePictureUrl,
-                                size: 60
-                            )
-                            
-                            VStack(alignment: .leading, spacing: 6) {
-                                // Name or Email
-                                if let fullName = currentUser?.fullName, !fullName.isEmpty {
-                                    Text(fullName)
-                                        .font(.system(size: 17, weight: .semibold))
-                                        .foregroundColor(.primary)
-                                } else if let email = currentUser?.email, !email.isEmpty {
-                                    Text(email)
-                                        .font(.system(size: 17, weight: .semibold))
-                                        .foregroundColor(.primary)
-                                } else if settingsViewModel.isLoading {
-                                    HStack(spacing: 6) {
-                                        ProgressView()
-                                            .scaleEffect(0.8)
-                                        Text("Loading...")
-                                            .font(.system(size: 17, weight: .regular))
-                                            .foregroundColor(.secondary)
+
+                ScrollView {
+                    LazyVStack(spacing: 20) {
+
+                        // MARK: - Profile Section (index 0)
+                        NavigationLink(destination: ProfileDetailView()
+                            .environmentObject(authService)
+                            .environmentObject(settingsViewModel)) {
+                            HStack(spacing: 14) {
+                                // Profile Picture
+                                ProfilePictureView(
+                                    profilePictureUrl: currentUser?.profilePictureUrl,
+                                    size: 56
+                                )
+
+                                VStack(alignment: .leading, spacing: 6) {
+                                    // Name or Email
+                                    if let fullName = currentUser?.fullName, !fullName.isEmpty {
+                                        Text(fullName)
+                                            .font(.system(size: 17, weight: .semibold))
+                                            .foregroundColor(DesignSystem.Colors.primaryText)
+                                    } else if let email = currentUser?.email, !email.isEmpty {
+                                        Text(email)
+                                            .font(.system(size: 17, weight: .semibold))
+                                            .foregroundColor(DesignSystem.Colors.primaryText)
+                                            .lineLimit(1)
+                                    } else if settingsViewModel.isLoading {
+                                        HStack(spacing: 6) {
+                                            ProgressView()
+                                                .scaleEffect(0.8)
+                                            Text("Loading...")
+                                                .font(.system(size: 17, weight: .regular))
+                                                .foregroundColor(DesignSystem.Colors.secondaryText)
+                                        }
+                                    } else {
+                                        Text("Clara User")
+                                            .font(.system(size: 17, weight: .semibold))
+                                            .foregroundColor(DesignSystem.Colors.secondaryText)
                                     }
-                                } else {
-                                    Text("Clara User")
-                                        .font(.system(size: 17, weight: .regular))
-                                        .foregroundColor(.secondary)
+
+                                    // Email (if name exists)
+                                    if currentUser?.fullName != nil,
+                                       let email = currentUser?.email,
+                                       !email.isEmpty {
+                                        Text(email)
+                                            .font(.system(size: 15, weight: .regular))
+                                            .foregroundColor(DesignSystem.Colors.secondaryText)
+                                            .lineLimit(1)
+                                    }
+
+                                    Text("View profile")
+                                        .font(DesignSystem.Typography.footnote)
+                                        .foregroundColor(DesignSystem.Colors.primary)
                                 }
-                                
-                                // Email (if name exists)
-                                if currentUser?.fullName != nil,
-                                   let email = currentUser?.email,
-                                   !email.isEmpty {
-                                    Text(email)
-                                        .font(.system(size: 15, weight: .regular))
-                                        .foregroundColor(.secondary)
+
+                                Spacer()
+
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 13, weight: .medium))
+                                    .foregroundColor(DesignSystem.Colors.tertiaryText)
+                            }
+                            .padding(.vertical, 6)
+                            .calmCard(padding: 14)
+                        }
+                        .buttonStyle(SmoothButtonStyle())
+                        .cardStagger(index: 0)
+
+                        // MARK: - Calendars Section (index 1)
+                        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                            sectionLabel("Calendars")
+
+                            NavigationLink(destination: ConnectedCalendarsView()) {
+                                SettingsRow(
+                                    icon: "calendar.badge.clock",
+                                    iconColor: DesignSystem.Colors.blue,
+                                    title: "My Calendars",
+                                    badge: settingsViewModel.connectedProvidersCount
+                                )
+                                .calmCard(padding: 12)
+                            }
+                            .buttonStyle(SmoothButtonStyle())
+                        }
+                        .cardStagger(index: 1)
+
+                        // MARK: - Personalization Section (index 2)
+                        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                            sectionLabel("Personalization")
+
+                            NavigationLink(destination: InterestsSetupView()) {
+                                SettingsRow(
+                                    icon: "sparkles",
+                                    iconColor: Color(hex: "EC4899"),
+                                    title: "My Interests"
+                                )
+                                .calmCard(padding: 12)
+                            }
+                            .buttonStyle(SmoothButtonStyle())
+
+                            sectionFooter("Set your interests to get personalized weekend and vacation suggestions")
+                        }
+                        .cardStagger(index: 2)
+
+                        // MARK: - My Network Section (index 3)
+                        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                            sectionLabel("My Network")
+
+                            NavigationLink(destination: NetworkView()) {
+                                SettingsRow(
+                                    icon: "person.2.fill",
+                                    iconColor: DesignSystem.Colors.violet,
+                                    title: "My Network"
+                                )
+                                .calmCard(padding: 12)
+                            }
+                            .buttonStyle(SmoothButtonStyle())
+
+                            sectionFooter("Connect with people you meet with regularly")
+                        }
+                        .cardStagger(index: 3)
+
+                        // MARK: - App Settings Section (index 4)
+                        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                            sectionLabel("App Settings")
+
+                            VStack(spacing: 0) {
+                                ThemeToggleView()
+                                    .padding(.vertical, 10)
+                                    .padding(.horizontal, 14)
+
+                                Divider().padding(.leading, 50)
+
+                                NavigationLink(destination: NotificationSettingsView()) {
+                                    SettingsRow(
+                                        icon: "bell.badge.fill",
+                                        iconColor: DesignSystem.Colors.amber,
+                                        title: "Notifications"
+                                    )
+                                    .padding(.vertical, 10)
+                                    .padding(.horizontal, 14)
                                 }
+                                .buttonStyle(PlainButtonStyle())
+
+                                Divider().padding(.leading, 50)
+
+                                NavigationLink(destination: PrivacySettingsView()) {
+                                    SettingsRow(
+                                        icon: "lock.shield.fill",
+                                        iconColor: DesignSystem.Colors.emerald,
+                                        title: "Privacy & Security"
+                                    )
+                                    .padding(.vertical, 10)
+                                    .padding(.horizontal, 14)
+                                }
+                                .buttonStyle(PlainButtonStyle())
+
+                                Divider().padding(.leading, 50)
+
+                                NavigationLink(destination: AboutView()) {
+                                    SettingsRow(
+                                        icon: "info.circle.fill",
+                                        iconColor: DesignSystem.Colors.violet,
+                                        title: "About Clara"
+                                    )
+                                    .padding(.vertical, 10)
+                                    .padding(.horizontal, 14)
+                                }
+                                .buttonStyle(PlainButtonStyle())
                             }
-                            
-                            Spacer()
-                            
-                            // Note: NavigationLink automatically adds chevron
+                            .padding(.vertical, 4)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(
+                                RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg)
+                                    .fill(DesignSystem.Colors.cardBackground)
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg)
+                                    .stroke(DesignSystem.Colors.calmBorder, lineWidth: 0.5)
+                            )
                         }
-                        .padding(.vertical, 4)
-                    }
-                    .buttonStyle(PlainButtonStyle())
-                } header: {
-                    Text("PROFILE")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundColor(.secondary)
-                        .textCase(.uppercase)
-                }
-                
-                // Connected Providers Section
-                Section {
-                    NavigationLink(destination: ConnectedCalendarsView()) {
-                        SettingsRow(
-                            icon: "calendar.badge.clock",
-                            iconColor: DesignSystem.Colors.blue, // Blue
-                            title: "My Calendars",
-                            badge: settingsViewModel.connectedProvidersCount
-                        )
-                    }
-                } header: {
-                    Text("CONNECTED PROVIDERS")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundColor(.secondary)
-                        .textCase(.uppercase)
-                } footer: {
-                    Text("Manage your connected calendar accounts and sync settings")
-                        .font(.system(size: 13))
-                        .foregroundColor(.secondary)
-                }
+                        .cardStagger(index: 4)
 
-                // Personalization Section
-                Section {
-                    NavigationLink(destination: InterestsSetupView()) {
-                        SettingsRow(
-                            icon: "sparkles",
-                            iconColor: Color(hex: "EC4899"), // Pink
-                            title: "My Interests"
-                        )
-                    }
+                        // MARK: - Data & Storage Section (index 5)
+                        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                            sectionLabel("Data & Storage")
 
-                } header: {
-                    Text("PERSONALIZATION")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundColor(.secondary)
-                        .textCase(.uppercase)
-                } footer: {
-                    Text("Set your interests to get personalized weekend and vacation suggestions")
-                        .font(.system(size: 13))
-                        .foregroundColor(.secondary)
-                }
-
-                // App Settings Section
-                Section {
-                    // Theme Toggle
-                    ThemeToggleView()
-
-                    NavigationLink(destination: NotificationSettingsView()) {
-                        SettingsRow(
-                            icon: "bell.badge.fill",
-                            iconColor: DesignSystem.Colors.amber, // Amber
-                            title: "Notifications"
-                        )
-                    }
-
-                    NavigationLink(destination: PrivacySettingsView()) {
-                        SettingsRow(
-                            icon: "lock.shield.fill",
-                            iconColor: DesignSystem.Colors.emerald, // Green
-                            title: "Privacy & Security"
-                        )
-                    }
-
-                    NavigationLink(destination: AboutView()) {
-                        SettingsRow(
-                            icon: "info.circle.fill",
-                            iconColor: DesignSystem.Colors.violet, // Purple
-                            title: "About Clara"
-                        )
-                    }
-                } header: {
-                    Text("SETTINGS")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundColor(.secondary)
-                        .textCase(.uppercase)
-                }
-
-                // Data & Storage Section
-                Section {
-                    Button(action: {
-                        deduplicateEvents()
-                    }) {
-                        HStack(spacing: 12) {
-                            // Icon with background
-                            ZStack {
-                                RoundedRectangle(cornerRadius: 7)
-                                    .fill(Color.orange.opacity(0.1))
-                                    .frame(width: 30, height: 30)
-
-                                Image(systemName: "doc.on.doc.fill")
-                                    .font(.system(size: 16, weight: .medium))
-                                    .foregroundColor(.orange)
+                            Button(action: {
+                                deduplicateEvents()
+                            }) {
+                                SettingsRow(
+                                    icon: "doc.on.doc.fill",
+                                    iconColor: .orange,
+                                    title: "Remove Duplicate Events",
+                                    subtitle: "Clean up events synced from multiple sources",
+                                    showChevron: false,
+                                    isLoading: isDeduplicating
+                                )
+                                .calmCard(padding: 12)
                             }
+                            .buttonStyle(SmoothButtonStyle())
+                            .disabled(isDeduplicating)
 
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Remove Duplicate Events")
-                                    .font(.system(size: 17, weight: .regular))
-                                    .foregroundColor(.primary)
-
-                                Text("Clean up events synced from multiple sources")
-                                    .font(.system(size: 13, weight: .regular))
-                                    .foregroundColor(.secondary)
-                            }
-
-                            Spacer()
-
-                            if isDeduplicating {
-                                ProgressView()
-                                    .scaleEffect(0.8)
-                            }
+                            sectionFooter("Remove duplicate calendar events that may appear when syncing from multiple sources (Google, Microsoft, Apple)")
                         }
-                        .padding(.vertical, 4)
-                    }
-                    .disabled(isDeduplicating)
-                } header: {
-                    Text("DATA & STORAGE")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundColor(.secondary)
-                        .textCase(.uppercase)
-                } footer: {
-                    Text("Remove duplicate calendar events that may appear when syncing from multiple sources (Google, Microsoft, Apple)")
-                        .font(.system(size: 13))
-                        .foregroundColor(.secondary)
-                }
+                        .cardStagger(index: 5)
 
-                // Account Section
-                Section {
-                    Button(action: {
-                        authService.signOut()
-                    }) {
-                        HStack {
-                            Spacer()
-                            Text("Sign Out")
-                                .font(.system(size: 17, weight: .regular))
-                                .foregroundColor(.red)
-                            Spacer()
-                        }
-                    }
+                        // MARK: - Account Section (index 6)
+                        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                            sectionLabel("Account")
 
-                    Button(role: .destructive, action: {
-                        showDeleteAccountConfirmation = true
-                    }) {
-                        HStack {
-                            Spacer()
-                            if isDeletingAccount {
-                                ProgressView()
-                                    .scaleEffect(0.8)
-                                    .padding(.trailing, 8)
+                            VStack(spacing: 0) {
+                                Button(action: {
+                                    authService.signOut()
+                                }) {
+                                    HStack(spacing: DesignSystem.Spacing.md) {
+                                        ZStack {
+                                            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.sm)
+                                                .fill(DesignSystem.Colors.errorRed.opacity(0.12))
+                                                .frame(width: 34, height: 34)
+
+                                            Image(systemName: "rectangle.portrait.and.arrow.right")
+                                                .font(.system(size: DesignSystem.Components.iconLarge, weight: .medium))
+                                                .foregroundColor(DesignSystem.Colors.errorRed)
+                                        }
+
+                                        Text("Sign Out")
+                                            .font(DesignSystem.Typography.body)
+                                            .foregroundColor(DesignSystem.Colors.errorRed)
+
+                                        Spacer()
+                                    }
+                                    .padding(.vertical, 10)
+                                    .padding(.horizontal, 14)
+                                }
+                                .buttonStyle(PlainButtonStyle())
+
+                                Divider().padding(.leading, 50)
+
+                                Button(action: {
+                                    showDeleteAccountConfirmation = true
+                                }) {
+                                    HStack(spacing: DesignSystem.Spacing.md) {
+                                        ZStack {
+                                            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.sm)
+                                                .fill(DesignSystem.Colors.errorRed.opacity(0.12))
+                                                .frame(width: 34, height: 34)
+
+                                            Image(systemName: "trash.fill")
+                                                .font(.system(size: DesignSystem.Components.iconLarge, weight: .medium))
+                                                .foregroundColor(DesignSystem.Colors.errorRed)
+                                        }
+
+                                        Text("Delete Account")
+                                            .font(DesignSystem.Typography.body)
+                                            .foregroundColor(DesignSystem.Colors.errorRed)
+
+                                        Spacer()
+
+                                        if isDeletingAccount {
+                                            ProgressView()
+                                                .scaleEffect(0.8)
+                                        }
+                                    }
+                                    .padding(.vertical, 10)
+                                    .padding(.horizontal, 14)
+                                }
+                                .buttonStyle(PlainButtonStyle())
+                                .disabled(isDeletingAccount)
                             }
-                            Text("Delete Account")
-                                .font(.system(size: 17, weight: .regular))
-                            Spacer()
+                            .padding(.vertical, 4)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(
+                                RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg)
+                                    .fill(DesignSystem.Colors.cardBackground)
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg)
+                                    .stroke(DesignSystem.Colors.calmBorder, lineWidth: 0.5)
+                            )
+
+                            sectionFooter("Deleting your account will permanently remove all your data, including calendar events, health data, and preferences.")
                         }
+                        .cardStagger(index: 6)
                     }
-                    .disabled(isDeletingAccount)
-                } footer: {
-                    Text("Deleting your account will permanently remove all your data, including calendar events, health data, and preferences.")
-                        .font(.system(size: 13))
-                        .foregroundColor(.secondary)
+                    .padding(.horizontal, DesignSystem.Spacing.screenMargin)
+                    .padding(.top, DesignSystem.Spacing.md)
                 }
-                }
-                .safeAreaPadding(.bottom, 110) // Reserve space for tab bar
-                .contentMargins(.top, 0, for: .scrollContent)
+                .safeAreaPadding(.bottom, 110)
                 .navigationTitle("Settings")
                 .navigationBarTitleDisplayMode(.large)
                 .refreshable {
@@ -298,6 +360,22 @@ struct SettingsView: View {
                 }
             }
         }
+    }
+
+    // MARK: - Section Helpers
+
+    private func sectionLabel(_ text: String) -> some View {
+        Text(text)
+            .font(DesignSystem.Typography.footnote)
+            .foregroundColor(DesignSystem.Colors.tertiaryText)
+            .padding(.leading, DesignSystem.Spacing.xs)
+    }
+
+    private func sectionFooter(_ text: String) -> some View {
+        Text(text)
+            .font(DesignSystem.Typography.footnote)
+            .foregroundColor(DesignSystem.Colors.tertiaryText)
+            .padding(.leading, DesignSystem.Spacing.xs)
     }
 
     // MARK: - Account Deletion
@@ -359,7 +437,7 @@ struct SettingsView: View {
 struct ProfilePictureView: View {
     let profilePictureUrl: String?
     let size: CGFloat
-    
+
     var body: some View {
         Group {
             if let profilePictureUrl = profilePictureUrl,
@@ -378,22 +456,22 @@ struct ProfilePictureView: View {
                             .clipShape(Circle())
                             .overlay(
                                 Circle()
-                                    .stroke(Color(.systemGray5), lineWidth: 0.5)
+                                    .stroke(DesignSystem.Colors.calmBorder, lineWidth: 0.5)
                             )
                     case .failure:
                         Image(systemName: "person.circle.fill")
                             .font(.system(size: size))
-                            .foregroundColor(.blue)
+                            .foregroundColor(DesignSystem.Colors.primary)
                     @unknown default:
                         Image(systemName: "person.circle.fill")
                             .font(.system(size: size))
-                            .foregroundColor(.blue)
+                            .foregroundColor(DesignSystem.Colors.primary)
                     }
                 }
             } else {
                 Image(systemName: "person.circle.fill")
                     .font(.system(size: size))
-                    .foregroundColor(.blue)
+                    .foregroundColor(DesignSystem.Colors.primary)
             }
         }
     }
@@ -404,26 +482,42 @@ struct SettingsRow: View {
     let iconColor: Color
     let title: String
     var badge: Int? = nil
-    
+    var subtitle: String? = nil
+    var showChevron: Bool = true
+    var isLoading: Bool = false
+
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: DesignSystem.Spacing.md) {
             // Icon with background
             ZStack {
-                RoundedRectangle(cornerRadius: 7)
-                    .fill(iconColor.opacity(0.1))
-                    .frame(width: 30, height: 30)
-                
+                RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.sm)
+                    .fill(iconColor.opacity(0.12))
+                    .frame(width: 34, height: 34)
+
                 Image(systemName: icon)
-                    .font(.system(size: 16, weight: .medium))
+                    .font(.system(size: DesignSystem.Components.iconLarge, weight: .medium))
                     .foregroundColor(iconColor)
             }
-            
-            Text(title)
-                .font(.system(size: 17, weight: .regular))
-                .foregroundColor(.primary)
-            
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(DesignSystem.Typography.body)
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+
+                if let subtitle = subtitle {
+                    Text(subtitle)
+                        .font(DesignSystem.Typography.footnote)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                }
+            }
+
             Spacer()
-            
+
+            if isLoading {
+                ProgressView()
+                    .scaleEffect(0.8)
+            }
+
             // Badge if provided
             if let badge = badge, badge > 0 {
                 Text("\(badge)")
@@ -434,36 +528,40 @@ struct SettingsRow: View {
                     .background(iconColor)
                     .clipShape(Capsule())
             }
-            
-            // Note: NavigationLink automatically adds chevron, so we don't add one here
+
+            if showChevron {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(DesignSystem.Colors.tertiaryText)
+            }
         }
-        .padding(.vertical, 2)
+        .padding(.vertical, 6)
     }
 }
 
 // MARK: - Theme Toggle View
 struct ThemeToggleView: View {
     @EnvironmentObject var themeManager: ThemeManager
-    
+
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: DesignSystem.Spacing.md) {
             // Icon with background
             ZStack {
-                RoundedRectangle(cornerRadius: 7)
-                    .fill(Color.blue.opacity(0.1))
-                    .frame(width: 30, height: 30)
-                
+                RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.sm)
+                    .fill(DesignSystem.Colors.primary.opacity(0.12))
+                    .frame(width: 34, height: 34)
+
                 Image(systemName: "paintbrush.fill")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.blue)
+                    .font(.system(size: DesignSystem.Components.iconLarge, weight: .medium))
+                    .foregroundColor(DesignSystem.Colors.primary)
             }
-            
+
             Text("Appearance")
-                .font(.system(size: 17, weight: .regular))
-                .foregroundColor(.primary)
-            
+                .font(DesignSystem.Typography.body)
+                .foregroundColor(DesignSystem.Colors.primaryText)
+
             Spacer()
-            
+
             // Theme Picker
             Picker("Theme", selection: $themeManager.selectedTheme) {
                 ForEach(AppTheme.allCases, id: \.self) { theme in
@@ -475,9 +573,9 @@ struct ThemeToggleView: View {
                 }
             }
             .pickerStyle(.menu)
-            .tint(.blue)
+            .tint(DesignSystem.Colors.primary)
         }
-        .padding(.vertical, 2)
+        .padding(.vertical, 6)
     }
 }
 

@@ -135,6 +135,18 @@ struct InsightsRootView: View {
                 selectedSection = .daily
             }
         }
+        .onAppear {
+            // Fallback: if navigated here via deep link, check insightsSection
+            if let section = NavigationManager.shared.insightsSection {
+                previousSection = selectedSection
+                if section == "daily" { selectedSection = .daily }
+                else if section == "weekly" { selectedSection = .weekly }
+                else if section == "health" { selectedSection = .health }
+                else if section == "forecast" { selectedSection = .forecast }
+                else if section == "monthly" { selectedSection = .monthly }
+                NavigationManager.shared.insightsSection = nil
+            }
+        }
     }
 
     // MARK: - Header

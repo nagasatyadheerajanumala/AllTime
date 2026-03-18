@@ -23,7 +23,7 @@ struct ReminderListView: View {
                     }
                 } else {
                     ScrollView {
-                        VStack(spacing: 16) {
+                        LazyVStack(spacing: 16) {
                             // Status filter
                             StatusFilterView(selectedStatus: $viewModel.selectedStatus) { status in
                                 Task {

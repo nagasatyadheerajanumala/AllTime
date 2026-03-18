@@ -69,15 +69,19 @@ class EventDiscoveryViewModel: ObservableObject {
         isGenerating = false
     }
 
-    func acceptEvent(_ event: DiscoveredEvent) async {
+    /// Accept a discovered event. Returns the created calendar event ID if available.
+    @discardableResult
+    func acceptEvent(_ event: DiscoveredEvent) async -> Int64? {
         // Remove from local list immediately for responsive UI
         discoveredEvents.removeAll { $0.id == event.id }
         do {
-            try await apiService.acceptDiscoveredEvent(id: event.id)
+            let createdEventId = try await apiService.acceptDiscoveredEvent(id: event.id)
             // Notify calendar to refresh so the new event appears immediately
             NotificationCenter.default.post(name: NSNotification.Name("EventCreated"), object: nil)
+            return createdEventId
         } catch {
             print("Failed to accept event: \(error)")
+            return nil
         }
     }
 

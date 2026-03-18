@@ -71,7 +71,7 @@ struct InsightsDashboardView: View {
 
     private var loadedContent: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xl) {
+            LazyVStack(alignment: .leading, spacing: DesignSystem.Spacing.xl) {
                 // Week indicator (subtle)
                 weekIndicator
 
@@ -89,7 +89,7 @@ struct InsightsDashboardView: View {
                 }
 
                 // Bottom spacing for tab bar
-                Spacer(minLength: 100)
+                Color.clear.frame(height: 100)
             }
             .padding(.horizontal, DesignSystem.Spacing.screenMargin)
             .padding(.top, DesignSystem.Spacing.sm)

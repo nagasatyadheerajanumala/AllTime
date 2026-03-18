@@ -84,8 +84,12 @@ class HealthSyncService: ObservableObject {
 
             let startDate: Date
             if let lastSync = lastSyncDate {
-                // Sync from start of the last-synced day to capture any updated data
-                startDate = calendar.startOfDay(for: lastSync)
+                // Always sync at least the last 7 days to keep backend data fresh.
+                // This prevents stale/missing data when the initial full sync failed
+                // or HealthKit updated historical entries retroactively.
+                let lastSyncStart = calendar.startOfDay(for: lastSync)
+                let sevenDaysAgo = calendar.date(byAdding: .day, value: -7, to: todayStart) ?? todayStart
+                startDate = min(lastSyncStart, sevenDaysAgo)
             } else {
                 // First sync: sync last 30 days (to match capacity analysis period)
                 startDate = calendar.date(byAdding: .day, value: -30, to: todayStart) ?? todayStart
@@ -120,12 +124,25 @@ class HealthSyncService: ObservableObject {
                 // Don't advance lastSyncDate when nothing was fetched
                 return
             }
-            
+
+            // Filter out days where ALL health fields are null — sending empty records
+            // causes the backend to overwrite previously good data with nulls
+            let nonEmptyMetrics = metrics.filter { Self.hasAnyData($0) }
+
+            os_log("📊 Filtered: %d total → %d with data (skipping %d empty days)",
+                   log: Self.logger, type: .info,
+                   metrics.count, nonEmptyMetrics.count, metrics.count - nonEmptyMetrics.count)
+
             await cacheService.mergeHealthMetricsHistory(metrics)
 
-            // HealthMetricsService already returns DailyHealthMetrics, so use directly
-            // Submit to backend
-            let response = try await apiService.submitDailyHealthMetrics(metrics)
+            guard !nonEmptyMetrics.isEmpty else {
+                os_log("No non-empty metrics to sync after filtering", log: Self.logger, type: .info)
+                isSyncing = false
+                return
+            }
+
+            // Submit only non-empty metrics to backend
+            let response = try await apiService.submitDailyHealthMetrics(nonEmptyMetrics)
 
             os_log("Successfully synced %d records", log: Self.logger, type: .info, response.recordsUpserted)
 
@@ -138,9 +155,19 @@ class HealthSyncService: ObservableObject {
             }
 
             isSyncing = false
-            let syncTime = Date()  // Use actual sync time, not start of day
-            lastSyncDate = syncTime
-            userDefaults.set(Self.dateFormatter.string(from: syncTime), forKey: lastSyncKey)
+
+            // Only advance lastSyncDate if we got a reasonable amount of data.
+            // If HealthKit returned mostly empty (e.g., background context or auth issue),
+            // keep the old lastSyncDate so we retry those days on the next sync.
+            let dataRatio = metrics.count > 0 ? Double(nonEmptyMetrics.count) / Double(metrics.count) : 0
+            if dataRatio >= 0.3 || nonEmptyMetrics.count >= 3 {
+                let syncTime = Date()
+                lastSyncDate = syncTime
+                userDefaults.set(Self.dateFormatter.string(from: syncTime), forKey: lastSyncKey)
+                os_log("✅ Sync complete, advanced lastSyncDate (%.0f%% data coverage)", log: Self.logger, type: .info, dataRatio * 100)
+            } else {
+                os_log("⚠️ Sync had low data coverage (%.0f%%) — NOT advancing lastSyncDate to retry next time", log: Self.logger, type: .info, dataRatio * 100)
+            }
 
         } catch {
             os_log("Sync failed: %@", log: Self.logger, type: .error, error.localizedDescription)
@@ -190,12 +217,22 @@ class HealthSyncService: ObservableObject {
                 isSyncing = false
                 return
             }
-            
+
+            // Filter out days where ALL health fields are null
+            let nonEmptyMetrics = metrics.filter { Self.hasAnyData($0) }
+
+            os_log("📊 Filtered: %d total → %d with data", log: Self.logger, type: .info, metrics.count, nonEmptyMetrics.count)
+
             await cacheService.mergeHealthMetricsHistory(metrics)
 
-            // HealthMetricsService already returns DailyHealthMetrics, so use directly
-            // Submit to backend
-            let response = try await apiService.submitDailyHealthMetrics(metrics)
+            guard !nonEmptyMetrics.isEmpty else {
+                os_log("No non-empty metrics to sync after filtering", log: Self.logger, type: .info)
+                isSyncing = false
+                return
+            }
+
+            // Submit only non-empty metrics to backend
+            let response = try await apiService.submitDailyHealthMetrics(nonEmptyMetrics)
 
             os_log("Successfully synced %d records", log: Self.logger, type: .info, response.recordsUpserted)
 
@@ -219,6 +256,21 @@ class HealthSyncService: ObservableObject {
         }
     }
 
+
+    /// Returns true if the metric has at least one non-null health field
+    private static func hasAnyData(_ m: DailyHealthMetrics) -> Bool {
+        m.steps != nil || m.activeMinutes != nil || m.activeEnergyBurned != nil ||
+        m.sleepMinutes != nil || m.restingHeartRate != nil || m.hrv != nil ||
+        m.workoutsCount != nil || m.standMinutes != nil ||
+        m.walkingDistanceMeters != nil || m.runningDistanceMeters != nil ||
+        m.cyclingDistanceMeters != nil || m.swimmingDistanceMeters != nil ||
+        m.flightsClimbed != nil ||
+        m.bodyWeight != nil || m.bodyFatPercentage != nil || m.leanBodyMass != nil ||
+        m.bloodOxygenSaturation != nil || m.respiratoryRate != nil ||
+        m.bloodPressureSystolic != nil || m.bloodPressureDiastolic != nil ||
+        m.bloodGlucose != nil || m.vo2Max != nil || m.mindfulMinutes != nil ||
+        m.activeHeartRate != nil || m.maxHeartRate != nil || m.minHeartRate != nil
+    }
 
     private static let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()

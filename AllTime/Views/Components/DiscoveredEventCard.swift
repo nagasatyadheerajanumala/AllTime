@@ -4,9 +4,12 @@ struct DiscoveredEventCard: View {
     let event: DiscoveredEvent
     let onAccept: () -> Void
     let onDismiss: () -> Void
+    var onShare: (() -> Void)? = nil
 
+    @Environment(\.openURL) private var openURL
     @State private var offset: CGFloat = 0
     @State private var showDetail = false
+    @State private var isDraggingCard = false
 
     private let swipeThreshold: CGFloat = 100
     private let mintColor = Color(hex: "5EEAD4")
@@ -91,14 +94,24 @@ struct DiscoveredEventCard: View {
                     }
 
                     if let loc = event.locationName, !loc.isEmpty {
-                        HStack(spacing: 4) {
-                            Image(systemName: "mappin")
-                                .font(.caption2)
-                            Text(loc)
-                                .font(.caption)
-                                .lineLimit(1)
+                        Button {
+                            if let encoded = loc.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
+                               let url = URL(string: "maps://?q=\(encoded)") {
+                                openURL(url)
+                            }
+                        } label: {
+                            HStack(spacing: 4) {
+                                Image(systemName: "mappin")
+                                    .font(.caption2)
+                                Text(loc)
+                                    .font(.caption)
+                                    .lineLimit(1)
+                                Image(systemName: "arrow.up.forward")
+                                    .font(.system(size: 8, weight: .semibold))
+                            }
+                            .foregroundColor(.blue)
                         }
-                        .foregroundColor(.secondary)
+                        .buttonStyle(.plain)
                     }
                 }
                 .padding(.horizontal, 12)
@@ -113,12 +126,28 @@ struct DiscoveredEventCard: View {
                     .stroke(mintColor.opacity(0.2), lineWidth: 1)
             )
             .offset(x: offset)
-            .gesture(
-                DragGesture()
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 30)
                     .onChanged { value in
-                        offset = value.translation.width
+                        // Lock direction on first significant movement
+                        if !isDraggingCard {
+                            let horizontal = abs(value.translation.width)
+                            let vertical = abs(value.translation.height)
+                            // Only commit to swipe if clearly horizontal
+                            if horizontal > vertical * 1.5 {
+                                isDraggingCard = true
+                            }
+                        }
+                        if isDraggingCard {
+                            offset = value.translation.width
+                        }
                     }
                     .onEnded { value in
+                        defer { isDraggingCard = false }
+                        guard isDraggingCard else {
+                            withAnimation(.spring(response: 0.3)) { offset = 0 }
+                            return
+                        }
                         if value.translation.width > swipeThreshold {
                             // Swipe right → accept
                             withAnimation(.spring(response: 0.3)) {
@@ -145,6 +174,25 @@ struct DiscoveredEventCard: View {
             .onTapGesture {
                 showDetail = true
             }
+            .contextMenu {
+                if let onShare = onShare {
+                    Button {
+                        onShare()
+                    } label: {
+                        Label("Share Event", systemImage: "paperplane")
+                    }
+                }
+                Button {
+                    onAccept()
+                } label: {
+                    Label("Add to Calendar", systemImage: "plus")
+                }
+                Button(role: .destructive) {
+                    onDismiss()
+                } label: {
+                    Label("Skip", systemImage: "xmark")
+                }
+            }
         }
         .sheet(isPresented: $showDetail) {
             DiscoveredEventDetailSheet(event: event, onAccept: {
@@ -153,7 +201,7 @@ struct DiscoveredEventCard: View {
             }, onDismiss: {
                 showDetail = false
                 onDismiss()
-            })
+            }, onShare: onShare)
         }
     }
 }
@@ -164,7 +212,9 @@ struct DiscoveredEventDetailSheet: View {
     let event: DiscoveredEvent
     let onAccept: () -> Void
     let onDismiss: () -> Void
+    var onShare: (() -> Void)? = nil
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var openURL
 
     private let mintColor = Color(hex: "5EEAD4")
 
@@ -209,9 +259,17 @@ struct DiscoveredEventDetailSheet: View {
 
                     // Location
                     if let loc = event.locationName, !loc.isEmpty {
-                        Label(loc, systemImage: "mappin.and.ellipse")
+                        Button {
+                            openMaps(query: loc)
+                        } label: {
+                            HStack(spacing: 4) {
+                                Label(loc, systemImage: "mappin.and.ellipse")
+                                Image(systemName: "arrow.up.forward")
+                                    .font(.caption2)
+                            }
                             .font(.subheadline)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(.blue)
+                        }
                     }
 
                     // Description
@@ -222,7 +280,42 @@ struct DiscoveredEventDetailSheet: View {
                             .padding(.top, 4)
                     }
 
+                    // Search Online
+                    Button {
+                        openSearch(title: event.title, location: event.locationName, date: event.formattedDate)
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "safari")
+                            Text("Search Online")
+                        }
+                        .font(.subheadline)
+                        .foregroundColor(.blue)
+                    }
+                    .padding(.top, 4)
+
                     Spacer(minLength: 24)
+
+                    // Share button
+                    if let onShare = onShare {
+                        Button {
+                            dismiss()
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                onShare()
+                            }
+                        } label: {
+                            HStack(spacing: 6) {
+                                Image(systemName: "paperplane.fill")
+                                    .font(.system(size: 14))
+                                Text("Share with Connection")
+                                    .fontWeight(.semibold)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .background(DesignSystem.Colors.violet)
+                            .foregroundColor(.white)
+                            .cornerRadius(12)
+                        }
+                    }
 
                     // Action buttons
                     HStack(spacing: 16) {
@@ -262,5 +355,18 @@ struct DiscoveredEventDetailSheet: View {
                 }
             }
         }
+    }
+
+    private func openMaps(query: String) {
+        guard let encoded = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
+              let url = URL(string: "maps://?q=\(encoded)") else { return }
+        openURL(url)
+    }
+
+    private func openSearch(title: String, location: String?, date: String) {
+        let query = [title, location, date].compactMap { $0 }.joined(separator: " ")
+        guard let encoded = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
+              let url = URL(string: "https://www.google.com/search?q=\(encoded)") else { return }
+        openURL(url)
     }
 }

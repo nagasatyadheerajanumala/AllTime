@@ -12,7 +12,7 @@ struct WeeklyInsightsView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
+            LazyVStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
                 if forceNextWeekMode {
                     // Forecast mode: Show Next Week header + content only
                     forecastHeader
@@ -92,11 +92,11 @@ struct WeeklyInsightsView: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Next Week")
+                    Text(forecastTitle)
                         .font(.title2.weight(.bold))
                         .foregroundColor(DesignSystem.Colors.primaryText)
 
-                    Text(nextWeekDateRange)
+                    Text(forecastDateRange)
                         .font(.subheadline)
                         .foregroundColor(DesignSystem.Colors.secondaryText)
                 }
@@ -135,20 +135,41 @@ struct WeeklyInsightsView: View {
         )
     }
 
-    private var nextWeekDateRange: String {
+    /// Mon-Thu: show this week; Fri-Sun: show next week (matches backend logic)
+    private var isCurrentWeekForecast: Bool {
+        let weekday = Calendar.current.component(.weekday, from: Date()) // 1=Sun, 2=Mon, ..., 7=Sat
+        return weekday >= 2 && weekday <= 5 // Mon-Thu
+    }
+
+    private var forecastTitle: String {
+        isCurrentWeekForecast ? "This Week" : "Next Week"
+    }
+
+    private var forecastDateRange: String {
         var calendar = Calendar(identifier: .iso8601)
         calendar.firstWeekday = 2
         let today = Date()
         let formatter = DateFormatter()
         formatter.dateFormat = "MMM d"
 
-        guard let nextWeekDate = calendar.date(byAdding: .weekOfYear, value: 1, to: today),
-              let nextMonday = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: nextWeekDate)),
-              let nextSunday = calendar.date(byAdding: .day, value: 6, to: nextMonday) else {
-            return "Next Week"
+        let targetMonday: Date?
+        if isCurrentWeekForecast {
+            // This week's Monday
+            let comps = calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: today)
+            targetMonday = calendar.date(from: comps)
+        } else {
+            // Next week's Monday
+            guard let nextWeekDate = calendar.date(byAdding: .weekOfYear, value: 1, to: today) else { return "Next Week" }
+            let comps = calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: nextWeekDate)
+            targetMonday = calendar.date(from: comps)
         }
 
-        return "\(formatter.string(from: nextMonday)) - \(formatter.string(from: nextSunday))"
+        guard let monday = targetMonday,
+              let sunday = calendar.date(byAdding: .day, value: 6, to: monday) else {
+            return isCurrentWeekForecast ? "This Week" : "Next Week"
+        }
+
+        return "\(formatter.string(from: monday)) - \(formatter.string(from: sunday))"
     }
 
     // MARK: - Report Card Content

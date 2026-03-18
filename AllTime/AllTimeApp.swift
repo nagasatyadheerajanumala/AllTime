@@ -15,6 +15,7 @@ import os.log
 struct AllTimeApp: App {
     // AppDelegate adapter to handle APNs device token registration
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+    @Environment(\.scenePhase) private var scenePhase
 
     @State private var authService = AuthenticationService()
     @State private var userManager = UserManager()
@@ -194,6 +195,15 @@ struct AllTimeApp: App {
                     _ = MorningBriefingNotificationService.shared
                     _ = EveningSummaryNotificationService.shared
                     print("🔔 AllTimeApp: Morning and Evening notification services initialized")
+
+                    // Clear badge on launch
+                    UNUserNotificationCenter.current().setBadgeCount(0)
+                }
+                .onChange(of: scenePhase) { _, newPhase in
+                    if newPhase == .active {
+                        // Clear badge whenever app comes to foreground
+                        UNUserNotificationCenter.current().setBadgeCount(0)
+                    }
                 }
         }
     }
